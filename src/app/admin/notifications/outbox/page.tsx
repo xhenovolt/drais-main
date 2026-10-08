@@ -9,8 +9,9 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { Inbox, Loader2, RefreshCw, Search, X, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Inbox, Loader2, RefreshCw, Search, X, ChevronLeft, ChevronRight, Info, SendHorizontal } from 'lucide-react';
 import FilterAccordion, { FilterField, filterInputCls, type FilterChip } from '@/components/ui/FilterAccordion';
+import { showToast } from '@/lib/toast';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -71,6 +72,33 @@ export default function SmsOutboxPage() {
   const { data, mutate, isLoading } = useSWR<Payload & { error?: string }>(`/api/admin/notifications/outbox?${qs}`, fetcher, { refreshInterval: 15_000 });
   const rows = data?.rows ?? [];
   const counts = data?.statusCounts ?? {};
+  const resendableCount = (counts.failed ?? 0) + (counts.expired ?? 0);
+
+  const [resending, setResending] = useState(false);
+  const handleResendFailed = async () => {
+    if (resendableCount === 0) return;
+    const label = type ? (TYPE_LABEL[type] ?? type) : 'every type';
+    if (!window.confirm(`Resend ${resendableCount.toLocaleString()} failed/expired message(s) (${label}, ${range === 'custom' ? `${from || '…'} → ${to || '…'}` : `last ${Number(range) >= 24 ? `${Number(range) / 24}d` : `${range}h`}`})? This sends real SMS again.`)) return;
+    setResending(true);
+    try {
+      const body: Record<string, unknown> = {};
+      if (type) body.type = type;
+      if (channel) body.channel = channel;
+      if (range === 'custom') { if (from) body.date_from = from; if (to) body.date_to = to; }
+      else body.since_hours = range;
+      const r = await fetch('/api/admin/notifications/outbox/resend', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!r.ok) { showToast('error', j.error || 'Resend failed'); return; }
+      showToast('success', j.requeued > 0 ? `Re-queued ${j.requeued.toLocaleString()} message(s) for resending` : 'Nothing matched these filters');
+      mutate();
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Resend failed');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const chips: FilterChip[] = [];
   if (type) chips.push({ key: 'type', label: `Type: ${TYPE_LABEL[type] ?? type}`, onRemove: () => setType('') });
@@ -85,9 +113,20 @@ export default function SmsOutboxPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><Inbox className="w-6 h-6 text-indigo-600" /> SMS Outbox</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Every message DRAIS created, and how far it got. Refreshes every 15 seconds.</p>
         </div>
-        <button onClick={() => mutate()} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200">
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleResendFailed}
+            disabled={resending || resendableCount === 0}
+            title={resendableCount === 0 ? 'No failed or expired messages match the current filters' : `Resend ${resendableCount} failed/expired message(s) matching the current filters`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-100 dark:hover:bg-red-900/30"
+          >
+            {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizontal className="w-4 h-4" />}
+            Resend failed{resendableCount > 0 ? ` (${resendableCount})` : ''}
+          </button>
+          <button onClick={() => mutate()} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2" role="group" aria-label="Filter by status">

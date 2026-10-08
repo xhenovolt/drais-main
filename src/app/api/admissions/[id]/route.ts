@@ -3,6 +3,46 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { canTransition, ADMISSION_STATUSES, type AdmissionStatus } from '@/lib/admissions/mode';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 36, same §25a pattern as the
+ * sibling list/create route.
+ */
+async function offlineGetAdmission(schoolId: number, id: string) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const admission = db.prepare(`
+    SELECT a.*,
+           c.name  AS desired_class_name,
+           st.name AS desired_stream_name,
+           t.name  AS desired_term_name,
+           ay.name AS desired_year_name
+      FROM admissions a
+      LEFT JOIN classes        c  ON c.id  = a.desired_class_id
+      LEFT JOIN streams        st ON st.id = a.desired_stream_id
+      LEFT JOIN terms          t  ON t.id  = a.desired_term_id
+      LEFT JOIN academic_years ay ON ay.id = a.desired_academic_year_id
+     WHERE a.id = ? AND a.school_id = ? AND a.deleted_at IS NULL
+  `).get(id, schoolId);
+  if (!admission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const docs = db.prepare(`
+    SELECT id, document_type, file_url, uploaded_at, verified
+      FROM admission_documents WHERE admission_id = ? AND school_id = ? ORDER BY uploaded_at DESC
+  `).all(id, schoolId);
+
+  const audit = db.prepare(`
+    SELECT aa.id, aa.from_status, aa.to_status, aa.reason, aa.created_at,
+           aa.actor_user_id, u.first_name AS actor_first, u.last_name AS actor_last
+      FROM admission_audit aa
+      LEFT JOIN users u ON u.id = aa.actor_user_id
+     WHERE aa.admission_id = ? AND aa.school_id = ?
+     ORDER BY aa.created_at DESC, aa.id DESC
+  `).all(id, schoolId);
+
+  return NextResponse.json({ success: true, data: admission, documents: docs, audit });
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
@@ -12,6 +52,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
 
   const { id } = await params;
+  if (getDbMode() === 'local-sqlite') {
+    return offlineGetAdmission(session.schoolId, id);
+  }
+
   const conn = await getConnection();
   try {
     const [rows]: any = await conn.execute(
@@ -52,6 +96,70 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } finally { await conn.end(); }
 }
 
+async function offlinePatchAdmission(session: { schoolId: number; userId: number; isSuperAdmin: boolean }, id: string, body: any) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const schoolId = session.schoolId;
+
+  const current = db.prepare(`SELECT * FROM admissions WHERE id = ? AND school_id = ? AND deleted_at IS NULL`).get(id, schoolId) as any;
+  if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (body.status && body.status !== current.status) {
+    const target = body.status as AdmissionStatus;
+    if (!(ADMISSION_STATUSES as readonly string[]).includes(target)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+    if (!canTransition(current.status, target)) {
+      return NextResponse.json({ error: `Cannot transition from '${current.status}' to '${target}'` }, { status: 400 });
+    }
+    const needsPerm =
+      (target === 'review')                       ? 'admissions.applicant.review'
+      : (target === 'approved' || target === 'rejected') ? 'admissions.applicant.approve'
+      : 'admissions.applicant.update';
+    try {
+      await requirePermission(session.userId, schoolId, needsPerm, session.isSuperAdmin);
+    } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
+
+    const now = new Date().toISOString();
+    const setFields: string[] = ['status = ?'];
+    const setParams: any[]    = [target];
+    if (target === 'review') { setFields.push('reviewed_by = ?', 'reviewed_at = ?'); setParams.push(session.userId, now); }
+    if (target === 'approved') { setFields.push('approved_by = ?', 'approved_at = ?'); setParams.push(session.userId, now); }
+    if (target === 'rejected') { setFields.push('rejection_reason = ?'); setParams.push(body.reason ?? null); }
+
+    const txn = db.transaction(() => {
+      db.prepare(`UPDATE admissions SET ${setFields.join(', ')} WHERE id = ? AND school_id = ?`).run(...setParams, id, schoolId);
+      db.prepare(`
+        INSERT INTO admission_audit (admission_id, school_id, from_status, to_status, actor_user_id, reason, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(id, schoolId, current.status, target, session.userId, body.reason ?? null, now);
+    });
+    txn();
+    return NextResponse.json({ success: true, status: target });
+  }
+
+  try {
+    await requirePermission(session.userId, schoolId, 'admissions.applicant.update', session.isSuperAdmin);
+  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
+
+  const allowed = [
+    'first_name','last_name','other_name','gender','date_of_birth',
+    'nationality_id','district_id','applicant_phone','applicant_email',
+    'guardian_name','guardian_phone','guardian_email','guardian_relation',
+    'desired_class_id','desired_stream_id','desired_term_id','desired_academic_year_id',
+    'previous_school','notes',
+  ];
+  const setFields: string[] = [];
+  const setParams: any[]    = [];
+  for (const k of allowed) {
+    if (k in body) { setFields.push(`${k} = ?`); setParams.push(body[k]); }
+  }
+  if (setFields.length === 0) return NextResponse.json({ success: true });
+
+  db.prepare(`UPDATE admissions SET ${setFields.join(', ')} WHERE id = ? AND school_id = ?`).run(...setParams, id, schoolId);
+  return NextResponse.json({ success: true });
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionSchoolId(req);
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -59,6 +167,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlinePatchAdmission(session, id, body);
+  }
 
   const conn = await getConnection();
   try {
@@ -159,6 +271,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
 
   const { id } = await params;
+
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const now = new Date().toISOString();
+    const res = db.prepare(
+      `UPDATE admissions SET deleted_at = ? WHERE id = ? AND school_id = ? AND deleted_at IS NULL`
+    ).run(now, id, session.schoolId);
+    if (res.changes === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ success: true });
+  }
+
   const conn = await getConnection();
   try {
     const [r]: any = await conn.execute(

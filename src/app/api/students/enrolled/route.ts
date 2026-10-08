@@ -50,19 +50,17 @@ async function offlineGetEnrolled(schoolId: number, sp: URLSearchParams, req: Ne
   }
   const where = 'WHERE ' + conditions.join(' AND ');
 
-  // The local enrollments table only models a SUBSET of the real online
-  // table's 26 columns (confirmed by reading schema.ts) — study_mode_id,
-  // program_id, and joined_at don't exist locally at all. Not something to
-  // invent; these come back NULL, same honest-gap reasoning as the Arabic
-  // name fields above.
+  // study_mode_id/curriculum_id/program_id/joined_at added to the local
+  // enrollments table by sub-effort 32's migration — real columns now,
+  // not placeholders.
   const rawRows = db.prepare(`
     SELECT
       e.id AS enrollment_id, e.student_id, e.class_id, e.stream_id, e.academic_year_id, e.term_id,
-      NULL AS study_mode_id, NULL AS program_id, e.status AS enrollment_status,
+      e.study_mode_id, e.program_id, e.status AS enrollment_status,
       COALESCE(e.enrollment_type, 'new') AS enrollment_type,
-      e.created_at AS joined_at,
+      COALESCE(e.joined_at, e.created_at) AS joined_at,
       COALESCE(e.enrollment_date, s.admission_date) AS enrollment_date,
-      s.id AS id, s.person_id, s.admission_no, s.status AS student_status, s.admission_date, NULL AS residency_status,
+      s.id AS id, s.person_id, s.admission_no, s.status AS student_status, s.admission_date, s.residency_status,
       p.first_name, p.last_name, p.other_name,
       NULL AS first_name_ar, NULL AS last_name_ar, NULL AS other_name_ar, NULL AS full_name_ar,
       p.gender, p.date_of_birth, p.photo_url, p.phone, p.email,
@@ -70,8 +68,8 @@ async function offlineGetEnrolled(schoolId: number, sp: URLSearchParams, req: Ne
       st.name AS stream_name, st.name_ar AS stream_name_ar,
       ay.name AS academic_year_name,
       t.name AS term_name, t.name_ar AS term_name_ar,
-      NULL AS study_mode_name,
-      NULL AS program_name, NULL AS program_name_ar
+      sm.name AS study_mode_name,
+      pr.name AS program_name, pr.name_ar AS program_name_ar
     FROM enrollments e
     JOIN students s ON e.student_id = s.id
     LEFT JOIN people p ON s.person_id = p.id
@@ -79,6 +77,8 @@ async function offlineGetEnrolled(schoolId: number, sp: URLSearchParams, req: Ne
     LEFT JOIN streams st ON e.stream_id = st.id
     LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
     LEFT JOIN terms t ON e.term_id = t.id
+    LEFT JOIN study_modes sm ON e.study_mode_id = sm.id
+    LEFT JOIN programs pr ON e.program_id = pr.id
     ${where}
     ORDER BY p.first_name ASC, p.last_name ASC
     LIMIT 10001

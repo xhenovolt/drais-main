@@ -41,9 +41,11 @@ export function isLocalAllowed(): boolean {
   return process.env.DRAIS_ALLOW_LOCAL === 'true';
 }
 
-// Runtime override set by the mode-switch API (desktop/local only). Null = fall
-// back to the env default. Module-level state is correct for the single-process
-// desktop build; on serverless it's irrelevant because local is never allowed.
+// Runtime override set by the mode-switch API (desktop/local only). Next.js
+// builds each API route into a separate bundle, so a module-level variable set
+// by /api/db-mode is not visible to /api/auth/login or /api/auth/me. Keep the
+// override in process.env too: it is shared by all route bundles in the same
+// desktop server process. Null = fall back to the configured default.
 let runtimeMode: DbMode | null = null;
 
 /** The env-configured default mode (only honoured when local is allowed).
@@ -75,6 +77,10 @@ export function setDbMode(mode: DbMode): DbMode {
     throw new Error('Local database mode is not permitted in this environment.');
   }
   runtimeMode = mode;
+  // Cross-route shared runtime state. A per-bundle module variable alone lets
+  // the mode badge report the new mode while auth and data routes continue
+  // using the startup DRAIS_DB_MODE value.
+  process.env.DRAIS_DB_MODE = mode;
   return runtimeMode;
 }
 

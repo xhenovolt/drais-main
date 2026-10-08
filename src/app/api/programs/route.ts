@@ -65,11 +65,44 @@ export async function GET(req: NextRequest) {
   }
 }
 
+async function offlineCreateProgram(schoolId: number, b: any) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const displayName = (b.display_name ?? b.name ?? '').toString().trim();
+  if (!displayName) return NextResponse.json({ error: 'display_name is required' }, { status: 400 });
+
+  const id = db.transaction(() => {
+    if (b.is_default) db.prepare(`UPDATE programs SET is_default = 0 WHERE school_id = ?`).run(schoolId);
+    const r = db.prepare(`
+      INSERT INTO programs (school_id, name, display_name, code, curriculum_body, eligibility, is_default, description, is_active, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `).run(
+      schoolId,
+      (b.code || displayName).toString().trim(),
+      displayName,
+      (b.code ?? '').toString().trim() || null,
+      (b.curriculum_body ?? '').toString().trim() || null,
+      (b.eligibility ?? 'all_learners').toString().trim(),
+      b.is_default ? 1 : 0,
+      (b.description ?? '').toString().trim() || null,
+      new Date().toISOString(),
+    );
+    return Number(r.lastInsertRowid);
+  })();
+  return NextResponse.json({ success: true, data: { id } }, { status: 201 });
+}
+
 export async function POST(req: NextRequest) {
+  const session1 = await getSessionSchoolId(req);
+  if (!session1) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (getDbMode() === 'local-sqlite') {
+    const b1 = await req.json();
+    return offlineCreateProgram(session1.schoolId, b1);
+  }
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const session = session1;
     const schoolId = session.schoolId;
     const b = await req.json();
     const displayName = (b.display_name ?? b.name ?? '').toString().trim();
@@ -98,11 +131,41 @@ export async function POST(req: NextRequest) {
   }
 }
 
+function offlinePatchProgram(schoolId: number, b: any) {
+  const id = Number(b.id);
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+  const sets: string[] = []; const params: any[] = [];
+  for (const [k, col] of Object.entries({ display_name: 'display_name', curriculum_body: 'curriculum_body', eligibility: 'eligibility', code: 'code' })) {
+    if (b[k] !== undefined) { sets.push(`${col} = ?`); params.push(b[k] === '' ? null : b[k]); }
+  }
+  if (b.is_default !== undefined) { sets.push('is_default = ?'); params.push(b.is_default ? 1 : 0); }
+  if (b.is_active !== undefined) { sets.push('is_active = ?'); params.push(b.is_active ? 1 : 0); }
+  if (!sets.length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+
+  return (async () => {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const txn = db.transaction(() => {
+      if (b.is_default === true) db.prepare(`UPDATE programs SET is_default = 0 WHERE school_id = ?`).run(schoolId);
+      db.prepare(`UPDATE programs SET ${sets.join(', ')} WHERE id = ? AND school_id = ?`).run(...params, id, schoolId);
+    });
+    txn();
+    return NextResponse.json({ success: true });
+  })();
+}
+
 export async function PATCH(req: NextRequest) {
+  const session1 = await getSessionSchoolId(req);
+  if (!session1) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (getDbMode() === 'local-sqlite') {
+    const b1 = await req.json();
+    return offlinePatchProgram(session1.schoolId, b1);
+  }
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const session = session1;
     const schoolId = session.schoolId;
     const b = await req.json();
     const id = Number(b.id);
@@ -129,14 +192,21 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const session1 = await getSessionSchoolId(req);
+  if (!session1) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const id1 = req.nextUrl.searchParams.get('id');
+  if (!id1 || !/^\d+$/.test(id1)) return NextResponse.json({ error: 'Valid id is required' }, { status: 400 });
+
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    getSqliteDb().prepare(`UPDATE programs SET is_active = 0 WHERE id = ? AND school_id = ?`).run(id1, session1.schoolId);
+    return NextResponse.json({ success: true });
+  }
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(req);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    const id = req.nextUrl.searchParams.get('id');
-    if (!id || !/^\d+$/.test(id)) return NextResponse.json({ error: 'Valid id is required' }, { status: 400 });
     // Soft delete = archive (keeps historical enrollment references intact).
-    await conn.execute(`UPDATE programs SET is_active = 0 WHERE id = ? AND school_id = ?`, [id, session.schoolId]);
+    await conn.execute(`UPDATE programs SET is_active = 0 WHERE id = ? AND school_id = ?`, [id1, session1.schoolId]);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error archiving program:', error);

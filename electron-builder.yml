@@ -61,6 +61,17 @@ extraResources:
     to: .
     filter:
       - ".env.production"
+  # Optional, encrypted .drs file(s) selected interactively by `npm run
+  # prepare:drs-bundle` (wired into dist:win, which always runs it first).
+  # ALWAYS exists by the time electron-builder runs — the script writes an
+  # empty manifest.json when nothing was selected/available, specifically
+  # so this entry never fails a build for having nothing to bundle. See
+  # src/lib/desktop/drs-bundle.ts and src/app/setup/local-sqlite/page.tsx
+  # for the install-time half.
+  - from: build/drs-bundle
+    to: drs-bundle
+    filter:
+      - "**/*"
 
 # Native deps: DRAIS uses bcryptjs (pure JS), mysql2 (pure JS),
 # formidable (pure JS), node-zklib (pure JS). There are NO native modules,

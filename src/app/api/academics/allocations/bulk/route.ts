@@ -3,6 +3,8 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { validateAllocationInput as validateInput, validateOwnership } from '@/lib/allocation-validation';
 import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import { offlineBulkAllocate } from './offline';
 
 export async function POST(req: Request) {
   let connection;
@@ -11,6 +13,10 @@ export async function POST(req: Request) {
     if (!session) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
+    // See src/app/api/academics/allocations/route.ts's own comment — same
+    // dead-import gap, fixed alongside the offline work in this directory.
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const body = await req.json();
     const allocations = Array.isArray(body) ? body : body.allocations;
@@ -21,6 +27,10 @@ export async function POST(req: Request) {
 
     if (allocations.length > 100) {
       throw new Error('Maximum 100 allocations per bulk operation.');
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineBulkAllocate(session.schoolId, allocations);
     }
 
     connection = await getConnection();

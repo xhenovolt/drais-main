@@ -9,6 +9,13 @@ import {
 } from '@/lib/allocation-validation';
 import { resolveTeacherInitials } from '@/lib/reports/canonical-report-engine';
 import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import {
+  offlineGetAllocations,
+  offlineCreateAllocation,
+  offlineUpdateAllocation,
+  offlineDeleteAllocation,
+} from './offline';
 
 // ============================================================================
 // GET: Fetch all allocations with optional filters
@@ -21,6 +28,12 @@ export async function GET(req: Request) {
     if (!session) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
+    // Every sibling allocations route (teachers/, warnings/) already gates on
+    // this; this route and bulk/ imported checkModule but never called it —
+    // a real module-gating gap, fixed here alongside the offline work since
+    // it's the same file being touched for an unrelated-but-adjacent reason.
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const { searchParams } = new URL(req.url);
     const classId   = searchParams.get('class_id');
@@ -28,10 +41,13 @@ export async function GET(req: Request) {
     const teacherId = searchParams.get('teacher_id');
     const asOfTerm  = searchParams.get('as_of_term');
     const asOfDate  = searchParams.get('as_of_date');
+    const showHistory = searchParams.get('history') === '1';
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetAllocations(session.schoolId, { classId, subjectId, teacherId, asOfTerm, asOfDate, showHistory });
+    }
 
     connection = await getConnection();
-
-    const showHistory = searchParams.get('history') === '1';
 
     const whereClauses: string[] = ['c.school_id = ?'];
     const params: any[] = [session.schoolId];
@@ -145,8 +161,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const body = await req.json();
     const { class_id, subject_id, teacher_id, custom_initials } = validateInput(body);
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineCreateAllocation(session.schoolId, { class_id, subject_id, teacher_id, custom_initials });
+    }
 
     connection = await getConnection();
     await validateOwnership(connection, session.schoolId, { class_id, subject_id, teacher_id });
@@ -232,11 +255,18 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const body = await req.json();
     const { id, class_id, subject_id, teacher_id, custom_initials } = validateInput(body);
 
     if (!id) {
       throw new Error('Allocation ID is required.');
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineUpdateAllocation(session.schoolId, { id, class_id, subject_id, teacher_id, custom_initials });
     }
 
     connection = await getConnection();
@@ -318,11 +348,18 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       throw new Error('Allocation ID is required.');
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineDeleteAllocation(session.schoolId, Number(id));
     }
 
     connection = await getConnection();

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T07:08:33.761Z",
-  "last_commit": "c47ea0b8c5131c54378753f0083f6d1c2786ab4b",
+  "generated_at": "2026-10-08T13:26:56.744Z",
+  "last_commit": "be7d01b9a1277779401d5041943586bff7df92cf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8656,7 +8656,254 @@
         }
       ],
       "commit": "c47ea0b8c5"
+    },
+    {
+      "version": "2.50.2",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 32 - Enroll Student works offline, enrollments schema migration",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 32 - Enroll Student works offline, enrollments schema migration"
+        }
+      ],
+      "commit": "8203bd11a6"
+    },
+    {
+      "version": "2.50.3",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 33 - Documents works offline, lean-export policy fix",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 33 - Documents works offline, lean-export policy fix"
+        }
+      ],
+      "commit": "576320f8a0"
+    },
+    {
+      "version": "2.50.4",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 34 - Duplicates works offline, including live purge",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 34 - Duplicates works offline, including live purge"
+        }
+      ],
+      "commit": "affc144eb4"
+    },
+    {
+      "version": "2.50.5",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Remove dead student_history query that 500'd every history detail view",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Remove dead student_history query that 500'd every history detail view"
+        }
+      ],
+      "commit": "c284684067"
+    },
+    {
+      "version": "2.50.6",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 36 - Admissions Pipeline works offline, fix RBAC for all local-sqlite routes",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 36 - Admissions Pipeline works offline, fix RBAC for all local-sqlite routes"
+        }
+      ],
+      "commit": "f71a958da3"
+    },
+    {
+      "version": "2.50.7",
+      "date": "2026-10-05",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 37 - ID Cards works offline, correcting an earlier wrong \"blocked\" call",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 37 - ID Cards works offline, correcting an earlier wrong \"blocked\" call"
+        }
+      ],
+      "commit": "8d93531d07"
+    },
+    {
+      "version": "2.50.8",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Vercel build failure + widespread archiveEntity bug; feat: Phase 7 sub-effort 38",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Vercel build failure + widespread archiveEntity bug; feat: Phase 7 sub-effort 38"
+        }
+      ],
+      "commit": "4519d2e0e6"
+    },
+    {
+      "version": "2.50.9",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Local-sqlite login lands on /dashboard like every other mode",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Local-sqlite login lands on /dashboard like every other mode"
+        }
+      ],
+      "commit": "294d67fab9"
+    },
+    {
+      "version": "2.50.10",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 39 - the Dashboard works offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 39 - the Dashboard works offline"
+        }
+      ],
+      "commit": "0bcb4c407b"
+    },
+    {
+      "version": "2.50.11",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 40 - Streams/Subjects work offline, fix a real duplicate-route bug",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 40 - Streams/Subjects work offline, fix a real duplicate-route bug"
+        }
+      ],
+      "commit": "5d3a6e2fea"
+    },
+    {
+      "version": "2.50.12",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 41 - DRAIS can accept a real .drs file after installing the .exe",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 41 - DRAIS can accept a real .drs file after installing the .exe"
+        }
+      ],
+      "commit": "1b3b6d8002"
+    },
+    {
+      "version": "2.50.13",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 42 - zero-click first boot for local-sqlite",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 42 - zero-click first boot for local-sqlite"
+        }
+      ],
+      "commit": "d1fbef4c7e"
+    },
+    {
+      "version": "2.50.14",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 43 - Teacher Allocation offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 43 - Teacher Allocation offline"
+        }
+      ],
+      "commit": "e02409ec32"
+    },
+    {
+      "version": "2.50.15",
+      "date": "2026-10-06",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 44 - Timetable offline + fix a live streams bug",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 44 - Timetable offline + fix a live streams bug"
+        }
+      ],
+      "commit": "ebcf16116c"
+    },
+    {
+      "version": "2.50.16",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Local-sqlite was never actually reachable from a real .exe",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Local-sqlite was never actually reachable from a real .exe"
+        }
+      ],
+      "commit": "531a35730b"
+    },
+    {
+      "version": "2.50.17",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Phase 7 sub-effort 46 - Academic Years + Terms offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 7 sub-effort 46 - Academic Years + Terms offline"
+        }
+      ],
+      "commit": "3b739f48d6"
+    },
+    {
+      "version": "2.50.18",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Credit reported-once boarders as present same-day",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Credit reported-once boarders as present same-day"
+        }
+      ],
+      "commit": "0a17001c54"
+    },
+    {
+      "version": "2.50.19",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Keep the outbox drain alive past the heartbeat response",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Keep the outbox drain alive past the heartbeat response"
+        }
+      ],
+      "commit": "73960bcbcb"
+    },
+    {
+      "version": "2.50.20",
+      "date": "2026-10-07",
+      "release_type": "patch",
+      "title": "Manual resend for failed/expired outbox messages",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Manual resend for failed/expired outbox messages"
+        }
+      ],
+      "commit": "84fab46e76"
     }
   ],
-  "app_version": "2.50.2"
+  "app_version": "2.50.22"
 }

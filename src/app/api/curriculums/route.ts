@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/** local-sqlite branch — Phase 7 sub-effort 32, same §25a pattern.
+ *  curriculums now has school_id (real, confirmed — see this file's own
+ *  header on the migration that added it) so this is genuinely school-
+ *  scoped, not a global-reference read. */
+async function offlineGetCurriculums(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const rows = getSqliteDb().prepare(
+    'SELECT id, code, name FROM curriculums WHERE school_id = ? AND deleted_at IS NULL ORDER BY name'
+  ).all(schoolId);
+  return NextResponse.json({ data: rows });
+}
 
 /**
  * Curriculums API — PER-SCHOOL from this commit.
@@ -41,6 +54,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (getDbMode() === 'local-sqlite') return offlineGetCurriculums(session.schoolId);
 
     await ensureCurriculumSchoolColumn();
     // Scoped: the legacy global row (school_id NULL) is deliberately excluded,
@@ -66,6 +80,20 @@ export async function POST(req: NextRequest) {
     const name = (body.name ?? '').toString().trim();
     if (!code || !name) return NextResponse.json({ error: 'code & name required' }, { status: 400 });
 
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      const db = getSqliteDb();
+      try {
+        db.prepare('INSERT INTO curriculums (code, name, school_id) VALUES (?, ?, ?)').run(code, name, session.schoolId);
+      } catch (e: any) {
+        if (String(e?.code).startsWith('SQLITE_CONSTRAINT')) {
+          return NextResponse.json({ error: 'Curriculum with that code already exists' }, { status: 409 });
+        }
+        throw e;
+      }
+      return NextResponse.json({ success: true }, { status: 201 });
+    }
+
     await ensureCurriculumSchoolColumn();
     await query('INSERT INTO curriculums (code, name, school_id) VALUES (?, ?, ?)',
       [code, name, session.schoolId]);
@@ -90,6 +118,12 @@ export async function PUT(req: NextRequest) {
     const name = (body.name ?? '').toString().trim();
     if (!id || !code || !name) return NextResponse.json({ error: 'id, code & name required' }, { status: 400 });
 
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      getSqliteDb().prepare('UPDATE curriculums SET code = ?, name = ? WHERE id = ?').run(code, name, id);
+      return NextResponse.json({ success: true });
+    }
+
     await query('UPDATE curriculums SET code = ?, name = ? WHERE id = ?', [code, name, id]);
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -106,6 +140,12 @@ export async function DELETE(req: NextRequest) {
     const body = await req.json();
     const id = Number(body.id);
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      getSqliteDb().prepare('DELETE FROM curriculums WHERE id = ? AND school_id = ?').run(id, session.schoolId);
+      return NextResponse.json({ success: true });
+    }
 
     await ensureCurriculumSchoolColumn();
     // Tenant-scoped: a school can only ever delete its own.

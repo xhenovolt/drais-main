@@ -14,6 +14,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import '@/lib/cloudinary'; // configures the SDK from server env
 import { requireCardsAccess, isResponse } from '@/lib/idcards/access';
 import { logAudit } from '@/lib/audit';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export const runtime = 'nodejs';
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -32,6 +33,12 @@ function sniff(b: Buffer): 'png' | 'jpeg' | 'webp' | 'pdf' | 'psd' | 'ole' | nul
 export async function POST(req: NextRequest) {
   const s = await requireCardsAccess(req);
   if (isResponse(s)) return s;
+
+  if (getDbMode() === 'local-sqlite') {
+    return NextResponse.json({
+      error: 'Uploading card artwork needs an internet connection (files are stored on Cloudinary) — not available offline.',
+    }, { status: 503 });
+  }
 
   let form: FormData;
   try { form = await req.formData(); } catch { return NextResponse.json({ error: 'Expected a multipart upload' }, { status: 400 }); }

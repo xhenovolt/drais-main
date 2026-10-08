@@ -86,6 +86,11 @@ export const SCHOOL_PUBLIC_ROUTES: readonly string[] = [
   '/forbidden',
   '/server-error',
 
+  // First-run local-sqlite setup (Phase 7 sub-effort 41) — reached from the
+  // login screen's connection picker, BEFORE any session exists. Installs
+  // the real local database the rest of the app then logs into.
+  '/setup',
+
   // Print targets enforce auth via the API calls they make. A redirect here
   // would break puppeteer mid-capture, so they must not be session-gated at
   // the shell level — a bad cookie surfaces as an inline error instead.

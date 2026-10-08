@@ -18,7 +18,11 @@
  * evaluated status column has no such blind spot — it can't drift from the
  * canonical model because it IS the canonical model.)
  *
- *   present = people with a punch-backed present/half_day/early_leave verdict today
+ *   present = people with a punch-backed present/half_day/early_leave verdict today,
+ *             PLUS (students only) boarders already "reported" this term under a
+ *             REPORTED_ONCE boarding policy who have no row yet for today — see
+ *             reportedOnceBoardersAwaitingButPresent() below for why that credit has
+ *             to be computed live here rather than waiting for attendance_records.
  *   late    = people with a late verdict today
  *   absent  = active roster total − present − late (never-yet-verdicted
  *             people show up here as "not yet arrived", which for a day
@@ -28,6 +32,8 @@
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { getDbMode } from '@/lib/db/db-mode';
+import { getBoardingPolicy, modeForDate, getPeriodFor } from '@/lib/attendance/boarding-policy';
 
 export interface RoleCounts { total: number; present: number; late: number; absent: number; }
 export interface DashboardAttendanceCounts {
@@ -42,10 +48,47 @@ function localTodayStr(offsetMin: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39. Without this, every caller
+ * of getDashboardAttendanceCounts (the dashboard, and anything else that
+ * reuses it) would silently get all-zero roster totals offline too — not
+ * from a deliberate policy decision, but because this function's OWN
+ * try/catch (below) already swallows query()'s local-sqlite rejection
+ * into "present: 0, late: 0" / "total: 0". That's a safe degrade but a
+ * wrong one for student/staff ROSTER counts, which are real local data,
+ * not an out-of-scope table. present/late/absent stay honestly 0 here
+ * too — `attendance_records` is LARGE_EXCLUDED from the lean export
+ * (same fact every attendance-reading page in this phase already lives
+ * with), so there is no local data to compute them from regardless.
+ */
+async function offlineRoleTotals(db: any, schoolId: number) {
+  const studentTotal = (db.prepare(`
+    SELECT COUNT(*) AS total FROM students s
+     WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
+       AND EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.deleted_at IS NULL)
+  `).get(schoolId) as any)?.total ?? 0;
+  const staffTotal = (db.prepare(`
+    SELECT COUNT(*) AS total FROM staff WHERE school_id = ? AND status = 'active' AND deleted_at IS NULL
+  `).get(schoolId) as any)?.total ?? 0;
+  return { studentTotal: Number(studentTotal), staffTotal: Number(staffTotal) };
+}
+
 export async function getDashboardAttendanceCounts(
   schoolId: number,
   dateStr?: string,
 ): Promise<DashboardAttendanceCounts> {
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const date = dateStr || new Date().toISOString().slice(0, 10);
+    const { studentTotal, staffTotal } = await offlineRoleTotals(db, schoolId);
+    return {
+      date,
+      students: { total: studentTotal, present: 0, late: 0, absent: studentTotal },
+      staff: { total: staffTotal, present: 0, late: 0, absent: staffTotal },
+    };
+  }
+
   const policy = await resolveTimePolicy(schoolId);
   const offsetMin = policy.offsetMinutes;
   const date = dateStr || localTodayStr(offsetMin);
@@ -70,7 +113,56 @@ export async function getDashboardAttendanceCounts(
     try { const r = (await query(sql, [schoolId])) as any[]; return Number(r[0]?.total || 0); } catch { return 0; }
   };
 
-  const [stu, stf, studentTotal, staffTotal] = await Promise.all([
+  /**
+   * Live credit for "reported once" boarders with no punch yet TODAY.
+   *
+   * finalizeDay() (finalize-day.ts) is what normally turns "boarder already
+   * reported this term, no punch today" into a real present/policy-derived
+   * row in attendance_records — but it deliberately refuses to run for
+   * today before school hours are over (or outside the hourly opportunistic
+   * sweep), so it can be HOURS before that materialization happens. Until
+   * then, a REPORTED_ONCE boarder with no row yet falls straight into this
+   * function's `absent = total - present - late` bucket, even though
+   * they're sitting on campus right now, physically present — confirmed
+   * live at Nakifuma (REPORTED_ONCE since 2026-09-26, 183 boarders out of
+   * 505 total): the dashboard showed 36% present mid-day because most of
+   * those 183 simply had no row yet, not because they were actually out.
+   *
+   * This mirrors the exact fact engine.ts's own real-time verdict
+   * computation already uses (hasReported() against boarding_reports for
+   * the current reporting period) — just evaluated live, at READ time, for
+   * rows that haven't been finalized yet, instead of waiting for the batch.
+   * Never double-counts: only students with NO attendance_records row for
+   * `date` are considered, so anyone already materialized (by a real punch
+   * or a prior finalization run) is already correctly counted by the
+   * roleCounts() query above and skipped here.
+   */
+  const reportedOnceBoardersAwaitingButPresent = async (): Promise<number> => {
+    try {
+      const policy = await getBoardingPolicy(schoolId);
+      if (modeForDate(policy, date) !== 'REPORTED_ONCE') return 0;
+      const period = await getPeriodFor(schoolId, policy, date);
+      const rows = (await query(
+        `SELECT COUNT(*) AS n
+           FROM students s
+           JOIN boarding_reports br
+             ON br.school_id = s.school_id AND br.student_id = s.id AND br.period_key = ?
+          WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.status = 'active'
+            AND COALESCE(NULLIF(s.residency_status, ''), 'day') = 'boarding'
+            AND NOT EXISTS (
+              SELECT 1 FROM attendance_records ar
+               WHERE ar.school_id = s.school_id AND ar.person_id = s.person_id
+                 AND ar.role_type = 'student' AND ar.attendance_date = ?
+            )`,
+        [period.key, schoolId, date],
+      )) as Array<{ n: number | string }>;
+      return Number(rows[0]?.n || 0);
+    } catch {
+      return 0;
+    }
+  };
+
+  const [stu, stf, studentTotal, staffTotal, reportedOnceCredit] = await Promise.all([
     roleCounts('student'),
     roleCounts('staff'),
     // Population = active student roster, not "has an active enrollment row".
@@ -87,11 +179,14 @@ export async function getDashboardAttendanceCounts(
           WHERE s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
             AND EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.deleted_at IS NULL)`),
     num(`SELECT COUNT(*) AS total FROM staff WHERE school_id = ? AND status = 'active' AND deleted_at IS NULL`),
+    reportedOnceBoardersAwaitingButPresent(),
   ]);
+
+  const studentPresent = stu.present + reportedOnceCredit;
 
   return {
     date,
-    students: { total: studentTotal, present: stu.present, late: stu.late, absent: Math.max(0, studentTotal - stu.present - stu.late) },
+    students: { total: studentTotal, present: studentPresent, late: stu.late, absent: Math.max(0, studentTotal - studentPresent - stu.late) },
     staff: { total: staffTotal, present: stf.present, late: stf.late, absent: Math.max(0, staffTotal - stf.present - stf.late) },
   };
 }

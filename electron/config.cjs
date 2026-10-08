@@ -22,6 +22,14 @@ const KNOWN_KEYS = [
   // Hybrid online/local DB mode (Track A) — required for the desktop app to
   // offer + connect to a local MySQL (XAMPP) database.
   'DRAIS_ALLOW_LOCAL', 'DRAIS_DB_MODE',
+  // DRAIS_SQLITE_PATH was missing here (Phase 7 sub-effort 41) — the
+  // in-app setup flow (src/app/api/desktop/import-drs) persists it via
+  // applyConfig() into THIS exact file, but without it in KNOWN_KEYS this
+  // loader silently never read it back on the next launch. Harmless when
+  // the install used the default path (defaultSqlitePath()'s own fallback
+  // lands on the same value anyway), but a real gap for anyone who sets a
+  // custom path.
+  'DRAIS_SQLITE_PATH',
   'LOCAL_MYSQL_HOST', 'LOCAL_MYSQL_PORT', 'LOCAL_MYSQL_USER', 'LOCAL_MYSQL_PASSWORD', 'LOCAL_MYSQL_DATABASE',
   'DEVICE_CLAIM_SECRET',
   'DATABASE_MODE', 'APP_MODE', 'DRAIS_PORT', 'NODE_ENV',

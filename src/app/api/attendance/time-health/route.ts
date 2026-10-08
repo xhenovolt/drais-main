@@ -21,6 +21,7 @@ import {
 } from '@/lib/attendance/time-intelligence/engine';
 import { fmtMinute } from '@/lib/attendance/time-intelligence/confidence';
 import { assessFirstArrivalHealth } from '@/lib/attendance/time-intelligence/firstArrivalHealth';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,21 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   try {
     const params = new URL(req.url).searchParams;
+
+    // local-sqlite branch — Phase 7 sub-effort 39. The whole Time
+    // Intelligence Engine analyzes historical device punch data
+    // (attendance_raw_events/zk_attendance_logs), both LARGE_EXCLUDED
+    // from the lean export — always empty offline. Only the ?banner=1
+    // path is branched, since it's the only one the dashboard widget
+    // (ClockHealthBadges) actually calls; the punches/sample/analyze/
+    // overview reads and the entire correction/relearn POST workflow are
+    // a deliberately deferred gap, same shape as sub-effort 38's Trash-
+    // system deferral — this subsystem is substantial enough to deserve
+    // its own dedicated sub-effort, not a bolt-on here.
+    if (getDbMode() === 'local-sqlite' && params.get('banner')) {
+      return NextResponse.json({ success: true, anomaly: null, devices: [] });
+    }
+
     if (params.get('punches')) {
       const deviceSn = params.get('device_sn');
       const date = params.get('date');

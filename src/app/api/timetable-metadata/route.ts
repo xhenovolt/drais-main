@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import { offlineMetadata } from './offline';
 
 /**
  * Returns all dropdown data needed by the timetable UI:
@@ -11,6 +14,14 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // No route under /api/timetable-* gated on the academics module at all
+    // (confirmed by grep across all four route files) — a real gap, same
+    // genre as the one sub-effort 43 fixed on the Allocations routes.
+    // Fixed here across all three branched routes alongside the offline work.
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
+    if (getDbMode() === 'local-sqlite') return offlineMetadata(session.schoolId);
 
     connection = await getConnection();
     const schoolId = session.schoolId;

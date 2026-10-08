@@ -2,9 +2,87 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 35, same §25a pattern. Unlike
+ * every prior Students sub-page, `class_results` is LARGE_EXCLUDED from
+ * the lean export (sub-effort 23) — the same fact /students/[id]/
+ * previous-enrollment's branch already documents — so `academic_results`
+ * is always `[]`/zero-averages offline, in every mode (grid summary, list,
+ * and per-student detail). That's not a gap this branch introduces, it's
+ * the same real limitation every result-reading page in this phase has
+ * inherited; a real student with no exam data looks identical. What IS
+ * real and DOES work offline: `enrollment_history` (translated the same
+ * way previous-enrollment's branch does) and the student list/search used
+ * to build the grid. `student_history` mirrors the online fix above —
+ * always `[]`, since that query was dead everywhere, not just offline.
+ */
+async function offlineGetHistory(schoolId: number, searchParams: URLSearchParams) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const studentId = searchParams.get('student_id');
+
+  if (!studentId) {
+    const search = searchParams.get('q');
+    const view = searchParams.get('view') === 'list' ? 'list' : 'grid';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(view === 'list' ? 200 : 100, Math.max(1, parseInt(searchParams.get('limit') || (view === 'list' ? '50' : '24'), 10) || 24));
+    const offset = (page - 1) * limit;
+
+    if (view === 'list') {
+      // class_results is LARGE_EXCLUDED — always empty offline, same as online
+      // would be for a school with zero results recorded.
+      return NextResponse.json({ success: true, data: { academic_results: [] }, pagination: { page, limit, total: 0, pages: 1 } });
+    }
+
+    const where = `WHERE s.school_id = ? AND s.deleted_at IS NULL${search ? ' AND (p.first_name LIKE ? OR p.last_name LIKE ?)' : ''}`;
+    const params: any[] = search ? [schoolId, `%${search}%`, `%${search}%`] : [schoolId];
+    const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM students s JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL ${where}`).get(...params) as any;
+    const total = Number(totalRow?.total || 0);
+    const summaryRows = db.prepare(`
+      SELECT s.id AS student_id, p.first_name, p.last_name, s.admission_no,
+        0 AS result_count, NULL AS average_score, NULL AS last_result_at
+      FROM students s JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
+      ${where}
+      ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset);
+
+    return NextResponse.json({
+      success: true,
+      data: { student_summaries: summaryRows },
+      pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
+    });
+  }
+
+  const enrollmentRows = db.prepare(`
+    SELECT
+      e.id AS enrollment_id, e.student_id,
+      c.id AS class_id, c.name AS class_name, c.class_level AS class_level,
+      st.name AS stream_name,
+      ay.id AS academic_year_id, ay.name AS academic_year_name,
+      t.name AS term_name,
+      e.status AS enrollment_status, e.enrollment_date, e.end_date, e.end_reason
+    FROM enrollments e
+    JOIN students s ON e.student_id = s.id AND s.deleted_at IS NULL
+    LEFT JOIN classes c ON e.class_id = c.id
+    LEFT JOIN streams st ON e.stream_id = st.id
+    LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
+    LEFT JOIN terms t ON e.term_id = t.id
+    WHERE s.school_id = ? AND e.student_id = ?
+    ORDER BY ay.start_date DESC, e.id DESC
+  `).all(schoolId, studentId);
+
+  return NextResponse.json({
+    success: true,
+    data: { academic_results: [], student_history: [], enrollment_history: enrollmentRows },
+  });
+}
+
 export async function GET(req: NextRequest) {
   let connection;
-  
+
   try {
     // Enforce multi-tenant isolation: derive school_id from session
     const session = await getSessionSchoolId(req);
@@ -16,6 +94,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     // school_id derived from session below
     const studentId = searchParams.get('student_id');
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetHistory(schoolId, searchParams);
+    }
 
     connection = await getConnection();
 
@@ -157,33 +239,19 @@ export async function GET(req: NextRequest) {
 
     const [academicRows] = await connection.execute(sql, params);
 
-    // Get student history details
-    let historySQL = `
-      SELECT 
-        sh.id,
-        sh.student_id,
-        sh.no_of_juzus_memorized,
-        sh.previous_school,
-        sh.previous_school_year,
-        sh.previous_class_theology,
-        sh.previous_class_secular,
-        p.first_name,
-        p.last_name,
-        s.admission_no
-      FROM student_history sh
-      JOIN students s ON sh.student_id = s.id AND s.deleted_at IS NULL
-      JOIN people p ON s.person_id = p.id AND p.deleted_at IS NULL
-      WHERE s.school_id = ?
-    `;
-
-    const historyParams = [schoolId];
-
-    if (studentId) {
-      historySQL += ' AND sh.student_id = ?';
-      historyParams.push(parseInt(studentId, 10));
-    }
-
-    const [historyRows] = await connection.execute(historySQL, historyParams);
+    // `student_history` here is dead: this used to query
+    // no_of_juzus_memorized/previous_school/previous_school_year/
+    // previous_class_theology/previous_class_secular, none of which exist
+    // on the real `student_history` table (confirmed live against TiDB —
+    // that table is actually an action/details/performed_by audit log, a
+    // different feature entirely) or anywhere else in the schema. The
+    // frontend destructures `student_history` but never renders it. This
+    // previously 500'd the WHOLE response (including the academic_results
+    // and enrollment_history the page DOES use) any time a studentId was
+    // passed. Fixed by dropping the broken query rather than guessing at
+    // columns that were never migrated — returns an empty array, which is
+    // what every caller already effectively got (via the 500) anyway.
+    const historyRows: unknown[] = [];
 
     // Get enrollment history (for lifecycle tracking)
     let enrollmentSQL = `

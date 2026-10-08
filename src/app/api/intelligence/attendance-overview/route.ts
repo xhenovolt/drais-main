@@ -3,10 +3,52 @@ import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export const runtime = 'nodejs';
 
 function n(v: unknown): number { return Number(v) || 0; }
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39, same §25a pattern. This
+ * whole feature is built on `zk_attendance_logs`, which is LARGE_EXCLUDED
+ * from the lean export (sub-effort 23) — always zero rows offline. Rather
+ * than invent a degraded shape, this reuses the exact "no scans yet"
+ * response the online route already returns for a real school with
+ * trackedDays===0, since that's genuinely what this data looks like
+ * offline. total_enrolled is real, from local enrollments/students.
+ */
+async function offlineAttendanceOverview(schoolId: number) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const enrRow = db.prepare(`
+    SELECT COUNT(DISTINCT e.student_id) AS total_enrolled
+    FROM enrollments e JOIN students s ON s.id = e.student_id
+    WHERE s.school_id = ? AND e.status = 'active' AND s.deleted_at IS NULL
+  `).get(schoolId) as any;
+  const totalEnrolled = n(enrRow?.total_enrolled);
+
+  return NextResponse.json({
+    ok: true,
+    data: {
+      tracked_days: 0,
+      total_enrolled: totalEnrolled,
+      total_scanned_students: 0,
+      never_scanned: totalEnrolled,
+      avg_daily_attendance: 0,
+      scan_rate_pct: 0,
+      today_scans: 0,
+      week_avg: 0,
+      prev_week_avg: 0,
+      week_trend: 'no_data',
+      week_delta_pct: null,
+      first_day: null,
+      last_day: null,
+      data_source: 'zk_biometric',
+      data_note: 'Biometric scan history is not available offline.',
+    },
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/intelligence/attendance-overview
@@ -18,6 +60,10 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const moduleGuard = await checkModule(session.schoolId, 'intelligence'); if (moduleGuard) return moduleGuard;
   const { schoolId } = session;
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlineAttendanceOverview(schoolId);
+  }
 
   let connection;
   try {

@@ -31,6 +31,7 @@
  */
 
 import { getConnection } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export interface Allocation {
   id: number;
@@ -126,12 +127,62 @@ async function buildAllocationQuery(
 }
 
 /**
+ * local-sqlite branch — Phase 7 sub-effort 40, same §25a pattern. This is
+ * the SINGLE SOURCE OF TRUTH this file's own header describes — branching
+ * it once here covers every consumer (Subjects' allocation summary,
+ * Teacher Allocation, Allocation History, and Timetable, whenever those
+ * get to it) instead of re-deriving the same join per page. `class_subjects`
+ * already exists locally with real provisioned data (Phase 7 sub-effort
+ * 17 added it alongside subjects/terms/academic_years/departments).
+ */
+async function offlineGetAllocations(schoolId: number, filters?: AllocationFilter): Promise<Allocation[]> {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  let sql = `
+    SELECT
+      cs.id, cs.class_id, cs.subject_id, cs.teacher_id, cs.custom_initials,
+      c.name AS class_name, sub.name AS subject_name, sub.code AS subject_code,
+      sub.subject_type, sub.academic_type,
+      UPPER(SUBSTR(p.first_name,1,1)) || UPPER(SUBSTR(p.last_name,1,1)) AS auto_generated_initials,
+      p.first_name || ' ' || p.last_name AS teacher_name
+    FROM class_subjects cs
+    JOIN classes c ON cs.class_id = c.id
+    JOIN subjects sub ON cs.subject_id = sub.id
+    LEFT JOIN staff s ON cs.teacher_id = s.id
+    LEFT JOIN people p ON s.person_id = p.id
+    WHERE c.school_id = ? AND sub.school_id = ?
+  `;
+  const params: any[] = [schoolId, schoolId];
+  if (filters?.classId) { sql += ' AND cs.class_id = ?'; params.push(filters.classId); }
+  if (filters?.subjectId) { sql += ' AND cs.subject_id = ?'; params.push(filters.subjectId); }
+  if (filters?.teacherId) { sql += ' AND cs.teacher_id = ?'; params.push(filters.teacherId); }
+  sql += ' ORDER BY c.name ASC, sub.name ASC';
+  if (filters?.limit) {
+    sql += ' LIMIT ?'; params.push(filters.limit);
+    if (filters?.offset) { sql += ' OFFSET ?'; params.push(filters.offset); }
+  }
+  const rows = db.prepare(sql).all(...params) as any[];
+  return rows.map(r => ({
+    id: r.id, class_id: r.class_id, subject_id: r.subject_id, teacher_id: r.teacher_id,
+    class_name: r.class_name, subject_name: r.subject_name, subject_code: r.subject_code,
+    subject_type: r.subject_type, academic_type: r.academic_type,
+    teacher_name: r.teacher_name || 'Unassigned',
+    custom_initials: r.custom_initials,
+    auto_generated_initials: r.auto_generated_initials || '',
+    display_initials: r.custom_initials || r.auto_generated_initials || '',
+  }));
+}
+
+/**
  * Fetch all allocations with optional filters
  */
 export async function getAllocations(
   schoolId: number,
   filters?: AllocationFilter
 ): Promise<Allocation[]> {
+  if (getDbMode() === 'local-sqlite') {
+    return offlineGetAllocations(schoolId, filters);
+  }
   const connection = await getConnection();
   try {
     const { sql, params } = await buildAllocationQuery(schoolId, filters);

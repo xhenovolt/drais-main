@@ -18,7 +18,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
 import cloudinary from '@/lib/cloudinary';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 33, same §25a pattern. The shell
+ * schema already had `documents`/`document_types` (auto-generated from the
+ * real online schema, sub-effort 23) — the actual gap was the LEAN EXPORT
+ * never copying `document_types` rows: it has no school_id and wasn't in
+ * GLOBAL_REFERENCE_TABLES, so it fell into "schema-only (ambiguous
+ * ownership)" and got zero rows regardless of school. Fixed in
+ * export-drs.ts. `documents` itself needed no fix — it has a real
+ * school_id column, so the export's generic scopeFor() already copies it
+ * like any other school-scoped table. Checked both online and the local
+ * file for real Albayan data before writing this: both are genuinely
+ * empty (0 documents, 0 document_types) — this feature hasn't been seeded
+ * in production yet, not an export gap specific to this school.
+ *
+ * POST (upload) is NOT branched — uploads go through Cloudinary, which
+ * needs the same internet connection "offline" is explicitly simulating
+ * the absence of. Falls through to a clear, honest error rather than
+ * attempting a local write with no real file storage behind it.
+ */
+async function offlineGetDocuments(schoolId: number, studentId: string | null) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+
+  let sql = `
+    SELECT
+      d.id,
+      d.owner_id as student_id,
+      d.document_type_id,
+      d.file_name,
+      d.file_url,
+      d.mime_type,
+      d.file_size,
+      d.issued_by,
+      d.issue_date,
+      d.notes,
+      d.uploaded_at,
+      dt.code as document_type_code,
+      dt.label as document_type_label,
+      p.first_name,
+      p.last_name,
+      s.admission_no,
+      cl.name as class_name
+    FROM documents d
+    JOIN document_types dt ON d.document_type_id = dt.id
+    JOIN students s ON d.owner_id = s.id
+    JOIN people p ON s.person_id = p.id
+    LEFT JOIN enrollments e ON s.id = e.student_id AND e.status = 'active'
+    LEFT JOIN classes cl ON e.class_id = cl.id
+    WHERE d.school_id = ? AND d.owner_type = 'student' AND d.deleted_at IS NULL
+  `;
+  const params: (number | string)[] = [schoolId];
+  if (studentId) {
+    sql += ' AND d.owner_id = ?';
+    params.push(parseInt(studentId, 10));
+  }
+  sql += " ORDER BY COALESCE(p.last_name, '') ASC, COALESCE(p.first_name, '') ASC, d.uploaded_at DESC";
+
+  const rows = db.prepare(sql).all(...params);
+  return NextResponse.json({ success: true, data: rows });
+}
 
 export async function GET(req: NextRequest) {
   let connection;
@@ -31,6 +93,10 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get('student_id');
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineGetDocuments(schoolId, studentId);
+    }
 
     connection = await getConnection();
 
@@ -124,6 +190,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
     const schoolId = session.schoolId;
+
+    if (getDbMode() === 'local-sqlite') {
+      return NextResponse.json({
+        success: false,
+        error: 'Document upload needs an internet connection (files are stored on Cloudinary) — not available offline.',
+      }, { status: 503 });
+    }
 
     const formData = await req.formData();
     // formData.get() takes ONE arg. The previous code passed `10` as a

@@ -41,7 +41,7 @@ async function offlineGetAdmitted(schoolId: number, searchParams: URLSearchParam
   // below is therefore always true offline; an honest existing gap
   // (bilingual name support), not something this sub-effort invents.
   const rows = db.prepare(`
-    SELECT s.id, s.person_id, s.admission_no, s.status, s.admission_date, NULL AS residency_status,
+    SELECT s.id, s.person_id, s.admission_no, s.status, s.admission_date, s.residency_status,
            p.first_name, p.last_name, p.other_name,
            NULL AS first_name_ar, NULL AS last_name_ar, NULL AS other_name_ar, NULL AS full_name_ar,
            p.gender, p.date_of_birth, p.photo_url, p.phone, p.email

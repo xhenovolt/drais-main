@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 40, same §25a pattern. Local
+ * staff has no denormalized first_name/last_name (name only resolves via
+ * person_id -> people, same fact /api/classes' own branch documents), so
+ * `teacher_name` is omitted rather than guessed at — none of the three
+ * response shapes below actually use it for anything but display, and
+ * SubjectsManager's allocation panel only reads class/subject names.
+ */
+function offlineListAllocations(db: any, schoolId: number, subjectId: string | null, classId: string | null) {
+  if (subjectId) {
+    const allocations = db.prepare(`
+      SELECT cs.id, cs.class_id, cs.subject_id, c.name AS class_name, c.class_level, sub.name AS subject_name, cs.teacher_id
+      FROM class_subjects cs
+      JOIN classes c ON cs.class_id = c.id
+      JOIN subjects sub ON cs.subject_id = sub.id
+      WHERE sub.school_id = ? AND cs.subject_id = ?
+      ORDER BY c.name
+    `).all(schoolId, subjectId);
+    const allClasses = db.prepare(`SELECT id, name, class_level FROM classes WHERE school_id = ? AND deleted_at IS NULL ORDER BY name`).all(schoolId);
+    return NextResponse.json({ success: true, data: { allocations, allClasses, totalAllocations: allocations.length } });
+  }
+  if (classId) {
+    const subjects = db.prepare(`
+      SELECT cs.id, cs.class_id, cs.subject_id, c.name AS class_name, sub.name AS subject_name, sub.subject_type, cs.teacher_id
+      FROM class_subjects cs
+      JOIN classes c ON cs.class_id = c.id
+      JOIN subjects sub ON cs.subject_id = sub.id
+      WHERE c.school_id = ? AND cs.class_id = ?
+      ORDER BY sub.name
+    `).all(schoolId, classId);
+    return NextResponse.json({ success: true, data: { subjects } });
+  }
+  const allAllocations = db.prepare(`
+    SELECT cs.id, cs.class_id, cs.subject_id, c.name AS class_name, sub.name AS subject_name, cs.teacher_id
+    FROM class_subjects cs
+    JOIN classes c ON cs.class_id = c.id
+    JOIN subjects sub ON cs.subject_id = sub.id
+    WHERE c.school_id = ? AND sub.school_id = ?
+    ORDER BY c.name, sub.name
+  `).all(schoolId, schoolId);
+  return NextResponse.json({ success: true, data: { allocations: allAllocations } });
+}
 
 /**
  * GET /api/class-subjects?subject_id=X
@@ -16,6 +60,11 @@ export async function GET(req: NextRequest) {
 
     const subjectId = req.nextUrl.searchParams.get('subject_id');
     const classId = req.nextUrl.searchParams.get('class_id');
+
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      return offlineListAllocations(getSqliteDb(), schoolId, subjectId, classId);
+    }
 
     connection = await getConnection();
 
@@ -114,6 +163,30 @@ export async function GET(req: NextRequest) {
   }
 }
 
+async function offlineSetAllocations(schoolId: number, subject_id: number, class_ids: number[], teacher_id: number | null) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+
+  const subject = db.prepare(`SELECT id FROM subjects WHERE id = ? AND school_id = ?`).get(subject_id, schoolId);
+  if (!subject) return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
+
+  if (class_ids.length > 0) {
+    const placeholders = class_ids.map(() => '?').join(',');
+    const classCheck = db.prepare(`SELECT id FROM classes WHERE school_id = ? AND id IN (${placeholders}) AND deleted_at IS NULL`).all(schoolId, ...class_ids) as any[];
+    if (classCheck.length !== class_ids.length) {
+      return NextResponse.json({ error: 'Some classes not found' }, { status: 400 });
+    }
+  }
+
+  db.transaction(() => {
+    db.prepare(`DELETE FROM class_subjects WHERE subject_id = ?`).run(subject_id);
+    const insert = db.prepare(`INSERT INTO class_subjects (class_id, subject_id, teacher_id) VALUES (?, ?, ?)`);
+    for (const classId of class_ids) insert.run(classId, subject_id, teacher_id || null);
+  })();
+
+  return NextResponse.json({ success: true, message: `Subject allocated to ${class_ids.length} classes`, data: { allocations_created: class_ids.length } });
+}
+
 /**
  * POST /api/class-subjects
  * Creates or updates subject-class allocations
@@ -135,6 +208,10 @@ export async function POST(req: NextRequest) {
 
     if (!Array.isArray(class_ids)) {
       return NextResponse.json({ error: 'class_ids must be an array' }, { status: 400 });
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      return offlineSetAllocations(schoolId, subject_id, class_ids, teacher_id ?? null);
     }
 
     connection = await getConnection();
@@ -219,6 +296,18 @@ export async function DELETE(req: NextRequest) {
 
     if (!classId || !subjectId) {
       return NextResponse.json({ error: 'class_id and subject_id are required' }, { status: 400 });
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+      const db = getSqliteDb();
+      const allocation = db.prepare(`
+        SELECT cs.id FROM class_subjects cs JOIN subjects s ON cs.subject_id = s.id
+        WHERE cs.class_id = ? AND cs.subject_id = ? AND s.school_id = ?
+      `).get(classId, subjectId, schoolId) as any;
+      if (!allocation) return NextResponse.json({ error: 'Allocation not found' }, { status: 404 });
+      db.prepare(`DELETE FROM class_subjects WHERE class_id = ? AND subject_id = ?`).run(classId, subjectId);
+      return NextResponse.json({ success: true, message: 'Allocation removed successfully' });
     }
 
     connection = await getConnection();

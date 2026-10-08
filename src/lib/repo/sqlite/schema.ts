@@ -104,6 +104,17 @@ CREATE TABLE IF NOT EXISTS students (
   delete_reason  TEXT,
   restored_at    TEXT,
   restored_by    INTEGER,
+  -- Added Phase 7 sub-effort 32: real online students.residency_status,
+  -- genuinely missing before this (/api/students/admitted and /enrolled
+  -- both read it). See ensureStudentColumns() below for already-
+  -- provisioned files.
+  residency_status TEXT,
+  -- Added Phase 7 sub-effort 36: real online students.class_id (a
+  -- denormalized "current class" pointer, separate from enrollments' own
+  -- class_id) — genuinely missing before this, caught by
+  -- /api/admissions/[id]/convert's real INSERT failing against an
+  -- already-provisioned file. See ensureStudentColumns() below.
+  class_id       INTEGER,
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_students_school_status ON students(school_id, status);
@@ -244,6 +255,35 @@ CREATE TABLE IF NOT EXISTS classes (
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_classes_school_id ON classes(school_id);
+
+-- Phase 7 sub-effort 44 (scoping Timetable): a real, currently-live bug —
+-- src/app/api/streams/route.ts has had §25a offline branches since
+-- sub-efforts 30/40 (offlineGetStreams, offlineCreateStream, PUT) that run
+-- raw getSqliteDb().prepare('... FROM streams ...') queries, but this
+-- table was never added here at all. Any local-sqlite request to
+-- /api/streams has been throwing "no such table: streams" since sub-effort
+-- 30 shipped — caught only now, while scoping Timetable (which also needs
+-- a working streams table for /api/timetable-metadata). Columns match the
+-- real online table after database/migrations/timetable_structured.sql's
+-- ALTER TABLE (created_at/updated_at) plus the soft-delete columns every
+-- other reference table here already carries.
+CREATE TABLE IF NOT EXISTS streams (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  class_id          INTEGER NOT NULL,
+  name              TEXT NOT NULL,
+  name_ar           TEXT,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  deleted_at        TEXT,
+  deleted_by        INTEGER,
+  delete_reason     TEXT,
+  restored_at       TEXT,
+  restored_by       INTEGER,
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (class_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_streams_school_class ON streams(school_id, class_id);
 
 CREATE TABLE IF NOT EXISTS class_results (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -572,6 +612,17 @@ CREATE TABLE IF NOT EXISTS enrollments (
   end_reason        TEXT,
   created_at        TEXT DEFAULT (${ISO_NOW}),
   deleted_at        TEXT,
+  -- Added Phase 7 sub-effort 32: the real online /api/enrollments POST
+  -- requires study_mode_id + curriculum_id + program_id on every write
+  -- (Enroll Student page). Genuinely missing before this — only ~13 of
+  -- the real table's 26 columns were ever modeled. joined_at added
+  -- alongside since sub-effort 30's /students/enrolled branch already
+  -- wanted it. An already-provisioned file gets these via
+  -- ensureEnrollmentColumns() below (idempotent ALTER), not just new ones.
+  study_mode_id     INTEGER,
+  curriculum_id     INTEGER,
+  program_id        INTEGER,
+  joined_at         TEXT,
   FOREIGN KEY (student_id) REFERENCES students(id)
 );
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id, status);
@@ -613,12 +664,16 @@ CREATE INDEX IF NOT EXISTS idx_report_snapshots_school ON report_snapshots(schoo
 -- subject_groups has zero rows platform-wide (confirmed live) and is not
 -- modeled here; departments.subject_group_id stays an unresolved integer.
 -- departments gets full CRUD (plain reference data, same shape as
--- classes/subjects/terms). class_subjects is read-only (real workflow
--- this layer has no authority to invent) and deliberately smaller than
--- the real 18-column table: no custom_initials, valid_from/valid_to,
--- stream_id, superseded_by, contribution_weight, notes, created_by/
--- updated_by. No FOREIGN KEY on class_subjects.class_id's target rows
--- requirement beyond classes itself, matching the class_id precedent
+-- classes/subjects/terms). class_subjects started read-only here but is
+-- now written by real Teacher Allocation offline branches (sub-efforts
+-- 40/42); custom_initials, valid_from/valid_to, stream_id and created_by
+-- were added later via ensureClassSubjectColumns() below — this base
+-- table definition is intentionally not kept in sync with those, since
+-- a brand-new file still needs the migration path exercised the same
+-- way an already-provisioned one does. Still smaller than the real
+-- 18-column table: no contribution_weight, notes, updated_by. No
+-- FOREIGN KEY on class_subjects.class_id's target rows requirement
+-- beyond classes itself, matching the class_id precedent
 -- already set for enrollments.
 CREATE TABLE IF NOT EXISTS departments (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -650,6 +705,7 @@ CREATE TABLE IF NOT EXISTS class_subjects (
   academic_year_id    INTEGER,
   term_id             INTEGER,
   superseded_by       INTEGER,
+  custom_initials     TEXT,
   FOREIGN KEY (class_id) REFERENCES classes(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_subjects_class ON class_subjects(class_id, status);
@@ -684,9 +740,121 @@ CREATE TABLE IF NOT EXISTS attendance_rules (
   FOREIGN KEY (school_id) REFERENCES schools(id)
 );
 CREATE INDEX IF NOT EXISTS idx_attendance_rules_school ON attendance_rules(school_id, is_active, priority);
+
+-- Phase 7, sub-effort 44: timetable_periods, timetable_entries,
+-- subject_weekly_periods. Columns and real constraints mirror
+-- database/migrations/timetable_structured.sql one-for-one, including the
+-- UNIQUE keys the online schema actually has — timetable_entries' unique
+-- slot constraint in particular is load-bearing: /api/timetable-generate's
+-- PUT relies on it being a real UNIQUE index (ON DUPLICATE KEY UPDATE
+-- online, ON CONFLICT ... DO UPDATE here), not just a plain index the way
+-- it was first drafted. SQLite and MySQL agree that NULL never equals
+-- NULL even inside a UNIQUE constraint, so a class with no stream_id can
+-- still have more than one row for the same day/period exactly as it can
+-- online — not a gap, a deliberately preserved real quirk.
+CREATE TABLE IF NOT EXISTS timetable_periods (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id     INTEGER NOT NULL,
+  name          TEXT NOT NULL,
+  short_name    TEXT,
+  start_time    TEXT NOT NULL,
+  end_time      TEXT NOT NULL,
+  period_order  INTEGER NOT NULL DEFAULT 0,
+  is_break      INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT DEFAULT (${ISO_NOW}),
+  updated_at    TEXT DEFAULT (${ISO_NOW}),
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (school_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_timetable_periods_school_order ON timetable_periods(school_id, period_order);
+
+CREATE TABLE IF NOT EXISTS timetable_entries (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id     INTEGER NOT NULL,
+  day_of_week   INTEGER NOT NULL,
+  period_id     INTEGER NOT NULL,
+  class_id      INTEGER NOT NULL,
+  stream_id     INTEGER,
+  subject_id    INTEGER NOT NULL,
+  teacher_id    INTEGER,
+  room          TEXT,
+  created_at    TEXT DEFAULT (${ISO_NOW}),
+  updated_at    TEXT DEFAULT (${ISO_NOW}),
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (school_id, day_of_week, period_id, class_id, stream_id)
+);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_school ON timetable_entries(school_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_class_day ON timetable_entries(class_id, day_of_week);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_teacher_day ON timetable_entries(teacher_id, day_of_week, period_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_stream_day ON timetable_entries(stream_id, day_of_week, period_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_entries_room_day ON timetable_entries(room, day_of_week, period_id);
+
+CREATE TABLE IF NOT EXISTS subject_weekly_periods (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_id         INTEGER NOT NULL,
+  class_id          INTEGER NOT NULL,
+  subject_id        INTEGER NOT NULL,
+  periods_per_week  INTEGER NOT NULL DEFAULT 1,
+  created_at        TEXT DEFAULT (${ISO_NOW}),
+  updated_at        TEXT DEFAULT (${ISO_NOW}),
+  FOREIGN KEY (school_id) REFERENCES schools(id),
+  UNIQUE (school_id, class_id, subject_id)
+);
+CREATE INDEX IF NOT EXISTS idx_subject_weekly_periods_class ON subject_weekly_periods(class_id);
 `;
 
 let ensured = new WeakSet<SqliteConnection>();
+
+/**
+ * Phase 7 sub-effort 32. `CREATE TABLE IF NOT EXISTS` only ever helps a
+ * BRAND NEW file — an already-provisioned install (like the real Albayan
+ * one built in sub-effort 23) keeps whatever columns existed when it was
+ * created, forever, unless something explicitly adds more. This is that
+ * "something" — the same try/ALTER/catch-if-exists idiom already used
+ * online (src/lib/auth.ts's ensureImpersonationColumn,
+ * src/app/api/curriculums/route.ts's ensureCurriculumSchoolColumn), just
+ * applied here for the first time to this repo's own SQLite file instead
+ * of the online MySQL one. Safe to call on every connection open — SQLite
+ * throws "duplicate column name" on a column that's already there, caught
+ * and ignored, same as the online versions catch their own ER_DUP_FIELDNAME.
+ */
+function addColumnIfMissing(db: SqliteConnection, table: string, column: string, type: string): void {
+  try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* already exists */ }
+}
+
+function ensureEnrollmentColumns(db: SqliteConnection): void {
+  addColumnIfMissing(db, 'enrollments', 'study_mode_id', 'INTEGER');
+  addColumnIfMissing(db, 'enrollments', 'curriculum_id', 'INTEGER');
+  addColumnIfMissing(db, 'enrollments', 'program_id', 'INTEGER');
+  addColumnIfMissing(db, 'enrollments', 'joined_at', 'TEXT');
+  // Phase 7 sub-effort 36: real online enrollments.enrolled_at, caught by
+  // /api/admissions/[id]/convert's real INSERT failing against an
+  // already-provisioned file.
+  addColumnIfMissing(db, 'enrollments', 'enrolled_at', 'TEXT');
+}
+
+function ensureStudentColumns(db: SqliteConnection): void {
+  addColumnIfMissing(db, 'students', 'residency_status', 'TEXT');
+  addColumnIfMissing(db, 'students', 'class_id', 'INTEGER');
+}
+
+function ensureClassSubjectColumns(db: SqliteConnection): void {
+  // Phase 7 sub-effort 40: real online class_subjects.custom_initials
+  // (a teacher's report-card initial override), caught by
+  // src/lib/academic-allocation.ts's offline branch failing against an
+  // already-provisioned file.
+  addColumnIfMissing(db, 'class_subjects', 'custom_initials', 'TEXT');
+  // Phase 7 sub-effort 42 (Teacher Allocation): the real online table's
+  // Phase D history model (valid_from/valid_to, superseded by a fresh row
+  // on every write) plus the many-to-many teachers route's stream_id and
+  // created_by, both required for /api/academics/allocations and
+  // /api/academics/allocations/teachers to run the same queries offline
+  // without a "no such column" error.
+  addColumnIfMissing(db, 'class_subjects', 'valid_from', 'TEXT');
+  addColumnIfMissing(db, 'class_subjects', 'valid_to', 'TEXT');
+  addColumnIfMissing(db, 'class_subjects', 'stream_id', 'INTEGER');
+  addColumnIfMissing(db, 'class_subjects', 'created_by', 'INTEGER');
+}
 
 /** Idempotent — safe to call on every connection open (mirrors the
  *  runtime ensureXSchema() pattern already used elsewhere in this repo,
@@ -694,5 +862,8 @@ let ensured = new WeakSet<SqliteConnection>();
 export function ensureSchema(db: SqliteConnection): void {
   if (ensured.has(db)) return;
   db.exec(SCHEMA_SQL);
+  ensureEnrollmentColumns(db);
+  ensureStudentColumns(db);
+  ensureClassSubjectColumns(db);
   ensured.add(db);
 }

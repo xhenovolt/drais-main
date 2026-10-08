@@ -2,19 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { archiveEntity, TrashError } from '@/lib/trash/service';
+import { getDbMode } from '@/lib/db/db-mode';
+import { checkModule } from '@/lib/auth/requireModule';
+import { updateAcademicYear } from './offline';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const session = await getSessionSchoolId(request);
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
+
+  const body = await request.json();
+  if (getDbMode() === 'local-sqlite') return updateAcademicYear(session.schoolId, id, body);
+
   const conn = await getConnection();
   try {
-    const session = await getSessionSchoolId(request);
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const schoolId = session.schoolId;
-
-    const body = await request.json();
     const { status, name, start_date, end_date } = body;
 
     // Build dynamic SET clause from provided fields
@@ -75,10 +82,12 @@ export async function DELETE(
   try {
     const session = await getSessionSchoolId(request);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
     const schoolId = session.schoolId;
 
     await archiveEntity({
-      code:     'academic_year',
+      entity:   'academic_year',
       id:       Number(id),
       schoolId,
       userId:   session.userId,

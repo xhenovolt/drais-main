@@ -3,6 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { ADMISSION_STATUSES } from '@/lib/admissions/mode';
+import { getDbMode } from '@/lib/db/db-mode';
 
 const num = (v: string | null, dflt: number, min = 0, max = Number.MAX_SAFE_INTEGER): number => {
   if (v == null) return dflt;
@@ -10,6 +11,117 @@ const num = (v: string | null, dflt: number, min = 0, max = Number.MAX_SAFE_INTE
   if (!Number.isFinite(n)) return dflt;
   return Math.max(min, Math.min(max, n));
 };
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 36, same §25a pattern. The
+ * Admissions Pipeline is a real state-machine workflow (applicant → review
+ * → approved → enrolled/rejected/archived, src/lib/admissions/mode.ts), the
+ * first branched route in this phase gated by requirePermission rather than
+ * just a session check — made safe by fixing rbac.ts itself first (see that
+ * file's own header), not by special-casing permissions here. `admissions`/
+ * `admission_audit`/`admission_documents` all exist in the local shell
+ * schema already (auto-generated, sub-effort 23) with real `school_id`
+ * columns, so the lean export already copies them like any other
+ * school-scoped table — no migration needed, unlike sub-effort 32.
+ */
+async function offlineListAdmissions(schoolId: number, sp: URLSearchParams) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const status   = sp.get('status');
+  const search   = sp.get('search');
+  const page     = num(sp.get('page'),     1, 1);
+  const per_page = num(sp.get('per_page'), 50, 1, 200);
+  const offset   = (page - 1) * per_page;
+
+  const where: string[] = ['a.school_id = ?', 'a.deleted_at IS NULL'];
+  const params: any[]   = [schoolId];
+  if (status && (ADMISSION_STATUSES as readonly string[]).includes(status)) {
+    where.push('a.status = ?'); params.push(status);
+  }
+  if (search) {
+    where.push('(LOWER(a.first_name) LIKE ? OR LOWER(a.last_name) LIKE ? OR a.application_no LIKE ?)');
+    const term = `%${search.toLowerCase()}%`;
+    params.push(term, term, `%${search}%`);
+  }
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+
+  const rows = db.prepare(`
+    SELECT a.id, a.application_no, a.first_name, a.last_name, a.other_name,
+           a.gender, a.date_of_birth,
+           a.applicant_phone, a.guardian_name, a.guardian_phone,
+           a.desired_class_id, c.name AS desired_class_name,
+           a.status, a.created_at, a.updated_at, a.enrolled_student_id
+      FROM admissions a
+      LEFT JOIN classes c ON c.id = a.desired_class_id
+      ${whereSql}
+      ORDER BY a.created_at DESC, a.id DESC
+      LIMIT ? OFFSET ?
+  `).all(...params, per_page, offset);
+
+  const countRow = db.prepare(`SELECT COUNT(*) AS total FROM admissions a ${whereSql}`).get(...params) as any;
+  const counts = db.prepare(`
+    SELECT status, COUNT(*) AS n FROM admissions WHERE school_id = ? AND deleted_at IS NULL GROUP BY status
+  `).all(schoolId);
+
+  return NextResponse.json({
+    success: true,
+    data:    rows,
+    total:   Number(countRow.total) || 0,
+    page,
+    per_page,
+    counts,
+  });
+}
+
+async function offlineCreateAdmission(schoolId: number, userId: number, body: any) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+  const now = new Date().toISOString();
+  const year = new Date().getFullYear();
+
+  const countRow = db.prepare(
+    `SELECT COUNT(*) AS n FROM admissions WHERE school_id = ? AND application_no LIKE ?`
+  ).get(schoolId, `APP-${year}-%`) as any;
+  const next = (Number(countRow.n) || 0) + 1;
+  const application_no = `APP-${year}-${String(next).padStart(6, '0')}`;
+
+  const insertAdmission = db.prepare(`
+    INSERT INTO admissions
+      (school_id, application_no, first_name, last_name, other_name,
+       gender, date_of_birth, nationality_id, district_id,
+       applicant_phone, applicant_email,
+       guardian_name, guardian_phone, guardian_email, guardian_relation,
+       desired_class_id, desired_stream_id, desired_term_id, desired_academic_year_id,
+       previous_school, notes, source, created_by, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'applicant', ?, ?)
+  `);
+  const insertAudit = db.prepare(`
+    INSERT INTO admission_audit (admission_id, school_id, from_status, to_status, actor_user_id, reason, created_at)
+    VALUES (?, ?, NULL, 'applicant', ?, ?, ?)
+  `);
+
+  const txn = db.transaction(() => {
+    const r = insertAdmission.run(
+      schoolId, application_no,
+      body.first_name, body.last_name, body.other_name ?? null,
+      body.gender ?? null, body.date_of_birth ?? null,
+      body.nationality_id ?? null, body.district_id ?? null,
+      body.applicant_phone ?? null, body.applicant_email ?? null,
+      body.guardian_name ?? null, body.guardian_phone ?? null,
+      body.guardian_email ?? null, body.guardian_relation ?? null,
+      body.desired_class_id ?? null, body.desired_stream_id ?? null,
+      body.desired_term_id ?? null, body.desired_academic_year_id ?? null,
+      body.previous_school ?? null, body.notes ?? null,
+      body.source ?? 'admin_intake', userId, now, now,
+    );
+    const admissionId = Number(r.lastInsertRowid);
+    insertAudit.run(admissionId, schoolId, userId, 'created via admin intake', now);
+    return admissionId;
+  });
+  const id = txn();
+
+  return NextResponse.json({ success: true, id, application_no }, { status: 201 });
+}
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -19,6 +131,10 @@ export async function GET(req: NextRequest) {
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
 
   const sp = req.nextUrl.searchParams;
+  if (getDbMode() === 'local-sqlite') {
+    return offlineListAdmissions(session.schoolId, sp);
+  }
+
   const status   = sp.get('status');
   const search   = sp.get('search');
   const page     = num(sp.get('page'),     1, 1);
@@ -86,6 +202,9 @@ export async function POST(req: NextRequest) {
   const { first_name, last_name } = body;
   if (!first_name || !last_name) {
     return NextResponse.json({ error: 'first_name and last_name required' }, { status: 400 });
+  }
+  if (getDbMode() === 'local-sqlite') {
+    return offlineCreateAdmission(session.schoolId, session.userId, body);
   }
 
   const conn = await getConnection();

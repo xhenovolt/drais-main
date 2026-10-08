@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { checkModule } from '@/lib/auth/requireModule';
+import { getDbMode } from '@/lib/db/db-mode';
+import * as offline from './offline';
 
 // ─── Conflict checking helper ───────────────────────────────────────
 async function checkConflicts(
@@ -73,11 +76,15 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const { searchParams } = new URL(req.url);
     const classId = searchParams.get('class_id');
     const streamId = searchParams.get('stream_id');
     const teacherId = searchParams.get('teacher_id');
+
+    if (getDbMode() === 'local-sqlite') return offline.getEntries(session.schoolId, classId, streamId, teacherId);
 
     connection = await getConnection();
 
@@ -122,6 +129,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
 
     const body = await req.json();
     const { day_of_week, period_id, class_id, subject_id, stream_id, teacher_id, room } = body;
@@ -131,6 +140,10 @@ export async function POST(req: NextRequest) {
     }
     if (day_of_week < 1 || day_of_week > 7) {
       return NextResponse.json({ error: 'day_of_week must be between 1 (Monday) and 7 (Sunday).' }, { status: 400 });
+    }
+
+    if (getDbMode() === 'local-sqlite') {
+      return offline.createEntry(session.schoolId, { day_of_week, period_id, class_id, subject_id, stream_id, teacher_id, room });
     }
 
     connection = await getConnection();
@@ -169,8 +182,13 @@ export async function PUT(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const body = await req.json();
     if (!body.id) return NextResponse.json({ error: 'id is required.' }, { status: 400 });
+
+    if (getDbMode() === 'local-sqlite') return offline.updateEntry(session.schoolId, body);
 
     connection = await getConnection();
 
@@ -234,9 +252,14 @@ export async function DELETE(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required.' }, { status: 400 });
+
+    if (getDbMode() === 'local-sqlite') return offline.deleteEntry(session.schoolId, id);
 
     connection = await getConnection();
     await connection.execute('DELETE FROM timetable_entries WHERE id = ? AND school_id = ?', [id, session.schoolId]);
@@ -255,12 +278,17 @@ export async function PATCH(req: NextRequest) {
     const session = await getSessionSchoolId(req);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+    const modDenied = await checkModule(session.schoolId, 'academics');
+    if (modDenied) return modDenied;
+
     const body = await req.json();
     const { day_of_week, period_id, teacher_id, stream_id, room, exclude_id } = body;
 
     if (!day_of_week || !period_id) {
       return NextResponse.json({ error: 'day_of_week and period_id required.' }, { status: 400 });
     }
+
+    if (getDbMode() === 'local-sqlite') return offline.checkConflictsOnly(session.schoolId, { day_of_week, period_id, teacher_id, stream_id, room, exclude_id });
 
     connection = await getConnection();
     const conflicts = await checkConflicts(

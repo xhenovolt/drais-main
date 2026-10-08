@@ -59,7 +59,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const resolvedParams = await params;
     const id = resolvedParams.id;
     await archiveEntity({
-      code:     'result_type',
+      entity:   'result_type',
       id:       Number(id),
       schoolId,
       userId:   session.userId,

@@ -14,10 +14,26 @@
  * exception.
  */
 import { query } from '@/lib/db';
+import { getDbMode } from '@/lib/db/db-mode';
 
 const KEY = 'idcards.watermark_disabled';
 
+/**
+ * local-sqlite branch — Phase 7 sub-effort 37. query() throws in this mode
+ * (pools.ts), which this file's own try/catch previously swallowed into
+ * the fail-safe "watermark stays on" default — SAFE, but not CORRECT: a
+ * school's real Control-Center override (a genuine school_settings row,
+ * already copied offline like any other school-scoped setting) was being
+ * silently ignored rather than honored. Branched properly instead of
+ * leaving it to the catch-all.
+ */
 export async function isWatermarkEnabled(schoolId: number): Promise<boolean> {
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const row = db.prepare(`SELECT value_text FROM school_settings WHERE school_id = ? AND key_name = ? LIMIT 1`).get(schoolId, KEY) as { value_text: string | null } | undefined;
+    return row?.value_text !== '1';
+  }
   try {
     const rows = (await query(
       `SELECT value_text FROM school_settings WHERE school_id = ? AND key_name = ? LIMIT 1`,
@@ -30,6 +46,19 @@ export async function isWatermarkEnabled(schoolId: number): Promise<boolean> {
 }
 
 export async function setWatermarkDisabled(schoolId: number, disabled: boolean): Promise<void> {
+  if (getDbMode() === 'local-sqlite') {
+    const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+    const db = getSqliteDb();
+    const existing = db.prepare(`SELECT id FROM school_settings WHERE school_id = ? AND key_name = ? LIMIT 1`).get(schoolId, KEY) as { id: number } | undefined;
+    if (disabled) {
+      if (existing) db.prepare(`UPDATE school_settings SET value_text = '1' WHERE id = ?`).run(existing.id);
+      else db.prepare(`INSERT INTO school_settings (school_id, key_name, value_text) VALUES (?, ?, '1')`).run(schoolId, KEY);
+    } else if (existing) {
+      db.prepare(`DELETE FROM school_settings WHERE id = ?`).run(existing.id);
+    }
+    return;
+  }
+
   const existing = (await query(
     `SELECT id FROM school_settings WHERE school_id = ? AND key_name = ? LIMIT 1`,
     [schoolId, KEY],

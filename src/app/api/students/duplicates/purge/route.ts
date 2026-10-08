@@ -3,6 +3,185 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { getConnection } from '@/lib/db';
 import { withTenantTransaction } from '@/lib/dbTenant';
 import { logAudit, AuditAction } from '@/lib/audit';
+import { getDbMode } from '@/lib/db/db-mode';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 34, same §25a pattern, same
+ * statement-for-statement translation discipline as the sibling merge
+ * route (this is the genuinely destructive half of that same risk —
+ * ghost purge runs a real hard DELETE). GROUP_CONCAT needs no translation
+ * (SQLite's default separator is already a comma, same as MySQL's).
+ * The online route's "safety re-check SELECT, then throw it away and
+ * re-query inside the DELETE's own NOT EXISTS guards" dance exists because
+ * MySQL's execute() doesn't let a single statement both filter and report
+ * what it skipped — better-sqlite3's `.run()` on a DELETE with the same
+ * NOT EXISTS guards is already atomic and self-checking, so that
+ * intermediate SELECT is correctly dropped here, not a missed step.
+ */
+function offlinePurgeDetect(db: any, schoolId: number) {
+  const nameMatches = db.prepare(`
+    SELECT p.first_name, p.last_name, GROUP_CONCAT(s.id) AS ids
+    FROM students s JOIN people p ON p.id = s.person_id
+    WHERE s.school_id = ? AND s.deleted_at IS NULL
+    GROUP BY p.first_name, p.last_name HAVING COUNT(*) > 1
+  `).all(schoolId) as any[];
+
+  const admMatches = db.prepare(`
+    SELECT admission_no, GROUP_CONCAT(id) AS ids
+    FROM students
+    WHERE school_id = ? AND deleted_at IS NULL AND admission_no IS NOT NULL AND admission_no != ''
+    GROUP BY admission_no HAVING COUNT(*) > 1
+  `).all(schoolId) as any[];
+
+  const parent = new Map<number, number>();
+  const find = (x: number): number => {
+    if (!parent.has(x)) parent.set(x, x);
+    if (parent.get(x) !== x) parent.set(x, find(parent.get(x)!));
+    return parent.get(x)!;
+  };
+  const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(rb, ra); };
+
+  for (const row of [...nameMatches, ...admMatches]) {
+    const ids: number[] = String(row.ids).split(',').map(Number).sort((a, b) => a - b);
+    for (let i = 1; i < ids.length; i++) union(ids[0], ids[i]);
+  }
+
+  const clusters = new Map<number, Set<number>>();
+  for (const [id] of parent) {
+    const root = find(id);
+    if (!clusters.has(root)) clusters.set(root, new Set());
+    clusters.get(root)!.add(id);
+  }
+
+  const rawGroups: Array<{ primary_id: number; secondaries: Array<{ id: number; score: number }> }> = [];
+  for (const [, members] of clusters) {
+    if (members.size < 2) continue;
+    const ids = Array.from(members);
+    const placeholders = ids.map(() => '?').join(',');
+    const scores = db.prepare(`
+      SELECT
+        s.id,
+        COALESCE((SELECT COUNT(*) FROM enrollments WHERE student_id = s.id), 0) AS enrollment_count,
+        COALESCE((SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id), 0) AS attendance_count,
+        COALESCE((SELECT COUNT(*) FROM results WHERE student_id = s.id), 0) AS results_count
+      FROM students s
+      WHERE s.id IN (${placeholders}) AND s.school_id = ?
+    `).all(...ids, schoolId) as any[];
+    for (const s of scores) s.score = s.enrollment_count + s.attendance_count + s.results_count;
+    if (scores.length < 2) continue;
+    scores.sort((a: any, b: any) => b.score - a.score || a.id - b.id);
+    const primary = scores[0];
+    const secondaries = scores.slice(1).map((s: any) => ({ id: s.id, score: s.score }));
+    rawGroups.push({ primary_id: primary.id, secondaries });
+  }
+  return rawGroups;
+}
+
+async function offlinePurgeDuplicates(req: NextRequest, session: { schoolId: number; userId: number }, schoolId: number, dryRun: boolean) {
+  const { getSqliteDb } = await import('@/lib/repo/sqlite/singleton');
+  const db = getSqliteDb();
+
+  const rawGroups = offlinePurgeDetect(db, schoolId);
+  const ghosts: number[] = [];
+  const dataBearers: Array<{ primary_id: number; secondary_id: number }> = [];
+  for (const group of rawGroups) {
+    for (const sec of group.secondaries) {
+      if (sec.score === 0) ghosts.push(sec.id);
+      else dataBearers.push({ primary_id: group.primary_id, secondary_id: sec.id });
+    }
+  }
+
+  const summary = {
+    dry_run: dryRun,
+    groups_found: rawGroups.length,
+    ghosts_to_delete: ghosts.length,
+    data_records_to_merge: dataBearers.length,
+    deleted: 0,
+    merged: 0,
+    failed: 0,
+  };
+
+  if (dryRun || (ghosts.length === 0 && dataBearers.length === 0)) {
+    return NextResponse.json({ success: true, ...summary });
+  }
+
+  if (ghosts.length > 0) {
+    try {
+      const placeholders = ghosts.map(() => '?').join(',');
+      const res = db.prepare(`
+        DELETE FROM students
+        WHERE id IN (${placeholders}) AND school_id = ?
+          AND NOT EXISTS (SELECT 1 FROM enrollments WHERE student_id = students.id)
+          AND NOT EXISTS (SELECT 1 FROM student_attendance WHERE student_id = students.id)
+          AND NOT EXISTS (SELECT 1 FROM results WHERE student_id = students.id)
+      `).run(...ghosts, schoolId);
+      summary.deleted += res.changes ?? 0;
+    } catch (err: any) {
+      summary.failed += ghosts.length;
+      console.error('[purge-offline] ghost delete failed:', err.message);
+    }
+  }
+
+  const mergeMap = new Map<number, number[]>();
+  for (const { primary_id, secondary_id } of dataBearers) {
+    if (!mergeMap.has(primary_id)) mergeMap.set(primary_id, []);
+    mergeMap.get(primary_id)!.push(secondary_id);
+  }
+
+  for (const [primaryId, secondaryIds] of mergeMap) {
+    try {
+      const txn = db.transaction(() => {
+        const primary = db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL').get(primaryId, schoolId);
+        if (!primary) throw new Error(`Primary #${primaryId} not found`);
+        const now = new Date().toISOString();
+        let mergedCount = 0;
+
+        for (const secondaryId of secondaryIds) {
+          const secondary = db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL').get(secondaryId, schoolId);
+          if (!secondary) continue;
+
+          const existingEnrollments = db.prepare('SELECT class_id, academic_year_id FROM enrollments WHERE student_id = ?').all(primaryId) as any[];
+          const existingKeys = new Set(existingEnrollments.map((e) => `${e.class_id}-${e.academic_year_id}`));
+          const secEnrollments = db.prepare('SELECT id, class_id, academic_year_id FROM enrollments WHERE student_id = ?').all(secondaryId) as any[];
+          for (const enr of secEnrollments) {
+            const key = `${enr.class_id}-${enr.academic_year_id}`;
+            if (existingKeys.has(key)) {
+              db.prepare("UPDATE enrollments SET status = 'closed', end_reason = 'merged_duplicate' WHERE id = ?").run(enr.id);
+            } else {
+              db.prepare('UPDATE enrollments SET student_id = ? WHERE id = ?').run(primaryId, enr.id);
+              existingKeys.add(key);
+            }
+          }
+
+          db.prepare('UPDATE student_attendance SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+          db.prepare('UPDATE results SET student_id = ? WHERE student_id = ?').run(primaryId, secondaryId);
+
+          for (const tbl of ['zk_attendance_logs', 'learner_fees', 'promotions']) {
+            try { db.prepare(`UPDATE ${tbl} SET student_id = ? WHERE student_id = ?`).run(primaryId, secondaryId); } catch { /* table may not exist */ }
+          }
+
+          db.prepare(
+            "UPDATE students SET deleted_at = ?, notes = COALESCE(notes, '') || ? WHERE id = ?"
+          ).run(now, `\n[PURGE-MERGED INTO #${primaryId} on ${now}]`, secondaryId);
+          mergedCount++;
+        }
+        return mergedCount;
+      });
+      summary.merged += txn();
+    } catch (err: any) {
+      summary.failed++;
+      console.error(`[purge-offline] merge for primary #${primaryId} failed:`, err.message);
+    }
+  }
+
+  logAudit({
+    schoolId, userId: session.userId, action: AuditAction.MERGED_STUDENTS, entityType: 'student',
+    entityId: schoolId, details: { purge: summary },
+    ip: req.headers.get('x-forwarded-for') || null, userAgent: req.headers.get('user-agent') || null,
+  }).catch(() => {});
+
+  return NextResponse.json({ success: summary.failed === 0, ...summary });
+}
 
 /**
  * POST /api/students/duplicates/purge
@@ -49,6 +228,10 @@ export async function POST(req: NextRequest) {
     dry_run = body?.dry_run === true;
   } catch {
     // no body — defaults to dry_run=false (live run)
+  }
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlinePurgeDuplicates(req, session, schoolId, dry_run);
   }
 
   // ─── Phase 1: Detect all duplicate groups ──────────────────────────────

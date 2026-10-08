@@ -1,8 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
+import { getDbMode } from '@/lib/db/db-mode';
 
 export const runtime = 'nodejs';
+
+/**
+ * local-sqlite branch — Phase 7 sub-effort 39, same §25a pattern. This
+ * entire feature is read from `attendance_records`, LARGE_EXCLUDED from
+ * the lean export (sub-effort 23) — always empty offline, same fact every
+ * attendance-reading page in this phase already lives with. Returns the
+ * real empty shape (zero counts, empty lists) rather than a 500, so the
+ * dashboard widget renders its own "nothing yet" state instead of a
+ * failed fetch.
+ */
+function offlineInsights(days: number, since: string) {
+  const emptyDist = { present: 0, late: 0, absent: 0 };
+  const emptyRole = { distribution: emptyDist, mostAbsent: [], mostLate: [], bestPresent: [], people: 0, schoolDaysCounted: 0 };
+  return NextResponse.json({
+    success: true,
+    days,
+    since,
+    staff: emptyRole,
+    learners: { ...emptyRole, byResidence: { day: { ...emptyDist }, boarding: { ...emptyDist } } },
+  });
+}
 
 /**
  * GET /api/attendance/insights?days=30
@@ -24,6 +46,10 @@ export async function GET(req: NextRequest) {
   const daysRaw = parseInt(new URL(req.url).searchParams.get('days') || '30', 10);
   const days = Number.isFinite(daysRaw) ? Math.min(365, Math.max(7, daysRaw)) : 30;
   const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+
+  if (getDbMode() === 'local-sqlite') {
+    return offlineInsights(days, since);
+  }
 
   interface PersonAgg {
     person_id: number; name: string; detail: string | null; residence: string | null;
