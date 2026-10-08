@@ -230,17 +230,17 @@ const OPPORTUNISTIC_INTERVAL_MS = 90_000;
 
 /**
  * Called from high-frequency request paths (ZKTeco heartbeats). At most
- * one drain per process per 90s; never throws; never awaited by the
- * caller. On Vercel each warm lambda instance throttles independently —
+ * one drain per process per 90s; never throws. Returns the drain promise
+ * so Next's after() can keep the work alive after the response. On Vercel each warm lambda instance throttles independently —
  * worst case a few extra drains, which the queued→sending claim makes
  * safe.
  */
-export function drainOutboxOpportunistically(): void {
+export function drainOutboxOpportunistically(): Promise<void> {
   const now = Date.now();
-  if (drainInFlight || now - lastOpportunisticDrain < OPPORTUNISTIC_INTERVAL_MS) return;
+  if (drainInFlight || now - lastOpportunisticDrain < OPPORTUNISTIC_INTERVAL_MS) return Promise.resolve();
   lastOpportunisticDrain = now;
   drainInFlight = true;
-  drainNotificationOutbox()
+  return drainNotificationOutbox()
     .then((r) => {
       if (r.attempted > 0) {
         console.log(JSON.stringify({

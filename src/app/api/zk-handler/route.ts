@@ -1858,12 +1858,16 @@ async function handlePOST(req: NextRequest) {
         }
       }
 
-      // Kick the outbox drain so the guardian SMS goes out right after the
-      // punch — but DON'T await it (awaiting the SMS HTTP call blocked the
-      // device response for tens of seconds). The enqueue above is already
-      // awaited (row exists); the heartbeat drain is the serverless backup.
+      // Kick the outbox drain after acknowledging the device request. Next's
+      // after() keeps the send work alive without delaying the device response.
       if (anyMatchedEvaluated) {
-        drainNotificationOutbox().catch(() => { /* backup: heartbeat drain */ });
+        after(async () => {
+          try {
+            await drainNotificationOutbox();
+          } catch (err) {
+            zkLog('error', 'OUTBOX_DRAIN_FAILED', { deviceSn: sn, error: String(err) });
+          }
+        });
       }
     }
 

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T16:54:03.176Z",
-  "last_commit": "be7d01b9a1277779401d5041943586bff7df92cf",
+  "generated_at": "2026-10-08T18:13:06.527Z",
+  "last_commit": "7931fbc7608a0426267298862ba587d209f70946",
   "releases": [
     {
       "version": "0.0.0049",
@@ -8981,7 +8981,20 @@
         }
       ],
       "commit": "b3a11fd30d"
+    },
+    {
+      "version": "2.50.28",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Fix SMS outbox resend SQL alias",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Fix SMS outbox resend SQL alias"
+        }
+      ],
+      "commit": "7931fbc760"
     }
   ],
-  "app_version": "2.50.28"
+  "app_version": "2.50.29"
 }
