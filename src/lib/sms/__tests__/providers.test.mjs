@@ -43,10 +43,23 @@ describe('central SMS providers', () => {
     }
   });
 
-  it('supports UgaText API-key validation without requiring wallet credentials', async () => {
-    const result = await SMS_PROVIDER_ADAPTERS.ugatext.validate({ apiKey: 'ugx_live_test' });
-    assert.equal(result.ok, true);
-    assert.equal(result.status, 'configured');
+  it('validates UgaText API keys through the account balance endpoint', async () => {
+    const originalFetch = globalThis.fetch;
+    let request;
+    globalThis.fetch = async (url, options) => {
+      request = { url, options };
+      return new Response(JSON.stringify({ success: true, balance_ugx: 500, sms_balance_units: 20, currency: 'UGX' }), { status: 200 });
+    };
+    try {
+      const result = await SMS_PROVIDER_ADAPTERS.ugatext.validate({ apiKey: 'ugx_live_test' });
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 'connected');
+      assert.equal(result.balance.units, 20);
+      assert.equal(request.url, `${UGATEXT_API_BASE_URL}/account/balance`);
+      assert.equal(request.options.headers.Authorization, 'Bearer ugx_live_test');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it('matches the successful UgaText queued-send contract', async () => {

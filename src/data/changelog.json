@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-08T19:04:29.218Z",
-  "last_commit": "39347cf535e1694e27e33cf0f1fda738477b3888",
+  "generated_at": "2026-10-09T03:18:16.765Z",
+  "last_commit": "024f675f1eba747be0cf1da202d849a1c4db7d5e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9007,7 +9007,20 @@
         }
       ],
       "commit": "39347cf535"
+    },
+    {
+      "version": "2.50.30",
+      "date": "2026-10-08",
+      "release_type": "patch",
+      "title": "Make school SMS provider routing easier to manage",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Make school SMS provider routing easier to manage"
+        }
+      ],
+      "commit": "024f675f1e"
     }
   ],
-  "app_version": "2.50.30"
+  "app_version": "2.50.31"
 }

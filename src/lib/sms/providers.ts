@@ -3,7 +3,9 @@ import { sendAfricasTalkingSMS, normalizePhoneNumber, type SMSResponse } from '@
 
 export type SmsProviderType = 'africas_talking' | 'yoola' | 'ugatext';
 
-export const UGATEXT_API_BASE_URL = 'https://ugatext.com/api/v1';
+// UgaText's dedicated api.ugatext.com host does not resolve in some deployment
+// networks. Their developer portal provides this supported web proxy gateway.
+export const UGATEXT_API_BASE_URL = 'https://www.ugatext.com/api/v1';
 export const UGATEXT_DEFAULT_SENDER_ID = 'UGATEXT';
 
 export interface SmsProviderConfig {
@@ -139,7 +141,7 @@ const ugaText: SmsProviderAdapter = {
       });
       const body = await response.json().catch(() => ({}));
       const status = String(body?.status || '').toLowerCase();
-      const accepted = response.status === 202 && ['queued', 'accepted', 'success'].includes(status);
+      const accepted = response.ok && ['queued', 'accepted', 'success'].includes(status);
       const providerError = body?.message || body?.error?.message || body?.error || `Provider HTTP ${response.status}`;
       if (!accepted) return { success: false, status: body?.status || `HTTP ${response.status}`, error: String(providerError), details: body };
       const messageId = body?.message_id ?? body?.messageId ?? body?.id ?? body?.data?.message_id ?? body?.data?.id ?? null;
@@ -149,15 +151,15 @@ const ugaText: SmsProviderAdapter = {
     }
   },
   async getBalance(config) {
-    const clientId = requireValue(config, 'clientId');
-    const clientSecret = requireValue(config, 'clientSecret');
-    if (!clientId || !clientSecret) return { supported: true, ok: false, amount: null, currency: null, units: null, error: 'UgaText balance requires clientId and clientSecret' };
+    const apiKey = requireValue(config, 'apiKey');
+    if (!apiKey) return { supported: true, ok: false, amount: null, currency: null, units: null, error: 'UgaText API key is required' };
     try {
       const baseUrl = (requireValue(config, 'baseUrl') || UGATEXT_API_BASE_URL).replace(/\/$/, '');
-      const response = await fetch(`${baseUrl}/sms/balance`, { headers: { 'Client-ID': clientId, 'Client-Secret': clientSecret, Accept: 'application/json' } });
+      const response = await fetch(`${baseUrl}/account/balance`, { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' } });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) return { supported: true, ok: false, amount: null, currency: null, units: null, error: String(body?.message || body?.error?.message || body?.error || `Provider HTTP ${response.status}`) };
-      return { supported: true, ok: true, amount: Number(body?.balance_ugx ?? body?.balance ?? 0), currency: body?.currency || 'UGX', units: body?.estimated_sms_units == null ? null : Number(body.estimated_sms_units) };
+      const units = body?.sms_balance_units ?? body?.sms_units_remaining ?? body?.estimated_messages ?? body?.estimated_sms_units;
+      return { supported: true, ok: true, amount: Number(body?.balance_ugx ?? body?.balance ?? 0), currency: body?.currency || 'UGX', units: units == null ? null : Number(units) };
     } catch (error: any) {
       return { supported: true, ok: false, amount: null, currency: null, units: null, error: error?.message || 'Balance request failed' };
     }
@@ -166,7 +168,7 @@ const ugaText: SmsProviderAdapter = {
     const apiKey = requireValue(config, 'apiKey');
     if (!apiKey) return { ok: false, status: 'configuration_incomplete', message: 'Missing: apiKey' };
     const balance = await this.getBalance(config);
-    return balance.ok ? { ok: true, status: 'connected', balance } : { ok: true, status: 'configured', message: balance.error || 'Credentials are present; use a controlled test SMS to verify provider acceptance', balance };
+    return balance.ok ? { ok: true, status: 'connected', balance } : { ok: false, status: 'authentication_failed', message: balance.error || 'Provider validation failed', balance };
   },
 };
 
