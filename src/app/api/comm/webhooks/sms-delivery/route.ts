@@ -11,7 +11,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
-import { query } from '@/lib/db';
+import { applyDeliveryReport } from '@/lib/sms/delivery-report';
 import { normalizeDeliveryStatus } from '@/lib/notifications/outbox-query';
 
 export const runtime = 'nodejs';
@@ -39,32 +39,6 @@ export async function POST(req: NextRequest) {
   const state = normalizeDeliveryStatus(f.status);
   const reason = String(f.failureReason ?? f.reason ?? '').slice(0, 120);
 
-  const link = (await query(
-    `SELECT outbox_id FROM notification_deliveries WHERE provider_message_id = ? ORDER BY id DESC LIMIT 1`, [messageId],
-  )) as Array<{ outbox_id: number }>;
-  let updated = 0;
-  if (link[0]) {
-    if (state === 'delivered') {
-      const r = (await query(
-        `UPDATE notification_outbox SET delivery_confirmed_at = COALESCE(delivery_confirmed_at, UTC_TIMESTAMP())
-          WHERE id = ? AND status = 'delivered'`, [link[0].outbox_id],
-      )) as unknown as { affectedRows?: number };
-      updated += r?.affectedRows ?? 0;
-    } else if (state === 'failed') {
-      const r = (await query(
-        `UPDATE notification_outbox SET status = 'failed', last_error = ?
-          WHERE id = ? AND delivery_confirmed_at IS NULL`,
-        [`Delivery report: ${reason || String(f.status ?? 'failed')}`.slice(0, 255), link[0].outbox_id],
-      )) as unknown as { affectedRows?: number };
-      updated += r?.affectedRows ?? 0;
-    }
-  }
-  // Event/manual dispatches keep their own log; mirror the confirmed outcome there too.
-  if (state === 'delivered' || state === 'failed') {
-    await query(
-      `UPDATE comm_dispatch_log SET status = ? WHERE provider_message_id = ? AND status IN ('sent','queued')`,
-      [state === 'delivered' ? 'delivered' : 'failed', messageId],
-    ).catch(() => undefined);
-  }
+  const { updated } = await applyDeliveryReport({ messageId, state, reason: reason || String(f.status ?? '') });
   return NextResponse.json({ success: true, updated, state });
 }

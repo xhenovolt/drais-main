@@ -97,8 +97,10 @@ describe('routes: permission + tenant isolation', () => {
     assert.match(hook, /SMS_DLR_SECRET/);
     assert.match(hook, /status: 503/);
     assert.match(hook, /timingSafeEqual/);
-    assert.match(hook, /COALESCE\(delivery_confirmed_at/);
-    assert.match(hook, /delivery_confirmed_at IS NULL/);
+    const shared = read('lib/sms/delivery-report.ts');
+    assert.match(hook, /applyDeliveryReport/);
+    assert.match(shared, /COALESCE\(delivery_confirmed_at/);
+    assert.match(shared, /delivery_confirmed_at IS NULL/);
   });
 });
 

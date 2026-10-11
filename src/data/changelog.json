@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-11T18:50:55.159Z",
-  "last_commit": "90ed7f0450b2f6a6108e36116da04bef6f4d3029",
+  "generated_at": "2026-10-11T20:08:46.661Z",
+  "last_commit": "068da98d0c7d056c9585c2f7f548578b23fa4fda",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9033,7 +9033,20 @@
         }
       ],
       "commit": "90ed7f0450"
+    },
+    {
+      "version": "2.50.32",
+      "date": "2026-10-11",
+      "release_type": "patch",
+      "title": "Upgrade UgaText SMS sending and show Control Center provider in school settings",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Upgrade UgaText SMS sending and show Control Center provider in school settings"
+        }
+      ],
+      "commit": "068da98d0c"
     }
   ],
-  "app_version": "2.50.32"
+  "app_version": "2.50.33"
 }
