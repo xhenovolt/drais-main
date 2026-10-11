@@ -1,7 +1,7 @@
 import { query } from '@/lib/db';
 import { sendAfricasTalkingSMS, type SMSResponse, type SmsCredentials } from '@/lib/africastalking';
 import { decryptProviderConfig, sendWithAdapter, type SmsProviderConfig, type SmsProviderType } from './providers';
-import { sendViaSchoolRoute } from './school-routing';
+import { sendViaSchoolRoute, recordProviderSend } from './school-routing';
 
 export interface ActiveSmsProvider {
   id: number;
@@ -83,8 +83,8 @@ export async function sendCentralSMS(phone: string, message: string, recipientNa
   if (!active) {
     return sendAfricasTalkingSMS(phone, message, recipientName, senderId, legacyCreds);
   }
-  const result = await sendWithAdapter(active.providerType, phone, message, { ...active.config, senderId: active.senderId || active.config.senderId });
-  await query(`UPDATE sms_provider_configs SET last_success_at = CASE WHEN ? = 1 THEN NOW() ELSE last_success_at END, last_failure_at = CASE WHEN ? = 1 THEN last_failure_at ELSE NOW() END, last_provider_message_id = ? WHERE id = ?`, [result.success ? 1 : 0, result.success ? 1 : 0, result.messageId || null, active.id]).catch(() => {});
-  await query(`INSERT INTO sms_provider_operations (provider_id, provider_type, operation, success, provider_message_id, recipient_phone, error_message, metadata_json) VALUES (?, ?, 'send', ?, ?, ?, ?, ?)`, [active.id, active.providerType, result.success ? 1 : 0, result.messageId || null, phone, result.error || null, result.details ? JSON.stringify({ status: result.status || null, cost: result.cost || null }) : null]).catch(() => {});
+  // Caller's sender ID (the school's own) wins; else the provider's; else the adapter default.
+  const result = await sendWithAdapter(active.providerType, phone, message, { ...active.config, senderId: senderId || active.senderId || active.config.senderId });
+  await recordProviderSend(active.id, active.providerType, phone, result, legacyCreds?.schoolId ?? null);
   return result;
 }

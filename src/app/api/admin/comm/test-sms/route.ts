@@ -1,6 +1,7 @@
 /**
- * POST /api/admin/comm/test-sms — send a one-off test SMS using THIS school's
- * saved Africa's Talking credentials + sender ID, to verify delivery end-to-end.
+ * POST /api/admin/comm/test-sms — send a one-off test SMS through the same
+ * provider this school's real messages use (its Control Center route, e.g.
+ * UgaText; the saved Africa's Talking credentials only as a fallback).
  * Body: { phone }
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     'DRAIS test message — your SMS setup is working.',
     undefined,
     s.senderName || undefined,
-    { username: s.providerUsername, apiKey: s.providerApiKey },
+    { username: s.providerUsername, apiKey: s.providerApiKey, schoolId: session.schoolId },
   );
 
   // Return the real provider result so the admin can see exactly what happened.

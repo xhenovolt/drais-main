@@ -389,12 +389,19 @@ export async function manualSendFromLog(args: {
 
   let result;
   try {
-    result = await provider.send({
-      to:         log.recipient_phone,
-      body:       log.message_body,
-      senderName: senderFor(settings, log.channel),
-      creds:      credsFor(settings, log.channel),
-    });
+    if (log.channel === 'sms') {
+      // Same path as the auto send above: honours the school's Control Center route
+      // (e.g. UgaText) instead of always going straight to Africa's Talking.
+      const r = await sendSMS(log.recipient_phone, log.message_body, undefined, senderFor(settings, log.channel), { schoolId: args.schoolId });
+      result = { success: r.success, providerMessageId: r.messageId ?? null, cost: r.cost ?? null, error: r.success ? null : (r.error ?? 'Send failed') };
+    } else {
+      result = await provider.send({
+        to:         log.recipient_phone,
+        body:       log.message_body,
+        senderName: senderFor(settings, log.channel),
+        creds:      credsFor(settings, log.channel),
+      });
+    }
   } catch (e: any) {
     result = { success: false, providerMessageId: null, cost: null, error: e?.message || 'provider threw' };
   }

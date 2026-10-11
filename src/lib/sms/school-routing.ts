@@ -197,6 +197,37 @@ export async function sendViaSchoolRoute(
   try { config = decryptProviderConfig(String(row.encrypted_config)); }
   catch { return { response: { success: false, error: 'SMS route problem: the chosen provider\'s secret could not be read.' }, provider: 'none', routeLabel: 'misconfigured' }; }
   const type = row.provider_type as SmsProviderType;
+  // Sender ID precedence: the school's own (Communications → Settings), else the provider's
+  // (Control Center), else the adapter's account default. None of them is required.
   const response = await sendWithAdapter(type, msg.to, msg.body, { ...config, senderId: msg.senderName || config.senderId });
+  await recordProviderSend(plan.providerId, type, msg.to, response, schoolId);
   return { response, provider: type, routeLabel: `central ${SMS_PROVIDER_ADAPTERS[type]?.displayName ?? type}` };
+}
+
+/** Keep Control Center's provider health truthful for routed sends too (last success/failure +
+ *  the operations log) — previously only the platform-default path recorded these, so a revoked
+ *  key on a school-routed provider still showed "connected". Best-effort, never blocks a send. */
+export async function recordProviderSend(providerId: number, type: string, phone: string, result: SMSResponse, schoolId?: number | null): Promise<void> {
+  const ok = result.success ? 1 : 0;
+  await query(
+    `UPDATE sms_provider_configs SET last_success_at = CASE WHEN ? = 1 THEN NOW() ELSE last_success_at END,
+       last_failure_at = CASE WHEN ? = 1 THEN last_failure_at ELSE NOW() END,
+       last_provider_message_id = COALESCE(?, last_provider_message_id),
+       status = CASE WHEN ? = 0 AND ? IN (401, 403) THEN 'authentication_failed' WHEN ? = 1 AND status = 'authentication_failed' THEN 'connected' ELSE status END,
+       status_message = CASE WHEN ? = 0 AND ? IN (401, 403) THEN ? WHEN ? = 1 AND status = 'authentication_failed' THEN NULL ELSE status_message END
+     WHERE id = ?`,
+    [ok, ok, result.messageId || null, ok, httpStatusOf(result), ok, ok, httpStatusOf(result), (result.error || '').slice(0, 500), ok, providerId],
+  ).catch(() => {});
+  await query(
+    `INSERT INTO sms_provider_operations (provider_id, provider_type, operation, success, http_status, provider_message_id, recipient_phone, error_message, metadata_json)
+     VALUES (?, ?, 'send', ?, ?, ?, ?, ?, ?)`,
+    [providerId, type, ok, httpStatusOf(result), result.messageId || null, phone, result.error ? result.error.slice(0, 500) : null,
+      JSON.stringify({ status: result.status || null, cost: result.cost || null, schoolId: schoolId ?? null, senderIdUsed: (result.details as any)?.sender_id_used ?? null })],
+  ).catch(() => {});
+}
+
+function httpStatusOf(result: SMSResponse): number | null {
+  const m = String(result.status ?? '').match(/^HTTP (\d{3})$/);
+  if (m) return Number(m[1]);
+  return /revoked|invalid .*api key|unauthori[sz]ed/i.test(result.error || '') ? 401 : null;
 }

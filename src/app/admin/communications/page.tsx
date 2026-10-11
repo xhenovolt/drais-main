@@ -404,8 +404,8 @@ function SettingsPanel() {
             onChange={e => setForm({ ...form, senderName: e.target.value })}
             className={inputCls} placeholder="(blank uses provider default)" />
           <p className="text-[10px] text-slate-400 mt-1">
-            Africa's Talking requires alphanumeric sender IDs to be pre-registered on your account.
-            Passing an unregistered ID causes silent rejection. Leave blank unless you've registered one.
+            Alphanumeric sender IDs must be pre-registered with the SMS provider.
+            Passing an unregistered ID causes rejection. Leave blank unless you've registered one.
           </p>
         </F>
         <F label="Prefix (e.g. [ALBAYAN])">
@@ -426,17 +426,21 @@ function SettingsPanel() {
             {data.effectiveRoute.kind === 'legacy' && <>No central SMS provider is active in Control Center right now — the fields below are being used as a fallback.</>}
           </div>
         )}
-        <F label="Default Provider">
-          <select value={form.defaultProvider}
-            onChange={e => setForm({ ...form, defaultProvider: e.target.value })} className={inputCls}>
-            {(data?.providers ?? []).map((p: any) =>
-              <option key={p.name} value={p.name}>{p.name}</option>
-            )}
-          </select>
-          <p className="text-[10px] text-slate-400 mt-1">
-            Only used when Control Center has no active provider and this school has no central route — see the
-            banner above for what's actually in effect right now.
-          </p>
+        <F label="SMS Provider">
+          <div className={`${inputCls} flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/60 cursor-default`}>
+            <span className="font-medium truncate">
+              {data?.effectiveRoute?.kind === 'error' ? 'Misconfigured — contact support' : (data?.effectiveRoute?.providerName ?? '—')}
+            </span>
+            <span className="shrink-0 text-[10px] uppercase tracking-wide text-slate-400">
+              {data?.effectiveRoute?.kind === 'central' ? (data.effectiveRoute.explicit ? 'Assigned in Control Center' : 'Platform default') : data?.effectiveRoute?.kind === 'error' ? '' : 'Fallback'}
+            </span>
+          </div>
+          {(data?.providers ?? []).length > 0 && (
+            <p className="text-[10px] text-slate-400 mt-1">
+              Providers available in Control Center: {(data.providers as any[]).map((p) => p.name + (p.isActive ? ' (platform default)' : '')).join(', ')}.
+              Only the platform administrator can change which one this school uses.
+            </p>
+          )}
         </F>
 
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -462,7 +466,7 @@ function SettingsPanel() {
 
           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Test delivery</h3>
-            <p className="text-[10px] text-slate-400 mb-2">Save your credentials first, then send a real test SMS to confirm Africa&apos;s Talking delivers (uses the saved key + sender ID).</p>
+            <p className="text-[10px] text-slate-400 mb-2">Sends a real test SMS through the provider shown above{data?.effectiveRoute?.providerName ? <> (<strong>{data.effectiveRoute.providerName}</strong>)</> : null}, using this school&apos;s sender ID.</p>
             <div className="flex gap-2">
               <input value={testPhone} onChange={e => setTestPhone(e.target.value)} className={inputCls} placeholder="e.g. +2567..." autoComplete="off" />
               <button onClick={sendTest} disabled={testing}

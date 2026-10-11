@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { requirePermission } from '@/lib/rbac';
 import { getCommSettings, updateCommSettings } from '@/lib/comm';
-import { listProviders } from '@/lib/comm';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { planForSchool } from '@/lib/sms/school-routing';
 import { query } from '@/lib/db';
@@ -15,7 +14,14 @@ export async function GET(req: NextRequest) {
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 403 }); }
 
   const settings  = await getCommSettings(session.schoolId);
-  const providers = listProviders();
+  // SMS providers come from Control Center (sms_provider_configs), not the
+  // static in-code registry — that list only ever showed africas_talking /
+  // infobip_whatsapp / console regardless of what the platform actually uses.
+  const providers = ((await query(
+    `SELECT id, provider_type, display_name, is_active FROM sms_provider_configs WHERE enabled = 1 ORDER BY is_active DESC, display_name`, [],
+  ).catch(() => [])) as any[]).map((p) => ({
+    id: Number(p.id), name: String(p.display_name), type: String(p.provider_type), channel: 'sms', isActive: Number(p.is_active) === 1,
+  }));
   // Never return raw API keys to the client; send a mask if one is set.
   const masked = {
     ...settings,
@@ -31,18 +37,19 @@ export async function GET(req: NextRequest) {
   // EXPLICIT mode:'own' route, or no active platform provider at all).
   // Surfaced so this page stops implying the school picks its own
   // provider when, for attendance/bulk SMS, Control Center's choice wins.
-  let effectiveRoute: { kind: string; providerName: string | null } = { kind: 'legacy', providerName: null };
+  let effectiveRoute: { kind: string; providerName: string | null; explicit?: boolean } = { kind: 'legacy', providerName: null };
   try {
     const plan = await planForSchool(session.schoolId);
     if (plan.kind === 'central') {
       const p = ((await query(`SELECT display_name FROM sms_provider_configs WHERE id = ? LIMIT 1`, [plan.providerId]).catch(() => [])) as any[])[0];
-      effectiveRoute = { kind: 'central', providerName: p?.display_name ?? `Provider #${plan.providerId}` };
+      const explicit = !!((await query(`SELECT 1 FROM school_sms_routes WHERE school_id = ? AND mode <> 'inherit' LIMIT 1`, [session.schoolId]).catch(() => [])) as any[])[0];
+      effectiveRoute = { kind: 'central', providerName: p?.display_name ?? `Provider #${plan.providerId}`, explicit };
     } else if (plan.kind === 'own') {
       effectiveRoute = { kind: 'own', providerName: "Africa's Talking (this school's own account)" };
     } else if (plan.kind === 'error') {
       effectiveRoute = { kind: 'error', providerName: null };
     } else {
-      effectiveRoute = { kind: 'legacy', providerName: null };
+      effectiveRoute = { kind: 'legacy', providerName: "Africa's Talking (this school's own account)" };
     }
   } catch { /* best-effort — settings still load without it */ }
 
