@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-11T20:08:46.661Z",
-  "last_commit": "068da98d0c7d056c9585c2f7f548578b23fa4fda",
+  "generated_at": "2026-10-12T01:58:56.083Z",
+  "last_commit": "24eab84b5b2f97b89455c367566a628f4e593294",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9046,7 +9046,20 @@
         }
       ],
       "commit": "068da98d0c"
+    },
+    {
+      "version": "2.50.33",
+      "date": "2026-10-11",
+      "release_type": "patch",
+      "title": "Add UgaText delivery webhook so SMS can be confirmed delivered or failed",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add UgaText delivery webhook so SMS can be confirmed delivered or failed"
+        }
+      ],
+      "commit": "24eab84b5b"
     }
   ],
-  "app_version": "2.50.33"
+  "app_version": "2.50.34"
 }

@@ -51,7 +51,25 @@ export async function POST(req: NextRequest) {
     if (check.ok) { matched = candidate; break; }
     reason = check.reason;
   }
-  if (!matched) return NextResponse.json({ error: `Invalid signature: ${reason}` }, { status: 401 });
+  if (!matched) {
+    // Leave a trace when something that looks like UgaText is turned away, so "UgaText never
+    // called" and "we rejected it" can be told apart in Control Center. No payload is trusted or
+    // stored; at most one row a minute so the open endpoint cannot be used to flood the table.
+    if (header) {
+      const recent = (await query(
+        `SELECT 1 FROM sms_provider_operations WHERE operation = 'delivery_report_rejected' AND created_at > NOW() - INTERVAL 1 MINUTE LIMIT 1`, [],
+      ).catch(() => [1])) as unknown[];
+      if (!recent.length) {
+        await query(
+          `INSERT INTO sms_provider_operations (provider_id, provider_type, operation, success, http_status, error_message, metadata_json)
+           VALUES (?, 'ugatext', 'delivery_report_rejected', 0, 401, ?, ?)`,
+          [secrets[0].providerId, `Webhook rejected: ${reason}`.slice(0, 500),
+            JSON.stringify({ event: (req.headers.get('x-ugatext-event') || '').slice(0, 60), deliveryId: (req.headers.get('x-ugatext-delivery-id') || '').slice(0, 80), bodyBytes: raw.length })],
+        ).catch(() => undefined);
+      }
+    }
+    return NextResponse.json({ error: `Invalid signature: ${reason}` }, { status: 401 });
+  }
 
   let body: any;
   try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }); }
