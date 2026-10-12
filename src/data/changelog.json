@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T16:11:45.834Z",
-  "last_commit": "768ef8e9377bfe10a99869a946603eadc43fb898",
+  "generated_at": "2026-10-12T16:45:59.235Z",
+  "last_commit": "1a990daa23a35b216964d48aa0b84ff49856df85",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9137,7 +9137,20 @@
         }
       ],
       "commit": "768ef8e937"
+    },
+    {
+      "version": "2.50.40",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Add per-school SMS alerts for delivery status, with a clear cost warning",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add per-school SMS alerts for delivery status, with a clear cost warning"
+        }
+      ],
+      "commit": "1a990daa23"
     }
   ],
-  "app_version": "2.50.40"
+  "app_version": "2.50.41"
 }
