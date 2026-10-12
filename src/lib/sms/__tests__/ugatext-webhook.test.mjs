@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { verifyUgaTextSignature, readUgaTextEvent } from '../ugatext-webhook.ts';
+import { verifyUgaTextSignature, readUgaTextEvent, describeSignatureHeader } from '../ugatext-webhook.ts';
 
 const src = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const read = (p) => readFileSync(join(src, p), 'utf8');
@@ -18,7 +18,23 @@ const LIVE_RAW = '{"id":"evt_1791749098091_c28fb1d4","event":"sms.delivered","de
 describe('UgaText webhook signature', () => {
   const now = 1791749100;
   it('accepts the documented t=<ts>,v1=HMAC(secret, "<ts>.<raw body>") scheme', () => {
-    assert.deepEqual(verifyUgaTextSignature(sign(now, LIVE_RAW), LIVE_RAW, SECRET, now), { ok: true });
+    assert.deepEqual(verifyUgaTextSignature(sign(now, LIVE_RAW), LIVE_RAW, SECRET, now), { ok: true, scheme: 't.body' });
+  });
+  it('accepts the bare-digest framings live events use, always keyed with the secret', () => {
+    const hex = (payload) => createHmac('sha256', SECRET).update(payload).digest('hex');
+    const b64 = createHmac('sha256', SECRET).update(LIVE_RAW).digest('base64');
+    assert.deepEqual(verifyUgaTextSignature(hex(LIVE_RAW), LIVE_RAW, SECRET, now), { ok: true, scheme: 'body' });
+    assert.deepEqual(verifyUgaTextSignature(`sha256=${hex(LIVE_RAW)}`, LIVE_RAW, SECRET, now), { ok: true, scheme: 'body' });
+    assert.deepEqual(verifyUgaTextSignature(b64, LIVE_RAW, SECRET, now), { ok: true, scheme: 'body' });
+    assert.deepEqual(verifyUgaTextSignature(hex(`${now}.${LIVE_RAW}`), LIVE_RAW, SECRET, now, undefined, String(now)), { ok: true, scheme: 'timestamp-header.body' });
+    assert.equal(verifyUgaTextSignature(hex(`${now - 7200}.${LIVE_RAW}`), LIVE_RAW, SECRET, now, undefined, String(now - 7200)).ok, false);
+    assert.equal(verifyUgaTextSignature(createHmac('sha256', 'whsec_other').update(LIVE_RAW).digest('hex'), LIVE_RAW, SECRET, now).ok, false);
+    assert.equal(verifyUgaTextSignature('0'.repeat(64), LIVE_RAW, SECRET, now).ok, false);
+    assert.equal(verifyUgaTextSignature('not-a-signature', LIVE_RAW, SECRET, now).ok, false);
+  });
+  it('describes a signature header without leaking it', () => {
+    assert.equal(describeSignatureHeader(sign(now, LIVE_RAW)), 't=<num:10>,v1=<hex:64>');
+    assert.equal(describeSignatureHeader(null), '(none)');
   });
   it('rejects a tampered body, a wrong secret, a stale timestamp and a missing/malformed header', () => {
     assert.equal(verifyUgaTextSignature(sign(now, LIVE_RAW), LIVE_RAW.replace('delivered', 'failed'), SECRET, now).ok, false);

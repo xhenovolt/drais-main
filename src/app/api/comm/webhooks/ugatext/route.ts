@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { decryptProviderConfig } from '@/lib/sms/providers';
 import { applyDeliveryReport } from '@/lib/sms/delivery-report';
-import { readUgaTextEvent, verifyUgaTextSignature, UGATEXT_SIGNATURE_HEADER } from '@/lib/sms/ugatext-webhook';
+import { readUgaTextEvent, verifyUgaTextSignature, describeSignatureHeader, UGATEXT_SIGNATURE_HEADER } from '@/lib/sms/ugatext-webhook';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,11 +44,13 @@ export async function POST(req: NextRequest) {
 
   const raw = await req.text();
   const header = req.headers.get(UGATEXT_SIGNATURE_HEADER);
+  const timestampHeader = req.headers.get('x-ugatext-timestamp');
   let matched: { providerId: number | null } | null = null;
+  let scheme = '';
   let reason = 'signature mismatch';
   for (const candidate of secrets) {
-    const check = verifyUgaTextSignature(header, raw, candidate.secret);
-    if (check.ok) { matched = candidate; break; }
+    const check = verifyUgaTextSignature(header, raw, candidate.secret, undefined, undefined, timestampHeader);
+    if (check.ok) { matched = candidate; scheme = check.scheme; break; }
     reason = check.reason;
   }
   if (!matched) {
@@ -64,7 +66,9 @@ export async function POST(req: NextRequest) {
           `INSERT INTO sms_provider_operations (provider_id, provider_type, operation, success, http_status, error_message, metadata_json)
            VALUES (?, 'ugatext', 'delivery_report_rejected', 0, 401, ?, ?)`,
           [secrets[0].providerId, `Webhook rejected: ${reason}`.slice(0, 500),
-            JSON.stringify({ event: (req.headers.get('x-ugatext-event') || '').slice(0, 60), deliveryId: (req.headers.get('x-ugatext-delivery-id') || '').slice(0, 80), bodyBytes: raw.length })],
+            JSON.stringify({ event: (req.headers.get('x-ugatext-event') || '').slice(0, 60), deliveryId: (req.headers.get('x-ugatext-delivery-id') || '').slice(0, 80), bodyBytes: raw.length,
+              signatureShape: describeSignatureHeader(header), hasTimestampHeader: !!timestampHeader,
+              ugatextHeaders: [...req.headers.keys()].filter((k) => /ugatext|signature|webhook|hmac/i.test(k)).slice(0, 12) })],
         ).catch(() => undefined);
       }
     }
@@ -87,7 +91,7 @@ export async function POST(req: NextRequest) {
     [
       matched.providerId, event.state === 'failed' ? 0 : 1, event.messageId, event.recipient ? String(event.recipient).slice(0, 32) : null,
       event.state === 'failed' ? String(event.reason || 'Delivery failed').slice(0, 500) : null,
-      JSON.stringify({ event: event.eventType, eventId: event.eventId, state: event.state, network: event.network, deliveredAt: event.deliveredAt, updated }),
+      JSON.stringify({ event: event.eventType, eventId: event.eventId, state: event.state, network: event.network, deliveredAt: event.deliveredAt, updated, signature: scheme }),
     ],
   ).catch(() => undefined);
 

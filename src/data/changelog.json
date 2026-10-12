@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T01:58:56.083Z",
-  "last_commit": "24eab84b5b2f97b89455c367566a628f4e593294",
+  "generated_at": "2026-10-12T02:07:49.534Z",
+  "last_commit": "44b66fd16f20a59c8814a2da7e5059afe207c924",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9059,7 +9059,20 @@
         }
       ],
       "commit": "24eab84b5b"
+    },
+    {
+      "version": "2.50.34",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Log rejected UgaText webhook calls so a missing callback can be diagnosed",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Log rejected UgaText webhook calls so a missing callback can be diagnosed"
+        }
+      ],
+      "commit": "44b66fd16f"
     }
   ],
-  "app_version": "2.50.34"
+  "app_version": "2.50.35"
 }

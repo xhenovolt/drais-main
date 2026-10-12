@@ -15,22 +15,59 @@ export const UGATEXT_SIGNATURE_HEADER = 'x-ugatext-signature';
 /** Reject signatures older/newer than this — limits replay of a captured request. */
 export const UGATEXT_SIGNATURE_TOLERANCE_SECONDS = 600;
 
-export type UgaTextSignatureResult = { ok: true } | { ok: false; reason: string };
+export type UgaTextSignatureResult = { ok: true; scheme: string } | { ok: false; reason: string };
 
+const safeEqual = (a: Buffer, b: Buffer) => a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
+
+/** A secret-free description of a signature header ("t=<num:10>,v1=<hex:64>") for diagnostics. */
+export function describeSignatureHeader(header: string | null | undefined): string {
+  if (!header) return '(none)';
+  return header.slice(0, 200)
+    .replace(/[0-9a-f]{16,}/gi, (m) => `<hex:${m.length}>`)
+    .replace(/[A-Za-z0-9+/_-]{20,}={0,2}/g, (m) => `<b64:${m.length}>`)
+    .replace(/\d{6,}/g, (m) => `<num:${m.length}>`);
+}
+
+/**
+ * Verify an UgaText webhook signature. Every accepted form is an HMAC-SHA256 keyed with the signing
+ * secret — only the framing differs, because UgaText's simulator and its live message pipeline do
+ * not frame it the same way (observed 2026-10-12: live `message.sent` events do not use the
+ * documented `t=...,v1=...` header):
+ *   documented   X-UgaText-Signature: t=<unix>,v1=<hex>     over "<t>.<raw body>"
+ *   bare         X-UgaText-Signature: [sha256=]<hex|base64> over "<raw body>", or over
+ *                "<X-UgaText-Timestamp>.<raw body>" when that header is present
+ * Timestamped forms are replay-limited by `toleranceSeconds`; the body-only form has no timestamp to
+ * check, which is acceptable because applying a delivery report is idempotent.
+ */
 export function verifyUgaTextSignature(
   header: string | null | undefined, rawBody: string, secret: string,
   nowSeconds: number = Math.floor(Date.now() / 1000), toleranceSeconds: number = UGATEXT_SIGNATURE_TOLERANCE_SECONDS,
+  timestampHeader?: string | null,
 ): UgaTextSignatureResult {
   if (!secret) return { ok: false, reason: 'no signing secret configured' };
-  if (!header) return { ok: false, reason: 'missing signature header' };
-  const parts = Object.fromEntries(header.split(',').map((p) => { const i = p.indexOf('='); return [p.slice(0, i).trim(), p.slice(i + 1).trim()]; }));
-  const timestamp = Number(parts.t);
-  const signature = String(parts.v1 || '');
-  if (!Number.isFinite(timestamp) || !/^[0-9a-f]{64}$/i.test(signature)) return { ok: false, reason: 'malformed signature header' };
-  if (Math.abs(nowSeconds - timestamp) > toleranceSeconds) return { ok: false, reason: 'signature timestamp outside tolerance' };
-  const expected = createHmac('sha256', secret).update(`${parts.t}.${rawBody}`).digest();
-  const given = Buffer.from(signature, 'hex');
-  return given.length === expected.length && timingSafeEqual(given, expected) ? { ok: true } : { ok: false, reason: 'signature mismatch' };
+  if (!header || !header.trim()) return { ok: false, reason: 'missing signature header' };
+  const mac = (payload: string) => createHmac('sha256', secret).update(payload).digest();
+  const fresh = (ts: string) => { const n = Number(ts.length > 11 ? Number(ts) / 1000 : ts); return Number.isFinite(n) && Math.abs(nowSeconds - n) <= toleranceSeconds; };
+
+  // Documented form.
+  if (/(^|,)\s*t=/.test(header) && /(^|,)\s*v1=/.test(header)) {
+    const parts = Object.fromEntries(header.split(',').map((p) => { const i = p.indexOf('='); return [p.slice(0, i).trim(), p.slice(i + 1).trim()]; }));
+    if (!/^\d+$/.test(parts.t || '') || !/^[0-9a-f]{64}$/i.test(parts.v1 || '')) return { ok: false, reason: 'malformed signature header' };
+    if (!fresh(parts.t)) return { ok: false, reason: 'signature timestamp outside tolerance' };
+    return safeEqual(Buffer.from(parts.v1, 'hex'), mac(`${parts.t}.${rawBody}`)) ? { ok: true, scheme: 't.body' } : { ok: false, reason: 'signature mismatch' };
+  }
+
+  // Bare digest, optionally prefixed ("sha256=", "v1=").
+  const value = header.trim().replace(/^(sha256|v1|hmac-sha256)[=:]\s*/i, '');
+  let given: Buffer | null = null;
+  if (/^[0-9a-f]{64}$/i.test(value)) given = Buffer.from(value, 'hex');
+  else if (/^[A-Za-z0-9+/_-]{43}=?$/.test(value)) given = Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+  if (!given || given.length !== 32) return { ok: false, reason: 'malformed signature header' };
+  const ts = (timestampHeader || '').trim();
+  if (/^\d+$/.test(ts) && safeEqual(given, mac(`${ts}.${rawBody}`))) {
+    return fresh(ts) ? { ok: true, scheme: 'timestamp-header.body' } : { ok: false, reason: 'signature timestamp outside tolerance' };
+  }
+  return safeEqual(given, mac(rawBody)) ? { ok: true, scheme: 'body' } : { ok: false, reason: 'signature mismatch' };
 }
 
 export type UgaTextDeliveryState = 'delivered' | 'failed' | 'pending' | 'unknown';
