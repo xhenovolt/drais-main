@@ -6,12 +6,12 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "2.50.35",
+  "version": "2.50.36",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --turbopack",
     "build:webpack": "next build",
     "start": "next start",
     "lint": "eslint",

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T02:07:49.534Z",
-  "last_commit": "44b66fd16f20a59c8814a2da7e5059afe207c924",
+  "generated_at": "2026-10-12T02:14:42.540Z",
+  "last_commit": "b47ebe19828c34ab91a9f4fda7769e6a215850e5",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9072,7 +9072,20 @@
         }
       ],
       "commit": "44b66fd16f"
+    },
+    {
+      "version": "2.50.35",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Accept UgaText's live webhook signature framings and record rejected header shape",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Accept UgaText's live webhook signature framings and record rejected header shape"
+        }
+      ],
+      "commit": "b47ebe1982"
     }
   ],
-  "app_version": "2.50.35"
+  "app_version": "2.50.36"
 }

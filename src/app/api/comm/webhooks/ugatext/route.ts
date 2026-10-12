@@ -29,13 +29,21 @@ async function signingSecrets(): Promise<Array<{ providerId: number | null; secr
   ).catch(() => [])) as any[];
   for (const row of rows) {
     try {
-      const secret = String(decryptProviderConfig(String(row.encrypted_config)).webhookSecret || '').trim();
-      if (secret) out.push({ providerId: Number(row.id), secret });
+      // UgaText keeps separate signing secrets for the dashboard webhook and for webhooks created
+      // through its API, so the field may hold several (comma/space/newline separated).
+      for (const secret of splitSecrets(decryptProviderConfig(String(row.encrypted_config)).webhookSecret)) {
+        if (!out.some((s) => s.secret === secret)) out.push({ providerId: Number(row.id), secret });
+      }
     } catch { /* unreadable config — skip, the env fallback may still apply */ }
   }
-  const env = (process.env.UGATEXT_WEBHOOK_SECRET || '').replace(/^["']|["']$/g, '').trim();
-  if (env && !out.some((s) => s.secret === env)) out.push({ providerId: rows[0] ? Number(rows[0].id) : null, secret: env });
+  for (const env of splitSecrets(process.env.UGATEXT_WEBHOOK_SECRET)) {
+    if (!out.some((s) => s.secret === env)) out.push({ providerId: rows[0] ? Number(rows[0].id) : null, secret: env });
+  }
   return out;
+}
+
+function splitSecrets(value: unknown): string[] {
+  return String(value ?? '').split(/[\s,;]+/).map((s) => s.replace(/^["']|["']$/g, '').trim()).filter(Boolean);
 }
 
 export async function POST(req: NextRequest) {
@@ -51,7 +59,8 @@ export async function POST(req: NextRequest) {
   for (const candidate of secrets) {
     const check = verifyUgaTextSignature(header, raw, candidate.secret, undefined, undefined, timestampHeader);
     if (check.ok) { matched = candidate; scheme = check.scheme; break; }
-    reason = check.reason;
+    // Keep the most specific reason: a mismatch on one secret must not hide a format problem.
+    if (check.reason !== 'signature mismatch' || reason === 'signature mismatch') reason = check.reason;
   }
   if (!matched) {
     // Leave a trace when something that looks like UgaText is turned away, so "UgaText never

@@ -81,7 +81,8 @@ describe('UgaText webhook route is safe by construction', () => {
   const shared = read('lib/sms/delivery-report.ts');
   it('reads the signing secret from Control Center first, env only as a fallback', () => {
     assert.match(route, /decryptProviderConfig\(String\(row\.encrypted_config\)\)\.webhookSecret/);
-    assert.ok(route.indexOf('webhookSecret') < route.indexOf('UGATEXT_WEBHOOK_SECRET ||'));
+    assert.match(route, /splitSecrets\(process\.env\.UGATEXT_WEBHOOK_SECRET\)/);
+    assert.ok(route.indexOf('.webhookSecret') < route.indexOf('process.env.UGATEXT_WEBHOOK_SECRET'));
   });
   it('is disabled without a secret and verifies the signature before parsing or writing anything', () => {
     assert.match(route, /status: 503/);
