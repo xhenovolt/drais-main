@@ -5,6 +5,9 @@ import { getCommSettings, updateCommSettings } from '@/lib/comm';
 import { logAudit, AuditAction } from '@/lib/audit';
 import { planForSchool } from '@/lib/sms/school-routing';
 import { query } from '@/lib/db';
+import { normalizePhoneNumber } from '@/lib/africastalking';
+import { getSmsPricing } from '@/lib/control/sms-economics';
+import { DELIVERY_ALERT_MODES, DELIVERY_ALERT_HOURLY_CAP } from '@/lib/sms/delivery-alerts';
 
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -53,7 +56,15 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* best-effort — settings still load without it */ }
 
-  return NextResponse.json({ success: true, settings: masked, providers, effectiveRoute });
+  // What one SMS costs THIS school (its own override, else the platform retail price) — shown in
+  // the delivery-alert warning so the cost of each alert is a real number, not a vague caution.
+  let smsPriceUgx: number | null = null;
+  try {
+    const own = ((await query(`SELECT price_ugx FROM sms_school_prices WHERE school_id = ? LIMIT 1`, [session.schoolId]).catch(() => [])) as any[])[0];
+    smsPriceUgx = own?.price_ugx != null ? Number(own.price_ugx) : (await getSmsPricing()).retailPrice;
+  } catch { /* the warning still shows, without a figure */ }
+
+  return NextResponse.json({ success: true, settings: masked, providers, effectiveRoute, deliveryAlertHourlyCap: DELIVERY_ALERT_HOURLY_CAP, smsPriceUgx });
 }
 
 export async function PUT(req: NextRequest) {
@@ -71,6 +82,20 @@ export async function PUT(req: NextRequest) {
   }
   // Empty string → NULL (means "use provider default")
   if (body.senderName === '') body.senderName = null;
+
+  // Delivery-status alert number: stored normalised (+256...), blank clears it.
+  if (body.deliveryAlertPhone !== undefined) {
+    const raw = String(body.deliveryAlertPhone ?? '').trim();
+    if (!raw) body.deliveryAlertPhone = null;
+    else {
+      const phone = normalizePhoneNumber(raw);
+      if (!phone) return NextResponse.json({ error: 'The delivery alert number is not a valid phone number' }, { status: 400 });
+      body.deliveryAlertPhone = phone;
+    }
+  }
+  if (body.deliveryAlertMode !== undefined && !DELIVERY_ALERT_MODES.includes(body.deliveryAlertMode)) {
+    return NextResponse.json({ error: 'Invalid delivery alert mode' }, { status: 400 });
+  }
   const settings = await updateCommSettings(session.schoolId, body);
 
   // Never log raw API keys — only whether each one changed.

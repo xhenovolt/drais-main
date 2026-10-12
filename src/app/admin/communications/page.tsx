@@ -347,6 +347,7 @@ function SettingsPanel() {
     providerUsername: '', providerApiKey: '',
     whatsappEnabled: false, whatsappProvider: 'infobip_whatsapp', whatsappSender: '',
     whatsappProviderBaseUrl: '', whatsappProviderApiKey: '',
+    deliveryAlertPhone: '', deliveryAlertMode: 'failed',
   });
 
   React.useEffect(() => {
@@ -368,11 +369,29 @@ function SettingsPanel() {
         whatsappSender:          s.whatsappSender ?? '',
         whatsappProviderBaseUrl: s.whatsappProviderBaseUrl ?? '',
         whatsappProviderApiKey:  s.whatsappProviderApiKey ?? '', // server sends '********' if set
+        deliveryAlertPhone:      s.deliveryAlertPhone ?? '',
+        deliveryAlertMode:       s.deliveryAlertMode ?? 'failed',
       });
     }
   }, [data]);
 
+  const alertCap: number = Number(data?.deliveryAlertHourlyCap ?? 20);
+  const alertPrice: string | null = data?.smsPriceUgx != null ? String(Math.round(Number(data.smsPriceUgx))) : null;
+
   async function save() {
+    // Turning paid alerts on (or widening them) must be a deliberate choice, in plain words.
+    const before = data?.settings ?? {};
+    const wasOn = !!before.deliveryAlertPhone && (before.deliveryAlertMode ?? 'failed') !== 'off';
+    const wasAll = wasOn && before.deliveryAlertMode === 'all';
+    const willBeOn = !!form.deliveryAlertPhone.trim() && form.deliveryAlertMode !== 'off';
+    const willBeAll = willBeOn && form.deliveryAlertMode === 'all';
+    if ((willBeOn && !wasOn) || (willBeAll && !wasAll)) {
+      const each = alertPrice ? ` (about UGX ${alertPrice} each)` : '';
+      const msg = willBeAll
+        ? `You are turning on an SMS alert for EVERY delivery report.\n\nEach alert is an extra SMS your school pays for${each}. This can DOUBLE your SMS cost: one SMS to the parent, plus one alert to ${form.deliveryAlertPhone.trim()}.\n\nDRAIS will send at most ${alertCap} alerts per hour.\n\nTurn this on?`
+        : `You are turning on SMS alerts for messages that were NOT delivered.\n\nEach alert is an extra SMS your school pays for${each}, sent to ${form.deliveryAlertPhone.trim()}. You only pay when a message fails.\n\nDRAIS will send at most ${alertCap} alerts per hour.\n\nTurn this on?`;
+      if (!window.confirm(msg)) return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/admin/comm/settings', {
@@ -509,6 +528,46 @@ function SettingsPanel() {
               onChange={e => setForm({ ...form, retryDelaySecs: Number(e.target.value) })} className={inputCls} />
           </F>
         </div>
+      </div>
+
+      <div className="md:col-span-2 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Delivery status alerts by SMS (optional)</h2>
+        <p className="text-xs text-slate-600 dark:text-slate-300">
+          You can already see whether each message was delivered, for free, in <strong>SMS Outbox</strong> and in the
+          pop-up notices on this screen. This option is only for when you also want a <strong>text message on a phone</strong> telling
+          you what happened to a message.
+        </p>
+        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1.5">
+          <p className="font-bold flex items-center gap-1.5"><AlertCircle className="w-4 h-4 shrink-0" /> This costs extra SMS — please read before turning it on</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Every alert is <strong>a second SMS that your school pays for</strong>{alertPrice ? <> (about <strong>UGX {alertPrice}</strong> each)</> : null}, on top of the message sent to the parent.</li>
+            <li><strong>&ldquo;Only messages that were not delivered&rdquo;</strong> is the cheap choice: you pay only when something goes wrong.</li>
+            <li><strong>&ldquo;Every delivery report&rdquo;</strong> can double your SMS bill: one SMS to the parent, plus one alert to you for each message.</li>
+            <li>To protect you, DRAIS sends <strong>at most {alertCap} alerts per hour</strong>{alertPrice ? <> (at most about UGX {(alertCap * Number(alertPrice)).toLocaleString()} per hour)</> : null}. On a busy morning the rest are skipped, but they still show in SMS Outbox.</li>
+          </ul>
+        </div>
+        <div className="grid md:grid-cols-2 gap-x-5 gap-y-3">
+          <F label="Phone number to receive the alerts">
+            <input value={form.deliveryAlertPhone}
+              onChange={e => setForm({ ...form, deliveryAlertPhone: e.target.value })}
+              className={inputCls} placeholder="e.g. 0741341483 — leave blank to keep this off" autoComplete="off" />
+          </F>
+          <F label="What to send alerts about">
+            <select value={form.deliveryAlertMode}
+              onChange={e => setForm({ ...form, deliveryAlertMode: e.target.value })} className={inputCls}>
+              <option value="failed">Only messages that were not delivered (recommended)</option>
+              <option value="all">Every delivery report — delivered and not delivered (can double SMS cost)</option>
+              <option value="off">Nothing — turn alerts off</option>
+            </select>
+          </F>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          {!form.deliveryAlertPhone.trim() || form.deliveryAlertMode === 'off'
+            ? 'Alerts are OFF. No extra SMS will be sent.'
+            : form.deliveryAlertMode === 'all'
+              ? `Alerts are ON for every delivery report. Example: 100 messages to parents can add up to ${Math.min(100, alertCap)} alert SMS in the first hour.`
+              : 'Alerts are ON for messages that were not delivered only.'}
+        </p>
       </div>
 
       <div className="md:col-span-2 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-3">

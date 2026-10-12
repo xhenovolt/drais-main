@@ -10,6 +10,7 @@
  */
 import { query } from '@/lib/db';
 import { recordDeliveryEvent } from '@/lib/sms/delivery-events';
+import { notifyDeliveryStatus } from '@/lib/sms/delivery-alerts';
 
 export interface DeliveryReport {
   messageId: string;
@@ -101,6 +102,16 @@ export async function applyDeliveryReport(report: DeliveryReport): Promise<{ upd
     recipientPhone: ctx.recipientPhone, recipientName: ctx.recipientName, learnerName: ctx.learnerName,
     outboxId: ctx.outboxId, dispatchLogId: ctx.dispatchLogId,
   });
+
+  // Text the school's delivery-alert number, once per (message, outcome): `recorded` is false
+  // when the provider repeats a report, so a webhook retry never sends a second alert.
+  if (recorded && ctx.schoolId && (state === 'delivered' || state === 'failed')) {
+    await notifyDeliveryStatus({
+      schoolId: ctx.schoolId, state, reason: report.reason ?? null,
+      recipientName: ctx.recipientName, recipientPhone: ctx.recipientPhone, learnerName: ctx.learnerName,
+      outboxId: ctx.outboxId, dispatchLogId: ctx.dispatchLogId,
+    });
+  }
 
   return { updated, matched: true, recorded };
 }

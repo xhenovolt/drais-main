@@ -33,6 +33,7 @@ import { ensureNotificationSchema } from '@/lib/notifications/migrations/notific
 import { revalidateQueuedAttendanceMessage } from '@/lib/notifications/attendance-sms-eligibility';
 import { recordSmsUsage } from '@/lib/sms/usage';
 import { sendViaSchoolRoute, providerPacingForSchool } from '@/lib/sms/school-routing';
+import { notifyDeliveryStatus } from '@/lib/sms/delivery-alerts';
 
 const BATCH = 50;
 /** How long a message waits when the provider's per-minute budget is used up. */
@@ -284,6 +285,11 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
       } else if (row.attempts >= row.max_attempts) {
         await markFailed(row.id, sendResult.error ?? 'Provider rejected');
         result.failed++;
+        // The provider refused it for good: tell the school's delivery-alert number.
+        await notifyDeliveryStatus({
+          schoolId: row.school_id, state: 'failed', reason: sendResult.error ?? 'Provider rejected',
+          recipientName: row.recipient_name, recipientPhone: row.recipient_phone, outboxId: row.id,
+        });
       } else {
         await requeue(row.id, row.attempts, sendResult.error ?? 'Provider error');
         result.requeued++;

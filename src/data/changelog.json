@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T07:58:20.824Z",
-  "last_commit": "22c62a8f191ff09333c786722a4240a37e85c39f",
+  "generated_at": "2026-10-12T16:11:45.834Z",
+  "last_commit": "768ef8e9377bfe10a99869a946603eadc43fb898",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9124,7 +9124,20 @@
         }
       ],
       "commit": "22c62a8f19"
+    },
+    {
+      "version": "2.50.39",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Stop duplicate attendance SMS and pace sends under the provider rate limit",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Stop duplicate attendance SMS and pace sends under the provider rate limit"
+        }
+      ],
+      "commit": "768ef8e937"
     }
   ],
-  "app_version": "2.50.39"
+  "app_version": "2.50.40"
 }

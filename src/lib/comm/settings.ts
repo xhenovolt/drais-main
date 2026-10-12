@@ -4,6 +4,7 @@
  * "school has no settings yet".
  */
 import { query } from '@/lib/db';
+import { ensureDeliveryAlertSchema } from '@/lib/sms/delivery-alerts';
 
 export interface CommSettings {
   schoolId:         number;
@@ -29,6 +30,10 @@ export interface CommSettings {
   whatsappSender:          string | null;
   whatsappProviderBaseUrl: string | null;
   whatsappProviderApiKey:  string | null;
+  /** Number DRAIS texts when a delivery status comes in (see lib/sms/delivery-alerts). Blank = off. */
+  deliveryAlertPhone:      string | null;
+  /** 'failed' (only not-delivered) | 'all' (delivered too) | 'off'. */
+  deliveryAlertMode:       string;
 }
 
 interface Raw {
@@ -49,6 +54,8 @@ interface Raw {
   whatsapp_sender?:             string | null;
   whatsapp_provider_base_url?:  string | null;
   whatsapp_provider_api_key?:   string | null;
+  delivery_alert_phone?:        string | null;
+  delivery_alert_mode?:         string | null;
 }
 
 function toSettings(r: Raw): CommSettings {
@@ -70,6 +77,8 @@ function toSettings(r: Raw): CommSettings {
     whatsappSender:          r.whatsapp_sender ?? null,
     whatsappProviderBaseUrl: r.whatsapp_provider_base_url ?? null,
     whatsappProviderApiKey:  r.whatsapp_provider_api_key ?? null,
+    deliveryAlertPhone:      r.delivery_alert_phone ?? null,
+    deliveryAlertMode:       r.delivery_alert_mode ?? 'failed',
   };
 }
 
@@ -122,6 +131,12 @@ export async function updateCommSettings(
   // Same masked-resubmit rule as providerApiKey above.
   if (patch.whatsappProviderApiKey !== undefined && patch.whatsappProviderApiKey !== '' && patch.whatsappProviderApiKey !== '********') {
     fields.push('whatsapp_provider_api_key = ?'); params.push(patch.whatsappProviderApiKey);
+  }
+
+  if (patch.deliveryAlertPhone !== undefined || patch.deliveryAlertMode !== undefined) {
+    await ensureDeliveryAlertSchema();
+    if (patch.deliveryAlertPhone !== undefined) { fields.push('delivery_alert_phone = ?'); params.push(patch.deliveryAlertPhone || null); }
+    if (patch.deliveryAlertMode !== undefined)  { fields.push('delivery_alert_mode = ?');  params.push(patch.deliveryAlertMode); }
   }
 
   if (fields.length === 0) return getCommSettings(schoolId);
