@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T02:46:57.649Z",
-  "last_commit": "bd18a8b6ef58145eac54f68db70b97fadab766db",
+  "generated_at": "2026-10-12T07:58:20.824Z",
+  "last_commit": "22c62a8f191ff09333c786722a4240a37e85c39f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9111,7 +9111,20 @@
         }
       ],
       "commit": "bd18a8b6ef"
+    },
+    {
+      "version": "2.50.38",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Show real-time SMS delivery status in the outbox and as toasts",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Show real-time SMS delivery status in the outbox and as toasts"
+        }
+      ],
+      "commit": "22c62a8f19"
     }
   ],
-  "app_version": "2.50.38"
+  "app_version": "2.50.39"
 }

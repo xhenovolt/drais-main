@@ -127,6 +127,20 @@ describe('central SMS providers', () => {
     });
   });
 
+  it('flags an UgaText rate-limit refusal and reads how long to wait', async () => {
+    await withFetch(async () => new Response(JSON.stringify({ success: false, error: 'Account rate limit exceeded (60 req/min). Try again in 12s.', code: 'RATE_LIMIT_EXCEEDED' }), { status: 429 }), async () => {
+      const result = await SMS_PROVIDER_ADAPTERS.ugatext.send('0741341483', 'hi', { apiKey: 'key' });
+      assert.equal(result.success, false);
+      assert.equal(result.rateLimited, true);
+      assert.equal(result.retryAfterSeconds, 12);
+    });
+    await withFetch(async () => new Response(JSON.stringify({ success: false, error: 'Invalid or revoked API key.' }), { status: 401 }), async () => {
+      const result = await SMS_PROVIDER_ADAPTERS.ugatext.send('0741341483', 'hi', { apiKey: 'old' });
+      assert.equal(result.rateLimited, undefined);
+    });
+    assert.equal(SMS_PROVIDER_ADAPTERS.ugatext.defaultRateLimitPerMinute, 50);
+  });
+
   it('authenticates with Client-ID + Client-Secret when no API key is set', async () => {
     let headers;
     await withFetch(async (_url, options) => { headers = options.headers; return queued(); }, async () => {

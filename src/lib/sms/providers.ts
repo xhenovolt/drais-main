@@ -35,6 +35,9 @@ export interface SmsProviderAdapter {
   type: SmsProviderType;
   displayName: string;
   requiredFields: string[];
+  /** Provider's request cap per minute per account, minus headroom. Overridable per provider
+   *  in Control Center (config.rateLimitPerMinute). Undefined = no known cap. */
+  defaultRateLimitPerMinute?: number;
   send(phone: string, message: string, config: SmsProviderConfig): Promise<SMSResponse>;
   getBalance(config: SmsProviderConfig): Promise<SmsBalance>;
   validate(config: SmsProviderConfig): Promise<{ ok: boolean; status: string; message?: string; balance?: SmsBalance }>;
@@ -177,6 +180,8 @@ const ugaText: SmsProviderAdapter = {
   displayName: 'UgaText',
   // apiKey, or clientId + clientSecret — validate() accepts either.
   requiredFields: ['apiKey'],
+  // UgaText allows 60 requests/min per account; keep 10 back for tests, broadcasts and single sends.
+  defaultRateLimitPerMinute: 50,
   async send(phone, message, config) {
     const auth = ugaTextAuthHeaders(config);
     if (!auth) return { success: false, error: 'UgaText API key (or Client ID + Client Secret) is required' };
@@ -207,7 +212,16 @@ const ugaText: SmsProviderAdapter = {
       }
       const status = String(body?.status || '').toLowerCase();
       const accepted = response.ok && body?.success !== false && UGATEXT_ACCEPTED.includes(status);
-      if (!accepted) return { success: false, status: body?.status || `HTTP ${response.status}`, error: ugaTextError(body, response.status), details: body };
+      if (!accepted) {
+        // A request-rate refusal says nothing about this message; flag it so the caller can wait
+        // and retry instead of treating it as a failed send.
+        const limited = response.status === 429 || /rate.?limit/i.test(ugaTextErrorText(body));
+        const hinted = Number(response.headers.get('retry-after')) || Number((ugaTextErrorText(body).match(/again in (\d+)\s*s/i) || [])[1]);
+        return {
+          success: false, status: body?.status || `HTTP ${response.status}`, error: ugaTextError(body, response.status), details: body,
+          ...(limited ? { rateLimited: true, retryAfterSeconds: Number.isFinite(hinted) && hinted > 0 ? hinted : undefined } : {}),
+        };
+      }
       const messageId = body?.message_id ?? body?.messageId ?? body?.id ?? body?.data?.message_id ?? body?.data?.id ?? null;
       const cost = body?.cost_ugx ?? body?.estimated_cost;
       return {

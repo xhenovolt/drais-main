@@ -204,6 +204,32 @@ export async function sendViaSchoolRoute(
   return { response, provider: type, routeLabel: `central ${SMS_PROVIDER_ADAPTERS[type]?.displayName ?? type}` };
 }
 
+export interface ProviderPacing { providerId: number; limit: number; used: number; remaining: number }
+
+/**
+ * How many more messages may go to this school's provider right now. Null = the provider has no
+ * known per-minute cap (or the school is not on a central provider), so no pacing applies.
+ *
+ * `used` counts every send recorded against the provider in the last 60 seconds, whichever school
+ * or code path made it, because the provider's cap is per ACCOUNT. It is a read, not a lock:
+ * two overlapping runs can each see the same room, which is why a "rate limit" reply is also
+ * handled gracefully by the caller — this just keeps us from walking into it.
+ */
+export async function providerPacingForSchool(schoolId: number): Promise<ProviderPacing | null> {
+  const plan = await planForSchool(schoolId);
+  if (plan.kind !== 'central') return null;
+  const row = ((await query(`SELECT provider_type, encrypted_config FROM sms_provider_configs WHERE id = ? LIMIT 1`, [plan.providerId]).catch(() => [])) as any[])[0];
+  if (!row) return null;
+  let configured = NaN;
+  try { configured = Number(decryptProviderConfig(String(row.encrypted_config)).rateLimitPerMinute); } catch { /* use the adapter default */ }
+  const limit = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : SMS_PROVIDER_ADAPTERS[row.provider_type as SmsProviderType]?.defaultRateLimitPerMinute;
+  if (!limit) return null;
+  const used = Number((((await query(
+    `SELECT COUNT(*) AS n FROM sms_provider_operations WHERE provider_id = ? AND operation = 'send' AND created_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)`, [plan.providerId],
+  ).catch(() => [])) as any[])[0])?.n ?? 0);
+  return { providerId: plan.providerId, limit, used, remaining: Math.max(0, limit - used) };
+}
+
 /** Keep Control Center's provider health truthful for routed sends too (last success/failure +
  *  the operations log) — previously only the platform-default path recorded these, so a revoked
  *  key on a school-routed provider still showed "connected". Best-effort, never blocks a send. */

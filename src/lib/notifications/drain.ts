@@ -16,25 +16,35 @@
  *      per-process and fire-and-forget so it never slows the ADMS
  *      response.
  *
- * Concurrency safety is unchanged: a batch is claimed by flipping
- * status queued → sending; a parallel drainer that loses the UPDATE
- * race simply claims nothing.
+ * Concurrency safety: a batch is claimed by flipping status queued →
+ * sending and stamping the rows with this run's claim_token. A run only
+ * ever reads and updates rows carrying its own token, so overlapping
+ * drains (several warm instances, cron + heartbeat) cannot send the same
+ * message twice.
+ *
+ * Pacing: providers with a per-minute cap get a per-run budget, and a
+ * "rate limit" answer puts the message back with its attempt refunded.
  */
+import { randomUUID } from 'node:crypto';
 import { query } from '@/lib/db';
 import { getProvider } from '@/lib/comm/providers';
 import { getCommSettings } from '@/lib/comm/settings';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 import { revalidateQueuedAttendanceMessage } from '@/lib/notifications/attendance-sms-eligibility';
 import { recordSmsUsage } from '@/lib/sms/usage';
-import { sendViaSchoolRoute } from '@/lib/sms/school-routing';
+import { sendViaSchoolRoute, providerPacingForSchool } from '@/lib/sms/school-routing';
 
 const BATCH = 50;
+/** How long a message waits when the provider's per-minute budget is used up. */
+const PACING_DELAY_SECONDS = 45;
 
 export interface DrainResult {
   attempted: number;
   delivered: number;
   failed: number;
   requeued: number;
+  /** Put back untouched (no attempt used) because the provider's rate limit left no room. */
+  deferred: number;
 }
 
 interface OutboxRow {
@@ -50,10 +60,24 @@ interface OutboxRow {
   dedup_key: string | null;
 }
 
+let claimColumnReady: Promise<void> | null = null;
+/** notification_outbox.claim_token — which drain run owns a 'sending' row. Added on demand. */
+function ensureClaimColumn(): Promise<void> {
+  if (claimColumnReady) return claimColumnReady;
+  // Two statements: TiDB rejects adding a column and an index on it in one ALTER
+  // ("column does not exist"). Each is ignored when it already exists.
+  claimColumnReady = (async () => {
+    await query(`ALTER TABLE notification_outbox ADD COLUMN claim_token VARCHAR(40) DEFAULT NULL`, []).catch(() => undefined);
+    await query(`ALTER TABLE notification_outbox ADD KEY idx_outbox_claim (claim_token)`, []).catch(() => undefined);
+  })();
+  return claimColumnReady;
+}
+
 export async function drainNotificationOutbox(): Promise<DrainResult> {
-  const result: DrainResult = { attempted: 0, delivered: 0, failed: 0, requeued: 0 };
+  const result: DrainResult = { attempted: 0, delivered: 0, failed: 0, requeued: 0, deferred: 0 };
 
   await ensureNotificationSchema();
+  await ensureClaimColumn();
 
   // A drainer that died mid-batch leaves rows in 'sending' forever. Whether
   // the provider already accepted them is unknowable, so retrying could
@@ -67,31 +91,61 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
     [],
   ).catch(() => undefined);
 
-  // Atomically claim a batch by flipping to 'sending'.
+  // Atomically claim a batch by flipping to 'sending' AND stamping it with this run's token.
+  //
+  // The token is what makes overlapping drains safe. The claim used to be followed by
+  // "select rows that are 'sending' and were attempted in the last 30 seconds", which also
+  // matched rows claimed by ANOTHER drain running at the same moment — both then sent the same
+  // SMS. Worse, when one of them was rejected (e.g. rate-limited) it re-queued a message the
+  // other had already delivered, so it went out again minutes later. Measured on production:
+  // 16-70 duplicate attendance SMS per school day (2026-09-29 .. 2026-10-12).
+  const token = `${Date.now().toString(36)}-${randomUUID().slice(0, 18)}`;
   const claim = (await query(
     `UPDATE notification_outbox
         SET status = 'sending',
             attempts = attempts + 1,
-            attempted_at = CURRENT_TIMESTAMP
+            attempted_at = CURRENT_TIMESTAMP,
+            claim_token = ?
       WHERE status = 'queued'
         AND scheduled_at <= CURRENT_TIMESTAMP
       ORDER BY scheduled_at ASC, id ASC
       LIMIT ${BATCH}`,
-    [],
+    [token],
   )) as { affectedRows?: number };
   if (!claim || !claim.affectedRows) return result;
 
-  // Re-select the rows we just claimed (no RETURNING in MySQL).
+  // Only the rows THIS run claimed.
   const rows = (await query(
     `SELECT id, school_id, channel, body, recipient_phone,
             recipient_email, recipient_name, attempts, max_attempts, dedup_key
        FROM notification_outbox
-      WHERE status = 'sending'
-        AND attempted_at >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
-      ORDER BY attempted_at DESC, id ASC
+      WHERE status = 'sending' AND claim_token = ?
+      ORDER BY scheduled_at ASC, id ASC
       LIMIT ${BATCH}`,
-    [],
+    [token],
   )) as OutboxRow[];
+
+  // Every transition below is conditional on still owning the row, so a run can never undo
+  // or repeat what another run (or a manual resend) did to the same message.
+  const OWNED = `id = ? AND status = 'sending' AND claim_token = ?`;
+  const markFailed = (id: number, reason: string) => query(
+    `UPDATE notification_outbox SET status = 'failed', last_error = ?, claim_token = NULL WHERE ${OWNED}`,
+    [reason.slice(0, 255), id, token],
+  );
+  const requeue = (id: number, attempts: number, error: string) => query(
+    `UPDATE notification_outbox
+        SET status = 'queued', scheduled_at = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? SECOND), last_error = ?, claim_token = NULL
+      WHERE ${OWNED}`,
+    [Math.min(60 * attempts, 600), error.slice(0, 255), id, token],
+  );
+  /** Put a row back WITHOUT spending one of its attempts: waiting on a rate limit is not a failure. */
+  const release = (id: number, delaySeconds: number, note: string | null) => query(
+    `UPDATE notification_outbox
+        SET status = 'queued', attempts = GREATEST(attempts - 1, 0),
+            scheduled_at = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? SECOND), last_error = ?, claim_token = NULL
+      WHERE ${OWNED}`,
+    [Math.max(1, Math.round(delaySeconds)), note, id, token],
+  );
 
   // Per-school credential cache for this drain run (avoid a DB read per row).
   const credsCache = new Map<number, { username: string | null; apiKey: string | null; smsEnabled: boolean }>();
@@ -106,35 +160,70 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
     return c;
   };
 
+  // Provider pacing. A provider with a per-minute cap (UgaText: 60 requests/min per account) is
+  // given a budget for this run = cap − what was already sent through it in the last minute.
+  // When it is used up, the rest of the batch waits instead of being fired at the provider only
+  // to be rejected. Keyed by provider so two schools on the same account share one budget.
+  const budgets = new Map<number, { remaining: number }>();
+  const paceCache = new Map<number, { providerId: number; budget: { remaining: number } } | null>();
+  const paceFor = async (schoolId: number) => {
+    if (paceCache.has(schoolId)) return paceCache.get(schoolId)!;
+    const p = await providerPacingForSchool(schoolId).catch(() => null);
+    let out: { providerId: number; budget: { remaining: number } } | null = null;
+    if (p) {
+      let budget = budgets.get(p.providerId);
+      if (!budget) { budget = { remaining: p.remaining }; budgets.set(p.providerId, budget); }
+      out = { providerId: p.providerId, budget };
+    }
+    paceCache.set(schoolId, out);
+    return out;
+  };
+  /** Set when a provider says "rate limit": everything left for it this run waits this long. */
+  const coolingDown = new Map<number, number>();
+
   for (const row of rows) {
-    result.attempted++;
     try {
       if (row.channel !== 'sms') {
+        result.attempted++;
         await markFailed(row.id, `Channel ${row.channel} not implemented`);
         result.failed++;
         continue;
       }
       const stillValid = await revalidateQueuedAttendanceMessage(row.school_id, row.dedup_key);
       if (!stillValid.eligible) {
+        result.attempted++;
         await query(
-          `UPDATE notification_outbox SET status = 'expired', last_error = ? WHERE id = ?`,
-          [`Suppressed before send: ${stillValid.reason}`, row.id],
+          `UPDATE notification_outbox SET status = 'expired', last_error = ?, claim_token = NULL WHERE ${OWNED}`,
+          [`Suppressed before send: ${stillValid.reason}`, row.id, token],
         );
         result.failed++;
         continue;
       }
       const recipient = row.recipient_phone;
       if (!recipient) {
+        result.attempted++;
         await markFailed(row.id, 'No recipient phone');
         result.failed++;
         continue;
       }
       const creds = await credsFor(row.school_id);
       if (!creds.smsEnabled) {
+        result.attempted++;
         await markFailed(row.id, 'SMS disabled for this school');
         result.failed++;
         continue;
       }
+
+      const pace = await paceFor(row.school_id);
+      const cooling = pace ? coolingDown.get(pace.providerId) : undefined;
+      if (pace && (pace.budget.remaining <= 0 || cooling != null)) {
+        await release(row.id, cooling ?? PACING_DELAY_SECONDS, null);
+        result.deferred++;
+        continue;
+      }
+      if (pace) pace.budget.remaining--;
+      result.attempted++;
+
       // Control Center → SMS → School routing: an explicit route wins. With none, behaviour is unchanged
       // (the school's own Africa's Talking credentials, then the platform's).
       const routed = await sendViaSchoolRoute(row.school_id, { to: recipient, body: row.body, senderName: undefined });
@@ -153,6 +242,17 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
             creds: { username: creds.username, apiKey: creds.apiKey },
           });
 
+      // The provider's rate limit is not a verdict on this message: put it back with its attempt
+      // refunded, wait as long as the provider asked, and hold the rest of the batch too.
+      if (!sendResult.success && routed?.response.rateLimited) {
+        const wait = Math.min(Math.max(routed.response.retryAfterSeconds ?? 20, 5), 120) + 5;
+        if (pace) { coolingDown.set(pace.providerId, wait); pace.budget.remaining = 0; }
+        await release(row.id, wait, 'Waiting for the SMS provider (rate limit) — will send automatically');
+        result.attempted--;
+        result.deferred++;
+        continue;
+      }
+
       await query(
         `INSERT INTO notification_deliveries
            (outbox_id, school_id, provider, provider_message_id, cost, success, error)
@@ -169,11 +269,13 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
       );
 
       if (sendResult.success) {
+        // last_error is cleared: an earlier retry's reason must not keep showing as a "Problem"
+        // on a message the provider has now accepted.
         await query(
           `UPDATE notification_outbox
-              SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP
-            WHERE id = ?`,
-          [row.id],
+              SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP, last_error = NULL, claim_token = NULL
+            WHERE ${OWNED}`,
+          [row.id, token],
         );
         // Charge the school's allowance. Attendance SMS is safety-relevant, so it is RECORDED
         // (dashboard + Control Center stay accurate) but never blocked by the allowance.
@@ -199,27 +301,6 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
   }
 
   return result;
-}
-
-async function requeue(id: number, attempts: number, error: string): Promise<void> {
-  const backoffSec = Math.min(60 * attempts, 600);
-  await query(
-    `UPDATE notification_outbox
-        SET status = 'queued',
-            scheduled_at = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? SECOND),
-            last_error = ?
-      WHERE id = ?`,
-    [backoffSec, error, id],
-  );
-}
-
-async function markFailed(id: number, reason: string): Promise<void> {
-  await query(
-    `UPDATE notification_outbox
-        SET status = 'failed', last_error = ?
-      WHERE id = ?`,
-    [reason.slice(0, 255), id],
-  );
 }
 
 // ── Opportunistic pump (heartbeat-driven, no cron required) ───────────

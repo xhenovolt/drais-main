@@ -14,6 +14,10 @@ export interface SMSResponse {
   recipientName?: string;
   error?: string;
   details?: any;
+  /** The provider refused because of its request-rate cap, not because of this message. */
+  rateLimited?: boolean;
+  /** How long the provider asked us to wait, when it said. */
+  retryAfterSeconds?: number;
 }
 
 /**
