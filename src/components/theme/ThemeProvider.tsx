@@ -110,7 +110,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         hydrated && store.layoutWidth === 'wide' && 'mx-auto max-w-[1800px]',
         hydrated && store.fontFamily && 'font-sans'
       )} 
-      style={hydrated ? { fontFamily: 'var(--app-font-family)' } : undefined}>
+      // 'Amiri' first: its @font-face (globals.css) covers Arabic script only, so Arabic text
+      // anywhere uses Amiri while Latin text keeps the font the user picked.
+      style={hydrated ? { fontFamily: "'Amiri', var(--app-font-family)" } : undefined}>
         {children}
       </div>
     </ThemeContext.Provider>

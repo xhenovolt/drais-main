@@ -4,7 +4,7 @@ import useSWR from 'swr';
 import { Plus, Loader2, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { TermWizard } from './TermWizard';
-import { t } from '@/lib/i18n';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -24,6 +24,7 @@ const WARN_LABEL: Record<string, string> = {
 };
 
 export default function TermTable() {
+  const { t } = useI18n();
   const { data, isLoading, mutate } = useSWR('/api/terms/current', fetcher);
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -49,9 +50,9 @@ export default function TermTable() {
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t('terms.title', 'Terms')}</h1>
+        <h1 className="text-xl font-semibold">{t('terms.title')}</h1>
         <button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm">
-          <Plus className="w-4 h-4" /> {t('terms.add', 'Add Term')}
+          <Plus className="w-4 h-4" /> {t('terms.add')}
         </button>
       </div>
 
@@ -94,19 +95,19 @@ export default function TermTable() {
         <table className="w-full text-sm">
           <thead className="text-left bg-gray-50 dark:bg-slate-900/50 text-gray-500 dark:text-gray-400">
             <tr>
-              <th className="px-4 py-2.5 font-semibold">{t('terms.name', 'Name')}</th>
-              <th className="px-4 py-2.5 font-semibold">{t('terms.start', 'Start')}</th>
-              <th className="px-4 py-2.5 font-semibold">{t('terms.end', 'End')}</th>
+              <th className="px-4 py-2.5 font-semibold">{t('terms.name')}</th>
+              <th className="px-4 py-2.5 font-semibold">{t('terms.start')}</th>
+              <th className="px-4 py-2.5 font-semibold">{t('terms.end')}</th>
               <th className="px-4 py-2.5 font-semibold">Status</th>
               <th className="px-4 py-2.5 font-semibold text-right">Active</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> {t('common.loading', 'Loading...')}</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> {t('common.loading')}</td></tr>
             )}
             {!isLoading && rows.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">{t('terms.none', 'No terms found.')}</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">{t('terms.none')}</td></tr>
             )}
             {rows.map((r: any) => {
               const ds = r.derived_status || 'unknown';

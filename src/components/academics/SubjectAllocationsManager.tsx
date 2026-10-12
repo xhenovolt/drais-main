@@ -9,7 +9,6 @@ import {
 } from '@/components/ui';
 import { Loader2, Search, Users, BookOpen, Grid3x3, List, Download, Upload, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { t } from '@/lib/i18n';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
 

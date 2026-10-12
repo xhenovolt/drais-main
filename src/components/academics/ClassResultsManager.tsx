@@ -2,7 +2,7 @@
 import React, { useEffect, useState, Fragment, useMemo, useOptimistic, useTransition, useRef } from 'react';
 import { Dialog, Transition, Listbox, Tab } from '@headlessui/react';
 import { X, ChevronsUpDown, Check, Loader2, Save, Table, RefreshCw, Edit3 } from 'lucide-react';
-import { useTranslation } from 'next-i18next';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { createPortal } from 'react-dom';
 // jspdf + xlsx are dynamically imported inside the export handlers below to
 // keep these heavy libs out of the eager build/client graph. (html2canvas was
@@ -230,7 +230,7 @@ const SelectBox:React.FC<{label:string; value:any; onChange:(v:any)=>void; items
 );
 
 export default function ClassResultsManager({ academicType = 'secular' }: { academicType?: 'secular' | 'theology' }) {
-  const { t } = useTranslation('common');
+  const { t } = useI18n();
   const [isPending, startTransition] = useTransition();
 
   const [open,setOpen]=useState(false);
@@ -1187,7 +1187,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       <div className="flex-shrink-0 flex flex-wrap items-center gap-1.5 px-3 py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <input
           type="text"
-          placeholder={t('search')}
+          placeholder={t('classResults.search')}
           value={filters.search}
           onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
           className="h-8 px-2.5 w-36 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -1197,7 +1197,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           onChange={e => setFilters(f => ({ ...f, class_id: e.target.value }))}
           className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
-          <option value="">{t('all_classes')}</option>
+          <option value="">{t('classResults.allClasses')}</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select
@@ -1205,7 +1205,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           onChange={e => setFilters(f => ({ ...f, subject_id: e.target.value }))}
           className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
-          <option value="">{t('all_subjects')}</option>
+          <option value="">{t('classResults.allSubjects')}</option>
           {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <select
@@ -1213,7 +1213,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           onChange={e => setFilters(f => ({ ...f, result_type_id: e.target.value }))}
           className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
-          <option value="">{t('all_types')}</option>
+          <option value="">{t('classResults.allTypes')}</option>
           {types.map(rt => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
         </select>
         <select
@@ -1233,7 +1233,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           onChange={e => setFilters(f => ({ ...f, term_id: e.target.value }))}
           className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
-          <option value="">{t('all_terms')}</option>
+          <option value="">{t('classResults.allTerms')}</option>
           {terms
             .filter(term => !filters.academic_year_id || String(term.academic_year_id) === String(filters.academic_year_id))
             .map(term => <option key={term.id} value={term.id}>{term.name}</option>)}
@@ -1246,7 +1246,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
             onClick={() => handleOpenModal('single')}
             className="h-8 px-3 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
           >
-            {t('add_edit_results')}
+            {t('classResults.addEditResults')}
           </button>
           <button
             onClick={() => handleOpenModal('bulk')}
@@ -1259,7 +1259,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         <div className="ml-auto flex items-center gap-1.5">
           <span className="text-[10px] text-slate-500 font-medium">{listTotal} results</span>
           <button onClick={() => setFilters(f => ({ ...f }))} className="h-8 px-2 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors">
-            <RefreshCw className="w-3 h-3"/>{t('refresh')}
+            <RefreshCw className="w-3 h-3"/>{t('classResults.refresh')}
           </button>
           {[20, 50, 100].map(n => (
             <button
@@ -1299,13 +1299,13 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
                   onClick={() => { if (listSortBy==='name') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('name'); setListSortOrder('asc'); } setListPage(1); }}
                 >
-                  {t('student')} {listSortBy==='name' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
+                  {t('classResults.student')} {listSortBy==='name' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
                 </th>
                 <th
                   className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
                   onClick={() => { if (listSortBy==='class') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('class'); setListSortOrder('asc'); } setListPage(1); }}
                 >
-                  {t('class')} {listSortBy==='class' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
+                  {t('classResults.class')} {listSortBy==='class' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
                 </th>
                 <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">Program</th>
                 {subjectColumns.map(s => (
@@ -1317,10 +1317,10 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
                   onClick={() => { if (listSortBy==='score') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('score'); setListSortOrder('asc'); } setListPage(1); }}
                 >
-                  {t('total')} {listSortBy==='score' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
+                  {t('classResults.total')} {listSortBy==='score' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
                 </th>
-                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('avg')}</th>
-                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('position')}</th>
+                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('classResults.avg')}</th>
+                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('classResults.position')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1354,7 +1354,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   <td colSpan={subjectColumns.length + 7} className="px-4 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-2">
                       <Table className="w-8 h-8 opacity-30"/>
-                      <span>{t('no_results_found')}</span>
+                      <span>{t('classResults.noResultsFound')}</span>
                     </div>
                   </td>
                 </tr>
@@ -1379,7 +1379,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
               disabled={listPage === 1}
               onClick={() => setListPage(p => Math.max(1, p - 1))}
               className="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            >← {t('prev')}</button>
+            >← {t('classResults.prev')}</button>
             <span className="h-7 px-2.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold flex items-center">
               {listPage}/{Math.ceil(listTotal / listLimit)}
             </span>
@@ -1387,7 +1387,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
               disabled={listPage >= Math.ceil(listTotal / listLimit)}
               onClick={() => setListPage(p => p + 1)}
               className="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            >{t('next')} →</button>
+            >{t('classResults.next')} →</button>
           </div>
         </div>
       )}
@@ -1426,7 +1426,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-                        {bulkMode ? 'Bulk Results Entry' : t('class_results_entry')}
+                        {bulkMode ? 'Bulk Results Entry' : t('classResults.classResultsEntry')}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         {bulkMode ? 'Enter scores for multiple subjects simultaneously' : 'Enter scores for each student across all subjects'}
@@ -1444,12 +1444,12 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Filter & Load</h3>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <Typeahead label={t('term')} value={term ?? null} onChange={(v) => setTerm(v as TermOption | null)} items={terms} placeholder={terms.length === 0 ? 'Type to create your first term…' : 'Pick or type to create'} entityLabel="term" onCreate={createTerm} />
-                      <SelectBox label={t('class')} value={klass ?? null} onChange={v=>{setKlass(v);}} items={classes} />
+                      <Typeahead label={t('classResults.term')} value={term ?? null} onChange={(v) => setTerm(v as TermOption | null)} items={terms} placeholder={terms.length === 0 ? 'Type to create your first term…' : 'Pick or type to create'} entityLabel="term" onCreate={createTerm} />
+                      <SelectBox label={t('classResults.class')} value={klass ?? null} onChange={v=>{setKlass(v);}} items={classes} />
                       {!bulkMode && (
-                        <Typeahead label={t('subject')} value={subject ?? null} onChange={(v) => setSubject(v as Option | null)} items={subjects.filter(s=>!klass || s)} placeholder={subjects.length === 0 ? 'Type a subject name to create it…' : 'Pick or type to create'} entityLabel="subject" onCreate={createSubject} />
+                        <Typeahead label={t('classResults.subject')} value={subject ?? null} onChange={(v) => setSubject(v as Option | null)} items={subjects.filter(s=>!klass || s)} placeholder={subjects.length === 0 ? 'Type a subject name to create it…' : 'Pick or type to create'} entityLabel="subject" onCreate={createSubject} />
                       )}
-                      <Typeahead label={t('result_type')} value={rtype ?? null} onChange={(v) => setRtype(v as Option | null)} items={types} placeholder={types.length === 0 ? 'Type to create e.g. End-of-Term…' : 'Pick or type to create'} entityLabel="result type" onCreate={createResultType} />
+                      <Typeahead label={t('classResults.resultType')} value={rtype ?? null} onChange={(v) => setRtype(v as Option | null)} items={types} placeholder={types.length === 0 ? 'Type to create e.g. End-of-Term…' : 'Pick or type to create'} entityLabel="result type" onCreate={createResultType} />
                       <div className="flex flex-col justify-end">
                         <button
                           disabled={!klass || (!bulkMode && !subject) || !rtype || loading}
@@ -1457,7 +1457,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                           className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white disabled:opacity-40 transition-all hover:shadow-lg disabled:cursor-not-allowed"
                         >
                           {loading ? <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" /> : null}
-                          {loading ? t('loading') : t('load')}
+                          {loading ? t('classResults.loading') : t('classResults.load')}
                         </button>
                       </div>
                     </div>
@@ -1468,7 +1468,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                          {t('student_results', 'Student Results')} — {rows.length} {t('students', 'students')}
+                          {t('classResults.studentResults')} — {rows.length} {t('classResults.students')}
                         </h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1513,7 +1513,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                               onChange={e=>updateRow(r.student_id,'remarks', e.target.value===''? null : e.target.value)}
                               onFocus={() => setEditingCell({ id: r.student_id, field: 'remarks' })}
                               onBlur={() => setEditingCell(null)}
-                              placeholder={t('subject_comment', 'Comment (optional)')}
+                              placeholder={t('classResults.subjectComment')}
                               aria-label={`Comment for ${r.first_name} ${r.last_name}`}
                             />
                           </div>
@@ -1546,7 +1546,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   {loading && (
                     <div className="flex flex-col items-center justify-center py-8 text-slate-500 dark:text-slate-400">
                       <Loader2 className="w-5 h-5 animate-spin mb-2" />
-                      <span className="text-xs font-medium">{t('loading_students')}...</span>
+                      <span className="text-xs font-medium">{t('classResults.loadingStudents')}...</span>
                     </div>
                   )}
                 </div>
@@ -1561,7 +1561,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                         onChange={e=>setIncludeMissing(e.target.checked)}
                         className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 dark:text-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                       />
-                      <span className="text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{t('auto_create_null_rows')}</span>
+                      <span className="text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{t('classResults.autoCreateNullRows')}</span>
                     </label>
                   )}
                   <div className="flex gap-3 pt-2">
@@ -1571,14 +1571,14 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                       className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:shadow-lg hover:scale-105 active:scale-95 disabled:hover:shadow-none disabled:hover:scale-100 ${showSuccessAnimation ? 'success-pulse' : ''}`}
                     >
                       <Save className="w-4 h-4"/>
-                      <span>{saving ? (bulkMode ? 'Saving bulk results...' : t('saving')+'...') : (bulkMode ? 'Save Bulk Results' : t('save_results'))}</span>
+                      <span>{saving ? (bulkMode ? 'Saving bulk results...' : t('classResults.saving')+'...') : (bulkMode ? 'Save Bulk Results' : t('classResults.saveResults'))}</span>
                     </button>
                     <button
                       onClick={()=>setOpen(false)}
                       disabled={saving}
                       className="px-6 py-3 rounded-lg text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {t('cancel')}
+                      {t('classResults.cancel')}
                     </button>
                   </div>
                 </div>

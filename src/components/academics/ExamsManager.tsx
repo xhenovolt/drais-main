@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import useSWR from 'swr';
-import { t } from '@/lib/i18n';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { Dialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -9,6 +9,7 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 const API_BASE = '/api';
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 export const ExamsManager: React.FC = () => {
+  const { t } = useI18n();
   const { data: classes } = useSWR(`${API_BASE}/classes`, fetcher);
   const { data: subjects } = useSWR(`${API_BASE}/subjects`, fetcher);
   const { data: terms } = useSWR(`${API_BASE}/terms`, fetcher);
@@ -73,14 +74,14 @@ export const ExamsManager: React.FC = () => {
   };
   return (
     <div className="space-y-6">
-      <h2 className="font-semibold text-lg bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 bg-clip-text text-transparent">{t('academics.exams','Exams')}</h2>
+      <h2 className="font-semibold text-lg bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 bg-clip-text text-transparent">{t('academics.exams')}</h2>
       <div className="flex gap-3 mb-2">
         <select value={filters.term_id} onChange={e=>setFilters({...filters,term_id:e.target.value})} className="px-3 py-2 rounded-xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur text-sm">
-          <option value="">{t('academics.term','Term')}</option>
+          <option value="">{t('academics.term')}</option>
           {terms?.data?.map((t:any)=>(<option key={t.id} value={t.id}>{t.name}</option>))}
         </select>
         <select value={filters.class_id} onChange={e=>setFilters({...filters,class_id:e.target.value})} className="px-3 py-2 rounded-xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur text-sm">
-          <option value="">{t('academics.class','Class')}</option>
+          <option value="">{t('academics.class')}</option>
           {classes?.data?.map((c:any)=>(<option key={c.id} value={c.id}>{c.name}</option>))}
         </select>
         <button onClick={openModal} className="ml-auto px-4 py-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-transform transform hover:scale-105">Add Exam</button>

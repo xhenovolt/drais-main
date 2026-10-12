@@ -1,10 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
-import { t } from '@/lib/i18n';
+import { useI18n } from '@/components/i18n/I18nProvider';
 const API_BASE=process.env.NEXT_PUBLIC_PHP_API_BASE||'http://localhost/drais/api';
 const fetcher=(u:string)=>fetch(u).then(r=>r.json());
 export const FeeItemsManager: React.FC<{studentId:number; termId:number}> = ({ studentId, termId }) => {
+  const { t } = useI18n();
   const { data, mutate } = useSWR(`${API_BASE}/student_fees.php?student_id=${studentId}&term_id=${termId}`, fetcher);
   const items=data?.data||[];
   const [form,setForm]=useState({ item:'', amount:'', discount:'' });
@@ -27,13 +28,13 @@ export const FeeItemsManager: React.FC<{studentId:number; termId:number}> = ({ s
   }, [termId, mutate]);
   return (
     <div className="space-y-3">
-      <h3 className="font-semibold text-sm">{t('finance.fee_items','Fee Items')}</h3>
+      <h3 className="font-semibold text-sm">{t('finance.fee_items')}</h3>
       <div className="grid grid-cols-5 gap-2 text-xs">
-        <input placeholder={t('finance.item','Item')} value={form.item} onChange={e=>setForm({...form,item:e.target.value})} className="px-2 py-1 rounded border" />
-        <input placeholder={t('finance.amount','Amount')} value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} className="px-2 py-1 rounded border" />
-        <input placeholder={t('finance.discount','Discount')} value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})} className="px-2 py-1 rounded border" />
+        <input placeholder={t('finance.item')} value={form.item} onChange={e=>setForm({...form,item:e.target.value})} className="px-2 py-1 rounded border" />
+        <input placeholder={t('finance.amount')} value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} className="px-2 py-1 rounded border" />
+        <input placeholder={t('finance.discount')} value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})} className="px-2 py-1 rounded border" />
         <div className="col-span-2 flex gap-2">
-          <button onClick={add} disabled={!form.item} className="px-3 py-1 rounded bg-[var(--color-primary)] text-white disabled:opacity-40">{t('common.add','Add')}</button>
+          <button onClick={add} disabled={!form.item} className="px-3 py-1 rounded bg-[var(--color-primary)] text-white disabled:opacity-40">{t('common.add')}</button>
         </div>
       </div>
       <div className="rounded border divide-y bg-white/40 dark:bg-slate-800/40 text-xs">
@@ -45,7 +46,7 @@ export const FeeItemsManager: React.FC<{studentId:number; termId:number}> = ({ s
             <span className="font-medium text-right">{it.balance}</span>
           </div>
         ))}
-        {items.length===0 && <div className="px-3 py-6 text-center text-gray-400">{t('finance.no_fee_items','No fee items')}</div>}
+        {items.length===0 && <div className="px-3 py-6 text-center text-gray-400">{t('finance.no_fee_items')}</div>}
       </div>
     </div>
   );

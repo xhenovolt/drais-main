@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import useSWR from "swr";
-import { t } from "@/lib/i18n";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -9,6 +9,7 @@ const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || "http://localhost/drais
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
 export const ResultsManager: React.FC = () => {
+  const { t } = useI18n();
   const { data: exams } = useSWR(`${API_BASE}/exams`, fetcher);
   const [examId, setExamId] = useState("");
   const results = useSWR(examId ? `${API_BASE}/results.php?exam_id=${examId}` : null, fetcher);
@@ -79,7 +80,7 @@ export const ResultsManager: React.FC = () => {
   return (
     <div className="space-y-6 mx-20">
       <h2 className="font-semibold text-lg bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 bg-clip-text text-transparent">
-        {t("academics.results", "Results")}
+        {t("academics.results")}
       </h2>
       <div className="flex flex-wrap gap-2 items-end mb-2">
         <select
@@ -95,25 +96,25 @@ export const ResultsManager: React.FC = () => {
           ))}
         </select>
         <input
-          placeholder={t("academics.student_id", "Student ID")}
+          placeholder={t("academics.student_id")}
           value={form.student_id}
           onChange={(e) => setForm({ ...form, student_id: e.target.value })}
           className="px-2 py-2 rounded-xl border bg-gradient-to-r from-blue-100 to-pink-100 text-xs"
         />
         <input
-          placeholder={t("academics.score", "Score")}
+          placeholder={t("academics.score")}
           value={form.score}
           onChange={(e) => setForm({ ...form, score: e.target.value })}
           className="px-2 py-2 rounded-xl border bg-gradient-to-r from-blue-100 to-pink-100 text-xs"
         />
         <input
-          placeholder={t("academics.grade", "Grade")}
+          placeholder={t("academics.grade")}
           value={form.grade}
           onChange={(e) => setForm({ ...form, grade: e.target.value })}
           className="px-2 py-2 rounded-xl border bg-gradient-to-r from-blue-100 to-pink-100 text-xs"
         />
         <input
-          placeholder={t("academics.remarks", "Remarks")}
+          placeholder={t("academics.remarks")}
           value={form.remarks}
           onChange={(e) => setForm({ ...form, remarks: e.target.value })}
           className="px-2 py-2 rounded-xl border bg-gradient-to-r from-blue-100 to-pink-100 text-xs"
@@ -123,7 +124,7 @@ export const ResultsManager: React.FC = () => {
           disabled={!examId || !form.student_id}
           className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white text-xs font-semibold shadow-lg hover:scale-105 transition-transform"
         >
-          {t("common.add", "Add")}
+          {t("common.add")}
         </button>
       </div>
       <div className="rounded-2xl overflow-hidden border border-blue-200 dark:border-indigo-700 backdrop-blur bg-gradient-to-br from-white/80 via-blue-50/60 to-pink-50/60 dark:from-slate-900/80 dark:via-indigo-900/60 dark:to-purple-900/60 shadow-2xl">
@@ -163,7 +164,7 @@ export const ResultsManager: React.FC = () => {
                     onClick={() => deleteResult(r.id)}
                     className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 ml-2"
                   >
-                    {t("common.delete", "Delete")}
+                    {t("common.delete")}
                   </button>
                 </td>
               </tr>
@@ -171,7 +172,7 @@ export const ResultsManager: React.FC = () => {
             {!results.data || (results.data.data.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-blue-400">
-                  {t("academics.no_results", "No results")}
+                  {t("academics.no_results")}
                 </td>
               </tr>
             ))}

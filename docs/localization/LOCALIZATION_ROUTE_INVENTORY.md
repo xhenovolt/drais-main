@@ -17,7 +17,7 @@ _Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Routes discovered | 309 of 309 | Scope is known |
 | Routes with a static text count and component list | 309 of 309 | We know roughly how much text each route has and where it lives |
 | Routes with a full string-by-string inventory | 0 of 309 | Done per route at the start of its phase (Students first) |
-| Routes translated | 0 newly; 12 were already mostly wired before this audit | Translation implementation exists |
+| Routes translated | 0 newly; 14 were already mostly wired before this audit | Translation implementation exists |
 | Routes browser-tested in Arabic | 0 of 309 | Arabic actually renders |
 | Routes with critical interactions re-tested | 0 of 309 | Translation did not break functionality |
 | Shared components regression-tested | 0 | Fixes work beyond one page |
@@ -31,13 +31,13 @@ _Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Gate & Movement | 4 | 4 | 0 | 0 | 0 | 0 | 109 |
 | Devices & Biometrics | 10 | 8 | 0 | 0 | 2 | 38 | 477 |
 | Communication | 4 | 3 | 1 | 0 | 0 | 6 | 267 |
-| Students | 13 | 12 | 1 | 0 | 0 | 101 | 1128 |
-| Staff & Roles | 18 | 7 | 10 | 1 | 0 | 64 | 762 |
+| Students | 13 | 9 | 4 | 0 | 0 | 122 | 1119 |
+| Staff & Roles | 18 | 7 | 10 | 1 | 0 | 71 | 759 |
 | Academics | 23 | 14 | 7 | 2 | 0 | 109 | 1159 |
 | Documents & Assessment | 9 | 2 | 5 | 0 | 2 | 97 | 1100 |
-| Finance | 26 | 18 | 6 | 0 | 2 | 64 | 719 |
+| Finance | 26 | 18 | 6 | 0 | 2 | 78 | 713 |
 | Inventory | 4 | 4 | 0 | 0 | 0 | 0 | 65 |
-| Tahfiz | 13 | 5 | 5 | 2 | 1 | 77 | 557 |
+| Tahfiz | 13 | 5 | 5 | 2 | 1 | 84 | 554 |
 | Reports | 6 | 4 | 0 | 2 | 0 | 57 | 59 |
 | Settings | 15 | 8 | 5 | 0 | 1 | 42 | 564 |
 | Offline Workspace (Beta) | 5 | 5 | 0 | 0 | 0 | 0 | 200 |
@@ -51,7 +51,7 @@ _Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Not in sidebar — /departments | 1 | 1 | 0 | 0 | 0 | 0 | 21 |
 | Not in sidebar — /docs | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Not in sidebar — /documents | 1 | 0 | 0 | 1 | 0 | 10 | 2 |
-| Not in sidebar — /events | 1 | 0 | 0 | 1 | 0 | 5 | 0 |
+| Not in sidebar — /events | 1 | 0 | 0 | 0 | 1 | 5 | 0 |
 | Not in sidebar — /fingerprint-auth | 1 | 1 | 0 | 0 | 0 | 0 | 2 |
 | Not in sidebar — /forbidden | 1 | 0 | 0 | 0 | 1 | 14 | 0 |
 | Not in sidebar — /intelligence | 1 | 1 | 0 | 0 | 0 | 0 | 77 |
@@ -76,11 +76,11 @@ _Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Not in sidebar — /setup | 1 | 1 | 0 | 0 | 0 | 0 | 26 |
 | Not in sidebar — /signup | 1 | 1 | 0 | 0 | 0 | 0 | 44 |
 | Not in sidebar — /students | 10 | 8 | 1 | 0 | 0 | 4 | 517 |
-| Not in sidebar — /terms | 1 | 0 | 0 | 1 | 0 | 31 | 0 |
+| Not in sidebar — /terms | 1 | 0 | 0 | 0 | 1 | 31 | 0 |
 | Not in sidebar — /unauthorized | 1 | 1 | 0 | 0 | 0 | 0 | 8 |
 | Not in sidebar — /verify | 1 | 1 | 0 | 0 | 0 | 0 | 12 |
 | Not in sidebar — /workplans | 1 | 1 | 0 | 0 | 0 | 0 | 14 |
-| **All routes** | **309** | **231** | **46** | **13** | **12** | | |
+| **All routes** | **309** | **228** | **49** | **11** | **14** | | |
 
 Shared components are counted once per route that renders them, so the "Hardcoded" column cannot be summed into a single application total.
 
@@ -267,11 +267,11 @@ Representative hardcoded strings (a sample, not the full list):
 | Module | Students |
 | Sidebar location | Students › Requirements |
 | Page file | `app/students/requirements/page.tsx` |
-| Child components | `contexts/AuthContext.tsx`, `components/students/AddRequirementModal.tsx`, `components/students/ClassRequirementsManager.tsx`, `components/ui/Pagination.tsx` |
-| Text inventory (static count) | 112 hardcoded: 93 text between tags, 10 attributes (placeholders, titles), 7 toasts/alerts, 2 labels in config objects |
-| Existing translation | None |
-| Missing translation | Not translated — about 0% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/requirements/page.tsx`, `contexts/AuthContext.tsx`, `components/students/AddRequirementModal.tsx`, `components/students/ClassRequirementsManager.tsx`, `components/ui/Pagination.tsx` |
-| RTL status | 14 fixed-side classes, none RTL-aware. Not yet checked in a browser. |
+| Child components | `contexts/AuthContext.tsx`, `components/students/AddRequirementModal.tsx`, `components/students/ClassRequirementsManager.tsx`, `components/ui/Pagination.tsx`, `components/i18n/I18nProvider.tsx` |
+| Text inventory (static count) | 109 hardcoded: 92 text between tags, 8 attributes (placeholders, titles), 7 toasts/alerts, 2 labels in config objects |
+| Existing translation | 7 calls through `useI18n().t` |
+| Missing translation | Partial (under half) — about 6% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/requirements/page.tsx`, `contexts/AuthContext.tsx`, `components/students/AddRequirementModal.tsx`, `components/students/ClassRequirementsManager.tsx` |
+| RTL status | 11 fixed-side classes, 1 RTL-aware. Not yet checked in a browser. |
 | Dates and numbers | No date/number formatting calls found |
 | Dependencies (APIs) | `/api/students/requirements`, `/api/terms`, `/api/classes`, `/api/requirements/class`, `/api/db-mode`, `/api/auth/me`, `/api/auth/login`, `/api/school-config`, `/api/auth/signup`, `/api/auth/logout`, `/api/students/full`, `/api/requirements/master` |
 | Risk | Medium |
@@ -303,11 +303,11 @@ Representative hardcoded strings (a sample, not the full list):
 | Module | Students |
 | Sidebar location | Students › Contacts |
 | Page file | `app/students/contacts/page.tsx` |
-| Child components | `contexts/AuthContext.tsx`, `components/students/AddContactModal.tsx`, `components/students/ImportContactsModal.tsx`, `components/students/ContactsListModal.tsx`, `components/ui/Pagination.tsx`, `components/students/EditContactModal.tsx`, `components/students/SMSComposerModal.tsx` |
-| Text inventory (static count) | 157 hardcoded: 109 text between tags, 26 attributes (placeholders, titles), 18 toasts/alerts, 4 labels in config objects |
-| Existing translation | None |
-| Missing translation | Not translated — about 0% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/contacts/page.tsx`, `contexts/AuthContext.tsx`, `components/students/AddContactModal.tsx`, `components/students/ImportContactsModal.tsx`, `components/students/ContactsListModal.tsx`, `components/ui/Pagination.tsx`, `components/students/EditContactModal.tsx`, `components/students/SMSComposerModal.tsx` |
-| RTL status | 13 fixed-side classes, none RTL-aware. Not yet checked in a browser. |
+| Child components | `contexts/AuthContext.tsx`, `components/students/AddContactModal.tsx`, `components/students/ImportContactsModal.tsx`, `components/students/ContactsListModal.tsx`, `components/ui/Pagination.tsx`, `components/students/EditContactModal.tsx`, `components/students/SMSComposerModal.tsx`, `components/i18n/I18nProvider.tsx` |
+| Text inventory (static count) | 154 hardcoded: 108 text between tags, 24 attributes (placeholders, titles), 18 toasts/alerts, 4 labels in config objects |
+| Existing translation | 7 calls through `useI18n().t` |
+| Missing translation | Partial (under half) — about 4% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/contacts/page.tsx`, `contexts/AuthContext.tsx`, `components/students/AddContactModal.tsx`, `components/students/ImportContactsModal.tsx`, `components/students/ContactsListModal.tsx`, `components/students/EditContactModal.tsx`, `components/students/SMSComposerModal.tsx` |
+| RTL status | 10 fixed-side classes, 1 RTL-aware. Not yet checked in a browser. |
 | Dates and numbers | No date/number formatting calls found |
 | Dependencies (APIs) | `/api/students/contacts`, `/api/db-mode`, `/api/auth/me`, `/api/auth/login`, `/api/school-config`, `/api/auth/signup`, `/api/auth/logout`, `/api/students/full`, `/api/students/contacts/`, `/api/sms/send`, `/api/sms/quota` |
 | Risk | High |
@@ -411,11 +411,11 @@ Representative hardcoded strings (a sample, not the full list):
 | Module | Students |
 | Sidebar location | Students › History |
 | Page file | `app/students/history/page.tsx` |
-| Child components | `contexts/AuthContext.tsx`, `components/ui/Pagination.tsx` |
-| Text inventory (static count) | 38 hardcoded: 33 text between tags, 3 attributes (placeholders, titles), 0 toasts/alerts, 2 labels in config objects |
-| Existing translation | None |
-| Missing translation | Not translated — about 0% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/history/page.tsx`, `contexts/AuthContext.tsx`, `components/ui/Pagination.tsx` |
-| RTL status | 13 fixed-side classes, none RTL-aware. Not yet checked in a browser. |
+| Child components | `contexts/AuthContext.tsx`, `components/ui/Pagination.tsx`, `components/i18n/I18nProvider.tsx` |
+| Text inventory (static count) | 35 hardcoded: 32 text between tags, 1 attributes (placeholders, titles), 0 toasts/alerts, 2 labels in config objects |
+| Existing translation | 7 calls through `useI18n().t` |
+| Missing translation | Partial (under half) — about 17% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/history/page.tsx`, `contexts/AuthContext.tsx` |
+| RTL status | 10 fixed-side classes, 1 RTL-aware. Not yet checked in a browser. |
 | Dates and numbers | 1 `toLocale*String` call(s); 0 use the active language |
 | Dependencies (APIs) | `/api/students/history`, `/api/students/full`, `/api/db-mode`, `/api/auth/me`, `/api/auth/login`, `/api/school-config`, `/api/auth/signup`, `/api/auth/logout` |
 | Risk | Low |
@@ -1035,7 +1035,7 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 | `/staff/[id]/edit` | View Staff (child page — not itself in sidebar) | Partial (under half) | 2 | 98 | 1 | No fixed-side classes found | Medium | No |
 | `/staff/add` | Add Staff | Partial (under half) | 17 | 81 | 2 | 3 fixed-side classes, none RTL-aware | Medium | No |
 | `/staff/attendence` | View Staff (child page — not itself in sidebar) | Partial (over half) | 10 | 2 | 1 | No fixed-side classes found | Low | No |
-| `/staff/list` | View Staff (child page — not itself in sidebar) | Partial (under half) | 23 | 176 | 5 | 16 fixed-side classes, none RTL-aware | High | No |
+| `/staff/list` | View Staff (child page — not itself in sidebar) | Partial (under half) | 30 | 173 | 5 | 13 fixed-side classes, 1 RTL-aware | High | No |
 | `/staff/roles` | View Staff (child page — not itself in sidebar) | Partial (under half) | 3 | 16 | 1 | No fixed-side classes found | Low | No |
 | `/work-plans` | Workplans | Not translated | 0 | 34 | 1 | 5 fixed-side classes, none RTL-aware | Low | No |
 
@@ -1043,29 +1043,29 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 
 | Route | Sidebar location | Status (static) | Translated calls | Hardcoded (est.) | Child components | RTL | Risk | Browser-tested |
 |---|---|---|---|---|---|---|---|---|
-| `/academics/allocations` | Teacher Allocation | Partial (under half) ⚠ legacy helper | 5 | 104 | 5 | 26 fixed-side classes, none RTL-aware | Medium | No |
+| `/academics/allocations` | Teacher Allocation | Partial (under half) | 5 | 104 | 5 | 26 fixed-side classes, none RTL-aware | Medium | No |
 | `/academics/allocations/history` | Allocation History | Not translated | 0 | 20 | 0 | 3 fixed-side classes, none RTL-aware | Low | No |
 | `/academics/classes` | Classes | Partial (under half) | 2 | 78 | 2 | 15 fixed-side classes, none RTL-aware | Medium | No |
 | `/academics/classes/[id]` | Classes (child page — not itself in sidebar) | Not translated | 0 | 15 | 0 | 5 fixed-side classes, none RTL-aware | Low | No |
 | `/academics/curriculums` | Curriculums | Not translated | 0 | 1 | 0 | No fixed-side classes found | Low | No |
-| `/academics/exams` | Examinations | Partial (under half) ⚠ legacy helper | 3 | 25 | 1 | 9 fixed-side classes, none RTL-aware | High | No |
+| `/academics/exams` | Examinations | Partial (under half) | 3 | 25 | 2 | 9 fixed-side classes, none RTL-aware | High | No |
 | `/academics/report-cards` | Report Cards | Partial (over half) | 17 | 11 | 2 | 12 fixed-side classes, none RTL-aware | High | No |
 | `/academics/report-cards/[type]/[snapshotId]` | Report Cards (child page — not itself in sidebar) | Not translated | 0 | 70 | 6 | 10 fixed-side classes, none RTL-aware | High | No |
 | `/academics/report-cards/manage` | Report Cards (child page — not itself in sidebar) | Not translated | 0 | 50 | 0 | 5 fixed-side classes, none RTL-aware | High | No |
 | `/academics/report-cards/secular` | Secular Report Cards | Not translated | 0 | 74 | 4 | 14 fixed-side classes, none RTL-aware | High | No |
 | `/academics/report-cards/theology` | Theology Report Cards | Not translated | 0 | 74 | 4 | 14 fixed-side classes, none RTL-aware | High | No |
 | `/academics/reports` | Reports (Legacy) | Partial (under half) | 19 | 110 | 5 | 7 fixed-side classes, 1 RTL-aware | High | No |
-| `/academics/results` | Results | Partial (under half) ⚠ legacy helper | 38 | 233 | 14 | 50 fixed-side classes, none RTL-aware | High | No |
+| `/academics/results` | Results | Partial (under half) | 38 | 233 | 14 | 50 fixed-side classes, none RTL-aware | High | No |
 | `/academics/results-cafe` | CAFE Result Entry | Partial (under half) | 6 | 23 | 1 | 5 fixed-side classes, none RTL-aware | High | No |
 | `/academics/streams` | Streams | Not translated | 0 | 24 | 1 | 7 fixed-side classes, none RTL-aware | Low | No |
-| `/academics/subjects` | Subjects | Not translated ⚠ legacy helper | 0 | 69 | 2 | 17 fixed-side classes, none RTL-aware | Medium | No |
+| `/academics/subjects` | Subjects | Not translated | 0 | 69 | 2 | 17 fixed-side classes, none RTL-aware | Medium | No |
 | `/academics/subjects/[id]` | Subjects (child page — not itself in sidebar) | Not translated | 0 | 14 | 0 | 5 fixed-side classes, none RTL-aware | Low | No |
 | `/academics/subjects/order` | Subjects (child page — not itself in sidebar) | Not translated | 0 | 9 | 0 | No fixed-side classes found | Low | No |
 | `/academics/timetable` | Timetable | Not translated | 0 | 43 | 1 | 8 fixed-side classes, none RTL-aware | Medium | No |
 | `/academics/years` | Academic Years | Partial (under half) | 7 | 36 | 1 | 2 fixed-side classes, none RTL-aware | Low | No |
 | `/examinations/deadlines` | Deadlines | Not translated | 0 | 23 | 0 | 2 fixed-side classes, none RTL-aware | Low | No |
 | `/promotions` | Promotions | Not translated | 0 | 45 | 0 | 16 fixed-side classes, none RTL-aware | High | No |
-| `/terms/list` | Terms | Partial (over half) ⚠ legacy helper | 12 | 8 | 2 | 3 fixed-side classes, none RTL-aware | Low | No |
+| `/terms/list` | Terms | Partial (over half) | 12 | 8 | 3 | 3 fixed-side classes, none RTL-aware | Low | No |
 
 ### Documents & Assessment
 
@@ -1094,11 +1094,11 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 | `/finance/expenditures` | Expenditures | Partial (under half) | 1 | 40 | 2 | 10 fixed-side classes, none RTL-aware | High | No |
 | `/finance/fee-items` | Fee Items | Not translated | 0 | 25 | 0 | 9 fixed-side classes, none RTL-aware | High | No |
 | `/finance/fee-rules` | Fee Rules | Not translated | 0 | 22 | 0 | No fixed-side classes found | High | No |
-| `/finance/fees` | Fees | Partial (under half) | 1 | 52 | 4 | 15 fixed-side classes, none RTL-aware | High | No |
+| `/finance/fees` | Fees | Partial (under half) | 8 | 49 | 4 | 12 fixed-side classes, 1 RTL-aware | High | No |
 | `/finance/import` | Import | Not translated | 0 | 27 | 0 | 8 fixed-side classes, none RTL-aware | High | No |
 | `/finance/import-fees` | Import Fees | Not translated | 0 | 11 | 0 | 6 fixed-side classes, none RTL-aware | High | No |
 | `/finance/import-v2` | Overview (child page — not itself in sidebar) | Not translated | 0 | 19 | 0 | No fixed-side classes found | High | No |
-| `/finance/learners-fees` | Learner Fees | Partial (under half) | 2 | 54 | 2 | 14 fixed-side classes, none RTL-aware | High | No |
+| `/finance/learners-fees` | Learner Fees | Partial (under half) | 9 | 51 | 2 | 11 fixed-side classes, 1 RTL-aware | High | No |
 | `/finance/ledger` | Overview (child page — not itself in sidebar) | Not translated | 0 | 47 | 0 | 4 fixed-side classes, none RTL-aware | High | No |
 | `/finance/ledger-v2` | Ledger | Partial (under half) | 2 | 46 | 2 | 2 fixed-side classes, none RTL-aware | High | No |
 | `/finance/ledger/fees` | Overview (child page — not itself in sidebar) | Not translated | 0 | 32 | 1 | 12 fixed-side classes, none RTL-aware | High | No |
@@ -1137,7 +1137,7 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 | `/tahfiz/reports` | Reports | Not translated | 0 | 67 | 1 | 10 fixed-side classes, 2 RTL-aware | Medium | No |
 | `/tahfiz/reports/[id]` | Reports (child page — not itself in sidebar) | Not translated | 0 | 12 | 0 | No fixed-side classes found | Low | No |
 | `/tahfiz/results` | Results | Partial (over half) | 42 | 8 | 2 | 23 fixed-side classes, none RTL-aware | Low | No |
-| `/tahfiz/students` | Overview (child page — not itself in sidebar) | Partial (under half) | 2 | 141 | 5 | 18 fixed-side classes, none RTL-aware | Medium | No |
+| `/tahfiz/students` | Overview (child page — not itself in sidebar) | Partial (under half) | 9 | 138 | 5 | 15 fixed-side classes, 1 RTL-aware | Medium | No |
 
 ### Reports
 
@@ -1202,7 +1202,7 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 
 | Route | Sidebar location | Status (static) | Translated calls | Hardcoded (est.) | Child components | RTL | Risk | Browser-tested |
 |---|---|---|---|---|---|---|---|---|
-| `/academics` | — | Partial (under half) ⚠ legacy helper | 24 | 116 | 6 | 29 fixed-side classes, none RTL-aware | Medium | No |
+| `/academics` | — | Partial (under half) | 24 | 116 | 7 | 29 fixed-side classes, none RTL-aware | Medium | No |
 | `/academics/tahfiz` | — | Not translated | 0 | 11 | 0 | No fixed-side classes found | Low | No |
 
 ### Not in sidebar — /admin
@@ -1317,13 +1317,13 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 
 | Route | Sidebar location | Status (static) | Translated calls | Hardcoded (est.) | Child components | RTL | Risk | Browser-tested |
 |---|---|---|---|---|---|---|---|---|
-| `/documents` | — | Partial (over half) ⚠ legacy helper | 10 | 2 | 1 | No fixed-side classes found | Low | No |
+| `/documents` | — | Partial (over half) | 10 | 2 | 2 | No fixed-side classes found | Low | No |
 
 ### Not in sidebar — /events
 
 | Route | Sidebar location | Status (static) | Translated calls | Hardcoded (est.) | Child components | RTL | Risk | Browser-tested |
 |---|---|---|---|---|---|---|---|---|
-| `/events` | — | Partial (over half) ⚠ legacy helper | 5 | 0 | 1 | No fixed-side classes found | Low | No |
+| `/events` | — | Mostly wired | 5 | 0 | 2 | No fixed-side classes found | Low | No |
 
 ### Not in sidebar — /fingerprint-auth
 
@@ -1482,7 +1482,7 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 
 | Route | Sidebar location | Status (static) | Translated calls | Hardcoded (est.) | Child components | RTL | Risk | Browser-tested |
 |---|---|---|---|---|---|---|---|---|
-| `/terms/[id]` | — | Partial (over half) ⚠ legacy helper | 31 | 0 | 5 | 6 fixed-side classes, none RTL-aware | Medium | No |
+| `/terms/[id]` | — | Mostly wired | 31 | 0 | 6 | 6 fixed-side classes, none RTL-aware | Medium | No |
 
 ### Not in sidebar — /unauthorized
 
@@ -1518,7 +1518,6 @@ Fixing one of these changes every route that uses it, so each must be re-tested 
 | `components/drce/editor/VisibilityRuleEditor.tsx` | 4 | 22 | 0 | none |
 | `components/drce/DRCEDocumentRenderer.tsx` | 5 | 8 | 0 | none |
 | `components/reports/SnapshotListTable.tsx` | 3 | 11 | 0 | none |
-| `components/ui/Pagination.tsx` | 7 | 3 | 0 | none |
 | `components/ui/NewBadge.tsx` | 9 | 2 | 0 | none |
 | `app/control/_components/ExportButtons.tsx` | 6 | 2 | 0 | none |
 | `components/ui/Select.tsx` | 3 | 0 | 0 | none |
@@ -1526,7 +1525,8 @@ Fixing one of these changes every route that uses it, so each must be re-tested 
 | `components/reports/GenerateSnapshotButton.tsx` | 4 | 0 | 0 | none |
 | `components/ui/Modal.tsx` | 5 | 0 | 0 | none |
 | `components/ui/Toast.tsx` | 4 | 0 | 0 | none |
+| `components/ui/Pagination.tsx` | 7 | 0 | 7 | `useI18n` |
 
 ## Verification log
 
-_Empty. Add one entry per route as it is completed: date, translation keys added or changed, files changed, tests run and their results, what was checked in the browser (Arabic and English, desktop and mobile), interactions exercised, and any known limitation._
+Kept by hand in [VERIFICATION_LOG.md](VERIFICATION_LOG.md): one entry per completed step or route, with the checks that ran and what was and was not looked at in a browser.

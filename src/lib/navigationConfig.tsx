@@ -357,6 +357,26 @@ const LABEL_AR: Record<string, string> = {
   // Offline workspace group
   'Offline Workspace (Beta)':  'مساحة العمل غير المتصلة (تجريبي)',
   'Offline Database':          'قاعدة البيانات غير المتصلة',
+
+  // Added 2026-10 (Phase 1 localization): labels that had no Arabic and stayed English in the
+  // Arabic menu. src/lib/i18n/__tests__/navigation.test.mjs now fails when a label is missing here.
+  'Lesson Attendance':         'حضور الحصص',
+  'Shifts':                    'الفترات',
+  'Health Center':             'مركز السلامة',
+  'Recovery Center':           'مركز الاستعادة',
+  'Founder Independence':      'الاستقلال عن المؤسس',
+  'Time Health':               'سلامة الوقت',
+  'Trends':                    'الاتجاهات',
+  'Attendance Profiles':       'ملفات الحضور',
+  'Event Explorer':            'مستكشف الأحداث',
+  'Gate & Movement':           'البوابة والحركة',
+  'Devices & Biometrics':      'الأجهزة والبصمات',
+  'Device Intelligence':       'ذكاء الأجهزة',
+  'Identity Matching':         'مطابقة الهوية',
+  'Identity Intelligence':     'ذكاء الهوية',
+  'SMS Outbox':                'صندوق الرسائل الصادرة',
+  'Buy SMS':                   'شراء رسائل SMS',
+  'About DRAIS':               'حول DRAIS',
 };
 
 /**

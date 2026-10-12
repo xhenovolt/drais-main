@@ -6,7 +6,6 @@ import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
 import Footer from "@/components/layout/Footer";
 import { ThemeCustomizerPanel } from "@/components/layout/ThemeCustomizerPanel";
-import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { useThemeStore } from "@/hooks/useThemeStore";
 import { useSchoolConfig } from "@/hooks/useSchoolConfig";
 
@@ -36,7 +35,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   return (
-    <I18nProvider>
+    <>
       <Navbar />
       <Sidebar />
       <div className={`pt-16 pb-16 md:pb-0 md:pr-6 px-4 transition-all ${collapsed ? (pos==='left'? 'md:pl-16':'md:pr-16') : (pos==='left'? 'md:pl-64':'md:pr-64')}`} data-sidebar>
@@ -47,7 +46,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
       <BottomNav />
       <ThemeCustomizerPanel />
-    </I18nProvider>
+    </>
   );
 };
 

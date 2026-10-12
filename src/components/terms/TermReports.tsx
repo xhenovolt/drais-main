@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import useSWRImmutable from 'swr/immutable';
-import { t } from '@/lib/i18n';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { BackendUnavailableNotice } from '@/components/ui/BackendUnavailableNotice';
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 // This used to .catch(()=>({})) — silently turning a failed fetch (this
@@ -11,6 +11,7 @@ const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais
 // useSWR's `error` distinguish "actually empty" from "backend unreachable".
 const fetcher=(u:string)=>fetch(u).then(r=>r.json());
 export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
+  const { t } = useI18n();
   const { data, error, mutate } = useSWRImmutable(`${API_BASE}/term_reports.php?term_id=${termId}`, fetcher);
   const reports = Array.isArray(data?.data) ? data.data : [];
   const reqItems = Array.isArray(data?.requirements) ? data.requirements : [];
@@ -31,13 +32,13 @@ export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
     }
     setStudentId(''); setDate(''); setSelectedReq({}); mutate(); };
   
-  if (error) return <BackendUnavailableNotice feature={t('terms.reports','Term reports')} />;
+  if (error) return <BackendUnavailableNotice feature={t('terms.reports')} />;
 
   // Show loading state while data is being fetched
   if (!data) {
     return (
       <div className="rounded-2xl overflow-hidden border border-blue-200 dark:border-indigo-700 p-8 bg-white/80">
-        <p className="text-center text-gray-500">{t('common.loading', 'Loading...')}</p>
+        <p className="text-center text-gray-500">{t('common.loading')}</p>
       </div>
     );
   }
@@ -45,15 +46,15 @@ export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
   return (
     <div className="rounded-2xl overflow-hidden border border-blue-200 dark:border-indigo-700 backdrop-blur bg-gradient-to-br from-white/80 via-blue-50/60 to-pink-50/60 dark:from-slate-900/80 dark:via-indigo-900/60 dark:to-purple-900/60 shadow-2xl mx-20">
       <table className="w-full text-sm">
-        <caption className="text-left px-4 py-2 text-xs text-blue-500 font-semibold bg-gradient-to-r from-blue-100 via-white to-pink-100 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-900 rounded-t-xl">{t('terms.reported_students','Reported Students')}</caption>
+        <caption className="text-left px-4 py-2 text-xs text-blue-500 font-semibold bg-gradient-to-r from-blue-100 via-white to-pink-100 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-900 rounded-t-xl">{t('terms.reported_students')}</caption>
         <thead className="text-left bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white">
           <tr>
-            <th className="px-4 py-2 font-semibold">{t('terms.student','Student')}</th>
-            <th className="px-4 py-2 font-semibold">{t('terms.admission_no','Admission #')}</th>
-            <th className="px-4 py-2 font-semibold">{t('terms.report_date','Report Date')}</th>
+            <th className="px-4 py-2 font-semibold">{t('terms.student')}</th>
+            <th className="px-4 py-2 font-semibold">{t('terms.admission_no')}</th>
+            <th className="px-4 py-2 font-semibold">{t('terms.report_date')}</th>
             {reqItems && reqItems.length > 0 && reqItems.map((ri:any)=>(<th key={ri.id} className="px-4 py-2 font-semibold hidden lg:table-cell">{ri.name}</th>))}
-            {totalReq>0 && <th className="px-4 py-2 font-semibold">{t('terms.requirements_progress','Reqs')}</th>}
-            <th className="px-4 py-2 font-semibold">{t('terms.status','Status')}</th>
+            {totalReq>0 && <th className="px-4 py-2 font-semibold">{t('terms.requirements_progress')}</th>}
+            <th className="px-4 py-2 font-semibold">{t('terms.status')}</th>
           </tr>
         </thead>
         <tbody>
@@ -75,7 +76,7 @@ export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
               {totalReq>0 && (
                 <td className="px-4 py-2 text-xs">
                   {(()=>{ const brought = reqItems.filter((ri:any)=> statusMap[r.student_id]?.[ri.id]).length; const missing = reqItems.filter((ri:any)=> !statusMap[r.student_id]?.[ri.id]).map((m:any)=>m.name); return (
-                    <span title={missing.length? t('terms.missing','Missing')+': '+missing.join(', '): t('terms.all_brought','All brought')} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-black/5 dark:bg-white/10">
+                    <span title={missing.length? t('terms.missing')+': '+missing.join(', '): t('terms.all_brought')} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-black/5 dark:bg-white/10">
                       {brought}/{totalReq}
                     </span>
                   ); })()}
@@ -84,7 +85,7 @@ export const TermReports: React.FC<{ termId:number }> = ({ termId }) => {
               <td className="px-4 py-2 text-xs">{t(`status.${r.status}`, r.status)}</td>
             </tr>
           ))}
-          {(!reports || reports.length === 0) && <tr><td colSpan={4 + (reqItems ? reqItems.length : 0) + (totalReq>0?1:0)} className="px-4 py-8 text-center text-gray-400">{t('terms.none_reported','No students reported')}</td></tr>}
+          {(!reports || reports.length === 0) && <tr><td colSpan={4 + (reqItems ? reqItems.length : 0) + (totalReq>0?1:0)} className="px-4 py-8 text-center text-gray-400">{t('terms.none_reported')}</td></tr>}
         </tbody>
       </table>
     </div>

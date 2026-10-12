@@ -1,8 +1,9 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useThemeStore } from '@/hooks/useThemeStore';
+import { translate, type Dictionary, type TVars } from '@/lib/i18n/core';
+import { formatDate as fmtDate, formatMoney as fmtMoney, formatNumber as fmtNumber, formatPercent as fmtPercent, type DateStyle } from '@/lib/i18n/format';
 
-interface Dictionary { [key: string]: string | Dictionary; }
 interface I18nContextValue {
   lang: string;
   /**
@@ -25,6 +26,11 @@ interface I18nContextValue {
     fallback?: string,
   ) => string;
   dir: 'ltr' | 'rtl';
+  /** Dates, numbers and money in the active language. Use these, not toLocaleString('en-GB'). */
+  formatDate: (value: Date | string | number | null | undefined, style?: DateStyle | Intl.DateTimeFormatOptions) => string;
+  formatNumber: (value: number | string | null | undefined, options?: Intl.NumberFormatOptions) => string;
+  formatMoney: (amount: number | string | null | undefined, currency?: string) => string;
+  formatPercent: (value: number | null | undefined, isRatio?: boolean, digits?: number) => string;
   setLang: (lng: string) => void;
   ready: boolean;
   loading: boolean;
@@ -47,11 +53,6 @@ async function loadDictionary(lang: string): Promise<Dictionary> {
     }
     throw error;
   }
-}
-
-function resolveKey(dict: Dictionary, path: string | null): string | undefined {
-  if (!path) return undefined;
-  return path.split('.').reduce<any>((acc, part) => (acc && (acc as any)[part]) ?? undefined, dict);
 }
 
 // Dev-only: warn once per missing key so untranslated strings are easy to find
@@ -161,26 +162,22 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
         ? varsOrFallback
         : fallback;
 
-    const resolved = resolveKey(dict, key);
-    // Miss → use English fallback (if any) BEFORE giving up to the raw
-    // key path. Prevents leaks like "nav.students.admit" appearing in
-    // the UI when a dictionary entry has not been authored yet.
-    if (typeof resolved !== 'string' && ready) warnMissingKey(key, lang);
-    let value: string =
-      typeof resolved === 'string' ? resolved : (fb ?? key);
-
-    if (vars) {
-      Object.entries(vars).forEach(([k, v]) => {
-        value = value.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
-      });
-    }
-    return value;
+    // Shared core: plain text, plural groups ({ one, other, ... } chosen by vars.count using the
+    // language's own plural rules) and {{placeholder}} substitution. A missing key returns the
+    // fallback (if any), else the key path, and is reported once in development.
+    return translate(dict, lang, key, vars as TVars | undefined, fb, ready ? (k) => warnMissingKey(k, lang) : undefined);
   }, [dict, lang, ready]);
+
+  const formatDate = useCallback<I18nContextValue['formatDate']>((v, style) => fmtDate(v, lang, style), [lang]);
+  const formatNumber = useCallback<I18nContextValue['formatNumber']>((v, o) => fmtNumber(v, lang, o), [lang]);
+  const formatMoney = useCallback<I18nContextValue['formatMoney']>((v, c) => fmtMoney(v, lang, c), [lang]);
+  const formatPercent = useCallback<I18nContextValue['formatPercent']>((v, r, d) => fmtPercent(v, lang, r, d), [lang]);
 
   const value: I18nContextValue = { 
     lang, 
     t, 
     dir: lang === 'ar' ? 'rtl' : 'ltr', 
+    formatDate, formatNumber, formatMoney, formatPercent,
     setLang: setLanguage, 
     ready,
     loading,

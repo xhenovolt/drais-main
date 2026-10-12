@@ -165,8 +165,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Anti-flicker: apply the persisted theme to <html> BEFORE first paint
-            so a dark-mode user never sees a white flash. Reads the same
+        {/* Anti-flicker: apply the persisted theme AND language direction to <html>
+            BEFORE first paint, so a dark-mode user never sees a white flash and an
+            Arabic user never sees the page laid out left-to-right first. Reads the same
             zustand-persisted store the ThemeProvider hydrates from. */}
         <script
           dangerouslySetInnerHTML={{
@@ -177,6 +178,8 @@ export default function RootLayout({
   var dark = (pref==='dark') || ((pref==='system'||!pref) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
   var el=document.documentElement;
   if(dark){el.classList.add('dark');el.dataset.themeMode='dark';}else{el.classList.remove('dark');el.dataset.themeMode='light';}
+  var lng=raw?(((JSON.parse(raw)||{}).state||{}).language):null;
+  if(lng==='ar'){el.lang='ar';el.dir='rtl';}else{el.lang='en';el.dir='ltr';}
 }catch(e){}})();`,
           }}
         />

@@ -97,7 +97,10 @@
       "contacts": "Contacts",
       "documents": "Documents",
       "history": "Academic history",
-      "promotions": "Promotions"
+      "promotions": "Promotions",
+      "admit": "Admit Student",
+      "enroll": "Enroll Student",
+      "duplicates": "Duplicates"
     },
     "staff": {
       "_": "Staff",
@@ -208,7 +211,9 @@
     "usersRoles": {
       "_": "Users & Roles",
       "users": "Manage Users",
-      "roles": "Roles & Permissions"
+      "roles": "Roles & Permissions",
+      "permissions": "Permissions",
+      "audit": "Audit log"
     },
     "analytics": {
       "_": "Analytics / Reports",
@@ -219,7 +224,9 @@
     "settings": {
       "_": "Settings",
       "school": "School Settings",
-      "theme": "Theme Customizer"
+      "theme": "Theme Customizer",
+      "system": "System settings",
+      "profile": "Profile"
     },
     "attendance": {
       "_": "Attendance",
@@ -281,7 +288,17 @@
     "profile": "Profile",
     "account": "Account",
     "help": "Help",
-    "about": "About"
+    "about": "About",
+    "guides": {
+      "_": "Help & Guides"
+    },
+    "terms": "Terms",
+    "finance_overview": "Overview",
+    "finance_wallets": "Wallets",
+    "finance_fees": "Fees",
+    "finance_payments": "Payments",
+    "finance_ledger": "Ledger",
+    "workplans": "Workplans"
   },
   "theme": {
     "panel": "Theme Panel",
@@ -306,7 +323,13 @@
       "cta_secondary": "Get Started",
       "cta_download": "Download Brochure",
       "trusted_by": "Trusted by 28+ Schools Across Africa",
-      "badge": "AI-Powered • Multi-Language • Islamic Modules Available"
+      "badge": "AI-Powered • Multi-Language • Islamic Modules Available",
+      "cta_tertiary": "Download Brochure",
+      "trust": "Trusted by 28+ schools in Africa",
+      "stat1": "28+ schools",
+      "stat2": "100K+ students",
+      "stat3": "99.9% uptime",
+      "stat4": "24/7 support"
     },
     "benefits": {
       "title": "Why Schools Choose DRAIS",
@@ -322,7 +345,9 @@
       "benefit5_title": "Multi-Campus Management",
       "benefit5_desc": "Manage multiple schools from one dashboard. Unified reporting, centralized control.",
       "benefit6_title": "Islamic Modules (Optional)",
-      "benefit6_desc": "Quran memorization tracking, Tajweed rubrics, Islamic behavior evaluation. Perfect for Islamic schools."
+      "benefit6_desc": "Quran memorization tracking, Tajweed rubrics, Islamic behavior evaluation. Perfect for Islamic schools.",
+      "badge": "Results-driven outcomes",
+      "cta": "See DRAIS in action →"
     },
     "features": {
       "title": "Complete School Management Suite",
@@ -428,7 +453,14 @@
       "testimonial2_text": "The Islamic modules are exceptional. We track Quran progress with precision while managing all academic operations seamlessly.",
       "testimonial3_name": "Margaret Owino",
       "testimonial3_role": "Finance Manager, Sunrise Schools",
-      "testimonial3_text": "Mobile money integration changed everything. Parents pay instantly, and we have real-time financial visibility."
+      "testimonial3_text": "Mobile money integration changed everything. Parents pay instantly, and we have real-time financial visibility.",
+      "testimonial1_quote": "DRAIS cut our admin time by 70% and parent satisfaction rose by 95%. A real game changer!",
+      "testimonial2_quote": "The Islamic modules are comprehensive and beautifully designed. Quran and tarbiya tracking are unmatched.",
+      "testimonial3_quote": "Mobile money integration transformed our fee collection. We now track payments in real time and have cut follow-ups by 80%.",
+      "badge1": "Ministry-aligned reports",
+      "badge2": "Encrypted data with daily backups",
+      "badge3": "99.9% uptime guarantee",
+      "badge4": "Designed by Xhenvolt"
     },
     "contact": {
       "title": "Get in Touch",
@@ -474,7 +506,29 @@
     "email": "Email",
     "address": "Address",
     "admission_date": "Admission Date",
-    "notes": "Notes"
+    "notes": "Notes",
+    "select_status": "Select status...",
+    "profile": "Profile",
+    "dob": "Date of birth",
+    "birth_place": "Place of birth",
+    "residence": "Place of residence",
+    "nationality": "Nationality",
+    "district": "District",
+    "family": "Family",
+    "guardian": "Guardian",
+    "guardian_contact": "Guardian phone",
+    "father": "Father",
+    "father_contact": "Father phone",
+    "next_of_kin": "Next of kin",
+    "education_levels": "Education levels",
+    "progress": "Progress",
+    "hafz_juz": "Juz memorised",
+    "curriculums": "Curriculums",
+    "contact": "Contact",
+    "admission": "Admission",
+    "hafz_progress": "Memorisation progress",
+    "review": "Review",
+    "submit": "Submit"
   },
   "common": {
     "loading": "Loading...",
@@ -623,7 +677,18 @@
     "createdAt": "Created at",
     "updatedAt": "Updated at",
     "createdBy": "Created by",
-    "updatedBy": "Updated by"
+    "updatedBy": "Updated by",
+    "back_to_list": "Back to list",
+    "other": "Other",
+    "custom": "Custom range",
+    "prev": "Previous",
+    "pagination": {
+      "showing": "Showing {{from}} to {{to}} of {{total}} results",
+      "showingShort": "{{from}} of {{total}}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "goToPage": "Go to page {{page}}"
+    }
   },
   "localization": {
     "title": "Localization — Arabic Names",
@@ -714,7 +779,8 @@
       "EARLY_DEPARTURE": "Left early",
       "OVERTIME_EXIT": "Overtime exit",
       "DUPLICATE": "Duplicate"
-    }
+    },
+    "identityMatching": "Identity Matching"
   },
   "financeDash": {
     "title": "Finance Dashboard",
@@ -758,7 +824,8 @@
       "schoolpay": "School Pay",
       "surepay": "SurePay",
       "other": "Other"
-    }
+    },
+    "accessDenied": "You do not have permission to view the finance dashboard."
   },
   "tahfizResults": {
     "title": "Tahfiz Results Management",
@@ -810,7 +877,8 @@
     "colAdmitted": "Admitted",
     "colStatus": "Status",
     "colGender": "Gender",
-    "colBalance": "Balance"
+    "colBalance": "Balance",
+    "colResidency": "Residency"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -907,7 +975,9 @@
     "manage_requirements": "Manage",
     "requirements_progress": "Reqs",
     "missing": "Missing",
-    "all_brought": "All brought"
+    "all_brought": "All brought",
+    "reports": "Term Reports",
+    "description": "Description"
   },
   "finance": {
     "title": "Finance",
@@ -967,7 +1037,60 @@
     "thisReceiptIsYourProof": "This receipt is your proof of payment",
     "fees": "Fees",
     "expenses": "Expenses",
-    "currencyUgx": "UGX"
+    "currencyUgx": "UGX",
+    "fee_structures": "Fee Structures",
+    "class_id": "Class ID",
+    "no_fee_structures": "No fee structures",
+    "ledger": "Ledger",
+    "staff_id": "Staff ID",
+    "no_ledger": "No ledger entries",
+    "balanceSheet": "Balance Sheet",
+    "balanceSheetSub": "What the school owns and owes, at a point in time",
+    "asOf": "As of",
+    "totalAssets": "Total assets",
+    "totalLiabilities": "Total liabilities",
+    "netAssets": "Net school funds",
+    "assets": "Assets",
+    "cashAndEquivalents": "Cash and equivalents",
+    "noWallets": "No money locations configured",
+    "accountsReceivable": "Fees receivable",
+    "outstandingFees": "Outstanding student fees not yet collected",
+    "learnersOwing": "Learners with a balance",
+    "partiallyPaid": "Partially paid",
+    "nothingPaid": "Nothing paid yet",
+    "liabilities": "Liabilities",
+    "accountsPayable": "Amounts payable",
+    "pendingExpenditures": "pending expenses awaiting payment",
+    "studentDeposits": "Student deposits",
+    "advancePayments": "Advance payments held on behalf of learners",
+    "equity": "Net School Funds",
+    "accumulatedValue": "Net school funds",
+    "assetsMinusLiabilities": "Assets less liabilities",
+    "totalEquity": "Total net school funds",
+    "liabilitiesPlusEquity": "Liabilities + net school funds",
+    "balanced": "Balanced — assets equal liabilities plus net school funds",
+    "notBalanced": "This statement does not balance",
+    "notBalancedHint": "Do not rely on these figures. Report this to DRAIS support with the date above — it indicates a data problem, not a rounding difference.",
+    "bank": "Bank transfer",
+    "incomeStatement": "Income & Expenditure Statement",
+    "incomeStatementSub": "Income and expenses, generated from recorded transactions",
+    "thisMonth": "This month",
+    "last30": "Last 30 days",
+    "thisYear": "This year",
+    "totalRevenue": "Total revenue",
+    "totalExpenses": "Total expenses",
+    "netIncome": "Net income",
+    "margin": "surplus margin",
+    "revenue": "Revenue",
+    "feeCollections": "Fee collections",
+    "transactions": "transactions",
+    "otherIncome": "Other income",
+    "fromLedger": "From categorised ledger entries",
+    "noExpenses": "No expenses recorded in this period",
+    "netSurplus": "Net surplus",
+    "netDeficit": "Net deficit",
+    "onlyFeesTitle": "This statement shows fee collections only",
+    "onlyFeesHint": "No categorised ledger income or expenses were recorded for this period. Record expenses under Expenditures, and other income in the Ledger, to see a full income and expenditure statement."
   },
   "payroll": {
     "title": "Payroll",
@@ -1027,26 +1150,6 @@
     "room": "Room",
     "no_timetable": "No timetable entries"
   },
-  "general.head_staff_id": "Head Staff ID",
-  "general.description": "Description",
-  "general.workplans": "Workplans",
-  "general.no_workplans": "No workplans",
-  "general.title": "Title",
-  "general.owner_type": "Owner Type",
-  "general.owner_id": "Owner ID",
-  "general.events": "Events",
-  "general.no_events": "No events",
-  "general.location": "Location",
-  "general.documents": "Documents",
-  "general.select_type": "Select Type",
-  "general.file_name": "File Name",
-  "general.file_url": "File URL",
-  "general.open": "Open",
-  "general.no_documents": "No documents",
-  "general.settings": "Settings",
-  "general.key": "Key",
-  "general.value": "Value",
-  "general.no_settings": "No settings",
   "dashboard": "Dashboard",
   "total classes": "Total Classes",
   "total learners": "Total Learners",
@@ -1101,7 +1204,10 @@
     "try_different_browser": "Try using a different browser",
     "contact_if_persists": "Contact support if the problem persists",
     "system_status": "System Status: Operational",
-    "timestamp": "Error occurred at:"
+    "timestamp": "Error occurred at:",
+    "server_error": "Server Error",
+    "server_error_description": "Our servers are currently experiencing issues. We are working to restore normal service as quickly as possible.",
+    "server_status": "Server Status"
   },
   "auth": {
     "signIn": "Sign in",
@@ -2192,7 +2298,6 @@
       "correctionShift": "Correction: shift the entire batch {{desc}}.",
       "shiftForward": "forward",
       "shiftBack": "back",
-      "person": "Person",
       "before": "Before",
       "after": "After",
       "punchesCorrected": "{{n}} punches will be corrected. Undo is available afterwards.",
@@ -2234,7 +2339,87 @@
       "policyTrustDevice": "Trust device time",
       "policyManualReview": "Manual review if drift",
       "rawDrift": "Device clock drift",
-      "resolvedBadge": "Auto-resolved"
+      "resolvedBadge": "Auto-resolved",
+      "firstArrivalHealth": "First Arrival Health",
+      "historicalExpectation": "Historical expectation",
+      "anchors": "anchors",
+      "observedPattern": "Today's observed pattern",
+      "anchorsPresent": "Usual arrivers present",
+      "deviceClockStatus": "Device clock status",
+      "evidenceLine": "{{days}} days of history analyzed · last sync {{sync}}",
+      "earliestRecords": "Today's earliest records (evidence)",
+      "unknownPerson": "Unknown",
+      "rolloverSuspected": "Today's earliest records look like previous-day stragglers, not genuine arrivals.",
+      "simulationEvidence": "As currently dated: {{cur}}% confidence. Interpreted as belonging to the prior day: {{shifted}}% confidence.",
+      "simulationNote": "This is a simulation only — nothing has been changed. Review the affected device(s) below and correct manually if you agree.",
+      "showAnchors": "Baseline population ({{n}} usual early arrivers)",
+      "usualVsToday": "usual {{usual}} · today {{today}}"
     }
-  }
+  },
+  "general": {
+    "head_staff_id": "Head Staff ID",
+    "description": "Description",
+    "workplans": "Workplans",
+    "no_workplans": "No workplans",
+    "title": "Title",
+    "owner_type": "Owner Type",
+    "owner_id": "Owner ID",
+    "events": "Events",
+    "no_events": "No events",
+    "location": "Location",
+    "documents": "Documents",
+    "select_type": "Select Type",
+    "file_name": "File Name",
+    "file_url": "File URL",
+    "open": "Open",
+    "no_documents": "No documents",
+    "settings": "Settings",
+    "key": "Key",
+    "value": "Value",
+    "no_settings": "No settings",
+    "departments": "Departments",
+    "name": "Name",
+    "no_departments": "No departments"
+  },
+  "classResults": {
+    "search": "Search",
+    "allClasses": "All classes",
+    "allSubjects": "All subjects",
+    "allTypes": "All result types",
+    "allTerms": "All terms",
+    "addEditResults": "Add / edit results",
+    "refresh": "Refresh",
+    "student": "Student",
+    "class": "Class",
+    "total": "Total",
+    "avg": "Average",
+    "position": "Position",
+    "noResultsFound": "No results found",
+    "prev": "Previous",
+    "next": "Next",
+    "classResultsEntry": "Class results entry",
+    "term": "Term",
+    "subject": "Subject",
+    "resultType": "Result type",
+    "loading": "Loading…",
+    "load": "Load",
+    "studentResults": "Student Results",
+    "students": "students",
+    "subjectComment": "Comment (optional)",
+    "loadingStudents": "Loading students…",
+    "autoCreateNullRows": "Create empty rows automatically",
+    "saving": "Saving…",
+    "saveResults": "Save results",
+    "cancel": "Cancel"
+  },
+  "promotions": {
+    "_": "Promotions",
+    "overview": "Promotions overview",
+    "manage": "Manage promotions"
+  },
+  "attendance": "Attendance",
+  "workplans": "Workplans",
+  "total_classes": "Total Classes",
+  "total_learners": "Total Learners",
+  "no_active_term": "No Active Term"
 }

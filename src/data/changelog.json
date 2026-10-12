@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T16:45:59.235Z",
-  "last_commit": "1a990daa23a35b216964d48aa0b84ff49856df85",
+  "generated_at": "2026-10-12T17:04:33.819Z",
+  "last_commit": "b8c5ee5b0b7a3f0199deb06d0863a69f5ee3dd8c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9150,7 +9150,20 @@
         }
       ],
       "commit": "1a990daa23"
+    },
+    {
+      "version": "2.50.41",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Phase 0 localization audit, route inventory, roadmap and key conventions",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Phase 0 localization audit, route inventory, roadmap and key conventions"
+        }
+      ],
+      "commit": "b8c5ee5b0b"
     }
   ],
-  "app_version": "2.50.41"
+  "app_version": "2.50.42"
 }

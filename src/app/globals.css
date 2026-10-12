@@ -163,7 +163,7 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Amiri', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
   word-break: break-word;
 }
@@ -187,6 +187,44 @@ video {
 /* RTL Support */
 html[dir="rtl"] {
   direction: rtl;
+}
+
+/* ─── Arabic typeface: Amiri (default for all Arabic text) ────────────────
+ * Self-hosted (public/fonts/amiri, SIL Open Font License) so it also works in the offline and
+ * desktop builds; nothing is fetched from Google at runtime.
+ *
+ * `unicode-range` limits these faces to Arabic script. Listing 'Amiri' first in a font stack
+ * therefore changes Arabic text only: Latin letters, digits and punctuation fall through to the
+ * next family, so English and mixed text (admission numbers, amounts, phone numbers) look as
+ * before, and the browser downloads the font only on a page that actually contains Arabic.
+ *
+ * `size-adjust`: Amiri is a book face with a small body; at the interface's 11-14px it renders
+ * visibly smaller and lighter than the system fonts. 112% brings it to the same apparent size
+ * (checked by rendering both side by side, 2026-10-12). Rows with Arabic text are slightly taller.
+ */
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/amiri/amiri-arabic-400.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+  size-adjust: 112%;
+}
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/amiri/amiri-arabic-700.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+  size-adjust: 112%;
+}
+
+/* Before the theme provider hydrates (and on pages outside it), Arabic still gets Amiri, with
+   system Arabic faces behind it in case the file cannot load. */
+html[dir="rtl"] body {
+  font-family: 'Amiri', 'Segoe UI', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Geeza Pro', 'SF Arabic', 'Dubai', Tahoma, Arial, sans-serif;
 }
 
 html[dir="rtl"] .rtl\:space-x-reverse > :not([hidden]) ~ :not([hidden]) {

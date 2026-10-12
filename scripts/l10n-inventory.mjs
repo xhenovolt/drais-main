@@ -128,6 +128,6 @@ for (const s of d.shared.filter((x) => !/I18nProvider/.test(x.file)).slice(0, 40
   md += `| \`${short(s.file)}\` | ${s.routes} | ${s.hard} | ${s.tCalls} | ${s.useI18n ? '`useI18n`' : s.legacyT ? 'legacy `@/lib/i18n` (broken)' : s.nextI18next ? '`next-i18next` (not initialised)' : 'none'} |\n`;
 }
 md += `\n## Verification log\n\n`;
-md += `_Empty. Add one entry per route as it is completed: date, translation keys added or changed, files changed, tests run and their results, what was checked in the browser (Arabic and English, desktop and mobile), interactions exercised, and any known limitation._\n`;
+md += `Kept by hand in [VERIFICATION_LOG.md](VERIFICATION_LOG.md): one entry per completed step or route, with the checks that ran and what was and was not looked at in a browser.\n`;
 fs.writeFileSync(OUT, md);
 console.log('written', OUT, md.length, 'chars', md.split('\n').length, 'lines');

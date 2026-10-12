@@ -3,6 +3,17 @@
 _Written 2026-10-12 after the Phase 0 audit. Nothing in this roadmap has been started. Read
 `LOCALIZATION_ARCHITECTURE_AUDIT.md` first; finding numbers (F1–F12) refer to it._
 
+## Status
+
+| Phase | State |
+|---|---|
+| 0 — Audit | Done 2026-10-12 |
+| 1 — Foundation | Implemented and automatically checked 2026-10-12; **browser check by a signed-in user still outstanding** (see `VERIFICATION_LOG.md`) |
+| 2 — Students | Not started |
+
+Decisions 1–4 and 6 below were taken as recommended. Decision 5 (an Arabic reviewer) is still open, so all
+Arabic written so far is a draft. The Arabic typeface is Amiri, chosen by the owner.
+
 ## The goal
 
 When a user switches DRAIS to Arabic, every supported, visible part of the page they are on is in Arabic and

@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { t } from '@/lib/i18n';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, Loader2, Plus, Edit2, Trash2, Settings, ArrowUpDown } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';

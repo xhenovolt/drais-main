@@ -1,5 +1,7 @@
+'use client';
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface PaginationProps {
   currentPage: number;
@@ -16,6 +18,7 @@ const Pagination: React.FC<PaginationProps> = ({
   totalItems,
   itemsPerPage
 }) => {
+  const { t, formatNumber } = useI18n();
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
   const startIndex = (currentPage - 1) * itemsPerPage + 1;
@@ -57,8 +60,10 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 mt-6 px-3 sm:px-4 py-2 sm:py-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
       {/* Results info */}
-      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 order-3 sm:order-1 w-full sm:w-auto text-center sm:text-left">
-        <span className="hidden sm:inline">Showing </span><span className="font-medium">{startIndex}</span><span className="hidden sm:inline"> to </span><span className="hidden sm:inline"><span className="font-medium">{endIndex}</span> of </span><span className="font-medium text-sm sm:text-base">{totalItems}</span> results
+      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 order-3 sm:order-1 w-full sm:w-auto text-center sm:text-start">
+        {/* One whole sentence per language (word order differs in Arabic), with a short form on phones. */}
+        <span className="hidden sm:inline">{t('common.pagination.showing', { from: formatNumber(startIndex), to: formatNumber(endIndex), total: formatNumber(totalItems) })}</span>
+        <span className="sm:hidden">{t('common.pagination.showingShort', { from: formatNumber(startIndex), total: formatNumber(totalItems) })}</span>
       </div>
 
       {/* Pagination controls - Fixed width for mobile stability */}
@@ -67,10 +72,11 @@ const Pagination: React.FC<PaginationProps> = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={!canGoPrev}
-          className="relative inline-flex items-center px-1.5 sm:px-2 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-300 rounded-l-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors duration-200"
-          title="Previous page"
+          className="relative inline-flex items-center px-1.5 sm:px-2 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-300 rounded-s-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors duration-200"
+          title={t('common.pagination.previousPage')}
+          aria-label={t('common.pagination.previousPage')}
         >
-          <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+          <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4 rtl-flip" />
         </button>
 
         {/* Page numbers - Fixed width 5 consecutive pages */}
@@ -83,7 +89,8 @@ const Pagination: React.FC<PaginationProps> = ({
                 ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900 dark:border-blue-400 dark:text-blue-300'
                 : 'text-slate-500 bg-white border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700'
             }`}
-            title={`Go to page ${page}`}
+            title={t('common.pagination.goToPage', { page })}
+            aria-current={currentPage === page ? 'page' : undefined}
           >
             {page}
           </button>
@@ -93,10 +100,11 @@ const Pagination: React.FC<PaginationProps> = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={!canGoNext}
-          className="relative inline-flex items-center px-1.5 sm:px-2 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-300 rounded-r-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors duration-200"
-          title="Next page"
+          className="relative inline-flex items-center px-1.5 sm:px-2 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-300 rounded-e-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors duration-200"
+          title={t('common.pagination.nextPage')}
+          aria-label={t('common.pagination.nextPage')}
         >
-          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 rtl-flip" />
         </button>
       </div>
     </div>
