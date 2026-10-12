@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T02:14:42.540Z",
-  "last_commit": "b47ebe19828c34ab91a9f4fda7769e6a215850e5",
+  "generated_at": "2026-10-12T02:27:23.541Z",
+  "last_commit": "966974c3034110128de6fcb218df5093df1a3967",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9085,7 +9085,20 @@
         }
       ],
       "commit": "b47ebe1982"
+    },
+    {
+      "version": "2.50.36",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Restore Turbopack build and accept multiple UgaText webhook secrets",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Restore Turbopack build and accept multiple UgaText webhook secrets"
+        }
+      ],
+      "commit": "966974c303"
     }
   ],
-  "app_version": "2.50.36"
+  "app_version": "2.50.37"
 }

@@ -66,6 +66,16 @@ export const NON_SCHOOL_AUTH_PREFIXES: readonly string[] = [
   '/iclock',
   '/api/zk-handler',
 
+  // ── Inbound provider webhooks. The caller is a third-party server (UgaText,
+  //    Africa's Talking, Infobip, MarzPay) that can never hold a school session;
+  //    each route verifies its own HMAC signature or shared secret and is
+  //    disabled (503) until that secret is configured. Without these entries the
+  //    middleware answered 401 before the handler ran, so delivery receipts and
+  //    payment notifications were silently dropped (found 2026-10-12, when
+  //    restoring the Turbopack build put the middleware back in force).
+  '/api/webhooks',        // MarzPay — signature + authenticated lookup
+  '/api/comm/webhooks',   // SMS delivery reports (UgaText, Africa's Talking), WhatsApp (Infobip)
+
   // ── Token-authenticated public surfaces.
   '/verify',         // QR verification — the HMAC-signed token IS the access proof
 ] as const;
