@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
   const state = normalizeDeliveryStatus(f.status);
   const reason = String(f.failureReason ?? f.reason ?? '').slice(0, 120);
 
-  const { updated } = await applyDeliveryReport({ messageId, state, reason: reason || String(f.status ?? '') });
+  const { updated } = await applyDeliveryReport({
+    messageId, state, reason: reason || String(f.status ?? ''),
+    provider: 'africas_talking', providerStatus: String(f.status ?? '').slice(0, 60), network: f.networkCode ? String(f.networkCode) : null,
+  });
   return NextResponse.json({ success: true, updated, state });
 }

@@ -18,6 +18,7 @@ import { canAny } from '@/lib/rbac/fallback';
 import { query } from '@/lib/db';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 import { buildOutboxWhere, DISPLAY_STATUS_SQL, maskPhone, DISPLAY_STATUSES } from '@/lib/notifications/outbox-query';
+import { latestDeliveryEventsForOutbox } from '@/lib/sms/delivery-events';
 
 export const runtime = 'nodejs';
 
@@ -82,9 +83,19 @@ export async function GET(req: NextRequest) {
     `SELECT o.notification_type AS t, COUNT(*) AS n ${JOINS} WHERE ${noStatus.where} AND o.notification_type IS NOT NULL GROUP BY t ORDER BY n DESC`, noStatus.params,
   )) as Array<{ t: string; n: number }>;
 
+  // What the provider last reported for each message (on the network / delivered / not delivered).
+  // Fetched separately and best-effort, so the outbox still lists if the reports table is unavailable.
+  const reports = await latestDeliveryEventsForOutbox(rows.map((r) => Number(r.id)), schoolId);
+
   return NextResponse.json({
     success: true,
-    rows: rows.map((r) => ({ ...r, recipient_phone: maskPhone(r.recipient_phone), display_status: r.display_status })),
+    rows: rows.map((r) => {
+      const rep = reports.get(Number(r.id));
+      return {
+        ...r, recipient_phone: maskPhone(r.recipient_phone), display_status: r.display_status,
+        provider_report: rep ? { state: rep.state, reason: rep.reason, network: rep.network, at: rep.created_at } : null,
+      };
+    }),
     total, page, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)),
     statusCounts,
     types: typeRows.map((t) => ({ type: t.t, n: Number(t.n) })),

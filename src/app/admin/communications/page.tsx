@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import useSWR, { mutate as globalMutate } from 'swr';
 import {
   MessageSquare, Settings as SettingsIcon, FileText, Workflow, Activity,
@@ -839,6 +839,12 @@ function DispatchLogPanel() {
   }, [filter]);
 
   const { data, mutate, isLoading, error } = useSWR<any>(url, fetcher);
+  // Provider delivery reports (pushed by the navbar's live stream) refresh the log at once.
+  useEffect(() => {
+    const h = () => { void mutate(); };
+    window.addEventListener('drais:sms-delivery', h);
+    return () => window.removeEventListener('drais:sms-delivery', h);
+  }, [mutate]);
 
   async function sendNow(id: number) {
     try {
@@ -930,7 +936,10 @@ function DispatchLogPanel() {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { tone: string; Icon: any }> = {
-    sent:    { tone: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300', Icon: CheckCircle2 },
+    // sent = the provider accepted it; delivered = the provider confirmed it reached the phone.
+    sent:    { tone: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300', Icon: Send },
+    delivered: { tone: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300', Icon: CheckCircle2 },
+    read:    { tone: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300', Icon: CheckCircle2 },
     queued:  { tone: 'bg-amber-100   dark:bg-amber-900/40   text-amber-700   dark:text-amber-300',   Icon: Clock },
     failed:  { tone: 'bg-rose-100    dark:bg-rose-900/40    text-rose-700    dark:text-rose-300',    Icon: AlertCircle },
     skipped: { tone: 'bg-slate-100   dark:bg-slate-800       text-slate-500',                         Icon: Ban },

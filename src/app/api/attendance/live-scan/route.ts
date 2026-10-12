@@ -6,6 +6,8 @@ import { fuzzyCandidates } from '@/lib/biometric/name-fuzzy';
 import { resolveIdentity } from '@/lib/biometric/identity/resolve';
 import { getEventBus, type AttendanceEventRecordedEvent } from '@/lib/events/eventbus';
 import { getCommSettings } from '@/lib/comm/settings';
+import { deliveryEventCursor, deliveryEventsAfter } from '@/lib/sms/delivery-events';
+import { maskPhone } from '@/lib/notifications/outbox-query';
 
 // ── SMS readiness (cached 60s/school) so the popup can show a definitive
 // "SMS disabled" instead of silence when the provider isn't configured or
@@ -215,7 +217,37 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      const interval = setInterval(poll, 2000);
+      // ── SMS delivery reports ────────────────────────────────────
+      // Provider webhooks land on whichever server instance receives them, so
+      // they are tailed from the database (school-scoped) rather than from the
+      // in-process bus. Sent as a NAMED event: existing `onmessage` consumers of
+      // this stream (the identity popup) never see it, only listeners that ask
+      // for 'sms_delivery'. Checked every other tick (4s) to keep the cost low.
+      let deliveryCursor = await deliveryEventCursor(session.schoolId).catch(() => 0);
+      let tick = 0;
+      const pollDeliveries = async () => {
+        if (closed) return;
+        try {
+          for (const e of await deliveryEventsAfter(session.schoolId, deliveryCursor)) {
+            if (Number(e.id) > deliveryCursor) deliveryCursor = Number(e.id);
+            if (closed) return;
+            const payload = {
+              id: Number(e.id), state: e.state, provider: e.provider, reason: e.reason, network: e.network,
+              recipient_name: e.recipient_name, recipient_phone: maskPhone(e.recipient_phone), learner_name: e.learner_name,
+              outbox_id: e.outbox_id, dispatch_log_id: e.dispatch_log_id, at: e.created_at,
+            };
+            try { controller.enqueue(encoder.encode(`event: sms_delivery\ndata: ${JSON.stringify(payload)}\n\n`)); }
+            catch { closed = true; }
+          }
+        } catch (err) {
+          console.error('[LiveScan] Delivery event poll error:', err);
+        }
+      };
+
+      const interval = setInterval(() => {
+        void poll();
+        if (tick++ % 2 === 0) void pollDeliveries();
+      }, 2000);
 
       req.signal.addEventListener('abort', () => {
         closed = true;

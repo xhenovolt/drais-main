@@ -90,7 +90,8 @@ describe('UgaText webhook route is safe by construction', () => {
     assert.ok(route.indexOf('status: 401') < route.indexOf('applyDeliveryReport('));
   });
   it('only confirmed outcomes change a message, and a status never regresses', () => {
-    assert.match(shared, /state !== 'delivered' && state !== 'failed'\)\) return/);
+    assert.match(shared, /if \(state === 'delivered' \|\| state === 'failed'\) \{/);
+    assert.ok(shared.indexOf("if (state === 'delivered' || state === 'failed') {") < shared.indexOf('UPDATE notification_outbox'));
     assert.match(shared, /status IN \('sent','queued'\)/);
     assert.match(shared, /delivery_confirmed_at IS NULL/);
   });

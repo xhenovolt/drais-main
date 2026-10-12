@@ -10,6 +10,7 @@ import { query } from '@/lib/db';
 import { DISPLAY_STATUS_SQL, STATUS_HELP, TYPE_LABEL, type DisplayStatus } from '@/lib/notifications/outbox-query';
 import { REASON_TEXT } from '@/lib/attendance/notification-decision';
 import { getSmsPricing } from '@/lib/control/sms-economics';
+import { deliveryEventsForOutbox } from '@/lib/sms/delivery-events';
 
 export const runtime = 'nodejs';
 type Ctx = { params: Promise<{ id: string }> };
@@ -76,11 +77,18 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   }
 
   const status = row.display_status as DisplayStatus;
+  // Provider reports received by webhook after the provider accepted the message.
+  const reports = await deliveryEventsForOutbox(id, row.school_id);
+  const onNetwork = reports.find((e) => e.state === 'sent');
+  const notDelivered = [...reports].reverse().find((e) => e.state === 'failed');
   const lifecycle = [
     { step: 'DRAIS created the message', at: row.created_at, done: true },
     { step: 'Handed to the SMS provider', at: row.attempted_at, done: !!row.attempted_at },
     { step: 'Provider accepted it', at: row.status === 'delivered' ? row.delivered_at : null, done: row.status === 'delivered' },
-    { step: 'Provider confirmed delivery to the phone', at: row.delivery_confirmed_at, done: !!row.delivery_confirmed_at },
+    ...(onNetwork ? [{ step: `Handed to the mobile network${onNetwork.network ? ` (${onNetwork.network})` : ''}`, at: onNetwork.created_at, done: true }] : []),
+    notDelivered && !row.delivery_confirmed_at
+      ? { step: `Provider reported it was NOT delivered${notDelivered.reason ? `: ${notDelivered.reason}` : ''}`, at: notDelivered.created_at, done: true, failed: true }
+      : { step: 'Provider confirmed delivery to the phone', at: row.delivery_confirmed_at, done: !!row.delivery_confirmed_at },
   ];
 
   return NextResponse.json({
@@ -103,6 +111,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       cost: Number(d.success) === 1 ? `UGX ${retailPriceUgx.toFixed(4)}` : null,
       accepted: Number(d.success) === 1, error: d.error, at: d.delivered_at,
     })),
+    providerReports: reports.map((e) => ({ state: e.state, provider: e.provider, network: e.network, reason: e.reason, at: e.created_at })),
     decision,
     decisionNote: decision ? null : (row.notification_type ? 'No decision was stored for this message (it was created before decision diagnostics existed).' : null),
   });

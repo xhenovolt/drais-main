@@ -10,6 +10,7 @@
  * settings — this is the navbar status the operator asked for.
  */
 import { useEffect, useState, useRef } from 'react';
+import { showToast } from '@/lib/toast';
 
 interface ScanEvent {
   scan_id: number;
@@ -37,6 +38,40 @@ function pillFor(scan: ScanEvent): Pill | null {
   return { text: `👤 ${name} scanned`, color: '#6b7280', bg: 'rgba(107,114,128,0.12)' };
 }
 
+/** Fired on `window` for every provider delivery report, so open lists can refresh at once. */
+export const SMS_DELIVERY_EVENT = 'drais:sms-delivery';
+
+export interface DeliveryEvent {
+  id: number;
+  state: 'sent' | 'delivered' | 'failed';
+  provider?: string | null;
+  reason?: string | null;
+  network?: string | null;
+  recipient_name?: string | null;
+  recipient_phone?: string | null;
+  learner_name?: string | null;
+  outbox_id?: number | null;
+  dispatch_log_id?: number | null;
+}
+
+// Module-level so the Navbar and Topbar copies of this indicator share it.
+const seenDeliveries = new Set<number>();
+
+/** How one delivery report reads to staff. "On the network" updates the pill but does not toast. */
+export function deliveryView(d: DeliveryEvent): { text: string; toast: 'success' | 'error' | null; pill: Pill } {
+  const who = d.learner_name
+    ? `${d.learner_name}'s guardian${d.recipient_name ? ` (${d.recipient_name})` : ''}`
+    : (d.recipient_name || d.recipient_phone || 'the recipient');
+  const phone = d.recipient_phone && d.recipient_name ? ` · ${d.recipient_phone}` : '';
+  if (d.state === 'delivered') {
+    return { text: `SMS delivered to ${who}${phone}`, toast: 'success', pill: { text: `✅ SMS delivered · ${who}`, color: '#047857', bg: 'rgba(5,150,105,0.12)' } };
+  }
+  if (d.state === 'failed') {
+    return { text: `SMS not delivered to ${who}${phone}${d.reason ? ` — ${d.reason}` : ''}`, toast: 'error', pill: { text: `⚠ SMS not delivered · ${who}`, color: '#dc2626', bg: 'rgba(220,38,38,0.12)' } };
+  }
+  return { text: `SMS on the network for ${who}`, toast: null, pill: { text: `📡 SMS on network · ${who}`, color: '#1d4ed8', bg: 'rgba(37,99,235,0.12)' } };
+}
+
 export default function LiveScanSmsIndicator() {
   const [pill, setPill] = useState<Pill | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,6 +94,22 @@ export default function LiveScanSmsIndicator() {
         if (hideTimer.current) clearTimeout(hideTimer.current);
         hideTimer.current = setTimeout(() => setPill(null), 8000);
       };
+      // Provider delivery reports (delivered / not delivered / on the network), pushed by the
+      // same stream as a named event. Toast once per report, however many copies of this
+      // indicator are mounted, and tell any open list (SMS Outbox, dispatch log) to refresh.
+      es.addEventListener('sms_delivery', (ev) => {
+        let d: DeliveryEvent;
+        try { d = JSON.parse((ev as MessageEvent).data); } catch { return; }
+        if (d?.id == null || seenDeliveries.has(d.id)) return;
+        seenDeliveries.add(d.id);
+        if (seenDeliveries.size > 400) { const keep = Array.from(seenDeliveries).slice(-200); seenDeliveries.clear(); keep.forEach((id) => seenDeliveries.add(id)); }
+        try { window.dispatchEvent(new CustomEvent(SMS_DELIVERY_EVENT, { detail: d })); } catch { /* older browsers */ }
+        const view = deliveryView(d);
+        if (view.toast) showToast(view.toast, view.text);
+        setPill(view.pill);
+        if (hideTimer.current) clearTimeout(hideTimer.current);
+        hideTimer.current = setTimeout(() => setPill(null), 8000);
+      });
       es.onerror = () => { /* EventSource auto-reconnects */ };
     } catch { /* SSE unsupported */ }
     return () => { if (es) es.close(); if (hideTimer.current) clearTimeout(hideTimer.current); };

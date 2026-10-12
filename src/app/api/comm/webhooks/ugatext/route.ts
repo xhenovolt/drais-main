@@ -90,7 +90,10 @@ export async function POST(req: NextRequest) {
 
   let updated = 0;
   if (event.messageId && !event.nonMessage) {
-    updated = (await applyDeliveryReport({ messageId: event.messageId, state: event.state, reason: event.reason })).updated;
+    updated = (await applyDeliveryReport({
+      messageId: event.messageId, state: event.state, reason: event.reason,
+      provider: 'ugatext', providerStatus: event.eventType, network: event.network,
+    })).updated;
   }
 
   // Audit trail next to the send operations, so Control Center can show what UgaText reported.

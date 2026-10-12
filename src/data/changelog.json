@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T02:27:23.541Z",
-  "last_commit": "966974c3034110128de6fcb218df5093df1a3967",
+  "generated_at": "2026-10-12T02:46:57.649Z",
+  "last_commit": "bd18a8b6ef58145eac54f68db70b97fadab766db",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9098,7 +9098,20 @@
         }
       ],
       "commit": "966974c303"
+    },
+    {
+      "version": "2.50.37",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Let provider webhooks through the session middleware",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Let provider webhooks through the session middleware"
+        }
+      ],
+      "commit": "bd18a8b6ef"
     }
   ],
-  "app_version": "2.50.37"
+  "app_version": "2.50.38"
 }

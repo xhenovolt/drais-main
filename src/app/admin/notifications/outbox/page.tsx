@@ -13,6 +13,7 @@ import { Inbox, Loader2, RefreshCw, Search, X, ChevronLeft, ChevronRight, Info, 
 import FilterAccordion, { FilterField, filterInputCls, type FilterChip } from '@/components/ui/FilterAccordion';
 import { showToast } from '@/lib/toast';
 import Swal from 'sweetalert2';
+import { SMS_DELIVERY_EVENT } from '@/components/notifications/LiveScanSmsIndicator';
 
 async function readResponse<T = any>(response: Response): Promise<T> {
   const text = await response.text();
@@ -50,10 +51,32 @@ interface Row {
   attempts: number; max_attempts: number; last_error: string | null; notification_type: string | null;
   attendance_date: string | null; created_at: string; display_status: Status; policy_name: string | null;
   learner_name: string | null; provider: string | null; provider_message_id: string | null;
+  provider_report: ProviderReport | null;
 }
+interface ProviderReport { state: 'sent' | 'delivered' | 'failed'; reason: string | null; network: string | null; at: string }
 interface Payload { rows: Row[]; total: number; page: number; totalPages: number; statusCounts: Record<string, number>; types: { type: string; n: number }[] }
 
 const fmt = (v?: string | null) => (v ? new Date(v).toLocaleString() : '—');
+const fmtTime = (v?: string | null) => (v ? new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+
+/** Re-run `refresh` whenever a provider delivery report arrives (pushed by the navbar's live stream). */
+function useDeliveryReports(refresh: () => void) {
+  const [lastAt, setLastAt] = useState<number | null>(null);
+  useEffect(() => {
+    const h = () => { setLastAt(Date.now()); refresh(); };
+    window.addEventListener(SMS_DELIVERY_EVENT, h);
+    return () => window.removeEventListener(SMS_DELIVERY_EVENT, h);
+  }, [refresh]);
+  return lastAt;
+}
+
+/** What the provider last told us about a message, in plain words. */
+function ProviderReportLine({ r }: { r: ProviderReport }) {
+  const net = r.network ? ` · ${r.network}` : '';
+  if (r.state === 'delivered') return <div className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">Reached the phone {fmtTime(r.at)}{net}</div>;
+  if (r.state === 'failed') return <div className="text-[11px] text-red-600 dark:text-red-400 mt-1 max-w-[200px] line-clamp-2">Not delivered{r.reason ? ` — ${r.reason}` : ''}{net}</div>;
+  return <div className="text-[11px] text-sky-700 dark:text-sky-400 mt-1">On the network {fmtTime(r.at)}{net} · awaiting phone</div>;
+}
 
 export default function SmsOutboxPage() {
   const [status, setStatus] = useState<'all' | Status>('all');
@@ -82,6 +105,8 @@ export default function SmsOutboxPage() {
   }, [status, type, channel, q, range, from, to, page]);
 
   const { data, mutate, isLoading } = useSWR<Payload & { error?: string }>(`/api/admin/notifications/outbox?${qs}`, fetcher, { refreshInterval: 15_000 });
+  const refresh = React.useCallback(() => { void mutate(); }, [mutate]);
+  const lastReportAt = useDeliveryReports(refresh);
   const rows = data?.rows ?? [];
   const counts = data?.statusCounts ?? {};
   const resendableCount = (counts.failed ?? 0) + (counts.expired ?? 0);
@@ -172,7 +197,12 @@ export default function SmsOutboxPage() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><Inbox className="w-6 h-6 text-indigo-600" /> SMS Outbox</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Every message DRAIS created, and how far it got. Refreshes every 15 seconds.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Every message DRAIS created, and how far it got.
+            <span className="inline-flex items-center gap-1 ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" /></span>
+              Live{lastReportAt ? ` · last delivery report ${fmtTime(new Date(lastReportAt).toISOString())}` : ''}
+            </span>
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -202,7 +232,7 @@ export default function SmsOutboxPage() {
 
       <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/60 rounded-lg px-3 py-2">
         <Info className="w-4 h-4 mt-0.5 shrink-0" />
-        <span><b>Sent to provider</b> means the SMS company accepted the message. <b>Delivered</b> appears only when the provider confirms it reached the phone.</span>
+        <span><b>Sent to provider</b> means the SMS company accepted the message. <b>Delivered</b> appears only when the provider confirms it reached the phone, and <b>Failed</b> shows the provider&apos;s reason when it reports the message was rejected or not delivered. This page updates by itself the moment a report arrives.</span>
       </div>
 
       <div className="relative">
@@ -264,6 +294,7 @@ export default function SmsOutboxPage() {
                   <td className="px-3 py-2">
                     <span className={`text-[11px] px-1.5 py-0.5 rounded ${TONE[r.display_status]}`}>{STATUS_LABEL[r.display_status]}</span>
                     {r.attempts > 1 && <span className="ml-1 text-[10px] text-gray-500">{r.attempts}/{r.max_attempts}</span>}
+                    {r.provider_report && r.display_status !== 'failed' && <ProviderReportLine r={r.provider_report} />}
                     {r.last_error && <div className="text-[11px] text-red-600 dark:text-red-400 mt-1 max-w-[200px] line-clamp-2">{r.last_error}</div>}
                   </td>
                   <td className="px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300">{r.notification_type ? TYPE_LABEL[r.notification_type] ?? r.notification_type : (r.policy_name ?? '—')}</td>
@@ -293,7 +324,9 @@ export default function SmsOutboxPage() {
 }
 
 function Detail({ id, onClose }: { id: number; onClose: () => void }) {
-  const { data, isLoading } = useSWR<any>(`/api/admin/notifications/outbox/${id}`, fetcher);
+  const { data, isLoading, mutate } = useSWR<any>(`/api/admin/notifications/outbox/${id}`, fetcher, { refreshInterval: 15_000 });
+  const refresh = React.useCallback(() => { void mutate(); }, [mutate]);
+  useDeliveryReports(refresh);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   const m = data?.message;
   const dec = data?.decision;
@@ -325,8 +358,8 @@ function Detail({ id, onClose }: { id: number; onClose: () => void }) {
               <ol className="space-y-2">
                 {data.lifecycle.map((s: any, i: number) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className={`mt-1 w-2.5 h-2.5 rounded-full ${s.done ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                    <span className={s.done ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500'}>{s.step}{s.at ? <span className="text-gray-500"> — {fmt(s.at)}</span> : s.done ? '' : ' — not yet'}</span>
+                    <span className={`mt-1 w-2.5 h-2.5 rounded-full ${s.failed ? 'bg-red-500' : s.done ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                    <span className={s.failed ? 'text-red-600 dark:text-red-400' : s.done ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500'}>{s.step}{s.at ? <span className="text-gray-500"> — {fmt(s.at)}</span> : s.done ? '' : ' — not yet'}</span>
                   </li>
                 ))}
               </ol>
