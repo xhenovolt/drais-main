@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:25:21.252Z",
-  "last_commit": "7242b725e106ba2b86926c28bb423706e9ac9eaf",
+  "generated_at": "2026-10-13T10:26:14.595Z",
+  "last_commit": "fc372327d71f4ce78581f1dfa622dcdf9eaba8fa",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9332,7 +9332,20 @@
         }
       ],
       "commit": "7242b725e1"
+    },
+    {
+      "version": "2.50.55",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/duplicates (page, merge and purge confirmations, match reasons)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/duplicates (page, merge and purge confirmations, match reasons)"
+        }
+      ],
+      "commit": "fc372327d7"
     }
   ],
-  "app_version": "2.50.55"
+  "app_version": "2.50.56"
 }

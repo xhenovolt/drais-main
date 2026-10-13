@@ -212,3 +212,39 @@ quick-edit drawer and learner snapshot (they need a fuller sample record), and a
 
 The example names in the two placeholders are localised ("مثال: فاطمة"). The "Enroll Now" arrow now flips
 in right-to-left.
+
+## 2026-10-13 — Parent portal (`/parent/*`) redesigned and translated — rendered in the harness
+
+Five pages rebuilt on `src/components/parent/PortalUI.tsx`: `/parent`, `/parent/compare`,
+`/parent/learners/[id]` (six tabs), `/parent/login`, `/parent/verify`. Keys under `parent.*` (91).
+
+| State | Status |
+|---|---|
+| Translated | Yes |
+| Rendered with real styling at 390px, English and Arabic | Yes — home, compare, login, verify, learner (attendance, results, fees, pocket money tabs) |
+| Leaked keys / errors | 0 |
+| Signed-in look at the live page | **No** |
+| Closed | **No** |
+
+The compare table that stacked a word one letter per line is gone (cards with a bar per child). The cause,
+`body { word-break: break-word }`, was replaced app-wide with `overflow-wrap: break-word`; pages with long
+unbroken text in narrow columns should be looked at once on the live site.
+
+## 2026-10-13 — Phase 2, Students sidebar routes 3–8 — TRANSLATED, rendered in the harness
+
+| Route | Keys | Harness (Arabic) | Not exercised |
+|---|---|---|---|
+| `/admissions` | `admissions.*` | list + new-application dialog, 0 leaked | submit, error panel |
+| `/admissions/[id]` | `admissions.*` | full record with documents and history, 0 leaked | status buttons, convert, reject prompt |
+| `/students/enroll` | `students.enroll.*` (129) | step 1 and the bulk tab, 0 leaked | **steps 2–6** (need a chosen student), all toasts |
+| `/students/history` | `students.history.*` | grid, 0 leaked | list view, one-student detail |
+| `/students/documents` | `students.documents.*` | page + upload dialog, 0 leaked | upload, validation messages |
+| `/students/duplicates` | `students.duplicates.*` | group list, 0 leaked | merge / merge-all / purge confirmations and toasts |
+
+Also fixed on `/students/list`: the fingerprint tooltip (level, finger names, PIN) was English only.
+None of these is closed: no signed-in look at the live pages yet.
+
+### Still untranslated in the Students menu
+
+`/students/requirements` (page, ClassRequirementsManager, AddRequirementModal — about 80 strings),
+`/students/contacts` (page and five dialogs — about 135), `/students/id-cards` (page, IDCardPreview — about 77).
