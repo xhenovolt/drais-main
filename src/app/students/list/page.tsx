@@ -142,7 +142,7 @@ interface SelectOption {
 
 export default function StudentsListPage() {
   const { exportAsCSV, exportAsExcel, exporting } = useExport();
-  const { t, lang } = useI18n();
+  const { t, lang, formatNumber, digits } = useI18n();
   
   // State Management
   const [activeTab, setActiveTab] = useState<'enrolled' | 'admitted'>('enrolled');
@@ -1510,7 +1510,7 @@ export default function StudentsListPage() {
         <div className="flex items-baseline gap-2 min-w-0">
           <h1 className="text-base font-bold text-slate-800 dark:text-white truncate">{t('people.students')}</h1>
           <span className="text-[11px] text-slate-400 tabular-nums">
-            {activeTab === 'enrolled' ? enrolledCount : admittedCount}
+            {formatNumber(activeTab === 'enrolled' ? enrolledCount : admittedCount)}
           </span>
         </div>
 
@@ -1527,7 +1527,7 @@ export default function StudentsListPage() {
             <GraduationCap className="w-3.5 h-3.5" />
             {t('students.list.tabs.enrolled')}
             <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'enrolled' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-              {enrolledCount}
+              {formatNumber(enrolledCount)}
             </span>
           </button>
           <button
@@ -1541,7 +1541,7 @@ export default function StudentsListPage() {
             <Users className="w-3.5 h-3.5" />
             {t('students.list.tabs.admitted')}
             <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'admitted' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-              {admittedCount}
+              {formatNumber(admittedCount)}
             </span>
           </button>
         </div>
@@ -1606,7 +1606,7 @@ export default function StudentsListPage() {
                 className="h-8 pl-2.5 pr-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
                 <option value={0}>{t('academicTime.currentTerm')}</option>
-                {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                {academicYears.map(y => <option key={y.id} value={y.id}>{digits(y.name)}</option>)}
               </select>
               <ChevronDown className="absolute right-1.5 w-3 h-3 text-slate-400 pointer-events-none" />
             </div>
@@ -2099,7 +2099,7 @@ export default function StudentsListPage() {
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                                 }`}
                               >
-                                {balance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                {formatNumber(balance, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                               </Link>
                             );
                           })()
@@ -2187,7 +2187,7 @@ export default function StudentsListPage() {
                   <button key={p} onClick={() => setPage(p)}
                     className={`flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold border transition-colors ${p === safePage ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
                   >
-                    {p}
+                    {digits(p)}
                   </button>
                 );
               })}
@@ -2236,7 +2236,7 @@ export default function StudentsListPage() {
           >
             <div className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl shadow-2xl border border-slate-700 ring-1 ring-white/10 backdrop-blur-xl">
               <span className="text-xs font-semibold text-slate-300 whitespace-nowrap tabular-nums">
-                {selectedIds.size} selected
+                {t('students.list.bulk.selectedCount', { count: selectedIds.size })}
               </span>
               <div className="w-px h-4 bg-slate-700" />
               <button
@@ -2986,7 +2986,7 @@ function BulkEnrollModal({
   isLoading: boolean;
   onSubmit: (data: { classId: number | null; streamId: number | null; academicYearId: number | null; termId: number | null; studyModeId: number | null; programIds: number[] }) => void;
 }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [classId, setClassId] = useState<number | null>(null);
   const [streamId, setStreamId] = useState<number | null>(null);
   const [academicYearId, setAcademicYearId] = useState<number | null>(null);
@@ -3067,7 +3067,7 @@ function BulkEnrollModal({
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
               >
                 <option value="">{t('academicTime.currentAcademicYear')}</option>
-                {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                {academicYears.map(y => <option key={y.id} value={y.id}>{digits(y.name)}</option>)}
               </select>
             </div>
             <div>
@@ -3179,7 +3179,7 @@ function BulkAssignProgramModal({
     streamId: number | null;
   }) => void;
 }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [programId, setProgramId] = useState<number>(defaultProgramId ?? 0);
   const [classId, setClassId] = useState<number>(0);
   const [streamId, setStreamId] = useState<number | null>(null);
@@ -3275,7 +3275,7 @@ function BulkAssignProgramModal({
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
               >
                 <option value={0}>{`${t('common.select')} — ${t('academicTime.academicYear')}`}</option>
-                {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                {academicYears.map(y => <option key={y.id} value={y.id}>{digits(y.name)}</option>)}
               </select>
             </div>
             <div>

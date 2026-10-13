@@ -785,6 +785,9 @@
         "credit": " (credit)",
         "feeBalance": "Fee Balance",
         "arrived": "✓ Arrived {{time}}"
+      },
+      "bulk": {
+        "selectedCount": "{{count}} selected"
       }
     },
     "photoUpload": {

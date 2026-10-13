@@ -1337,6 +1337,9 @@
         "credit": " (رصيد دائن)",
         "feeBalance": "رصيد الرسوم",
         "arrived": "✓ وصل {{time}}"
+      },
+      "bulk": {
+        "selectedCount": "{{count}} محدد"
       }
     },
     "photoUpload": {

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:40:49.143Z",
-  "last_commit": "27993f78d65476de0ff3fae2254bc3bf5438171f",
+  "generated_at": "2026-10-13T10:43:56.955Z",
+  "last_commit": "0dd92807334453090b1a4ef85b39a2d5978d9fdd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9358,7 +9358,20 @@
         }
       ],
       "commit": "27993f78d6"
+    },
+    {
+      "version": "2.50.57",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Arabic-Indic digits everywhere Arabic is shown; original English wording restored",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Arabic-Indic digits everywhere Arabic is shown; original English wording restored"
+        }
+      ],
+      "commit": "0dd9280733"
     }
   ],
-  "app_version": "2.50.57"
+  "app_version": "2.50.58"
 }
