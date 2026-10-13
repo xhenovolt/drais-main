@@ -1,6 +1,6 @@
 # DRAIS Localization — Route Inventory
 
-_Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at that commit. Re-run the script to refresh; do not hand-edit the generated tables. Hand-written verification records go in the "Verification log" section at the end._
+_Generated 2026-10-13 by `scripts/l10n-audit.mjs` from the code as it stood at that commit. Re-run the script to refresh; do not hand-edit the generated tables. Hand-written verification records go in the "Verification log" section at the end._
 
 ## How to read this
 
@@ -31,7 +31,7 @@ _Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Gate & Movement | 4 | 4 | 0 | 0 | 0 | 0 | 109 |
 | Devices & Biometrics | 10 | 8 | 0 | 0 | 2 | 38 | 477 |
 | Communication | 4 | 3 | 1 | 0 | 0 | 6 | 267 |
-| Students | 13 | 9 | 4 | 0 | 0 | 122 | 1119 |
+| Students | 13 | 9 | 3 | 1 | 0 | 342 | 987 |
 | Staff & Roles | 18 | 7 | 10 | 1 | 0 | 71 | 759 |
 | Academics | 23 | 14 | 7 | 2 | 0 | 109 | 1159 |
 | Documents & Assessment | 9 | 2 | 5 | 0 | 2 | 97 | 1100 |
@@ -75,12 +75,12 @@ _Generated 2026-10-12 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Not in sidebar — /settings | 4 | 2 | 1 | 0 | 0 | 2 | 56 |
 | Not in sidebar — /setup | 1 | 1 | 0 | 0 | 0 | 0 | 26 |
 | Not in sidebar — /signup | 1 | 1 | 0 | 0 | 0 | 0 | 44 |
-| Not in sidebar — /students | 10 | 8 | 1 | 0 | 0 | 4 | 517 |
+| Not in sidebar — /students | 10 | 8 | 1 | 0 | 0 | 18 | 510 |
 | Not in sidebar — /terms | 1 | 0 | 0 | 0 | 1 | 31 | 0 |
 | Not in sidebar — /unauthorized | 1 | 1 | 0 | 0 | 0 | 0 | 8 |
 | Not in sidebar — /verify | 1 | 1 | 0 | 0 | 0 | 0 | 12 |
 | Not in sidebar — /workplans | 1 | 1 | 0 | 0 | 0 | 0 | 14 |
-| **All routes** | **309** | **228** | **49** | **11** | **14** | | |
+| **All routes** | **309** | **228** | **48** | **12** | **14** | | |
 
 Shared components are counted once per route that renders them, so the "Hardcoded" column cannot be summed into a single application total.
 
@@ -124,9 +124,9 @@ Shared components are counted once per route that renders them, so the "Hardcode
 | Sidebar location | Students › Student List |
 | Page file | `app/students/list/page.tsx` |
 | Child components | `app/students/_client/ReassignClassModal.tsx`, `components/students/QuickEditDrawer.tsx`, `components/students/LearnerSnapshotModal.tsx`, `components/students/BulkSmsModal.tsx`, `components/students/LearnerOverview.tsx`, `components/students/BulkPhotoUploadModal.tsx`, `components/students/FolderPhotoUploadModal.tsx`, `components/students/ImportModal.tsx`, `components/modals/DeviceSelector.tsx`, `components/device/SyncDeviceModal.tsx`, `components/students/StudentsListLivePopup.tsx`, `components/i18n/I18nProvider.tsx` |
-| Text inventory (static count) | 322 hardcoded: 212 text between tags, 38 attributes (placeholders, titles), 28 toasts/alerts, 44 labels in config objects |
-| Existing translation | 101 calls through `useI18n().t` |
-| Missing translation | Partial (under half) — about 24% of visible strings go through the translator. Files with visible text and no translation hook: `app/students/_client/ReassignClassModal.tsx`, `components/students/LearnerSnapshotModal.tsx`, `components/students/LearnerOverview.tsx`, `components/modals/DeviceSelector.tsx`, `components/device/SyncDeviceModal.tsx` |
+| Text inventory (static count) | 190 hardcoded: 138 text between tags, 22 attributes (placeholders, titles), 6 toasts/alerts, 24 labels in config objects |
+| Existing translation | 321 calls through `useI18n().t` |
+| Missing translation | Partial (over half) — about 63% of visible strings go through the translator. Files with visible text and no translation hook: `components/modals/DeviceSelector.tsx`, `components/device/SyncDeviceModal.tsx` |
 | RTL status | 77 fixed-side classes, none RTL-aware. Not yet checked in a browser. |
 | Dates and numbers | 17 `toLocale*String` call(s); 0 use the active language |
 | Dependencies (APIs) | `/api/classes`, `/api/streams`, `/api/programs`, `/api/study-modes`, `/api/academic_years`, `/api/terms`, `/api/students/fingerprint-status`, `/api/device/local-enroll`, `/api/device/local-enroll/status`, `/api/device/relay-enroll`, `/api/device/relay-enroll/status`, `/api/students/enroll-face` |
@@ -136,20 +136,20 @@ Shared components are counted once per route that renders them, so the "Hardcode
 
 Representative hardcoded strings (a sample, not the full list):
 
-- "Day" — text, `list/page.tsx`
-- "Boarding" — text, `list/page.tsx`
-- "Enrolled" — text, `list/page.tsx`
-- "Admitted" — text, `list/page.tsx`
-- "Fingerprint Capture Mode" — text, `list/page.tsx`
-- "Cloud / ADMS" — text, `list/page.tsx`
-- "Queues ENROLL_FP via device heartbeat" — text, `list/page.tsx`
-- "Relay Bridge ☁→🖧" — text, `list/page.tsx`
-- "CMD_STARTENROLL via relay agent on LAN" — text, `list/page.tsx`
-- "Local / Direct ⚡" — text, `list/page.tsx`
-- "Instant TCP — server on same LAN" — text, `list/page.tsx`
-- "Device Serial Number" — text, `list/page.tsx`
-- "Relay agent must be running on school LAN" — text, `list/page.tsx`
-- "Device IP" — text, `list/page.tsx`
+- "CSV" — text, `list/page.tsx`
+- "Excel" — text, `list/page.tsx`
+- "Promise" — text, `list/page.tsx`
+- "text-emerald-700 dark:text-emerald-400" — label, `list/page.tsx`
+- "text-sky-700 dark:text-sky-400" — label, `list/page.tsx`
+- "text-amber-700 dark:text-amber-400" — label, `list/page.tsx`
+- "text-slate-500 dark:text-slate-400" — label, `list/page.tsx`
+- "text-red-600 dark:text-red-400" — label, `list/page.tsx`
+- "text-red-700 dark:text-red-400" — label, `list/page.tsx`
+- "text-violet-700 dark:text-violet-400" — label, `list/page.tsx`
+- "void): Promise" — text, `students/BulkPhotoUploadModal.tsx`
+- "Uploading photos..." — text, `students/BulkPhotoUploadModal.tsx`
+- "Upload Photos" — text, `students/BulkPhotoUploadModal.tsx`
+- "or click to browse files" — text, `students/BulkPhotoUploadModal.tsx`
 
 ### `/students/admit`
 
@@ -575,9 +575,9 @@ Representative hardcoded strings (a sample, not the full list):
 | Sidebar location | Not in sidebar |
 | Page file | `app/students/[id]/page.tsx` |
 | Child components | `components/students/EnrollmentTimeline.tsx`, `components/students/LearnerOverview.tsx`, `components/students/PhotoEditorModal.tsx`, `components/students/ExtendedProfileModal.tsx`, `components/students/CustomFieldsPanel.tsx`, `components/i18n/I18nProvider.tsx` |
-| Text inventory (static count) | 117 hardcoded: 43 text between tags, 61 attributes (placeholders, titles), 3 toasts/alerts, 10 labels in config objects |
-| Existing translation | 4 calls through `useI18n().t` |
-| Missing translation | Partial (under half) — about 3% of visible strings go through the translator. Files with visible text and no translation hook: `components/students/EnrollmentTimeline.tsx`, `components/students/LearnerOverview.tsx`, `components/students/CustomFieldsPanel.tsx` |
+| Text inventory (static count) | 110 hardcoded: 40 text between tags, 57 attributes (placeholders, titles), 3 toasts/alerts, 10 labels in config objects |
+| Existing translation | 18 calls through `useI18n().t` |
+| Missing translation | Partial (under half) — about 14% of visible strings go through the translator. Files with visible text and no translation hook: `components/students/EnrollmentTimeline.tsx`, `components/students/CustomFieldsPanel.tsx` |
 | RTL status | 5 fixed-side classes, none RTL-aware. Not yet checked in a browser. |
 | Dates and numbers | 5 `toLocale*String` call(s); 0 use the active language |
 | Dependencies (APIs) | `/api/students/`, `/api/enrollments`, `/api/students/photo`, `/api/lookups/student-profile`, `/api/school-config` |

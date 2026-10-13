@@ -72,3 +72,74 @@ pagination sentence. Treat them as drafts.
 - The `i18next`, `next-i18next` and `react-i18next` packages are no longer imported but are still listed in
   `package.json`; removing them changes the lockfile and is left for a separate commit.
 - The menu label table (`LABEL_AR`) is still separate from the dictionary.
+
+---
+
+## 2026-10-13 — Phase 2, route 1: `/students/list` — IN PROGRESS (not closed)
+
+**State: page file and 6 of 11 child components translated and automatically checked. 5 child components still
+to do. Nothing verified in a browser yet. The route is not closed.**
+
+### Progress against the five states
+
+| State | Status |
+|---|---|
+| Inventoried | Page file and 6 components: full string list produced with `scripts/l10n-extract.mjs`, then a second manual sweep for sentences built with template literals (which the extractor does not see). 5 components inventoried but not yet translated. |
+| Translated | Page file: 172 strings. Components: `ReassignClassModal`, `QuickEditDrawer`, `LearnerSnapshotModal`, `BulkSmsModal`, `LearnerOverview`, `StudentsListLivePopup` (43 keys). |
+| Browser-tested | **No.** |
+| Interactions tested | **No.** |
+| Closed | **No.** |
+
+Static measurement for the route moved from 24% to 63% of visible strings going through the translator.
+
+### Still to translate on this route
+
+| Component | Hardcoded strings (extractor count, includes some false positives) |
+|---|---|
+| `components/students/ImportModal.tsx` | 98 |
+| `components/students/FolderPhotoUploadModal.tsx` | 43 |
+| `components/device/SyncDeviceModal.tsx` | 34 |
+| `components/students/BulkPhotoUploadModal.tsx` | 33 |
+| `components/modals/DeviceSelector.tsx` | 8 |
+
+### What was covered in the page file
+
+Fingerprint and face enrolment progress and errors; the capture-mode picker; every toast; the four
+confirmation dialogs (remove all, delete, permanent delete, remove photo); the Enrolled/Admitted tabs;
+toolbar tooltips; row actions; the status badge; the empty state; the "Showing 1–25 of 187" line; and the
+three enrolment forms (single, bulk, additional programme). Counts use plural entries ("3 fingers", "photos
+uploaded for 5 learners") so Arabic gets its own forms.
+
+### Intentionally left in the original language
+
+| Text | Why |
+|---|---|
+| Column names and values in the CSV/Excel export (`Residency`, `Boarding`, `Day`, …) | The import tool reads these files back; translated headers would not re-import |
+| `CSV`, `Excel` | Format names |
+| `UID`, `PIN`, device serials, `ENROLL_FP`, `CMD_STARTENROLL`, `ADMS`, `TCP` | Technical identifiers staff match against the device |
+| Fingerprint state label `Active` / `Not enrolled` at the point where it is compared in code | Used in logic; the displayed tooltip built from it is translated |
+| Learner names, class, stream and programme names | Stored data, not interface text |
+| Error text returned by the server and shown in a toast | Server messages are Phase 5; the page's own fallback text is translated |
+
+### Known limitations of what was done
+
+- Several messages are created inside callbacks that were defined before a language switch; a toast fired
+  from such a callback can appear in the previous language until the next re-render. Not yet checked.
+- The "Showing X–Y of N" line lost the bold on its numbers, because the sentence is now one translated string.
+- The shared confirmation dialog (`src/lib/toast.ts`) still has an English "Cancel" button; it is a shared
+  component used across the app and is scheduled with the shared-component pass.
+- Arabic wording is a draft, including device and relay terminology ("الوسيط" for relay agent).
+
+### Automated checks
+
+| Check | Result |
+|---|---|
+| `npm run test:i18n` | 30 pass, 0 fail (it caught 43 keys that were referenced before being added, during this work) |
+| Syntax check of every changed file | Pass |
+
+### To verify by hand before this route can close
+
+Open `/students/list` in Arabic and in English, at desktop and phone width, and: switch tabs; search for
+something that returns nothing; open a row's menu; open quick edit, the snapshot and the reassign-class
+dialog; start a single and a bulk enrolment; trigger a delete confirmation and cancel it; send a bulk message
+to one learner; toggle fee balances; start a fingerprint enrolment in each capture mode.
