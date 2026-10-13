@@ -9,6 +9,7 @@ import React from 'react';
 import Link from 'next/link';
 import { X, ExternalLink } from 'lucide-react';
 import LearnerOverview from './LearnerOverview';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export default function LearnerSnapshotModal({
   studentId, name, open, onClose,
@@ -24,11 +25,11 @@ export default function LearnerSnapshotModal({
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden" onMouseDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <p className="text-sm font-bold text-slate-800 dark:text-white">{name || 'Learner'} — snapshot</p>
-            <p className="text-[11px] text-slate-400">Performance, attendance, fees & recent activity</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-white">{t('students.list.snapshot.title', { name: name || t('students.list.snapshot.learner') })}</p>
+            <p className="text-[11px] text-slate-400">{t('students.list.snapshot.subtitle')}</p>
           </div>
           <div className="flex items-center gap-1">
-            <Link href={`/students/${studentId}`} title="Open full profile" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600">
+            <Link href={`/students/${studentId}`} title={t('students.list.snapshot.openProfile')} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600">
               <ExternalLink className="w-4 h-4" />
             </Link>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">

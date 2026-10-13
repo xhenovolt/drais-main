@@ -1258,6 +1258,73 @@
         "noClassesForProgram": "⚠ لم تُسند أي صفوف لهذا البرنامج بعد",
         "noStream": "بدون شعبة",
         "allRequired": "جميع الحقول المميزة بعلامة * مطلوبة"
+      },
+      "reassign": {
+        "loadFailed": "تعذّر تحميل الصفوف",
+        "selectClassFirst": "يرجى اختيار صف",
+        "failed": "حدث خطأ أثناء نقل الطلاب",
+        "title": "نقل الطلاب إلى صف آخر",
+        "targetClass": "الصف المستهدف",
+        "selectClass": "اختر صفًا...",
+        "reasonLabel": "سبب النقل (اختياري)",
+        "reasonPlaceholder": "أدخل سبب النقل...",
+        "auditNote": "سيُسجَّل هذا في سجل التدقيق",
+        "reassigning": "جارٍ النقل..."
+      },
+      "quickEdit": {
+        "updateFailed": "فشل التحديث",
+        "keepCurrent": "— إبقاء الحالي ({{name}}) —",
+        "none": "لا يوجد",
+        "reEnrollNote": "تغيير الصف يعيد تسجيل المتعلم في الصف المختار."
+      },
+      "snapshot": {
+        "title": "{{name}} — لمحة سريعة",
+        "learner": "المتعلم",
+        "subtitle": "الأداء والحضور والرسوم وآخر النشاطات",
+        "openProfile": "فتح الملف الكامل"
+      },
+      "bulkSms": {
+        "previewFailed": "فشلت المعاينة",
+        "sendFailed": "فشل الإرسال",
+        "placeholder": "اكتب رسالتك. تُضاف بادئة المدرسة تلقائيًا.",
+        "ignoreQuietHours": "أرسل حتى في ساعات الهدوء"
+      },
+      "overview": {
+        "loading": "جارٍ تحميل اللمحة…",
+        "performance": "الأداء",
+        "graded": {
+          "one": "تقييم واحد",
+          "two": "تقييمان",
+          "few": "{{count}} تقييمات",
+          "many": "{{count}} تقييمًا",
+          "other": "{{count}} تقييم"
+        },
+        "noMarks": "لا توجد درجات بعد",
+        "attendance": "الحضور",
+        "attendanceSub": "{{present}}/{{total}} يومًا · آخر {{window}} يومًا",
+        "noRecords": "لا توجد سجلات",
+        "feeBalance": "رصيد الرسوم",
+        "paid": "المدفوع {{amount}}",
+        "notAvailable": "غير متاح",
+        "activeSubjects": "المواد الحالية",
+        "trend": "اتجاه الأداء",
+        "lastExams": {
+          "one": "آخر اختبار",
+          "two": "آخر اختبارين",
+          "few": "آخر {{count}} اختبارات",
+          "many": "آخر {{count}} اختبارًا",
+          "other": "آخر {{count}} اختبار"
+        },
+        "recentActivity": "آخر النشاطات"
+      },
+      "livePopup": {
+        "student": "الطالب",
+        "admissionNo": "رقم القبول",
+        "program": "البرنامج",
+        "gender": "الجنس",
+        "credit": " (رصيد دائن)",
+        "feeBalance": "رصيد الرسوم",
+        "arrived": "✓ وصل {{time}}"
       }
     }
   },

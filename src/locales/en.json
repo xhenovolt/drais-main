@@ -716,6 +716,67 @@
         "noClassesForProgram": "⚠ No classes assigned to this program yet",
         "noStream": "No stream",
         "allRequired": "All fields marked with * are required"
+      },
+      "reassign": {
+        "loadFailed": "Failed to load classes",
+        "selectClassFirst": "Please select a class",
+        "failed": "An error occurred while reassigning students",
+        "title": "Reassign Students",
+        "targetClass": "Target Class",
+        "selectClass": "Select a class...",
+        "reasonLabel": "Reason for Reassignment (Optional)",
+        "reasonPlaceholder": "Enter reason for reassignment...",
+        "auditNote": "This will be recorded in the audit trail",
+        "reassigning": "Reassigning..."
+      },
+      "quickEdit": {
+        "updateFailed": "Update failed",
+        "keepCurrent": "— keep current ({{name}}) —",
+        "none": "none",
+        "reEnrollNote": "Changing class re-enrolls the learner in the selected class."
+      },
+      "snapshot": {
+        "title": "{{name}} — snapshot",
+        "learner": "Learner",
+        "subtitle": "Performance, attendance, fees & recent activity",
+        "openProfile": "Open full profile"
+      },
+      "bulkSms": {
+        "previewFailed": "Preview failed",
+        "sendFailed": "Send failed",
+        "placeholder": "Type your message. The school sender prefix is added automatically.",
+        "ignoreQuietHours": "Send even during quiet hours"
+      },
+      "overview": {
+        "loading": "Loading snapshot…",
+        "performance": "Performance",
+        "graded": {
+          "one": "{{count}} graded",
+          "other": "{{count}} graded"
+        },
+        "noMarks": "No marks yet",
+        "attendance": "Attendance",
+        "attendanceSub": "{{present}}/{{total}} days · last {{window}} days",
+        "noRecords": "No records",
+        "feeBalance": "Fee Balance",
+        "paid": "Paid {{amount}}",
+        "notAvailable": "Not available",
+        "activeSubjects": "Active Subjects",
+        "trend": "Performance Trend",
+        "lastExams": {
+          "one": "Last exam",
+          "other": "Last {{count}} exams"
+        },
+        "recentActivity": "Recent Activity"
+      },
+      "livePopup": {
+        "student": "Student",
+        "admissionNo": "Admission No",
+        "program": "Program",
+        "gender": "Gender",
+        "credit": " (credit)",
+        "feeBalance": "Fee Balance",
+        "arrived": "✓ Arrived {{time}}"
       }
     }
   },

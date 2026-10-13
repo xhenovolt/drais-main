@@ -38,7 +38,7 @@ export default function BulkSmsModal({
         body: JSON.stringify({ message, audience, dryRun: true }),
       });
       const data = await res.json();
-      if (!res.ok) { setErr(data.error || 'Preview failed'); return; }
+      if (!res.ok) { setErr(data.error || t('students.list.bulkSms.previewFailed')); return; }
       setPreview({ count: data.recipientCount ?? 0, body: data.previewBody ?? message });
     } catch { setErr('Network error'); }
     finally { setBusy(false); }
@@ -52,7 +52,7 @@ export default function BulkSmsModal({
         body: JSON.stringify({ message, audience, force }),
       });
       const data = await res.json();
-      if (!res.ok) { setErr(data.error || 'Send failed'); return; }
+      if (!res.ok) { setErr(data.error || t('students.list.bulkSms.sendFailed')); return; }
       globalMutate('/api/sms/quota');
       onSent?.(data.sent ?? data.sentCount ?? preview?.count ?? 0);
       onClose();
@@ -81,7 +81,7 @@ export default function BulkSmsModal({
               value={message}
               onChange={e => { setMessage(e.target.value); setPreview(null); }}
               rows={4} maxLength={1600}
-              placeholder="Type your message. The school sender prefix is added automatically."
+              placeholder={t('students.list.bulkSms.placeholder')}
               className={input}
             />
             <span className="text-[10px] text-slate-400">{message.length}/1600</span>
@@ -89,7 +89,7 @@ export default function BulkSmsModal({
 
           <label className="flex items-center gap-2 text-xs text-slate-500">
             <input type="checkbox" checked={force} onChange={e => setForce(e.target.checked)} />
-            Send even during quiet hours
+            {t('students.list.bulkSms.ignoreQuietHours')}
           </label>
 
           {preview && (

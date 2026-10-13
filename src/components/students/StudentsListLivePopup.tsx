@@ -23,6 +23,7 @@
 
 import { useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const LIVE_SCAN_DISABLED_KEY = 'drais.liveScan.disabled';
 
@@ -93,23 +94,23 @@ function row(label: string, value: string, valueColor = '#111827'): string {
   </div>`;
 }
 
-function buildCard(student: RosterStudent, when: string, showFee: boolean): string {
-  const name = `${student.first_name ?? ''} ${student.last_name ?? ''}`.trim() || 'Student';
+function buildCard(student: RosterStudent, when: string, showFee: boolean, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  const name = `${student.first_name ?? ''} ${student.last_name ?? ''}`.trim() || t('students.list.livePopup.student');
   const photo = student.photo_url
     ? `<img src="${escHtml(student.photo_url)}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:4px solid #4f46e5" />`
     : `<div style="width:96px;height:96px;border-radius:50%;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700">${escHtml((student.first_name?.[0] || '?').toUpperCase())}</div>`;
 
   const classLine = [student.class_name, student.stream_name].filter(Boolean).join(' · ');
   const rows: string[] = [];
-  if (student.admission_no) rows.push(row('Admission No', student.admission_no));
-  if (student.program_name) rows.push(row('Program', student.program_name));
-  if (student.gender) rows.push(row('Gender', student.gender.charAt(0).toUpperCase() + student.gender.slice(1)));
+  if (student.admission_no) rows.push(row(t('students.list.livePopup.admissionNo'), student.admission_no));
+  if (student.program_name) rows.push(row(t('students.list.livePopup.program'), student.program_name));
+  if (student.gender) rows.push(row(t('students.list.livePopup.gender'), student.gender.charAt(0).toUpperCase() + student.gender.slice(1)));
   if (showFee) {
     // Always show the fee line when the toggle is on — default to 0 so it
     // appears even when the balance hasn't been computed for this learner.
     const bal = Number(student.balance ?? 0);
-    const txt = `UGX ${Math.abs(bal).toLocaleString()}${bal < 0 ? ' (credit)' : ''}`;
-    rows.push(row('Fee Balance', txt, bal > 0 ? '#dc2626' : '#059669'));
+    const txt = `UGX ${Math.abs(bal).toLocaleString()}${bal < 0 ? t('students.list.livePopup.credit') : ''}`;
+    rows.push(row(t('students.list.livePopup.feeBalance'), txt, bal > 0 ? '#dc2626' : '#059669'));
   }
 
   return `
@@ -117,12 +118,17 @@ function buildCard(student: RosterStudent, when: string, showFee: boolean): stri
       ${photo}
       <div style="font-size:20px;font-weight:800;color:#111827;line-height:1.2">${escHtml(name)}</div>
       ${classLine ? `<div style="font-size:13px;color:#4f46e5;font-weight:600">${escHtml(classLine)}</div>` : ''}
-      <div style="margin:4px 0;padding:7px 16px;background:#ecfdf5;color:#047857;border-radius:999px;font-size:13px;font-weight:700">✓ Arrived ${escHtml(when)}</div>
+      <div style="margin:4px 0;padding:7px 16px;background:#ecfdf5;color:#047857;border-radius:999px;font-size:13px;font-weight:700">${escHtml(t('students.list.livePopup.arrived', { time: when }))}</div>
       ${rows.length ? `<div style="width:100%;margin-top:4px">${rows.join('')}</div>` : ''}
     </div>`;
 }
 
 export function StudentsListLivePopup({ students }: { students: RosterStudent[] }) {
+  // The card is built inside a long-lived stream callback, so read the translator through a ref
+  // that always holds the current language's function.
+  const { t } = useI18n();
+  const tRef = useRef(t);
+  tRef.current = t;
   // Key by String(id): the enrolled API returns id as a string while the
   // SSE student_id can arrive as a number (bus path) or string (poll path),
   // so a raw-typed Map.get would miss and the card would lose its data.
@@ -204,7 +210,7 @@ export function StudentsListLivePopup({ students }: { students: RosterStudent[] 
 
         Swal.close();
         Swal.fire({
-          html: buildCard(student, when, cur.show_fee_balance === 1),
+          html: buildCard(student, when, cur.show_fee_balance === 1, tRef.current),
           showConfirmButton: duration === 0,
           showCloseButton: duration === 0,
           timer: duration && duration > 0 ? duration : undefined,

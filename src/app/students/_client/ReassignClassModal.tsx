@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Loader, AlertCircle } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Class {
   id: number;
@@ -24,6 +25,7 @@ export default function ReassignClassModal({
   isLoading,
   selectedStudentCount,
 }: ReassignClassModalProps) {
+  const { t } = useI18n();
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
   const [reason, setReason] = useState('');
@@ -44,7 +46,7 @@ export default function ReassignClassModal({
         setClasses(data.data || data || []);
       } catch (err) {
         console.error('Error fetching classes:', err);
-        setError('Failed to load classes');
+        setError(t('students.list.reassign.loadFailed'));
       } finally {
         setLoadingClasses(false);
       }
@@ -57,7 +59,7 @@ export default function ReassignClassModal({
     e.preventDefault();
 
     if (!selectedClassId) {
-      setError('Please select a class');
+      setError(t('students.list.reassign.selectClassFirst'));
       return;
     }
 
@@ -65,7 +67,7 @@ export default function ReassignClassModal({
       await onSubmit(Number(selectedClassId), reason);
     } catch (err) {
       console.error('Error submitting form:', err);
-      setError('An error occurred while reassigning students');
+      setError(t('students.list.reassign.failed'));
     }
   };
 
@@ -77,7 +79,7 @@ export default function ReassignClassModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Reassign Students
+            {t('students.list.reassign.title')}
           </h2>
           <button
             onClick={onClose}
@@ -109,7 +111,7 @@ export default function ReassignClassModal({
           {/* Class Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Target Class <span className="text-red-500">*</span>
+              {t('students.list.reassign.targetClass')} <span className="text-red-500">*</span>
             </label>
             {loadingClasses ? (
               <div className="flex items-center justify-center h-10 bg-gray-100 dark:bg-gray-700 rounded-lg">
@@ -125,7 +127,7 @@ export default function ReassignClassModal({
                 disabled={isLoading || loadingClasses}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
               >
-                <option value="">Select a class...</option>
+                <option value="">{t('students.list.reassign.selectClass')}</option>
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>
                     {cls.name} {cls.class_level ? `(${cls.class_level})` : ''}
@@ -138,18 +140,18 @@ export default function ReassignClassModal({
           {/* Reason */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Reason for Reassignment (Optional)
+              {t('students.list.reassign.reasonLabel')}
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               disabled={isLoading}
-              placeholder="Enter reason for reassignment..."
+              placeholder={t('students.list.reassign.reasonPlaceholder')}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 disabled:opacity-50"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              This will be recorded in the audit trail
+              {t('students.list.reassign.auditNote')}
             </p>
           </div>
         </form>
@@ -161,7 +163,7 @@ export default function ReassignClassModal({
             disabled={isLoading}
             className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
@@ -169,7 +171,7 @@ export default function ReassignClassModal({
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
           >
             {isLoading && <Loader size={16} className="animate-spin" />}
-            {isLoading ? 'Reassigning...' : 'Reassign Students'}
+            {isLoading ? t('students.list.reassign.reassigning') : t('students.list.reassign.title')}
           </button>
         </div>
       </div>

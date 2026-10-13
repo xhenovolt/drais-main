@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T08:25:28.811Z",
-  "last_commit": "623a4e6ed610eb032c8a035c2d60161f611411f8",
+  "generated_at": "2026-10-13T08:28:07.864Z",
+  "last_commit": "61f4816c0246d3cdab9dcf1441a6c8feb58f5ede",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9189,7 +9189,20 @@
         }
       ],
       "commit": "623a4e6ed6"
+    },
+    {
+      "version": "2.50.44",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/list page file (Students route 1, part 1 of 2)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/list page file (Students route 1, part 1 of 2)"
+        }
+      ],
+      "commit": "61f4816c02"
     }
   ],
-  "app_version": "2.50.44"
+  "app_version": "2.50.45"
 }

@@ -68,7 +68,7 @@ export default function QuickEditDrawer({
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) { setErr(data.message || data.error?.code || 'Update failed'); return; }
+      if (!res.ok || !data.success) { setErr(data.message || data.error?.code || t('students.list.quickEdit.updateFailed')); return; }
       onSaved({
         first_name: form.first_name, last_name: form.last_name, other_name: form.other_name,
         gender: form.gender, phone: form.phone, email: form.email,
@@ -130,10 +130,10 @@ export default function QuickEditDrawer({
             <input className={input} value={form.email ?? ''} onChange={e => set('email', e.target.value)} /></label>
           <label className="block"><Label>{t('orgUnits.class')}</Label>
             <select className={input} value={form.class_id ?? ''} onChange={e => set('class_id', Number(e.target.value))}>
-              <option value="">— keep current ({form.class_name ?? 'none'}) —</option>
+              <option value="">{t('students.list.quickEdit.keepCurrent', { name: form.class_name ?? t('students.list.quickEdit.none') })}</option>
               {classes.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select></label>
-          <p className="text-[10px] text-slate-400">Changing class re-enrolls the learner in the selected class.</p>
+          <p className="text-[10px] text-slate-400">{t('students.list.quickEdit.reEnrollNote')}</p>
         </div>
 
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex gap-2">
