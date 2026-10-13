@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:19:53.462Z",
-  "last_commit": "30275e2184a9378e412b69c88bcb13241531769b",
+  "generated_at": "2026-10-13T10:23:18.932Z",
+  "last_commit": "c346a71af09dfaf9bdc25de7546145ee03fa251b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9306,7 +9306,20 @@
         }
       ],
       "commit": "30275e2184"
+    },
+    {
+      "version": "2.50.53",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/enroll (single enrollment wizard and bulk promotion)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/enroll (single enrollment wizard and bulk promotion)"
+        }
+      ],
+      "commit": "c346a71af0"
     }
   ],
-  "app_version": "2.50.53"
+  "app_version": "2.50.54"
 }

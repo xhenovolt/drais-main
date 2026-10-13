@@ -1261,6 +1261,86 @@
         "studyModeCreateFailed": "Failed to create study mode",
         "studyModeCreated": "Study mode \"{{name}}\" created"
       }
+    },
+    "history": {
+      "title": "Academic History",
+      "recordCount": {
+        "one": "{{count}} student record",
+        "other": "{{count}} student records"
+      },
+      "grid": "Grid",
+      "list": "List",
+      "searchPlaceholder": "Search students…",
+      "allStudents": "All students",
+      "clearFilters": "Clear filters",
+      "loading": "Loading academic history…",
+      "results": "Results",
+      "average": "Average",
+      "recentResults": "Recent results:",
+      "viewFull": "View full history",
+      "col": {
+        "student": "Student",
+        "subject": "Subject",
+        "term": "Term",
+        "score": "Score",
+        "grade": "Grade",
+        "date": "Date"
+      },
+      "noGrade": "Not graded",
+      "none": "No academic history found"
+    },
+    "documents": {
+      "title": "Student Documents",
+      "count": {
+        "one": "{{count}} document",
+        "other": "{{count}} documents"
+      },
+      "upload": "Upload document",
+      "searchPlaceholder": "Search students or documents…",
+      "allTypes": "All document types",
+      "clearFilters": "Clear filters",
+      "loading": "Loading documents…",
+      "sizeLabel": "Size: {{size}}",
+      "issuedLabel": "Issued: {{date}}",
+      "view": "View",
+      "download": "Download",
+      "none": "No documents found",
+      "size": {
+        "bytes": "{{value}} bytes",
+        "kb": "{{value}} KB",
+        "mb": "{{value}} MB",
+        "gb": "{{value}} GB"
+      },
+      "form": {
+        "title": "Upload student document",
+        "close": "Close",
+        "student": "Student",
+        "selectStudent": "Select a student",
+        "loadingStudents": "Loading students…",
+        "type": "Document type",
+        "selectType": "Select document type",
+        "loading": "Loading…",
+        "issuedBy": "Issued by",
+        "issuedByPlaceholder": "Who issued this document?",
+        "issueDate": "Issue date",
+        "file": "File",
+        "fileSizeMb": "{{value}} MB",
+        "removeFile": "Remove file",
+        "dropHere": "Drop the file here",
+        "dragOrClick": "Drag and drop a file here, or click to select",
+        "supports": "Supports: PDF, DOC, DOCX, JPG, PNG (max 10 MB)",
+        "notes": "Notes",
+        "notesPlaceholder": "Additional notes about this document",
+        "cancel": "Cancel",
+        "uploading": "Uploading…",
+        "submit": "Upload document",
+        "studentRequired": "Student is required",
+        "typeRequired": "Document type is required",
+        "fileRequired": "File is required",
+        "uploaded": "Document uploaded successfully!",
+        "uploadFailed": "Failed to upload document",
+        "uploadError": "An error occurred while uploading the document"
+      }
     }
   },
   "common": {

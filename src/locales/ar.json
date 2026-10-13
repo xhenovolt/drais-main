@@ -1875,6 +1875,94 @@
         "studyModeCreateFailed": "تعذر إنشاء نظام الدراسة",
         "studyModeCreated": "تم إنشاء نظام الدراسة «{{name}}»"
       }
+    },
+    "history": {
+      "title": "السجل الدراسي",
+      "recordCount": {
+        "zero": "لا سجلات",
+        "one": "سجل طالب واحد",
+        "two": "سجلا طالبين",
+        "few": "{{count}} سجلات طلاب",
+        "many": "{{count}} سجل طالب",
+        "other": "{{count}} سجل طالب"
+      },
+      "grid": "شبكة",
+      "list": "قائمة",
+      "searchPlaceholder": "ابحث عن الطلاب…",
+      "allStudents": "جميع الطلاب",
+      "clearFilters": "مسح التصفية",
+      "loading": "جارٍ تحميل السجل الدراسي…",
+      "results": "النتائج",
+      "average": "المتوسط",
+      "recentResults": "أحدث النتائج:",
+      "viewFull": "عرض السجل كاملًا",
+      "col": {
+        "student": "الطالب",
+        "subject": "المادة",
+        "term": "الفصل الدراسي",
+        "score": "الدرجة",
+        "grade": "التقدير",
+        "date": "التاريخ"
+      },
+      "noGrade": "بلا تقدير",
+      "none": "لا يوجد سجل دراسي"
+    },
+    "documents": {
+      "title": "مستندات الطلاب",
+      "count": {
+        "zero": "لا مستندات",
+        "one": "مستند واحد",
+        "two": "مستندان",
+        "few": "{{count}} مستندات",
+        "many": "{{count}} مستندًا",
+        "other": "{{count}} مستند"
+      },
+      "upload": "رفع مستند",
+      "searchPlaceholder": "ابحث عن الطلاب أو المستندات…",
+      "allTypes": "جميع أنواع المستندات",
+      "clearFilters": "مسح التصفية",
+      "loading": "جارٍ تحميل المستندات…",
+      "sizeLabel": "الحجم: {{size}}",
+      "issuedLabel": "تاريخ الإصدار: {{date}}",
+      "view": "عرض",
+      "download": "تنزيل",
+      "none": "لا توجد مستندات",
+      "size": {
+        "bytes": "{{value}} بايت",
+        "kb": "{{value}} ك.ب",
+        "mb": "{{value}} م.ب",
+        "gb": "{{value}} ج.ب"
+      },
+      "form": {
+        "title": "رفع مستند طالب",
+        "close": "إغلاق",
+        "student": "الطالب",
+        "selectStudent": "اختر طالبًا",
+        "loadingStudents": "جارٍ تحميل الطلاب…",
+        "type": "نوع المستند",
+        "selectType": "اختر نوع المستند",
+        "loading": "جارٍ التحميل…",
+        "issuedBy": "جهة الإصدار",
+        "issuedByPlaceholder": "من أصدر هذا المستند؟",
+        "issueDate": "تاريخ الإصدار",
+        "file": "الملف",
+        "fileSizeMb": "{{value}} م.ب",
+        "removeFile": "إزالة الملف",
+        "dropHere": "أفلت الملف هنا",
+        "dragOrClick": "اسحب الملف وأفلته هنا، أو اضغط للاختيار",
+        "supports": "الأنواع المدعومة: PDF و DOC و DOCX و JPG و PNG (بحد أقصى 10 م.ب)",
+        "notes": "ملاحظات",
+        "notesPlaceholder": "ملاحظات إضافية عن هذا المستند",
+        "cancel": "إلغاء",
+        "uploading": "جارٍ الرفع…",
+        "submit": "رفع المستند",
+        "studentRequired": "الطالب مطلوب",
+        "typeRequired": "نوع المستند مطلوب",
+        "fileRequired": "الملف مطلوب",
+        "uploaded": "تم رفع المستند بنجاح!",
+        "uploadFailed": "تعذر رفع المستند",
+        "uploadError": "حدث خطأ أثناء رفع المستند"
+      }
     }
   },
   "status": {

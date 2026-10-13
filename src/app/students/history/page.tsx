@@ -8,9 +8,11 @@ import useSWR from "swr";
 import { fetcher } from "@/utils/fetcher";
 import { useRouter, useSearchParams } from "next/navigation";
 import Pagination from "@/components/ui/Pagination";
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const AcademicHistoryPage: React.FC = () => {
   const router = useRouter();
+  const { t, formatDate } = useI18n();
   const searchParams = useSearchParams();
   const studentIdFromUrl = searchParams?.get("studentId") || "";
 
@@ -28,8 +30,8 @@ const AcademicHistoryPage: React.FC = () => {
   // Debounce free-text search instead of re-filtering every row client-side
   // on every keystroke.
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
   useEffect(() => { setPage(1); }, [viewMode, effectiveStudentId]);
 
@@ -109,9 +111,9 @@ const AcademicHistoryPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              📚 Academic History
+              {t('students.history.title')}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">{pagination?.total ?? filteredResults.length} student records</p>
+            <p className="text-gray-600 dark:text-gray-400">{t('students.history.recordCount', { count: pagination?.total ?? filteredResults.length })}</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -122,7 +124,7 @@ const AcademicHistoryPage: React.FC = () => {
                   : "bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300"
               }`}
             >
-              Grid
+              {t('students.history.grid')}
             </button>
             <button
               onClick={() => setViewMode("list")}
@@ -132,7 +134,7 @@ const AcademicHistoryPage: React.FC = () => {
                   : "bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300"
               }`}
             >
-              List
+              {t('students.history.list')}
             </button>
           </div>
         </div>
@@ -141,13 +143,13 @@ const AcademicHistoryPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search students..."
+                placeholder={t('students.history.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                className="w-full ps-10 pe-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
               />
             </div>
 
@@ -156,7 +158,7 @@ const AcademicHistoryPage: React.FC = () => {
               onChange={(e) => setSelectedStudent(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Students</option>
+              <option value="">{t('students.history.allStudents')}</option>
               {students.map((student: any) => (
                 <option key={student.id} value={student.id}>
                   {student.first_name} {student.last_name}
@@ -171,7 +173,7 @@ const AcademicHistoryPage: React.FC = () => {
               }}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
-              Clear Filters
+              {t('students.history.clearFilters')}
             </button>
           </div>
         </div>
@@ -180,7 +182,7 @@ const AcademicHistoryPage: React.FC = () => {
         {isLoading ? (
           <div className="text-center py-12">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-gray-500 dark:text-gray-400">Loading academic history...</p>
+            <p className="text-gray-500 dark:text-gray-400">{t('students.history.loading')}</p>
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -209,13 +211,13 @@ const AcademicHistoryPage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                       <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{group.results ? group.results.length : group.result_count}</div>
-                      <div className="text-xs text-blue-600 dark:text-blue-400">Results</div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400">{t('students.history.results')}</div>
                     </div>
                     <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                         {group.results ? calculateAverage(group.results) : group.average_score}%
                       </div>
-                      <div className="text-xs text-green-600 dark:text-green-400">Average</div>
+                      <div className="text-xs text-green-600 dark:text-green-400">{t('students.history.average')}</div>
                     </div>
                   </div>
 
@@ -224,7 +226,7 @@ const AcademicHistoryPage: React.FC = () => {
                       summary intentionally doesn't carry individual rows. */}
                   {group.results && (
                     <div className="space-y-2">
-                      <h4 className="font-medium text-gray-900 dark:text-white text-sm">Recent Results:</h4>
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm">{t('students.history.recentResults')}</h4>
                       {group.results.slice(0, 3).map((result: any, idx: number) => (
                         <div
                           key={idx}
@@ -234,7 +236,7 @@ const AcademicHistoryPage: React.FC = () => {
                             <span className="text-sm font-medium text-gray-900 dark:text-white">
                               {result.subject_name}
                             </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ms-2">
                               {result.term_name}
                             </span>
                           </div>
@@ -253,7 +255,7 @@ const AcademicHistoryPage: React.FC = () => {
                     onClick={() => setSelectedStudent(group.student.id)}
                     className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
-                    View Full History
+                    {t('students.history.viewFull')}
                   </button>
                 </motion.div>
               ))}
@@ -266,23 +268,23 @@ const AcademicHistoryPage: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-gray-600">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Student
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.history.col.student')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Subject
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.history.col.subject')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Term
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.history.col.term')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Score
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.history.col.score')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Grade
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.history.col.grade')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Date
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.history.col.date')}
                     </th>
                   </tr>
                 </thead>
@@ -338,12 +340,12 @@ const AcademicHistoryPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-900 dark:text-white">
-                            {result.grade || "N/A"}
+                            {result.grade || t('students.history.noGrade')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-900 dark:text-white">
-                            {new Date(result.created_at).toLocaleDateString()}
+                            {formatDate(result.created_at)}
                           </span>
                         </td>
                       </motion.tr>
@@ -355,7 +357,7 @@ const AcademicHistoryPage: React.FC = () => {
               {academicResults.length === 0 && (
                 <div className="text-center py-12">
                   <Archive className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">No academic history found</p>
+                  <p className="text-gray-500 dark:text-gray-400">{t('students.history.none')}</p>
                 </div>
               )}
             </div>

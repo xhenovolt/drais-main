@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import { useDropzone } from 'react-dropzone';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AddDocumentModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface AddDocumentModalProps {
 }
 
 const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSuccess }) => {
+  const { t, formatNumber } = useI18n();
   const [formData, setFormData] = useState({
     student_id: '',
     document_type_id: '',
@@ -58,9 +60,9 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.student_id) newErrors.student_id = 'Student is required';
-    if (!formData.document_type_id) newErrors.document_type_id = 'Document type is required';
-    if (!selectedFile) newErrors.file = 'File is required';
+    if (!formData.student_id) newErrors.student_id = t('students.documents.form.studentRequired');
+    if (!formData.document_type_id) newErrors.document_type_id = t('students.documents.form.typeRequired');
+    if (!selectedFile) newErrors.file = t('students.documents.form.fileRequired');
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -88,15 +90,15 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
       const result = await response.json();
 
       if (result.success) {
-        toast.success('Document uploaded successfully!');
+        toast.success(t('students.documents.form.uploaded'));
         onSuccess();
         resetForm();
       } else {
-        toast.error(result.error || 'Failed to upload document');
+        toast.error(result.error || t('students.documents.form.uploadFailed'));
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('An error occurred while uploading document');
+      toast.error(t('students.documents.form.uploadError'));
     } finally {
       setLoading(false);
     }
@@ -147,12 +149,12 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
       >
         {/* Header — shrink-0 so it never gets squashed by the form */}
         <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Upload Student Document</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{t('students.documents.form.title')}</h2>
           <button
             type="button"
             onClick={onClose}
             className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            aria-label="Close"
+            aria-label={t('students.documents.form.close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -166,14 +168,14 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Student <span className="text-red-500">*</span>
+                  {t('students.documents.form.student')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.student_id}
                   onChange={(e) => handleInputChange('student_id', e.target.value)}
                   className={`${fieldBase} ${errors.student_id ? fieldErr : fieldOk}`}
                 >
-                  <option value="">{studentsData ? 'Select a student' : 'Loading students…'}</option>
+                  <option value="">{studentsData ? t('students.documents.form.selectStudent') : t('students.documents.form.loadingStudents')}</option>
                   {students.map((student: any) => (
                     <option key={student.id} value={student.id}>
                       {student.first_name} {student.last_name} — {student.admission_no}
@@ -185,14 +187,14 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Document Type <span className="text-red-500">*</span>
+                  {t('students.documents.form.type')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.document_type_id}
                   onChange={(e) => handleInputChange('document_type_id', e.target.value)}
                   className={`${fieldBase} ${errors.document_type_id ? fieldErr : fieldOk}`}
                 >
-                  <option value="">{documentTypesData ? 'Select document type' : 'Loading…'}</option>
+                  <option value="">{documentTypesData ? t('students.documents.form.selectType') : t('students.documents.form.loading')}</option>
                   {documentTypes.map((type: any) => (
                     <option key={type.id} value={type.id}>{type.label}</option>
                   ))}
@@ -202,20 +204,20 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Issued By
+                  {t('students.documents.form.issuedBy')}
                 </label>
                 <input
                   type="text"
                   value={formData.issued_by}
                   onChange={(e) => handleInputChange('issued_by', e.target.value)}
                   className={`${fieldBase} ${fieldOk}`}
-                  placeholder="Who issued this document?"
+                  placeholder={t('students.documents.form.issuedByPlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Issue Date
+                  {t('students.documents.form.issueDate')}
                 </label>
                 <input
                   type="date"
@@ -227,7 +229,7 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  File Upload <span className="text-red-500">*</span>
+                  {t('students.documents.form.file')} <span className="text-red-500">*</span>
                 </label>
                 <div
                   {...getRootProps()}
@@ -245,24 +247,24 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
                       <FileText className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto" />
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-all">{selectedFile.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        {t('students.documents.form.fileSizeMb', { value: formatNumber(selectedFile.size / 1024 / 1024, { maximumFractionDigits: 2 }) })}
                       </p>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                         className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                       >
-                        Remove file
+                        {t('students.documents.form.removeFile')}
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto" />
                       <p className="text-sm text-gray-600 dark:text-gray-300">
-                        {isDragActive ? 'Drop the file here' : 'Drag & drop a file here, or click to select'}
+                        {isDragActive ? t('students.documents.form.dropHere') : t('students.documents.form.dragOrClick')}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Supports: PDF, DOC, DOCX, JPG, PNG (Max 10 MB)
+                        {t('students.documents.form.supports')}
                       </p>
                     </div>
                   )}
@@ -272,14 +274,14 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Notes
+                  {t('students.documents.form.notes')}
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => handleInputChange('notes', e.target.value)}
                   rows={3}
                   className={`${fieldBase} ${fieldOk}`}
-                  placeholder="Additional notes about this document"
+                  placeholder={t('students.documents.form.notesPlaceholder')}
                 />
               </div>
             </div>
@@ -292,7 +294,7 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
             >
-              Cancel
+              {t('students.documents.form.cancel')}
             </button>
             <button
               type="submit"
@@ -300,7 +302,7 @@ const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ open, onClose, onSu
               className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 inline-flex items-center gap-2"
             >
               {loading && <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-              {loading ? 'Uploading…' : 'Upload Document'}
+              {loading ? t('students.documents.form.uploading') : t('students.documents.form.submit')}
             </button>
           </div>
         </form>

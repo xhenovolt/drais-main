@@ -75,12 +75,15 @@ const stubs = {
   'next/link': `import React from 'react'; export default function Link({ href, children, prefetch, ...rest }) { return React.createElement('a', { href: typeof href === 'string' ? href : '#', ...rest }, children); }`,
   'next/image': `import React from 'react'; export default function Image({ src, alt, fill, priority, ...rest }) { return React.createElement('img', { src: typeof src === 'string' ? src : '', alt, ...rest }); }`,
   'next/dynamic': `import React from 'react'; export default function dynamic() { return function Stub() { return null; }; }`,
+  // A signed-in staff user, so pages that call useAuth() mount without the real session provider.
+  '@/contexts/AuthContext': `import React from 'react'; const value = { user: { id: 1, schoolId: 1, school_id: 1, role: 'admin', firstName: 'Test', lastName: 'User', permissions: [] }, loading: false, isAuthenticated: true, hasPermission: () => true, hasRole: () => true, login: async () => {}, logout: async () => {}, refresh: async () => {} }; export const useAuth = () => value; export const AuthProvider = ({ children }) => React.createElement(React.Fragment, null, children);`,
   'next/headers': `export const cookies = async () => ({ get() { return undefined; } }); export const headers = async () => new Map();`,
 };
 const stubPlugin = {
   name: 'next-stubs',
   setup(b) {
     b.onResolve({ filter: /^next\/(navigation|link|image|dynamic|headers)$/ }, (a) => ({ path: a.path, namespace: 'stub' }));
+    b.onResolve({ filter: /^@\/contexts\/AuthContext$/ }, (a) => ({ path: a.path, namespace: 'stub' }));
     b.onLoad({ filter: /.*/, namespace: 'stub' }, (a) => ({ contents: stubs[a.path], loader: 'jsx', resolveDir: ROOT }));
     b.onResolve({ filter: /\.(css|scss)$/ }, (a) => ({ path: a.path, namespace: 'empty' }));
     b.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: '', loader: 'js' }));

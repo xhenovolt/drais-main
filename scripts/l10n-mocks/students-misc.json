@@ -1,0 +1,6 @@
+{
+  "/api/students/history": { "success": true, "pagination": { "page": 1, "pages": 1, "total": 2, "limit": 24 }, "data": { "student_summaries": [ { "student_id": 1, "first_name": "Amina", "last_name": "Nakato", "admission_no": "ADM-001", "result_count": 12, "average_score": 71.5 } ], "academic_results": [ { "id": 1, "student_id": 1, "first_name": "Amina", "last_name": "Nakato", "admission_no": "ADM-001", "subject_name": "Mathematics", "class_name": "Primary Five", "term_name": "Term II", "academic_year": "2026", "score": 78, "grade": null, "created_at": "2026-08-01T10:00:00" } ] } },
+  "/api/students/documents": { "success": true, "data": [ { "id": 1, "first_name": "Amina", "last_name": "Nakato", "file_name": "birth-certificate.pdf", "document_type_label": "Birth certificate", "document_type_id": 1, "mime_type": "application/pdf", "class_name": "Primary Five", "admission_no": "ADM-001", "file_size": 245760, "issue_date": "2014-03-20", "uploaded_at": "2026-09-01T10:00:00", "file_url": "#" } ] },
+  "/api/document-types": { "data": [ { "id": 1, "label": "Birth certificate" } ] },
+  "/api/students/full": { "data": [ { "id": 1, "first_name": "Amina", "last_name": "Nakato", "admission_no": "ADM-001" } ] }
+}

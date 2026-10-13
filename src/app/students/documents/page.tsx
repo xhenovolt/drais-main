@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
 import AddDocumentModal from '@/components/students/AddDocumentModal';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const DocumentsPage: React.FC = () => {
   const { user } = useAuth();
+  const { t, formatDate, formatNumber } = useI18n();
   const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -44,11 +46,10 @@ const DocumentsPage: React.FC = () => {
   });
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    const units = ['bytes', 'kb', 'mb', 'gb'];
+    const i = bytes > 0 ? Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(k))) : 0;
+    return t(`students.documents.size.${units[i]}`, { value: formatNumber(bytes / Math.pow(k, i), { maximumFractionDigits: 2 }) });
   };
 
   const getFileIcon = (mimeType: string) => {
@@ -65,10 +66,10 @@ const DocumentsPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              📄 Student Documents
+              {t('students.documents.title')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredDocuments.length} documents
+              {t('students.documents.count', { count: filteredDocuments.length })}
             </p>
           </div>
           <button
@@ -76,7 +77,7 @@ const DocumentsPage: React.FC = () => {
             className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             <Upload className="w-5 h-5" />
-            Upload Document
+            {t('students.documents.upload')}
           </button>
         </div>
 
@@ -84,13 +85,13 @@ const DocumentsPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search students or documents..."
+                placeholder={t('students.documents.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                className="w-full ps-10 pe-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
               />
             </div>
 
@@ -99,7 +100,7 @@ const DocumentsPage: React.FC = () => {
               onChange={(e) => setTypeFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Document Types</option>
+              <option value="">{t('students.documents.allTypes')}</option>
               {documentTypes.map((type: any) => (
                 <option key={type.id} value={type.id}>{type.label}</option>
               ))}
@@ -112,7 +113,7 @@ const DocumentsPage: React.FC = () => {
               }}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
-              Clear Filters
+              {t('students.documents.clearFilters')}
             </button>
           </div>
         </div>
@@ -122,7 +123,7 @@ const DocumentsPage: React.FC = () => {
           {isLoading ? (
             <div className="col-span-full text-center py-12">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-500 dark:text-gray-400">Loading documents...</p>
+              <p className="text-gray-500 dark:text-gray-400">{t('students.documents.loading')}</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -167,18 +168,18 @@ const DocumentsPage: React.FC = () => {
                   <div className="space-y-2 mb-4">
                     {doc.file_size && (
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-medium">Size:</span> {formatFileSize(doc.file_size)}
+                        {t('students.documents.sizeLabel', { size: formatFileSize(doc.file_size) })}
                       </div>
                     )}
                     {doc.issue_date && (
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-medium">Issued:</span> {doc.issue_date}
+                        {t('students.documents.issuedLabel', { date: formatDate(doc.issue_date) })}
                       </div>
                     )}
                     {doc.uploaded_at && (
                       <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
                         <Calendar className="w-3 h-3" />
-                        {new Date(doc.uploaded_at).toLocaleDateString()}
+                        {formatDate(doc.uploaded_at)}
                       </div>
                     )}
                   </div>
@@ -190,7 +191,7 @@ const DocumentsPage: React.FC = () => {
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
                     >
                       <Eye className="w-4 h-4" />
-                      View
+                      {t('students.documents.view')}
                     </button>
                     <button
                       onClick={() => {
@@ -202,7 +203,7 @@ const DocumentsPage: React.FC = () => {
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm"
                     >
                       <Download className="w-4 h-4" />
-                      Download
+                      {t('students.documents.download')}
                     </button>
                   </div>
                 </motion.div>
@@ -213,7 +214,7 @@ const DocumentsPage: React.FC = () => {
           {filteredDocuments.length === 0 && !isLoading && (
             <div className="col-span-full text-center py-12">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No documents found</p>
+              <p className="text-gray-500 dark:text-gray-400">{t('students.documents.none')}</p>
             </div>
           )}
         </div>
