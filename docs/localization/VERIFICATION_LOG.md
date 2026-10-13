@@ -75,71 +75,80 @@ pagination sentence. Treat them as drafts.
 
 ---
 
-## 2026-10-13 — Phase 2, route 1: `/students/list` — IN PROGRESS (not closed)
+## 2026-10-13 — Phase 2, route 1: `/students/list` — TRANSLATED, awaiting browser verification
 
-**State: page file and 6 of 11 child components translated and automatically checked. 5 child components still
-to do. Nothing verified in a browser yet. The route is not closed.**
+**State: the page file and all 11 child components are translated and automatically checked. Nothing has
+been verified in a browser, so the route is not closed.**
 
 ### Progress against the five states
 
 | State | Status |
 |---|---|
-| Inventoried | Page file and 6 components: full string list produced with `scripts/l10n-extract.mjs`, then a second manual sweep for sentences built with template literals (which the extractor does not see). 5 components inventoried but not yet translated. |
-| Translated | Page file: 172 strings. Components: `ReassignClassModal`, `QuickEditDrawer`, `LearnerSnapshotModal`, `BulkSmsModal`, `LearnerOverview`, `StudentsListLivePopup` (43 keys). |
-| Browser-tested | **No.** |
-| Interactions tested | **No.** |
-| Closed | **No.** |
+| Inventoried | Yes — `scripts/l10n-extract.mjs` on the page and its 11 components, plus a manual sweep of each file for sentences built with template literals, confirmation dialogs and thrown errors, which the extractor does not see |
+| Translated | Yes — about 480 strings; 446 keys added in both languages |
+| Browser-tested | **No** |
+| Interactions tested | **No** |
+| Closed | **No** |
 
-Static measurement for the route moved from 24% to 63% of visible strings going through the translator.
+Static measurement for the route: 24% → 95% of visible strings go through the translator, and no file on the
+route is without the translation hook. The remaining 5% is the intentionally preserved text listed below.
 
-### Still to translate on this route
+### Files and key groups
 
-| Component | Hardcoded strings (extractor count, includes some false positives) |
+| File | Keys under |
 |---|---|
-| `components/students/ImportModal.tsx` | 98 |
-| `components/students/FolderPhotoUploadModal.tsx` | 43 |
-| `components/device/SyncDeviceModal.tsx` | 34 |
-| `components/students/BulkPhotoUploadModal.tsx` | 33 |
-| `components/modals/DeviceSelector.tsx` | 8 |
+| `app/students/list/page.tsx` (page, row menu, status badge, three enrolment forms) | `students.list.*` |
+| `app/students/_client/ReassignClassModal.tsx`, `components/students/QuickEditDrawer.tsx`, `LearnerSnapshotModal.tsx`, `BulkSmsModal.tsx`, `LearnerOverview.tsx`, `StudentsListLivePopup.tsx` | `students.list.*` |
+| `components/students/BulkPhotoUploadModal.tsx` | `students.photoUpload.*` |
+| `components/students/FolderPhotoUploadModal.tsx` | `students.folderPhotos.*` |
+| `components/students/ImportModal.tsx` (and its column-mapping editor) | `students.import.*` |
+| `components/modals/DeviceSelector.tsx`, `components/device/SyncDeviceModal.tsx` (shared with attendance pages) | `deviceDialogs.*` |
 
-### What was covered in the page file
-
-Fingerprint and face enrolment progress and errors; the capture-mode picker; every toast; the four
-confirmation dialogs (remove all, delete, permanent delete, remove photo); the Enrolled/Admitted tabs;
-toolbar tooltips; row actions; the status badge; the empty state; the "Showing 1–25 of 187" line; and the
-three enrolment forms (single, bulk, additional programme). Counts use plural entries ("3 fingers", "photos
-uploaded for 5 learners") so Arabic gets its own forms.
+Counts use plural entries with Arabic's own forms (fingers, photos, files, classes, learners, possible matches).
 
 ### Intentionally left in the original language
 
 | Text | Why |
 |---|---|
 | Column names and values in the CSV/Excel export (`Residency`, `Boarding`, `Day`, …) | The import tool reads these files back; translated headers would not re-import |
-| `CSV`, `Excel` | Format names |
-| `UID`, `PIN`, device serials, `ENROLL_FP`, `CMD_STARTENROLL`, `ADMS`, `TCP` | Technical identifiers staff match against the device |
-| Fingerprint state label `Active` / `Not enrolled` at the point where it is compared in code | Used in logic; the displayed tooltip built from it is translated |
-| Learner names, class, stream and programme names | Stored data, not interface text |
+| Import file column names shown in the help text (`reg_no`, `first_name`, `class`, …) | They are what the user must type as spreadsheet headers |
+| `CSV`, `Excel`, `JPG`, `PNG`, `WebP`, `HEIC`, `MB`, `KB` | Format and unit names |
+| `UID`, `PIN`, device serials, `ENROLL_FP`, `CMD_STARTENROLL`, `DATA QUERY user`, `ADMS`, `TCP` | Technical identifiers staff match against the device |
+| Fingerprint state label `Active` / `Not enrolled` where it is compared in code | Used in logic; the tooltip built from it is translated |
+| Learner, class, stream and programme names; file names | Stored data, not interface text |
 | Error text returned by the server and shown in a toast | Server messages are Phase 5; the page's own fallback text is translated |
+| Per-row warnings in the import preview | Produced by the server |
 
-### Known limitations of what was done
+### Changes a user will notice in English
 
-- Several messages are created inside callbacks that were defined before a language switch; a toast fired
-  from such a callback can appear in the previous language until the next re-render. Not yet checked.
-- The "Showing X–Y of N" line lost the bold on its numbers, because the sentence is now one translated string.
-- The shared confirmation dialog (`src/lib/toast.ts`) still has an English "Cancel" button; it is a shared
-  component used across the app and is scheduled with the shared-component pass.
+- "Showing 1–25 of 187": the numbers are no longer bold, because the sentence is one translated string.
+- Photo-upload result dialog: the success and failure lines are coloured as a whole instead of only the number.
+- Import help text and the name-collision explanation lost their bold/`code` fragments for the same reason.
+- "Sends to the guardians of N selected learner(s)" now reads "…the selected learners (N)".
+- The folder-upload summary always shows all three figures ("12 uploaded, 0 failed, 0 skipped").
+
+### Known limitations
+
+- Several messages are created inside callbacks defined before a language switch; a toast fired from one can
+  appear in the previous language until the next re-render. Not yet checked.
+- The shared confirmation dialog (`src/lib/toast.ts`) still has an English "Cancel" button; it is used across
+  the app and is scheduled with the shared-component pass.
 - Arabic wording is a draft, including device and relay terminology ("الوسيط" for relay agent).
+- Right-to-left layout of this route has not been looked at: it has 77 fixed-side spacing classes.
 
 ### Automated checks
 
 | Check | Result |
 |---|---|
-| `npm run test:i18n` | 30 pass, 0 fail (it caught 43 keys that were referenced before being added, during this work) |
+| `npm run test:i18n` | 30 pass, 0 fail (during this work it caught 43 keys that were referenced before being added) |
+| `npm run test:sms`, `test:notifications` | pass |
 | Syntax check of every changed file | Pass |
+| Every edit applied by a script that refuses to write unless each target line matches exactly once | 373 edits |
 
 ### To verify by hand before this route can close
 
-Open `/students/list` in Arabic and in English, at desktop and phone width, and: switch tabs; search for
-something that returns nothing; open a row's menu; open quick edit, the snapshot and the reassign-class
-dialog; start a single and a bulk enrolment; trigger a delete confirmation and cancel it; send a bulk message
-to one learner; toggle fee balances; start a fingerprint enrolment in each capture mode.
+In Arabic and in English, at desktop and phone width, on `/students/list`: switch tabs; search for something
+that returns nothing; open a row's menu; open quick edit, the snapshot and the reassign-class dialog; start a
+single and a bulk enrolment; trigger a delete confirmation and cancel it; send a bulk message to one learner;
+toggle fee balances; start a fingerprint enrolment in each capture mode; open Import, choose a file and reach
+the preview and column-mapping step; open bulk photo upload and folder photo upload; open Sync from Device.

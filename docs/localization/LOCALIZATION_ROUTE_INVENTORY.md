@@ -17,7 +17,7 @@ _Generated 2026-10-13 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Routes discovered | 309 of 309 | Scope is known |
 | Routes with a static text count and component list | 309 of 309 | We know roughly how much text each route has and where it lives |
 | Routes with a full string-by-string inventory | 0 of 309 | Done per route at the start of its phase (Students first) |
-| Routes translated | 0 newly; 14 were already mostly wired before this audit | Translation implementation exists |
+| Routes translated | 0 newly; 15 were already mostly wired before this audit | Translation implementation exists |
 | Routes browser-tested in Arabic | 0 of 309 | Arabic actually renders |
 | Routes with critical interactions re-tested | 0 of 309 | Translation did not break functionality |
 | Shared components regression-tested | 0 | Fixes work beyond one page |
@@ -31,8 +31,8 @@ _Generated 2026-10-13 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Gate & Movement | 4 | 4 | 0 | 0 | 0 | 0 | 109 |
 | Devices & Biometrics | 10 | 8 | 0 | 0 | 2 | 38 | 477 |
 | Communication | 4 | 3 | 1 | 0 | 0 | 6 | 267 |
-| Students | 13 | 9 | 3 | 1 | 0 | 342 | 987 |
-| Staff & Roles | 18 | 7 | 10 | 1 | 0 | 71 | 759 |
+| Students | 13 | 9 | 3 | 0 | 1 | 550 | 812 |
+| Staff & Roles | 18 | 7 | 10 | 1 | 0 | 103 | 736 |
 | Academics | 23 | 14 | 7 | 2 | 0 | 109 | 1159 |
 | Documents & Assessment | 9 | 2 | 5 | 0 | 2 | 97 | 1100 |
 | Finance | 26 | 18 | 6 | 0 | 2 | 78 | 713 |
@@ -80,7 +80,7 @@ _Generated 2026-10-13 by `scripts/l10n-audit.mjs` from the code as it stood at t
 | Not in sidebar — /unauthorized | 1 | 1 | 0 | 0 | 0 | 0 | 8 |
 | Not in sidebar — /verify | 1 | 1 | 0 | 0 | 0 | 0 | 12 |
 | Not in sidebar — /workplans | 1 | 1 | 0 | 0 | 0 | 0 | 14 |
-| **All routes** | **309** | **228** | **48** | **12** | **14** | | |
+| **All routes** | **309** | **228** | **48** | **11** | **15** | | |
 
 Shared components are counted once per route that renders them, so the "Hardcoded" column cannot be summed into a single application total.
 
@@ -124,13 +124,13 @@ Shared components are counted once per route that renders them, so the "Hardcode
 | Sidebar location | Students › Student List |
 | Page file | `app/students/list/page.tsx` |
 | Child components | `app/students/_client/ReassignClassModal.tsx`, `components/students/QuickEditDrawer.tsx`, `components/students/LearnerSnapshotModal.tsx`, `components/students/BulkSmsModal.tsx`, `components/students/LearnerOverview.tsx`, `components/students/BulkPhotoUploadModal.tsx`, `components/students/FolderPhotoUploadModal.tsx`, `components/students/ImportModal.tsx`, `components/modals/DeviceSelector.tsx`, `components/device/SyncDeviceModal.tsx`, `components/students/StudentsListLivePopup.tsx`, `components/i18n/I18nProvider.tsx` |
-| Text inventory (static count) | 190 hardcoded: 138 text between tags, 22 attributes (placeholders, titles), 6 toasts/alerts, 24 labels in config objects |
-| Existing translation | 321 calls through `useI18n().t` |
-| Missing translation | Partial (over half) — about 63% of visible strings go through the translator. Files with visible text and no translation hook: `components/modals/DeviceSelector.tsx`, `components/device/SyncDeviceModal.tsx` |
+| Text inventory (static count) | 15 hardcoded: 8 text between tags, 0 attributes (placeholders, titles), 0 toasts/alerts, 7 labels in config objects |
+| Existing translation | 529 calls through `useI18n().t` |
+| Missing translation | Mostly wired — about 97% of visible strings go through the translator |
 | RTL status | 77 fixed-side classes, none RTL-aware. Not yet checked in a browser. |
-| Dates and numbers | 17 `toLocale*String` call(s); 0 use the active language |
+| Dates and numbers | 16 `toLocale*String` call(s); 0 use the active language |
 | Dependencies (APIs) | `/api/classes`, `/api/streams`, `/api/programs`, `/api/study-modes`, `/api/academic_years`, `/api/terms`, `/api/students/fingerprint-status`, `/api/device/local-enroll`, `/api/device/local-enroll/status`, `/api/device/relay-enroll`, `/api/device/relay-enroll/status`, `/api/students/enroll-face` |
-| Risk | High |
+| Risk | Medium |
 | Verification required | Arabic and English render; every button, filter, form and dialog still works; toasts and validation messages in Arabic; desktop and mobile width; refresh and navigation keep the language |
 | Verification state | Inventoried (static): yes · Full string list: no · Translated: no · Browser-tested: no · Interactions tested: no |
 
@@ -147,9 +147,9 @@ Representative hardcoded strings (a sample, not the full list):
 - "text-red-700 dark:text-red-400" — label, `list/page.tsx`
 - "text-violet-700 dark:text-violet-400" — label, `list/page.tsx`
 - "void): Promise" — text, `students/BulkPhotoUploadModal.tsx`
-- "Uploading photos..." — text, `students/BulkPhotoUploadModal.tsx`
-- "Upload Photos" — text, `students/BulkPhotoUploadModal.tsx`
-- "or click to browse files" — text, `students/BulkPhotoUploadModal.tsx`
+- ") : match.ambiguous ? (" — text, `students/FolderPhotoUploadModal.tsx`
+- ") : match.matchedStudent ? (" — text, `students/FolderPhotoUploadModal.tsx`
+- "void \| Promise" — text, `students/ImportModal.tsx`
 
 ### `/students/admit`
 
@@ -1035,7 +1035,7 @@ Compact form. Each route gets the same detailed block as the Students routes abo
 | `/staff/[id]/edit` | View Staff (child page — not itself in sidebar) | Partial (under half) | 2 | 98 | 1 | No fixed-side classes found | Medium | No |
 | `/staff/add` | Add Staff | Partial (under half) | 17 | 81 | 2 | 3 fixed-side classes, none RTL-aware | Medium | No |
 | `/staff/attendence` | View Staff (child page — not itself in sidebar) | Partial (over half) | 10 | 2 | 1 | No fixed-side classes found | Low | No |
-| `/staff/list` | View Staff (child page — not itself in sidebar) | Partial (under half) | 30 | 173 | 5 | 13 fixed-side classes, 1 RTL-aware | High | No |
+| `/staff/list` | View Staff (child page — not itself in sidebar) | Partial (under half) | 62 | 150 | 5 | 13 fixed-side classes, 1 RTL-aware | Medium | No |
 | `/staff/roles` | View Staff (child page — not itself in sidebar) | Partial (under half) | 3 | 16 | 1 | No fixed-side classes found | Low | No |
 | `/work-plans` | Workplans | Not translated | 0 | 34 | 1 | 5 fixed-side classes, none RTL-aware | Low | No |
 

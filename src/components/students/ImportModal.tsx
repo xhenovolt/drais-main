@@ -145,7 +145,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           setPhase('preview');
           return;
         }
-        toast.error(data.error || 'Preview failed');
+        toast.error(data.error || t('students.import.previewFailed'));
         return;
       }
 
@@ -154,7 +154,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       setMissingClasses(Array.isArray(data.missingClasses) ? data.missingClasses : []);
       setPhase('preview');
     } catch (err: any) {
-      toast.error(`Preview error: ${err.message || 'Unknown error'}`);
+      toast.error(t('students.import.previewError', { message: err.message || t('students.import.unknownError') }));
     } finally {
       setLoading(false);
     }
@@ -167,7 +167,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       .map(([studentId, fee]) => ({ student_id: parseInt(studentId), fees: parseFloat(fee) }));
     
     if (updates.length === 0) {
-      toast.error('No valid fees to update');
+      toast.error(t('students.import.noValidFees'));
       return;
     }
 
@@ -180,14 +180,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Updated fees for ${data.updated + data.created} learners`);
+        toast.success(t('students.import.feesUpdated', { count: data.updated + data.created }));
         setShowFeeEditor(false);
         setFeeUpdates({});
       } else {
-        toast.error(data.error || 'Failed to update fees');
+        toast.error(data.error || t('students.import.feesUpdateFailed'));
       }
     } catch (err: any) {
-      toast.error(err.message || 'Error updating fees');
+      toast.error(err.message || t('students.import.feesUpdateError'));
     } finally {
       setUpdatingFees(false);
     }
@@ -218,7 +218,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       });
 
       if (!res.body) {
-        toast.error('Import failed: no response stream');
+        toast.error(t('students.import.noStream'));
         setPhase('select');
         return;
       }
@@ -258,26 +258,26 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             } else if (evt.type === 'complete') {
               setResult(evt as ImportResult);
               setPhase('complete');
-              toast.success(evt.message || 'Import complete');
+              toast.success(evt.message || t('students.import.importComplete'));
               onImportSuccess?.();
             } else if (evt.type === 'cancelled') {
-              setImportError(evt.message || 'Import cancelled');
+              setImportError(evt.message || t('students.import.cancelled'));
               setPhase('select');
-              toast(evt.message || 'Import cancelled', { icon: '⏸️' });
+              toast(evt.message || t('students.import.cancelled'), { icon: '⏸️' });
             } else if (evt.type === 'error') {
               // Persist so the modal shows the actual reason rather than
               // a transient toast that disappears in 4s.
-              setImportError(evt.message || 'Import failed');
+              setImportError(evt.message || t('students.import.importFailed'));
               setPhase('select');
-              toast.error(evt.message || 'Import failed');
+              toast.error(evt.message || t('students.import.importFailed'));
             }
           } catch { /* ignore malformed events */ }
         }
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        setImportError(err.message || 'Unknown error');
-        toast.error(`Import error: ${err.message || 'Unknown error'}`);
+        setImportError(err.message || t('students.import.unknownError'));
+        toast.error(t('students.import.importError', { message: err.message || t('students.import.unknownError') }));
         setPhase('select');
       }
     } finally {
@@ -309,7 +309,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       }
       setPhase('select');
       setImportError('Import cancelled by user.');
-      toast('Import cancelled', { icon: '⏸️' });
+      toast(t('students.import.cancelled'), { icon: '⏸️' });
     } finally {
       setCancelling(false);
     }
@@ -337,7 +337,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           else failed++;
         } catch { failed++; }
       }
-      toast.success(`Created ${created} class${created === 1 ? '' : 'es'}${failed > 0 ? ` (${failed} failed)` : ''}`);
+      toast.success(t('students.import.classesCreated', { count: created }) + (failed > 0 ? t('students.import.classesFailedSuffix', { count: failed }) : ''));
       // Re-preview so the user sees the updated missingClasses list (should
       // now be empty if every create succeeded).
       await handlePreview();
@@ -371,7 +371,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
     a.download = 'students_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Template downloaded');
+    toast.success(t('students.import.templateDownloaded'));
   };
 
   const reset = () => {
@@ -409,7 +409,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                 <div className="flex items-center justify-between mb-5">
                   <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <Upload className="w-5 h-5" />
-                    Bulk Import Students
+                    {t('students.import.title')}
                   </Dialog.Title>
                   {phase !== 'importing' && (
                     <button onClick={handleClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
@@ -429,7 +429,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-rose-800 dark:text-rose-100 mb-1">
-                            Last import attempt failed
+                            {t('students.import.lastFailed')}
                           </p>
                           <p className="text-xs text-rose-700 dark:text-rose-200 break-words">
                             {importError}
@@ -438,7 +438,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         <button
                           onClick={() => setImportError(null)}
                           className="text-rose-400 hover:text-rose-600 flex-shrink-0"
-                          aria-label="Dismiss error"
+                          aria-label={t('students.import.dismissError')}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -448,18 +448,18 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                       <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">{t('actions.import')}</h3>
                       <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                        <li>• <strong>Formats:</strong> CSV (.csv) or Excel (.xlsx)</li>
-                        <li>• <strong>Required:</strong> name (or first_name + last_name)</li>
-                        <li>• <strong>Optional:</strong> reg_no, class, stream, gender, date_of_birth, phone, address</li>
-                        <li>• Duplicates matched by reg_no — existing students are updated</li>
-                        <li>• Rows are processed in batches of 50 with progress tracking</li>
+                        <li>• {t('students.import.help.formats')}</li>
+                        <li>• {t('students.import.help.required', { fields: 'name (first_name + last_name)' })}</li>
+                        <li>• {t('students.import.help.optional', { fields: 'reg_no, class, stream, gender, date_of_birth, phone, address' })}</li>
+                        <li>• {t('students.import.help.duplicates', { field: 'reg_no' })}</li>
+                        <li>• {t('students.import.help.batches')}</li>
                       </ul>
                     </div>
 
                     <div className="flex justify-center">
                       <button onClick={downloadTemplate}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm">
-                        <Download className="w-4 h-4" /> Download Template
+                        <Download className="w-4 h-4" /> {t('students.import.downloadTemplate')}
                       </button>
                     </div>
 
@@ -474,12 +474,12 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       <input {...getInputProps()} />
                       <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                       {isDragActive ? (
-                        <p className="text-blue-600 font-medium">Drop the file here...</p>
+                        <p className="text-blue-600 font-medium">{t('students.import.dropFile')}</p>
                       ) : (
                         <div>
-                          <span className="text-blue-600 font-medium">Click to upload</span>
-                          <span className="text-gray-500"> or drag and drop</span>
-                          <p className="text-xs text-gray-400 mt-1">CSV or Excel files up to 20MB</p>
+                          <span className="text-blue-600 font-medium">{t('students.import.clickToUpload')}</span>
+                          <span className="text-gray-500">{t('students.import.orDrag')}</span>
+                          <p className="text-xs text-gray-400 mt-1">{t('students.import.fileLimit')}</p>
                         </div>
                       )}
                     </div>
@@ -502,12 +502,12 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                     <div className="flex justify-end gap-3">
                       <button onClick={handleClose}
                         className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 text-sm">
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                       <button onClick={handlePreview} disabled={!selectedFile || loading}
                         className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex items-center gap-2">
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                        Preview
+                        {t('students.import.preview')}
                       </button>
                     </div>
                   </div>
@@ -524,13 +524,13 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         <AlertCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-bold text-red-900 dark:text-red-200">
-                            Name-column collision detected — import blocked
+                            {t('students.import.collisionTitle')}
                           </h3>
                           <p className="text-xs text-red-800 dark:text-red-300 mt-1">
-                            Two or more learner-name fields ({collisionError.collidedFields.join(', ')}) are pointing at the same column in your file. If we proceeded, every learner would end up with <code className="font-mono bg-red-100 dark:bg-red-900/40 px-1 rounded">first_name == last_name</code> (this is the bug that produced &ldquo;Kalungi Kalungi&rdquo; in the past).
+                            {t('students.import.collisionBody', { fields: collisionError.collidedFields.join(', '), example: 'Kalungi Kalungi' })}
                           </p>
                           <p className="text-xs text-red-800 dark:text-red-300 mt-2">
-                            Map each name field to the correct source column below, then click <strong>Apply &amp; re-preview</strong>.
+                            {t('students.import.collisionFix', { button: t('students.import.mapping.apply') })}
                           </p>
                         </div>
                       </div>
@@ -555,7 +555,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                   <div className="space-y-5">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        <strong>{previewData.total.toLocaleString()}</strong> rows detected — showing first {previewData.preview.length}:
+                        {t('students.import.rowsDetected', { total: previewData.total.toLocaleString(), shown: previewData.preview.length })}
                       </p>
                     </div>
 
@@ -569,10 +569,10 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                           <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-1">
-                              {missingClasses.length} class{missingClasses.length === 1 ? '' : 'es'} referenced in your file {missingClasses.length === 1 ? 'does' : 'do'} not exist yet
+                              {t('students.import.missingClassesTitle', { count: missingClasses.length })}
                             </p>
                             <p className="text-xs text-orange-800 dark:text-orange-200 mb-2">
-                              Create {missingClasses.length === 1 ? 'it' : 'them'} first so each learner lands in the right class. Without classes, learners will import but have no enrolment.
+                              {t('students.import.missingClassesBody')}
                             </p>
                             <div className="flex flex-wrap gap-1.5 mb-3">
                               {missingClasses.map(c => (
@@ -588,8 +588,8 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                             >
                               {creatingClasses ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                               {creatingClasses
-                                ? 'Creating classes…'
-                                : `Create ${missingClasses.length} class${missingClasses.length === 1 ? '' : 'es'} now`}
+                                ? t('students.import.creatingClasses')
+                                : t('students.import.createClassesNow', { count: missingClasses.length })}
                             </button>
                           </div>
                         </div>
@@ -648,18 +648,18 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                     <div className="flex justify-between">
                       <button onClick={() => setPhase('select')}
                         className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 text-sm">
-                        Back
+                        {t('students.import.back')}
                       </button>
                       <button
                         onClick={handleImport}
                         disabled={missingClasses.length > 0}
                         title={missingClasses.length > 0
-                          ? `Create the ${missingClasses.length} missing class${missingClasses.length === 1 ? '' : 'es'} first`
+                          ? t('students.import.createMissingFirst', { count: missingClasses.length })
                           : undefined}
                         className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2 font-semibold"
                       >
                         <Upload className="w-4 h-4" />
-                        Import {previewData.total.toLocaleString()} Students
+                        {t('students.import.importCount', { count: previewData.total.toLocaleString() })}
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -684,7 +684,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <p className="text-center text-xs text-gray-500">{pct}% complete</p>
+                    <p className="text-center text-xs text-gray-500">{t('students.import.percentComplete', { pct })}</p>
 
                     {/* Live per-row stats — every move of these numbers is
                         one row that just landed (or was skipped) in the
@@ -695,23 +695,23 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
                         <div className="text-lg font-bold text-green-600 dark:text-green-400">{liveStats.imported}</div>
                         <div className="text-[10px] text-green-700 dark:text-green-300 uppercase font-semibold flex items-center justify-center gap-1">
-                          <UserPlus className="w-3 h-3" /> Added
+                          <UserPlus className="w-3 h-3" /> {t('students.import.added')}
                         </div>
                       </div>
                       <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 text-center">
                         <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{liveStats.updated}</div>
                         <div className="text-[10px] text-amber-700 dark:text-amber-300 uppercase font-semibold flex items-center justify-center gap-1">
-                          <UserCheck className="w-3 h-3" /> Updated
+                          <UserCheck className="w-3 h-3" /> {t('students.import.updated')}
                         </div>
                       </div>
                       <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-2 text-center">
                         <div className="text-lg font-bold text-slate-600 dark:text-slate-300">{liveStats.skipped}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Skipped</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">{t('students.import.skipped')}</div>
                       </div>
                       <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
                         <div className="text-lg font-bold text-red-600 dark:text-red-400">{liveStats.failed}</div>
                         <div className="text-[10px] text-red-700 dark:text-red-300 uppercase font-semibold flex items-center justify-center gap-1">
-                          <UserX className="w-3 h-3" /> Failed
+                          <UserX className="w-3 h-3" /> {t('students.import.failed')}
                         </div>
                       </div>
                     </div>
@@ -725,7 +725,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:text-white bg-white dark:bg-slate-700 border border-red-300 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-60"
                       >
                         {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                        {cancelling ? 'Cancelling…' : 'Cancel import'}
+                        {cancelling ? t('students.import.cancelling') : t('students.import.cancelImport')}
                       </button>
                     </div>
                   </div>
@@ -744,10 +744,10 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                         </div>
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                        Import Successful
+                        {t('students.import.successTitle')}
                       </h3>
                       <p className="text-base text-gray-700 dark:text-gray-300 mb-1">
-                        <span className="font-bold text-green-700 dark:text-green-300">{(result.imported + result.updated).toLocaleString()}</span> learner{(result.imported + result.updated) === 1 ? '' : 's'} written to DRAIS
+                        <span className="font-bold text-green-700 dark:text-green-300">{t('students.import.writtenCount', { count: result.imported + result.updated })}</span>
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{result.message}</p>
                     </div>
@@ -757,22 +757,22 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-900/40">
                         <Users className="w-5 h-5 text-blue-500 mx-auto mb-1" />
                         <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{result.total.toLocaleString()}</div>
-                        <div className="text-[11px] text-blue-700 dark:text-blue-300 uppercase tracking-wide font-semibold mt-1">Total</div>
+                        <div className="text-[11px] text-blue-700 dark:text-blue-300 uppercase tracking-wide font-semibold mt-1">{t('students.import.total')}</div>
                       </div>
                       <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-900/40">
                         <UserPlus className="w-5 h-5 text-green-500 mx-auto mb-1" />
                         <div className="text-3xl font-bold text-green-600 dark:text-green-400">{result.imported.toLocaleString()}</div>
-                        <div className="text-[11px] text-green-700 dark:text-green-300 uppercase tracking-wide font-semibold mt-1">Added</div>
+                        <div className="text-[11px] text-green-700 dark:text-green-300 uppercase tracking-wide font-semibold mt-1">{t('students.import.added')}</div>
                       </div>
                       <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/40">
                         <UserCheck className="w-5 h-5 text-amber-500 mx-auto mb-1" />
                         <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">{result.updated.toLocaleString()}</div>
-                        <div className="text-[11px] text-amber-700 dark:text-amber-300 uppercase tracking-wide font-semibold mt-1">Updated</div>
+                        <div className="text-[11px] text-amber-700 dark:text-amber-300 uppercase tracking-wide font-semibold mt-1">{t('students.import.updated')}</div>
                       </div>
                       <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
                         <UserX className="w-5 h-5 text-slate-500 mx-auto mb-1" />
                         <div className="text-3xl font-bold text-slate-600 dark:text-slate-300">{result.skipped.toLocaleString()}</div>
-                        <div className="text-[11px] text-slate-600 dark:text-slate-400 uppercase tracking-wide font-semibold mt-1">Skipped</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400 uppercase tracking-wide font-semibold mt-1">{t('students.import.skipped')}</div>
                       </div>
                     </div>
 
@@ -780,11 +780,11 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-red-900 dark:text-red-100 text-sm flex items-center gap-1.5">
-                            <AlertCircle className="w-4 h-4" /> Errors ({result.errors.length})
+                            <AlertCircle className="w-4 h-4" /> {t('students.import.errorsCount', { count: result.errors.length })}
                           </h4>
                           <button onClick={downloadErrorLog}
                             className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium">
-                            <Download className="w-3.5 h-3.5" /> Download Log
+                            <Download className="w-3.5 h-3.5" /> {t('students.import.downloadLog')}
                           </button>
                         </div>
                         <div className="max-h-32 overflow-y-auto space-y-0.5">
@@ -792,7 +792,7 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                             <p key={i} className="text-xs text-red-700 dark:text-red-300">{e}</p>
                           ))}
                           {result.errors.length > 20 && (
-                            <p className="text-xs text-red-500 italic">... and {result.errors.length - 20} more (download full log)</p>
+                            <p className="text-xs text-red-500 italic">{t('students.import.moreErrors', { count: result.errors.length - 20 })}</p>
                           )}
                         </div>
                       </div>
@@ -803,10 +803,10 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                       <>
                         <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 text-center">
                           <p className="text-sm text-indigo-800 dark:text-indigo-200 font-medium">
-                            {result.imported + result.updated} students imported. Sync to biometric device?
+                            {t('students.import.syncPrompt', { count: result.imported + result.updated })}
                           </p>
                           <button className="mt-2 px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 font-semibold">
-                            Sync to Device
+                            {t('students.import.syncToDevice')}
                           </button>
                         </div>
 
@@ -821,17 +821,17 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                             </div>
                             <div className="flex-1">
                               <h4 className="font-semibold text-purple-900 dark:text-purple-100 text-sm mb-1">
-                                Set or Adjust Fees
+                                {t('students.import.feesTitle')}
                               </h4>
                               <p className="text-xs text-purple-800 dark:text-purple-200 mb-3">
-                                Imported learners may have fees set to 0 or need adjustment. Click below to edit fees in bulk before finalizing.
+                                {t('students.import.feesBody')}
                               </p>
                               <button
                                 onClick={() => setShowFeeEditor(!showFeeEditor)}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors"
                               >
                                 <Upload className="w-4 h-4" />
-                                {showFeeEditor ? 'Hide Fee Editor' : 'Open Fee Editor'}
+                                {showFeeEditor ? t('students.import.hideFeeEditor') : t('students.import.openFeeEditor')}
                               </button>
                             </div>
                           </div>
@@ -846,15 +846,15 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                                 <table className="w-full text-xs">
                                   <thead className="sticky top-0 bg-purple-100 dark:bg-slate-700 border-b border-purple-200 dark:border-slate-600">
                                     <tr>
-                                      <th className="px-3 py-2 text-left font-semibold text-purple-900 dark:text-purple-100">Learner</th>
-                                      <th className="px-3 py-2 text-left font-semibold text-purple-900 dark:text-purple-100">Fees</th>
+                                      <th className="px-3 py-2 text-left font-semibold text-purple-900 dark:text-purple-100">{t('students.import.colLearner')}</th>
+                                      <th className="px-3 py-2 text-left font-semibold text-purple-900 dark:text-purple-100">{t('students.import.colFees')}</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-purple-100 dark:divide-slate-700">
                                     {/* Mock learners - in production this would come from import session data */}
                                     {Array.from({ length: Math.min(5, result.imported) }).map((_, i) => (
                                       <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-700/50">
-                                        <td className="px-3 py-2 text-purple-900 dark:text-purple-100">Learner {i + 1}</td>
+                                        <td className="px-3 py-2 text-purple-900 dark:text-purple-100">{t('students.import.learnerN', { n: i + 1 })}</td>
                                         <td className="px-3 py-2">
                                           <input
                                             type="number"
@@ -877,12 +877,12 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                                 {updatingFees ? (
                                   <>
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    Updating fees…
+                                    {t('students.import.updatingFees')}
                                   </>
                                 ) : (
                                   <>
                                     <CheckCircle className="w-4 h-4" />
-                                    Update Fees Now
+                                    {t('students.import.updateFeesNow')}
                                   </>
                                 )}
                               </button>
@@ -895,12 +895,12 @@ Jane Smith,ADM/002/2026,Form 2,B,F,2009-07-22,+256700000001,Entebbe`;
                     <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 dark:border-slate-700">
                       <button onClick={reset}
                         className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 text-sm font-medium">
-                        Import Another File
+                        {t('students.import.importAnother')}
                       </button>
                       <button onClick={handleClose}
                         className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" />
-                        Done
+                        {t('students.import.done')}
                       </button>
                     </div>
                   </div>
@@ -937,21 +937,22 @@ const MappingEditor: React.FC<{
   onChange: (next: Record<string, string> | null) => void;
   onApply: () => void | Promise<void>;
 }> = ({ mapping, fileHeaders, override, collidedFields, onChange, onApply }) => {
+  const { t } = useI18n();
   const collided = new Set(collidedFields);
   // Canonical fields surfaced in the editor — keep the order stable so
   // the operator can rely on muscle memory across imports.
   const FIELDS = [
-    { key: "name",          label: "Full name (single col)",  optional: true  },
-    { key: "first_name",    label: "First name",              optional: false },
-    { key: "last_name",     label: "Last name (surname)",     optional: false },
-    { key: "other_name",    label: "Other / middle name",     optional: true  },
-    { key: "reg_no",        label: "Admission / reg number",  optional: true  },
-    { key: "class",         label: "Class",                   optional: true  },
-    { key: "section",       label: "Stream / section",        optional: true  },
-    { key: "gender",        label: "Gender",                  optional: true  },
-    { key: "date_of_birth", label: "Date of birth",           optional: true  },
-    { key: "phone",         label: "Phone",                   optional: true  },
-    { key: "address",       label: "Address",                 optional: true  },
+    { key: "name",          optional: true  },
+    { key: "first_name",    optional: false },
+    { key: "last_name",     optional: false },
+    { key: "other_name",    optional: true  },
+    { key: "reg_no",        optional: true  },
+    { key: "class",         optional: true  },
+    { key: "section",       optional: true  },
+    { key: "gender",        optional: true  },
+    { key: "date_of_birth", optional: true  },
+    { key: "phone",         optional: true  },
+    { key: "address",       optional: true  },
   ];
   const effective = (key: string) =>
     (override && override[key]) || mapping[key] || "";
@@ -975,20 +976,20 @@ const MappingEditor: React.FC<{
   return (
     <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3 space-y-2">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Column mapping</p>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('students.import.mapping.title')}</p>
         <div className="flex items-center gap-2">
           {override && (
             <button
               onClick={() => onChange(null)}
               className="text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:underline"
-              title="Restore the server-side auto-detected mapping"
-            >Reset to auto</button>
+              title={t('students.import.mapping.resetHint')}
+            >{t('students.import.mapping.reset')}</button>
           )}
           <button
             onClick={() => { void onApply(); }}
             className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700"
           >
-            Apply &amp; re-preview
+            {t('students.import.mapping.apply')}
           </button>
         </div>
       </div>
@@ -999,10 +1000,10 @@ const MappingEditor: React.FC<{
           return (
             <label key={f.key} className={`flex items-center gap-2 p-2 rounded border ${isCollided ? "border-red-400 bg-red-50/60 dark:bg-red-950/20" : "border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800"}`}>
               <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 w-44 shrink-0">
-                {f.label}
+                {t(`students.import.fields.${f.key}`)}
                 {!f.optional && <span className="text-red-500 ml-0.5">*</span>}
                 {isCollided && (
-                  <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100">collision</span>
+                  <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100">{t('students.import.mapping.collision')}</span>
                 )}
               </span>
               <select
@@ -1010,7 +1011,7 @@ const MappingEditor: React.FC<{
                 onChange={(e) => set(f.key, e.target.value)}
                 className="flex-1 text-xs px-2 py-1 rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
               >
-                <option value="">(unmapped)</option>
+                <option value="">{t('students.import.mapping.unmapped')}</option>
                 {fileHeaders.map(h => (
                   <option key={h} value={h}>{h}</option>
                 ))}

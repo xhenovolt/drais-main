@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T09:08:20.233Z",
-  "last_commit": "3e6e953ac127af7cc57eb98402b160f0f555ea7e",
+  "generated_at": "2026-10-13T09:11:54.210Z",
+  "last_commit": "d65ad733cb8d930e07958c8c8f79b7bdd2969bcd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9228,7 +9228,20 @@
         }
       ],
       "commit": "3e6e953ac1"
+    },
+    {
+      "version": "2.50.47",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate device picker, sync-from-device, bulk and folder photo upload dialogs",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate device picker, sync-from-device, bulk and folder photo upload dialogs"
+        }
+      ],
+      "commit": "d65ad733cb"
     }
   ],
-  "app_version": "2.50.47"
+  "app_version": "2.50.48"
 }

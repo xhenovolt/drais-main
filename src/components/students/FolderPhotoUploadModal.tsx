@@ -130,9 +130,9 @@ const CONFIDENCE_STYLES: Record<Confidence, string> = {
   none:   'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
 };
 
-const CONFIDENCE_LABELS: Record<Confidence, string> = {
-  high: 'High', medium: 'Medium', low: 'Low', none: 'No match',
-};
+// Confidence labels are translated at render: students.folderPhotos.confidence.<level>
+
+
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

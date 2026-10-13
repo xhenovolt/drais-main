@@ -903,6 +903,118 @@
       },
       "pleaseWait": "Uploading — please wait…",
       "cancelUpload": "Cancel Upload"
+    },
+    "import": {
+      "previewFailed": "Preview failed",
+      "previewError": "Preview error: {{message}}",
+      "unknownError": "Unknown error",
+      "noValidFees": "No valid fees to update",
+      "feesUpdated": {
+        "one": "Updated fees for {{count}} learner",
+        "other": "Updated fees for {{count}} learners"
+      },
+      "feesUpdateFailed": "Failed to update fees",
+      "feesUpdateError": "Error updating fees",
+      "noStream": "Import failed: no response stream",
+      "importComplete": "Import complete",
+      "importFailed": "Import failed",
+      "importError": "Import error: {{message}}",
+      "classesCreated": {
+        "one": "Created {{count}} class",
+        "other": "Created {{count}} classes"
+      },
+      "classesFailedSuffix": " ({{count}} failed)",
+      "templateDownloaded": "Template downloaded",
+      "title": "Bulk Import Students",
+      "lastFailed": "Last import attempt failed",
+      "dismissError": "Dismiss error",
+      "help": {
+        "formats": "Formats: CSV (.csv) or Excel (.xlsx)",
+        "required": "Required: {{fields}}",
+        "optional": "Optional: {{fields}}",
+        "duplicates": "Duplicates matched by {{field}} — existing students are updated",
+        "batches": "Rows are processed in batches of 50 with progress tracking"
+      },
+      "dropFile": "Drop the file here...",
+      "clickToUpload": "Click to upload",
+      "orDrag": " or drag and drop",
+      "fileLimit": "CSV or Excel files up to 20MB",
+      "preview": "Preview",
+      "collisionTitle": "Name-column collision detected — import blocked",
+      "collisionBody": "Two or more learner-name fields ({{fields}}) are pointing at the same column in your file. If we proceeded, every learner would end up with the same first and last name ({{example}}).",
+      "collisionFix": "Map each name field to the correct source column below, then click {{button}}.",
+      "rowsDetected": "{{total}} rows detected — showing first {{shown}}:",
+      "missingClassesTitle": {
+        "one": "{{count}} class referenced in your file does not exist yet",
+        "other": "{{count}} classes referenced in your file do not exist yet"
+      },
+      "missingClassesBody": "Create the missing classes first so each learner lands in the right class. Without classes, learners will import but have no enrolment.",
+      "creatingClasses": "Creating classes…",
+      "createClassesNow": {
+        "one": "Create {{count}} class now",
+        "other": "Create {{count}} classes now"
+      },
+      "back": "Back",
+      "createMissingFirst": {
+        "one": "Create the {{count}} missing class first",
+        "other": "Create the {{count}} missing classes first"
+      },
+      "importCount": "Import {{count}} Students",
+      "percentComplete": "{{pct}}% complete",
+      "added": "Added",
+      "updated": "Updated",
+      "skipped": "Skipped",
+      "failed": "Failed",
+      "cancelling": "Cancelling…",
+      "cancelImport": "Cancel import",
+      "successTitle": "Import Successful",
+      "writtenCount": {
+        "one": "{{count}} learner written to DRAIS",
+        "other": "{{count}} learners written to DRAIS"
+      },
+      "total": "Total",
+      "errorsCount": "Errors ({{count}})",
+      "moreErrors": "... and {{count}} more (download full log)",
+      "syncPrompt": {
+        "one": "{{count}} student imported. Sync to biometric device?",
+        "other": "{{count}} students imported. Sync to biometric device?"
+      },
+      "syncToDevice": "Sync to Device",
+      "feesTitle": "Set or Adjust Fees",
+      "feesBody": "Imported learners may have fees set to 0 or need adjustment. Click below to edit fees in bulk before finalizing.",
+      "hideFeeEditor": "Hide Fee Editor",
+      "openFeeEditor": "Open Fee Editor",
+      "colLearner": "Learner",
+      "colFees": "Fees",
+      "learnerN": "Learner {{n}}",
+      "updatingFees": "Updating fees…",
+      "updateFeesNow": "Update Fees Now",
+      "importAnother": "Import Another File",
+      "done": "Done",
+      "mapping": {
+        "title": "Column mapping",
+        "resetHint": "Restore the server-side auto-detected mapping",
+        "reset": "Reset to auto",
+        "apply": "Apply & re-preview",
+        "collision": "collision",
+        "unmapped": "(unmapped)"
+      },
+      "fields": {
+        "name": "Full name (single col)",
+        "first_name": "First name",
+        "last_name": "Last name (surname)",
+        "other_name": "Other / middle name",
+        "reg_no": "Admission / reg number",
+        "class": "Class",
+        "section": "Stream / section",
+        "gender": "Gender",
+        "date_of_birth": "Date of birth",
+        "phone": "Phone",
+        "address": "Address"
+      },
+      "cancelled": "Import cancelled",
+      "downloadTemplate": "Download Template",
+      "downloadLog": "Download Log"
     }
   },
   "common": {
