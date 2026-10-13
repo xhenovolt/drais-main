@@ -1,0 +1,248 @@
+{
+  "/api/parent/learners/a2/attendance": {
+    "success": true,
+    "window_days": 60,
+    "summary": {
+      "total": 40,
+      "present": 33,
+      "absent": 3,
+      "late": 4,
+      "partial": 0,
+      "rate": 82.5
+    },
+    "days": [
+      {
+        "date": "2026-10-12",
+        "status": "present",
+        "arrival": "2026-10-12T07:42:00",
+        "late_minutes": 0
+      },
+      {
+        "date": "2026-10-09",
+        "status": "late",
+        "arrival": "2026-10-09T08:31:00",
+        "late_minutes": 31
+      },
+      {
+        "date": "2026-10-08",
+        "status": "absent",
+        "arrival": null,
+        "late_minutes": null
+      },
+      {
+        "date": "2026-10-07",
+        "status": "present",
+        "arrival": "07:15:00",
+        "late_minutes": 0
+      }
+    ]
+  },
+  "/api/parent/learners/a2/academics": {
+    "success": true,
+    "released_only": true,
+    "subjects": [
+      {
+        "subject": "Mathematics",
+        "results": [
+          {
+            "exam": "Mid Term II Examinations 2026",
+            "score": 78,
+            "grade": "D2"
+          },
+          {
+            "exam": "Beginning of Term",
+            "score": 55,
+            "grade": "C4"
+          }
+        ]
+      },
+      {
+        "subject": "Islamic Religious Education and Qur'an Memorization",
+        "results": [
+          {
+            "exam": "Mid Term II Examinations 2026",
+            "score": 34,
+            "grade": "F9"
+          }
+        ]
+      }
+    ]
+  },
+  "/api/parent/learners/a2/fees": {
+    "success": true,
+    "visible": true,
+    "fees": {
+      "expected": 850000,
+      "paid": 500000,
+      "balance": 350000
+    },
+    "payments": [
+      {
+        "amount": 300000,
+        "method": "Mobile Money",
+        "receipt_no": "RCT-2026-00412",
+        "at": "2026-09-02T10:00:00"
+      },
+      {
+        "amount": 200000,
+        "method": "cash",
+        "receipt_no": null,
+        "at": "2026-08-11T09:00:00"
+      }
+    ]
+  },
+  "/api/parent/learners/a2/receipts": {
+    "success": true,
+    "visible": true,
+    "receipts": [
+      {
+        "id": 1,
+        "receipt_no": "RCT-2026-00412",
+        "method": "Mobile Money",
+        "amount": 300000,
+        "at": "2026-09-02T10:00:00"
+      }
+    ]
+  },
+  "/api/parent/learners/a2/pocket-money": {
+    "success": true,
+    "visible": true,
+    "enabled": true,
+    "balance": 15000,
+    "transactions": [
+      {
+        "type": "deposit",
+        "amount": 20000,
+        "note": "Brought by father",
+        "at": "2026-09-02T10:00:00"
+      },
+      {
+        "type": "withdrawal",
+        "amount": 5000,
+        "note": "Canteen",
+        "at": "2026-09-05T13:00:00"
+      }
+    ]
+  },
+  "/api/parent/learners/a2/reports": {
+    "success": true,
+    "published_only": true,
+    "reports": [
+      {
+        "id": "s1",
+        "type": "End of term",
+        "term": "Term II",
+        "year": "2026",
+        "createdAt": "2026-08-20T10:00:00"
+      }
+    ]
+  },
+  "/api/parent/compare": {
+    "success": true,
+    "window_days": 120,
+    "learners": [
+      {
+        "learner_access_id": "a1",
+        "learner_name": "Kigoonya Yusufu",
+        "school_name": "NAKIFUMA HIGH SCHOOL",
+        "class_name": "S.4 East",
+        "attendance_rate": 92.5,
+        "late_days": 7,
+        "academic_average": 68.4,
+        "fee_balance": 350000,
+        "fees_visible": true
+      },
+      {
+        "learner_access_id": "a2",
+        "learner_name": "Namatovu Mary",
+        "school_name": "AL-BAYAN QUR'AN MEMORIZATION CENTER, NURSERY AND PRIMARY SCHOOL",
+        "class_name": "Primary Five",
+        "attendance_rate": 81,
+        "late_days": 14,
+        "academic_average": 74.9,
+        "fee_balance": 0,
+        "fees_visible": true
+      },
+      {
+        "learner_access_id": "a3",
+        "learner_name": "Abdul Rahman",
+        "school_name": "CITY PARENTS HIGH SCHOOL",
+        "class_name": "S.1",
+        "attendance_rate": null,
+        "late_days": 0,
+        "academic_average": null,
+        "fee_balance": null,
+        "fees_visible": false
+      }
+    ]
+  },
+  "/api/parent/learners": {
+    "success": true,
+    "learner_count": 3,
+    "grouped_by_school": [
+      {
+        "school": "NAKIFUMA HIGH SCHOOL",
+        "learners": [
+          {
+            "learner_access_id": "a1",
+            "learner_name": "Kigoonya Yusufu",
+            "school_name": "NAKIFUMA HIGH SCHOOL",
+            "class_name": "S.4",
+            "stream_name": "East",
+            "relationship": "Father",
+            "summary": {
+              "attendance_today": "late",
+              "fees": {
+                "visible": true,
+                "balance": 350000
+              },
+              "academic_average": 68.4
+            }
+          }
+        ]
+      },
+      {
+        "school": "AL-BAYAN QUR'AN MEMORIZATION CENTER, NURSERY AND PRIMARY SCHOOL",
+        "learners": [
+          {
+            "learner_access_id": "a2",
+            "learner_name": "Namatovu Mary",
+            "school_name": "AL-BAYAN QUR'AN MEMORIZATION CENTER, NURSERY AND PRIMARY SCHOOL",
+            "class_name": "Primary Five",
+            "stream_name": null,
+            "relationship": "Father",
+            "summary": {
+              "attendance_today": "present",
+              "fees": {
+                "visible": true,
+                "balance": 0
+              },
+              "academic_average": 74.9
+            }
+          }
+        ]
+      },
+      {
+        "school": "CITY PARENTS HIGH SCHOOL",
+        "learners": [
+          {
+            "learner_access_id": "a3",
+            "learner_name": "Abdul Rahman",
+            "school_name": "CITY PARENTS HIGH SCHOOL",
+            "class_name": "S.1",
+            "stream_name": null,
+            "relationship": null,
+            "summary": {
+              "attendance_today": null,
+              "fees": {
+                "visible": false,
+                "balance": null
+              },
+              "academic_average": null
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

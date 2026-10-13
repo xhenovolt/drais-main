@@ -165,7 +165,10 @@ body {
   color: var(--foreground);
   font-family: 'Amiri', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
-  word-break: break-word;
+  /* Long unbroken strings may wrap, but only when they overflow on their own line. This used to be
+     `word-break: break-word`, which also lets a squeezed table column shrink to one letter wide and
+     stack a word vertically ("S-c-h-o-o-l" down the page on the parent compare screen). */
+  overflow-wrap: break-word;
 }
 
 /* ─── Tables: scrollable inside their own container ─────────────────────── */

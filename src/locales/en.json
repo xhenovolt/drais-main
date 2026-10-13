@@ -3021,5 +3021,134 @@
       "subtitle": "Pull users & fingerprints from ZKTeco K40",
       "localHint": "The local bridge must be running. Leave blank to use the school's registered device IP."
     }
+  },
+  "parent": {
+    "common": {
+      "switchLanguage": "Change language",
+      "back": "Back",
+      "signOut": "Sign out",
+      "loading": "Loading…",
+      "classNotSet": "Class not set",
+      "hidden": "Not shared",
+      "noData": "No data yet",
+      "networkError": "No connection. Check your internet and try again."
+    },
+    "login": {
+      "title": "Parent Portal",
+      "subtitle": "Follow your children across all their schools, from one phone number.",
+      "phoneLabel": "Your phone number",
+      "sendCode": "Send me a code",
+      "sendFailed": "We could not send the code. Please try again.",
+      "codeNote": "We will text you a 6-digit code if this number is linked to a learner.",
+      "pointAttendance": "See whether your child reached school today",
+      "pointResults": "Read released exam results and reports",
+      "pointFees": "Check fees paid and what is still owed"
+    },
+    "verify": {
+      "title": "Enter your code",
+      "sentTo": "We sent a 6-digit code to {{phone}}.",
+      "sentToYourPhone": "We sent a 6-digit code to your phone.",
+      "codeLabel": "6-digit code",
+      "submit": "Verify and continue",
+      "differentNumber": "Use a different number",
+      "invalidCode": "That code is wrong or has expired. Check it and try again.",
+      "suspended": "This account has been suspended. Please contact your school."
+    },
+    "home": {
+      "title": "My children",
+      "subtitleSchools": "{{learners}} in {{schools}}",
+      "learnerCount": {
+        "one": "{{count}} child",
+        "other": "{{count}} children"
+      },
+      "schoolCount": {
+        "one": "{{count}} school",
+        "other": "{{count}} schools"
+      },
+      "loadFailed": "We could not load your children",
+      "loadFailedHint": "Check your internet connection, then open this page again.",
+      "noneLinked": "No learners are linked to your number yet",
+      "noneLinkedHint": "Ask the school to add this phone number as a parent contact for your child.",
+      "compareTitle": "Compare my children",
+      "compareHint": "Attendance, results and fees side by side",
+      "todayStatus": "Today: {{status}}",
+      "average": "Average mark",
+      "balance": "Fees balance",
+      "footer": "Tap a child to see attendance, results, fees and reports."
+    },
+    "compare": {
+      "title": "Compare my children",
+      "subtitle": "Your own children, side by side.",
+      "subtitleWindow": "Your own children, side by side, over the last {{days}} days.",
+      "needTwo": "You need at least two linked children to compare",
+      "needTwoHint": "When a second child is linked to your number, the comparison will appear here.",
+      "attendance": "Attendance",
+      "average": "Average mark",
+      "lateDays": "Days late",
+      "balance": "Fees balance",
+      "higherBetter": "Higher is better",
+      "lowerBetter": "Lower is better",
+      "balanceHint": "Still to pay",
+      "nothingOwed": "Nothing owed",
+      "best": "Best"
+    },
+    "learner": {
+      "fallbackName": "Learner",
+      "sections": "Sections",
+      "tabs": {
+        "attendance": "Attendance",
+        "academics": "Results",
+        "fees": "Fees",
+        "receipts": "Receipts",
+        "pocketMoney": "Pocket money",
+        "reports": "Reports"
+      },
+      "feesNotShared": "The school does not share this with parents",
+      "feesNotSharedHint": "Please contact the school office for fees information."
+    },
+    "attendance": {
+      "rate": "Attendance rate",
+      "window": "Last {{days}} days",
+      "recentDays": "Recent days",
+      "none": "No attendance has been recorded yet",
+      "arrivedAt": "Arrived at {{time}}",
+      "status": {
+        "present": "Present",
+        "late": "Late",
+        "absent": "Absent",
+        "partial": "Part of the day",
+        "excused": "Excused",
+        "none": "Not recorded yet"
+      }
+    },
+    "academics": {
+      "releasedOnly": "Only results the school has released are shown.",
+      "none": "No results have been released yet",
+      "noneHint": "Results appear here as soon as the school releases them."
+    },
+    "fees": {
+      "balance": "Still to pay",
+      "expected": "Total fees",
+      "paid": "Paid so far",
+      "payments": "Payments",
+      "noPayments": "No payments have been recorded yet"
+    },
+    "receipts": {
+      "none": "No receipts yet"
+    },
+    "pocketMoney": {
+      "balance": "Pocket money balance",
+      "notSetUp": "Pocket money has not been set up for this learner",
+      "none": "No pocket money activity yet",
+      "type": {
+        "deposit": "Money in",
+        "withdrawal": "Money out"
+      }
+    },
+    "reports": {
+      "none": "No reports have been published yet",
+      "noneHint": "Reports appear here once the school publishes them.",
+      "typeReport": "{{type}} report"
+    }
   }
 }

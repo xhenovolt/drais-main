@@ -27,6 +27,13 @@ const mockPath = flag('--mock');
 // --props '{"open":true}' : props for a component that needs them (a dialog needs open/isOpen).
 // Any prop the component calls that is not given (onClose, onSubmit, ...) is a no-op.
 const propsJson = flag('--props') || '{}';
+// --css file.css : the compiled app stylesheet (node scripts/l10n-css.mjs out.css). With it the page
+// is rendered with its real styling, so the screenshots can be used to judge layout and RTL.
+const cssPath = flag('--css');
+// --width N : viewport width in CSS pixels (390 = phone, 1280 = laptop). Default 1000.
+const width = Number(flag('--width') || 1000);
+// --lang ar|en : only render that language (faster when iterating on layout).
+const onlyLang = flag('--lang');
 JSON.parse(propsJson); // fail early on a typo
 // --mock file.json : { "<url substring>": <response body>, ... } — first matching substring wins.
 const mocks = mockPath ? JSON.parse(fs.readFileSync(mockPath, 'utf8')) : {};
@@ -85,12 +92,13 @@ await build({
   loader: { '.json': 'json', '.svg': 'dataurl', '.png': 'dataurl', '.jpg': 'dataurl', '.woff2': 'dataurl' },
 });
 fs.writeFileSync(path.join(outDir, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><title>l10n render</title>
-<style>body{font:14px 'Segoe UI',Tahoma,sans-serif;padding:16px;max-width:900px} input,select,button{font:inherit;margin:2px} svg{width:14px;height:14px}</style>
-</head><body><div id="root"></div><script src="bundle.js"></script></body></html>`);
+${cssPath ? `<link rel="stylesheet" href="app.css">` : `<style>body{font:14px 'Segoe UI',Tahoma,sans-serif;padding:16px;max-width:900px} input,select,button{font:inherit;margin:2px} svg{width:14px;height:14px}</style>`}
+</head><body class="font-sans antialiased"><div id="root" class="min-h-screen bg-slate-50 dark:bg-slate-950"></div><script src="bundle.js"></script></body></html>`);
 
+if (cssPath) fs.copyFileSync(cssPath, path.join(outDir, 'app.css'));
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--allow-file-access-from-files'] });
 const page = await browser.newPage();
-await page.setViewport({ width: 1000, height: 900 });
+await page.setViewport({ width, height: 900, deviceScaleFactor: width < 600 ? 2 : 1 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(`pageerror: ${String(e.message).slice(0, 200)}`));
 page.on('console', (m) => { if (m.type() === 'error' || /\[i18n\] missing key/.test(m.text())) errors.push(`console: ${m.text().slice(0, 200)}`); });
@@ -98,7 +106,9 @@ page.on('console', (m) => { if (m.type() === 'error' || /\[i18n\] missing key/.t
 await page.setRequestInterception(true);
 page.on('request', (r) => {
   const url = r.url();
-  if (url.startsWith('file://') && /\/(index\.html|bundle\.js)(\?|$)/.test(url)) return r.continue();
+  if (url.startsWith('file://') && /\/(index\.html|bundle\.js|app\.css)(\?|$)/.test(url)) return r.continue();
+  const staticHit = url.match(/\/(fonts|icons|images)\/[^?]+/);
+  if (staticHit && fs.existsSync(path.join(ROOT, 'public', staticHit[0]))) return r.respond({ status: 200, body: fs.readFileSync(path.join(ROOT, 'public', staticHit[0])) });
   if (url.startsWith('data:') || url.startsWith('blob:')) return r.continue();
   const apiPath = url.replace(/^file:\/\/\/?[A-Za-z]:/, '').replace(/^https?:\/\/[^/]+/, '');
   requested.add(apiPath.split('?')[0]);
@@ -122,13 +132,13 @@ async function snapshot(lang) {
     }
     return { texts: [...out], dir: document.documentElement.dir, lang: document.documentElement.lang, crashed: document.getElementById('__render_error')?.textContent ?? null };
   });
-  await page.screenshot({ path: path.join(outDir, `${lang}.png`), fullPage: true });
+  await page.screenshot({ path: path.join(outDir, `${lang}-${width}.png`), fullPage: true });
   return data;
 }
 
-const en = await snapshot('en');
-const ar = await snapshot('ar');
-const enAgain = await snapshot('en');
+const en = onlyLang === 'ar' ? await snapshot('ar') : await snapshot('en');
+const ar = onlyLang === 'en' ? en : await snapshot('ar');
+const enAgain = onlyLang ? en : await snapshot('en');
 await browser.close();
 
 const KEYLIKE = /^(\[[a-z-]+\] )?[a-z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+){1,5}$/;
@@ -149,4 +159,4 @@ console.log(`  Errors / missing-key warnings: ${errors.length ? '\n     ' + [...
 console.log(`  Requests the page made (answered with ${mockPath ? 'mock data or ' : ''}an empty success): ${[...requested].slice(0, 30).join(', ') || 'none'}`);
 console.log(`  Screenshots (unstyled): ${path.join(outDir, 'en.png')} , ${path.join(outDir, 'ar.png')}`);
 fs.writeFileSync(path.join(outDir, 'result.json'), JSON.stringify({ target, en, ar, latinOnly, leakedKeys, restores: same, errors }, null, 1));
-process.exit(leakedKeys.length || ar.crashed || en.crashed || !same || ar.dir !== 'rtl' ? 1 : 0);
+process.exit(leakedKeys.length || ar.crashed || en.crashed || !same || (!onlyLang && ar.dir !== 'rtl') ? 1 : 0);
