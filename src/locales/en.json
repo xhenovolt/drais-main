@@ -1752,7 +1752,23 @@
       "none": "No learners found",
       "drceFailed": "Could not open in DRCE editor",
       "drceTooltip": "Open your ID card layout in the universal DRCE editor (beta — both editors stay usable)",
-      "drceOpen": "Open in DRCE editor"
+      "drceOpen": "Open in DRCE editor",
+      "print": {
+        "title": "Print ID Cards",
+        "cards": {
+          "one": "{{count}} card",
+          "other": "{{count}} cards"
+        },
+        "pages": {
+          "one": "{{count}} page",
+          "other": "{{count}} pages"
+        },
+        "perSheet": "3 × 3 per A4",
+        "print": "Print",
+        "none": "No learners selected. Close this window and select learners first.",
+        "pageOf": "Page {{page}} of {{total}}",
+        "header": "{{school}} — Student ID Cards"
+      }
     },
     "learner": {
       "label": {
@@ -2016,6 +2032,53 @@
       "forever": "Forever",
       "warning": "Delete Forever is permanent and cascades to fees, enrollment, results, and attendance.",
       "intro": "Soft-deleted learners live here and stay fully recoverable. Restore brings a learner back exactly as they were; Delete Forever removes them and every linked record permanently."
+    },
+    "enrollBulk": {
+      "noneSelected": "No students selected",
+      "noneFound": "No students found",
+      "studyModeRequired": "Study mode is required",
+      "curriculumRequired": "Curriculum is required",
+      "programRequired": "Program is required",
+      "title": "Bulk Enrollment",
+      "subtitle": {
+        "one": "Enroll {{count}} student at once",
+        "other": "Enroll {{count}} students at once"
+      },
+      "loading": "Loading student details...",
+      "noneLoaded": "No students loaded",
+      "returnToList": "Return to student list",
+      "steps": {
+        "review": "Review Students"
+      },
+      "reviewTitle": "Review Selected Students",
+      "reviewHint": {
+        "one": "{{count}} student selected for bulk enrollment. All will be enrolled together.",
+        "other": "{{count}} students selected for bulk enrollment. All will be enrolled together."
+      },
+      "continue": "Continue",
+      "programHint": {
+        "one": "Select the academic program for all {{count}} student.",
+        "other": "Select the academic program for all {{count}} students."
+      },
+      "confirmTitle": "Confirm Bulk Enrollment",
+      "toEnroll": "Students to enroll:",
+      "row": {
+        "decision": "Decision:",
+        "academicYear": "Academic Year:",
+        "term": "Term:",
+        "class": "Class:",
+        "stream": "Stream:",
+        "studyMode": "Study Mode:",
+        "curriculum": "Curriculum:",
+        "program": "Program:"
+      },
+      "closeNote": "All students' previous active enrollments will be closed and marked as completed.",
+      "enrollingN": "Enrolling {{count}}…",
+      "enrollAll": "Enroll All {{count}}",
+      "doneTitle": "Bulk Enrollment Complete!",
+      "doneBody": "All {{count}} students have been successfully enrolled in {{className}}.",
+      "returnToListCap": "Return to Student List",
+      "viewEnrollments": "View Enrollments"
     }
   },
   "common": {

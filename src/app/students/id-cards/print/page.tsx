@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { Printer, Loader2, ArrowLeft, X } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { IDCardPreview, IDCardStudent, IDCardMeta } from '@/components/students/IDCardPreview';
 import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/lib/idCardConfig';
 
@@ -19,6 +20,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export default function IDCardPrintPage() {
+  const { t } = useI18n();
   const [config,   setConfig]   = useState<IDCardConfig>(DEFAULT_ID_CARD_CONFIG);
   const [meta,     setMeta]     = useState<IDCardMeta>({ schoolName: 'School', schoolLogo: '' });
   const [students, setStudents] = useState<IDCardStudent[]>([]);
@@ -70,9 +72,9 @@ export default function IDCardPrintPage() {
             <X className="w-4 h-4" />
           </button>
           <div>
-            <p className="text-sm font-bold text-slate-800">Print ID Cards</p>
+            <p className="text-sm font-bold text-slate-800">{t('students.idCards.print.title')}</p>
             <p className="text-xs text-slate-500">
-              {students.length} card{students.length !== 1 ? 's' : ''} · {pages.length} page{pages.length !== 1 ? 's' : ''} · 3 × 3 per A4
+              {t('students.idCards.print.cards', { count: students.length })} · {t('students.idCards.print.pages', { count: pages.length })} · {t('students.idCards.print.perSheet')}
             </p>
           </div>
         </div>
@@ -82,7 +84,7 @@ export default function IDCardPrintPage() {
           className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md"
         >
           <Printer className="w-4 h-4" />
-          Print
+          {t('students.idCards.print.print')}
         </button>
       </div>
 
@@ -113,7 +115,7 @@ export default function IDCardPrintPage() {
       <div className="pt-16 pb-8 px-4 space-y-8 bg-slate-100 min-h-screen" id="print-root">
         {pages.length === 0 && (
           <div className="flex items-center justify-center h-64">
-            <p className="text-slate-500">No learners selected. Close this window and select learners first.</p>
+            <p className="text-slate-500">{t('students.idCards.print.none')}</p>
           </div>
         )}
 
@@ -132,8 +134,8 @@ export default function IDCardPrintPage() {
             {/* Page header (only on first page, hidden in print if desired) */}
             {pi === 0 && (
               <div className="no-print mb-4 flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="text-xs text-slate-400">Page {pi + 1} of {pages.length}</span>
-                <span className="text-xs text-slate-400">{meta.schoolName} — Student ID Cards</span>
+                <span className="text-xs text-slate-400">{t('students.idCards.print.pageOf', { page: pi + 1, total: pages.length })}</span>
+                <span className="text-xs text-slate-400">{t('students.idCards.print.header', { school: meta.schoolName })}</span>
               </div>
             )}
 

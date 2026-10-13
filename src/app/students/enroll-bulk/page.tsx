@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import clsx from 'clsx';
 
 // ──────────────────────────────────────────────────────── Types ────
@@ -62,7 +63,7 @@ const DECISION_CFG: Record<Decision, {
   enrollmentType: 'new' | 'continuing' | 'repeat';
 }> = {
   promote: {
-    icon: TrendingUp, label: 'Promote', desc: 'Move up to next class',
+    icon: TrendingUp, label: '', desc: '',
     activeBg: 'bg-emerald-50 dark:bg-emerald-900/20',
     activeBorder: 'border-emerald-500',
     activeText: 'text-emerald-700 dark:text-emerald-300',
@@ -70,7 +71,7 @@ const DECISION_CFG: Record<Decision, {
     enrollmentType: 'continuing',
   },
   continue: {
-    icon: Minus, label: 'Continue', desc: 'Same class, new term',
+    icon: Minus, label: '', desc: '',
     activeBg: 'bg-indigo-50 dark:bg-indigo-900/20',
     activeBorder: 'border-indigo-500',
     activeText: 'text-indigo-700 dark:text-indigo-300',
@@ -78,7 +79,7 @@ const DECISION_CFG: Record<Decision, {
     enrollmentType: 'continuing',
   },
   demote: {
-    icon: TrendingDown, label: 'Demote', desc: 'Repeat lower class',
+    icon: TrendingDown, label: '', desc: '',
     activeBg: 'bg-amber-50 dark:bg-amber-900/20',
     activeBorder: 'border-amber-500',
     activeText: 'text-amber-700 dark:text-amber-300',
@@ -86,7 +87,7 @@ const DECISION_CFG: Record<Decision, {
     enrollmentType: 'repeat',
   },
   first_time: {
-    icon: User, label: 'First Time', desc: 'No previous enrollment',
+    icon: User, label: '', desc: '',
     activeBg: 'bg-purple-50 dark:bg-purple-900/20',
     activeBorder: 'border-purple-500',
     activeText: 'text-purple-700 dark:text-purple-300',
@@ -97,6 +98,7 @@ const DECISION_CFG: Record<Decision, {
 
 // ──────────────────────────────────── Step Indicator ────────────────────
 function StepIndicator({ step, total }: { step: number; total: number }) {
+  const { digits } = useI18n();
   return (
     <div className="flex items-center gap-1">
       {Array.from({ length: total }).map((_, i) => (
@@ -107,7 +109,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
             i + 1 === step ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-900' :
             'bg-slate-200 dark:bg-slate-700 text-slate-400',
           )}>
-            {i + 1 < step ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+            {i + 1 < step ? <CheckCircle2 className="w-4 h-4" /> : digits(i + 1)}
           </div>
           {i < total - 1 && (
             <div className={clsx('h-0.5 w-8', i + 1 < step ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700')} />
@@ -120,6 +122,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
 
 export default function BulkEnrollPage() {
   const router = useRouter();
+  const { t, rich, digits, formatNumber } = useI18n();
   const searchParams = useSearchParams();
 
   // State
@@ -185,7 +188,7 @@ export default function BulkEnrollPage() {
   useEffect(() => {
     const studentsParam = searchParams.get('students');
     if (!studentsParam) {
-      toast.error('No students selected');
+      toast.error(t('students.enrollBulk.noneSelected'));
       router.push('/students/list');
       return;
     }
@@ -219,7 +222,7 @@ export default function BulkEnrollPage() {
           }));
         setStudents(loaded);
         if (loaded.length === 0) {
-          toast.error('No students found');
+          toast.error(t('students.enrollBulk.noneFound'));
           router.push('/students/list');
         }
       } finally {
@@ -278,7 +281,7 @@ export default function BulkEnrollPage() {
   // Quick-add handlers
   const handleQuickAddStudyMode = async () => {
     const name = newStudyModeName.trim();
-    if (!name) { toast.error('Study mode name is required'); return; }
+    if (!name) { toast.error(t('students.enroll.toast.studyModeNameRequired')); return; }
     setIsSavingStudyMode(true);
     try {
       const res = await fetch('/api/study-modes', {
@@ -287,14 +290,14 @@ export default function BulkEnrollPage() {
         body: JSON.stringify({ name }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to create study mode');
+      if (!res.ok) throw new Error(json.error || t('students.enroll.toast.studyModeCreateFailed'));
       await mutateStudyModes();
       setSelectedStudyMode(String(json.data.id));
       setIsAddingStudyMode(false);
       setNewStudyModeName('');
-      toast.success(`Study mode "${name}" created`);
+      toast.success(t('students.enroll.toast.studyModeCreated', { name }));
     } catch (e: any) {
-      toast.error(e.message || 'Failed to create study mode');
+      toast.error(e.message || t('students.enroll.toast.studyModeCreateFailed'));
     } finally {
       setIsSavingStudyMode(false);
     }
@@ -303,7 +306,7 @@ export default function BulkEnrollPage() {
   const handleQuickAddCurriculum = async () => {
     const code = newCurriculumCode.trim();
     const name = newCurriculumName.trim();
-    if (!code || !name) { toast.error('Code and name are required'); return; }
+    if (!code || !name) { toast.error(t('students.enroll.toast.codeNameRequired')); return; }
     setIsSavingCurriculum(true);
     try {
       const res = await fetch('/api/curriculums', {
@@ -312,15 +315,15 @@ export default function BulkEnrollPage() {
         body: JSON.stringify({ code, name }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to create curriculum');
+      if (!res.ok) throw new Error(json.error || t('students.enroll.toast.curriculumCreateFailed'));
       await mutateCurriculums();
       setSelectedCurriculum(String(json.id));
       setIsAddingCurriculum(false);
       setNewCurriculumCode('');
       setNewCurriculumName('');
-      toast.success(`Curriculum "${name}" created`);
+      toast.success(t('students.enroll.toast.curriculumCreated', { name }));
     } catch (e: any) {
-      toast.error(e.message || 'Failed to create curriculum');
+      toast.error(e.message || t('students.enroll.toast.curriculumCreateFailed'));
     } finally {
       setIsSavingCurriculum(false);
     }
@@ -328,7 +331,7 @@ export default function BulkEnrollPage() {
 
   const handleQuickAddProgram = async () => {
     const name = newProgramName.trim();
-    if (!name) { toast.error('Program name is required'); return; }
+    if (!name) { toast.error(t('students.enroll.toast.programNameRequired')); return; }
     setIsSavingProgram(true);
     try {
       const res = await fetch('/api/programs', {
@@ -337,14 +340,14 @@ export default function BulkEnrollPage() {
         body: JSON.stringify({ name }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to create program');
+      if (!res.ok) throw new Error(json.error || t('students.enroll.toast.programCreateFailed'));
       await mutatePrograms();
       setSelectedProgram(String(json.data.id));
       setIsAddingProgram(false);
       setNewProgramName('');
-      toast.success(`Program "${name}" created`);
+      toast.success(t('students.enroll.toast.programCreated', { name }));
     } catch (e: any) {
-      toast.error(e.message || 'Failed to create program');
+      toast.error(e.message || t('students.enroll.toast.programCreateFailed'));
     } finally {
       setIsSavingProgram(false);
     }
@@ -353,21 +356,21 @@ export default function BulkEnrollPage() {
   // Bulk enrollment submit
   const handleBulkEnroll = useCallback(async () => {
     if (!selectedClass || !selectedTerm || !selectedAcademicYear || !decision) {
-      toast.error('Please complete all required fields');
+      toast.error(t('students.enroll.toast.completeRequired'));
       return;
     }
     if (!selectedStudyMode) {
-      toast.error('Study mode is required');
+      toast.error(t('students.enrollBulk.studyModeRequired'));
       setStep(3);
       return;
     }
     if (!selectedCurriculum) {
-      toast.error('Curriculum is required');
+      toast.error(t('students.enrollBulk.curriculumRequired'));
       setStep(3);
       return;
     }
     if (!selectedProgram) {
-      toast.error('Program is required');
+      toast.error(t('students.enrollBulk.programRequired'));
       setStep(4);
       return;
     }
@@ -392,11 +395,11 @@ export default function BulkEnrollPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Enrollment failed');
+      if (!res.ok) throw new Error(data.message || data.error || t('students.enroll.toast.enrollFailed'));
       toast.success(`${data.data?.successful ?? 0} students enrolled successfully!`);
       setStep(6);
     } catch (err: any) {
-      toast.error(err.message || 'Enrollment failed');
+      toast.error(err.message || t('students.enroll.toast.enrollFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -404,7 +407,7 @@ export default function BulkEnrollPage() {
       selectedStudyMode, selectedCurriculum, selectedProgram, enrollmentType, decision]);
 
   const TOTAL_STEPS = 5;
-  const STEP_LABELS = ['Review Students', 'Decision & Class', 'Mode & Curriculum', 'Program', 'Confirm'];
+  const STEP_LABELS = [t('students.enrollBulk.steps.review'), t('students.enroll.steps.decision'), t('students.enroll.steps.mode'), t('students.enroll.steps.program'), t('students.enroll.steps.confirm')];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 py-8 px-4">
@@ -422,8 +425,8 @@ export default function BulkEnrollPage() {
             <Users className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Bulk Enrollment</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Enroll {students.length} student{students.length !== 1 ? 's' : ''} at once</p>
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('students.enrollBulk.title')}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('students.enrollBulk.subtitle', { count: students.length })}</p>
           </div>
         </div>
 
@@ -438,14 +441,14 @@ export default function BulkEnrollPage() {
         {loadingStudents ? (
           <div className="text-center py-20">
             <Loader className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-3" />
-            <p className="text-slate-500 dark:text-slate-400">Loading student details...</p>
+            <p className="text-slate-500 dark:text-slate-400">{t('students.enrollBulk.loading')}</p>
           </div>
         ) : students.length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-2xl">
             <AlertCircle className="w-10 h-10 text-amber-600 mx-auto mb-3" />
-            <p className="text-slate-600 dark:text-slate-300 font-medium">No students loaded</p>
+            <p className="text-slate-600 dark:text-slate-300 font-medium">{t('students.enrollBulk.noneLoaded')}</p>
             <Link href="/students/list" className="text-sm text-indigo-600 hover:underline mt-2 inline-block">
-              Return to student list
+              {t('students.enrollBulk.returnToList')}
             </Link>
           </div>
         ) : (
@@ -456,10 +459,10 @@ export default function BulkEnrollPage() {
               <div className="card-glass p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Users className="w-5 h-5 text-indigo-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Review Selected Students</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('students.enrollBulk.reviewTitle')}</h2>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {students.length} student{students.length !== 1 ? 's' : ''} selected for bulk enrollment. All will be enrolled together.
+                  {t('students.enrollBulk.reviewHint', { count: students.length })}
                 </p>
 
                 {/* Student list */}
@@ -475,7 +478,7 @@ export default function BulkEnrollPage() {
                           {student.first_name} {student.last_name}
                         </p>
                         {student.admission_no && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">#{student.admission_no}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">#{digits(student.admission_no)}</p>
                         )}
                       </div>
                     </div>
@@ -487,7 +490,7 @@ export default function BulkEnrollPage() {
                     onClick={() => setStep(2)}
                     className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2"
                   >
-                    Continue <ArrowLeft className="w-4 h-4 rotate-180" />
+                    {t('students.enrollBulk.continue')} <ArrowLeft className="w-4 h-4 rotate-180 rtl-flip" />
                   </button>
                 </div>
               </div>
@@ -498,13 +501,13 @@ export default function BulkEnrollPage() {
               <div className="card-glass p-6 space-y-5">
                 <div className="flex items-center gap-2 mb-1">
                   <BarChart2 className="w-5 h-5 text-indigo-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Enrollment Decision</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('students.enroll.step2.title')}</h2>
                 </div>
 
                 {/* Decision panel */}
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
-                    Academic Decision <span className="text-rose-500">*</span>
+                    {t('students.enroll.step2.decision')} <span className="text-rose-500">*</span>
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(Object.keys(DECISION_CFG) as Decision[]).map(key => {
@@ -523,14 +526,14 @@ export default function BulkEnrollPage() {
                           )}
                         >
                           <Icon className={clsx('w-5 h-5 mb-1.5', active ? cfg.activeIcon : 'text-slate-400')} />
-                          <span className={clsx('text-xs font-bold', active ? cfg.activeText : 'text-slate-600 dark:text-slate-400')}>{cfg.label}</span>
-                          <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">{cfg.desc}</span>
+                          <span className={clsx('text-xs font-bold', active ? cfg.activeText : 'text-slate-600 dark:text-slate-400')}>{t(`students.enroll.decision.${key}.label`)}</span>
+                          <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">{t(`students.enroll.decision.${key}.desc`)}</span>
                         </button>
                       );
                     })}
                   </div>
                   {!decision && (
-                    <p className="text-xs text-rose-500 mt-1.5">Please select a decision to continue.</p>
+                    <p className="text-xs text-rose-500 mt-1.5">{t('students.enroll.step2.selectDecision')}</p>
                   )}
                 </div>
 
@@ -539,57 +542,57 @@ export default function BulkEnrollPage() {
                   {currentTerm && (
                     <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 text-xs text-emerald-700 dark:text-emerald-400">
                       <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                      Current term auto-selected: <strong className="ml-1">{currentTerm.academic_year_name} · {currentTerm.name}</strong>
+                      {t('students.enroll.step2.autoSelected')} <strong className="ms-1">{currentTerm.academic_year_name} · {currentTerm.name}</strong>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Academic Year <span className="text-rose-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.enroll.field.academicYear')} <span className="text-rose-500">*</span></label>
                     <select value={selectedAcademicYear} onChange={e => { setSelectedAcademicYear(e.target.value); setSelectedTerm(''); }}
                       className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-indigo-500 transition">
-                      <option value="">Select year…</option>
+                      <option value="">{t('students.enroll.select.year')}</option>
                       {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Term <span className="text-rose-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.enroll.field.term')} <span className="text-rose-500">*</span></label>
                     <select value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-indigo-500 transition">
-                      <option value="">Select term…</option>
+                      <option value="">{t('students.enroll.select.term')}</option>
                       {filteredTerms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                      Class <span className="text-rose-500">*</span>
+                      {t('students.enroll.field.class')} <span className="text-rose-500">*</span>
                     </label>
                     <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setSelectedStream(''); }}
                       className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-indigo-500 transition">
-                      <option value="">Select class…</option>
+                      <option value="">{t('students.enroll.select.class')}</option>
                       {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Stream <span className="text-slate-400 font-normal">(optional)</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.enroll.field.stream')} <span className="text-slate-400 font-normal">{t('students.enroll.optional')}</span></label>
                     <select value={selectedStream} onChange={e => setSelectedStream(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-indigo-500 transition">
-                      <option value="">No stream</option>
+                      <option value="">{t('students.enroll.select.noStream')}</option>
                       {streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
                 </div>
 
                 <div className="flex justify-between pt-2">
-                  <button onClick={() => setStep(1)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
+                  <button onClick={() => setStep(1)} className="btn-secondary px-5 py-2 rounded-xl text-sm">{t('students.enroll.back')}</button>
                   <button
                     onClick={() => setStep(3)}
                     disabled={!selectedTerm || !selectedClass || !selectedAcademicYear || !decision}
                     className="btn-primary px-6 py-2 rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Next <ArrowLeft className="w-4 h-4 rotate-180" />
+                    {t('students.enroll.next')} <ArrowLeft className="w-4 h-4 rotate-180 rtl-flip" />
                   </button>
                 </div>
               </div>
@@ -600,26 +603,26 @@ export default function BulkEnrollPage() {
               <div className="card-glass p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Layers className="w-5 h-5 text-indigo-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Study Mode & Curriculum</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('students.enroll.step3.title')}</h2>
                 </div>
 
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700 text-xs text-rose-700 dark:text-rose-400 font-semibold">
                   <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                  Both study mode and curriculum are <strong className="mx-1">required</strong>. Enrollment is blocked without them.
+                  <span>{rich('students.enroll.step3.bothRequired', { required: <strong>{t('students.enroll.step3.required')}</strong> })}</span>
                 </div>
 
                 {/* Study Mode Section */}
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
-                    Study Mode <span className="text-rose-500">*</span>
+                    {t('students.enroll.field.studyMode')} <span className="text-rose-500">*</span>
                   </p>
 
                   {studyModes.length === 0 && !isAddingStudyMode ? (
                     <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-center justify-between">
-                      <p className="text-sm text-amber-700 dark:text-amber-400">No study modes configured yet.</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-400">{t('students.enroll.step3.noStudyModes')}</p>
                       <button onClick={() => setIsAddingStudyMode(true)}
                         className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline">
-                        <Plus className="w-4 h-4" /> Add Study Mode
+                        <Plus className="w-4 h-4" /> {t('students.enroll.step3.addStudyMode')}
                       </button>
                     </div>
                   ) : isAddingStudyMode ? (
@@ -627,7 +630,7 @@ export default function BulkEnrollPage() {
                       <input autoFocus value={newStudyModeName}
                         onChange={e => setNewStudyModeName(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleQuickAddStudyMode(); if (e.key === 'Escape') { setIsAddingStudyMode(false); setNewStudyModeName(''); } }}
-                        placeholder="e.g. Day, Boarding…"
+                        placeholder={t('students.enroll.step3.studyModePlaceholder')}
                         className="flex-1 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                         disabled={isSavingStudyMode} />
                       <button onClick={handleQuickAddStudyMode} disabled={isSavingStudyMode || !newStudyModeName.trim()}
@@ -649,22 +652,22 @@ export default function BulkEnrollPage() {
                               key={sm.id}
                               onClick={() => setSelectedStudyMode(String(sm.id))}
                               className={clsx(
-                                'relative py-4 px-4 rounded-2xl border-2 text-sm font-semibold transition-all text-left',
+                                'relative py-4 px-4 rounded-2xl border-2 text-sm font-semibold transition-all text-start',
                                 active
                                   ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 shadow-md'
                                   : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-indigo-300',
                               )}
                             >
-                              {active && <CheckCircle2 className="w-4 h-4 text-indigo-500 absolute top-2.5 right-2.5" />}
+                              {active && <CheckCircle2 className="w-4 h-4 text-indigo-500 absolute top-2.5 end-2.5" />}
                               <span className="block">{sm.name}</span>
-                              {sm.is_default ? <span className="block text-[10px] font-normal text-slate-400 mt-0.5">Default</span> : null}
+                              {sm.is_default ? <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{t('students.enroll.default')}</span> : null}
                             </button>
                           );
                         })}
                       </div>
                       <button onClick={() => setIsAddingStudyMode(true)}
                         className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-2">
-                        <Plus className="w-3.5 h-3.5" /> Add study mode
+                        <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step3.addStudyModeLink')}
                       </button>
                     </>
                   )}
@@ -673,15 +676,15 @@ export default function BulkEnrollPage() {
                 {/* Curriculum Section */}
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-700/60">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
-                    Curriculum <span className="text-rose-500">*</span>
+                    {t('students.enroll.field.curriculum')} <span className="text-rose-500">*</span>
                   </p>
 
                   {curriculums.length === 0 && !isAddingCurriculum ? (
                     <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-center justify-between">
-                      <p className="text-sm text-amber-700 dark:text-amber-400">No curriculums configured yet.</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-400">{t('students.enroll.step3.noCurriculums')}</p>
                       <button onClick={() => setIsAddingCurriculum(true)}
                         className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline">
-                        <Plus className="w-4 h-4" /> Add Curriculum
+                        <Plus className="w-4 h-4" /> {t('students.enroll.step3.addCurriculum')}
                       </button>
                     </div>
                   ) : isAddingCurriculum ? (
@@ -689,13 +692,13 @@ export default function BulkEnrollPage() {
                       <div className="flex items-center gap-2">
                         <input autoFocus value={newCurriculumCode}
                           onChange={e => setNewCurriculumCode(e.target.value)}
-                          placeholder="Code (e.g. UNEB)"
+                          placeholder={t('students.enroll.step3.codePlaceholder')}
                           className="w-24 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                           disabled={isSavingCurriculum} />
                         <input value={newCurriculumName}
                           onChange={e => setNewCurriculumName(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') handleQuickAddCurriculum(); if (e.key === 'Escape') { setIsAddingCurriculum(false); setNewCurriculumCode(''); setNewCurriculumName(''); } }}
-                          placeholder="Name (e.g. National Curriculum)"
+                          placeholder={t('students.enroll.step3.namePlaceholder')}
                           className="flex-1 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                           disabled={isSavingCurriculum} />
                         <button onClick={handleQuickAddCurriculum} disabled={isSavingCurriculum || !newCurriculumCode.trim() || !newCurriculumName.trim()}
@@ -707,7 +710,7 @@ export default function BulkEnrollPage() {
                           <XIcon className="w-4 h-4" />
                         </button>
                       </div>
-                      <p className="text-xs text-slate-400">Press Enter to save · Esc to cancel</p>
+                      <p className="text-xs text-slate-400">{t('students.enroll.enterEsc')}</p>
                     </div>
                   ) : (
                     <>
@@ -719,13 +722,13 @@ export default function BulkEnrollPage() {
                               key={cur.id}
                               onClick={() => setSelectedCurriculum(String(cur.id))}
                               className={clsx(
-                                'relative py-4 px-4 rounded-2xl border-2 text-sm font-semibold transition-all text-left',
+                                'relative py-4 px-4 rounded-2xl border-2 text-sm font-semibold transition-all text-start',
                                 active
                                   ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 shadow-md'
                                   : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-300',
                               )}
                             >
-                              {active && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute top-2.5 right-2.5" />}
+                              {active && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute top-2.5 end-2.5" />}
                               <span className="block">{cur.name}</span>
                               <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{cur.code}</span>
                             </button>
@@ -734,22 +737,22 @@ export default function BulkEnrollPage() {
                       </div>
                       <button onClick={() => setIsAddingCurriculum(true)}
                         className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-2">
-                        <Plus className="w-3.5 h-3.5" /> Add curriculum
+                        <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step3.addCurriculumLink')}
                       </button>
                     </>
                   )}
                 </div>
 
                 <div className="flex justify-between pt-2">
-                  <button onClick={() => setStep(2)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
+                  <button onClick={() => setStep(2)} className="btn-secondary px-5 py-2 rounded-xl text-sm">{t('students.enroll.back')}</button>
                   <button
                     onClick={() => {
                       if (!selectedStudyMode && studyModes.length > 0) {
-                        toast.error('Study mode is required — select one to continue');
+                        toast.error(t('students.enroll.toast.studyModeContinue'));
                         return;
                       }
                       if (!selectedCurriculum && curriculums.length > 0) {
-                        toast.error('Curriculum is required — select one to continue');
+                        toast.error(t('students.enroll.toast.curriculumContinue'));
                         return;
                       }
                       setStep(4);
@@ -757,7 +760,7 @@ export default function BulkEnrollPage() {
                     disabled={studyModes.length === 0 || curriculums.length === 0}
                     className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Next <ArrowLeft className="w-4 h-4 rotate-180" />
+                    {t('students.enroll.next')} <ArrowLeft className="w-4 h-4 rotate-180 rtl-flip" />
                   </button>
                 </div>
               </div>
@@ -768,20 +771,20 @@ export default function BulkEnrollPage() {
               <div className="card-glass p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Program</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('students.enroll.field.program')}</h2>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Select the academic program for all {students.length} student{students.length !== 1 ? 's' : ''}.
+                  {t('students.enrollBulk.programHint', { count: students.length })}
                 </p>
 
                 {programs.length === 0 && !isAddingProgram ? (
                   <div className="flex flex-col items-start gap-3 py-2">
-                    <p className="text-sm text-slate-400 italic">No programs configured yet.</p>
+                    <p className="text-sm text-slate-400 italic">{t('students.enroll.step4.none')}</p>
                     <button
                       onClick={() => setIsAddingProgram(true)}
                       className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:underline"
                     >
-                      <Plus className="w-4 h-4" /> Quick Add Program
+                      <Plus className="w-4 h-4" /> {t('students.enroll.step4.quickAdd')}
                     </button>
                   </div>
                 ) : isAddingProgram ? (
@@ -792,7 +795,7 @@ export default function BulkEnrollPage() {
                         value={newProgramName}
                         onChange={e => setNewProgramName(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleQuickAddProgram(); if (e.key === 'Escape') { setIsAddingProgram(false); setNewProgramName(''); } }}
-                        placeholder="e.g. Secular Studies, Tahfiz..."
+                        placeholder={t('students.enroll.step4.placeholder')}
                         className="flex-1 px-3 py-2 text-sm border rounded-xl border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
                         disabled={isSavingProgram}
                       />
@@ -810,7 +813,7 @@ export default function BulkEnrollPage() {
                         <XIcon className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-xs text-slate-400">Press Enter to save · Esc to cancel</p>
+                    <p className="text-xs text-slate-400">{t('students.enroll.enterEsc')}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -819,7 +822,7 @@ export default function BulkEnrollPage() {
                       return (
                         <button key={prog.id} onClick={() => setSelectedProgram(String(prog.id))}
                           className={clsx(
-                            'w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all',
+                            'w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-start transition-all',
                             active ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-200',
                           )}>
                           <div className={clsx(
@@ -844,28 +847,28 @@ export default function BulkEnrollPage() {
                       onClick={() => setIsAddingProgram(true)}
                       className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add another program
+                      <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step4.addAnother')}
                     </button>
                   </div>
                 )}
 
                 <div className="flex justify-between pt-2">
-                  <button onClick={() => setStep(3)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
+                  <button onClick={() => setStep(3)} className="btn-secondary px-5 py-2 rounded-xl text-sm">{t('students.enroll.back')}</button>
                   <button
                     onClick={() => {
                       if (!selectedProgram && programs.length > 0) {
-                        toast.error('Please select a program to continue');
+                        toast.error(t('students.enroll.toast.programContinue'));
                         return;
                       }
                       if (programs.length === 0 && !isAddingProgram) {
-                        toast.error('Please add at least one program');
+                        toast.error(t('students.enroll.toast.programAddOne'));
                         return;
                       }
                       setStep(5);
                     }}
                     className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2"
                   >
-                    Review <ArrowLeft className="w-4 h-4 rotate-180" />
+                    {t('students.enroll.review')} <ArrowLeft className="w-4 h-4 rotate-180 rtl-flip" />
                   </button>
                 </div>
               </div>
@@ -876,53 +879,53 @@ export default function BulkEnrollPage() {
               <div className="card-glass p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Confirm Bulk Enrollment</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('students.enrollBulk.confirmTitle')}</h2>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 dark:bg-slate-700/50 p-5 space-y-3">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-600">
-                    <span className="text-sm text-slate-600 dark:text-slate-300">Students to enroll:</span>
-                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{students.length}</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">{t('students.enrollBulk.toEnroll')}</span>
+                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(students.length)}</span>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Decision:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.decision')}</span>
                       <span className={clsx(
-                        'capitalize px-2 py-0.5 rounded-lg text-xs font-bold',
+                        'px-2 py-0.5 rounded-lg text-xs font-bold',
                         decision === 'promote' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
                         decision === 'demote' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
                         decision === 'first_time' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' :
                         'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-                      )}>{decision?.replace('_', ' ')}</span>
+                      )}>{decision ? t(`students.enroll.decision.${decision}.label`) : ''}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Academic Year:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.academicYear')}</span>
                       <span className="font-semibold text-slate-800 dark:text-white">{academicYears.find(y => String(y.id) === selectedAcademicYear)?.name ?? '—'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Term:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.term')}</span>
                       <span className="font-semibold text-slate-800 dark:text-white">{allTerms.find(t => String(t.id) === selectedTerm)?.name ?? '—'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Class:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.class')}</span>
                       <span className="font-semibold text-slate-800 dark:text-white">{classes.find(c => String(c.id) === selectedClass)?.name ?? '—'}</span>
                     </div>
                     {selectedStream && (
                       <div className="flex justify-between">
-                        <span className="text-slate-600 dark:text-slate-300">Stream:</span>
+                        <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.stream')}</span>
                         <span className="font-semibold text-slate-800 dark:text-white">{streams.find(s => String(s.id) === selectedStream)?.name ?? '—'}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Study Mode:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.studyMode')}</span>
                       <span className="font-semibold text-slate-800 dark:text-white">{studyModes.find(sm => String(sm.id) === selectedStudyMode)?.name ?? '—'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Curriculum:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.curriculum')}</span>
                       <span className="font-semibold text-slate-800 dark:text-white">{curriculums.find(c => String(c.id) === selectedCurriculum)?.name ?? '—'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Program:</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('students.enrollBulk.row.program')}</span>
                       <span className="font-semibold text-slate-800 dark:text-white">{programs.find(p => String(p.id) === selectedProgram)?.name ?? '—'}</span>
                     </div>
                   </div>
@@ -930,19 +933,19 @@ export default function BulkEnrollPage() {
 
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-xs text-blue-700 dark:text-blue-400">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  All students' previous active enrollments will be closed and marked as completed.
+                  {t('students.enrollBulk.closeNote')}
                 </div>
 
                 <div className="flex justify-between pt-2">
-                  <button onClick={() => setStep(4)} className="btn-secondary px-5 py-2 rounded-xl text-sm">Back</button>
+                  <button onClick={() => setStep(4)} className="btn-secondary px-5 py-2 rounded-xl text-sm">{t('students.enroll.back')}</button>
                   <button
                     onClick={handleBulkEnroll}
                     disabled={submitting}
                     className="btn-primary px-6 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {submitting
-                      ? <><span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" /> Enrolling {students.length}…</>
-                      : <>Enroll All {students.length} <CheckCircle2 className="w-4 h-4" /></>
+                      ? <><span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" /> {t('students.enrollBulk.enrollingN', { count: students.length })}</>
+                      : <>{t('students.enrollBulk.enrollAll', { count: students.length })} <CheckCircle2 className="w-4 h-4" /></>
                     }
                   </button>
                 </div>
@@ -955,23 +958,23 @@ export default function BulkEnrollPage() {
                 <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Bulk Enrollment Complete!</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('students.enrollBulk.doneTitle')}</h2>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  All <strong>{students.length}</strong> students have been successfully enrolled in{" "}
-                  <strong>{classes.find(c => String(c.id) === selectedClass)?.name}</strong>.
+                  {rich('students.enrollBulk.doneBody', { count: <strong>{digits(students.length)}</strong>, className: <strong>{classes.find(c => String(c.id) === selectedClass)?.name}</strong> })}
+                  
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center">
                   <button
                     onClick={() => router.push('/students/list')}
                     className="btn-primary px-5 py-2 rounded-xl text-sm"
                   >
-                    Return to Student List
+                    {t('students.enrollBulk.returnToListCap')}
                   </button>
                   <button
                     onClick={() => router.push('/students/enrollments')}
                     className="btn-secondary px-5 py-2 rounded-xl text-sm"
                   >
-                    View Enrollments
+                    {t('students.enrollBulk.viewEnrollments')}
                   </button>
                 </div>
               </div>
