@@ -1,0 +1,2 @@
+{ "/api/students/offline": { "students": [ { "id": 1, "firstName": "Amina", "lastName": "Nakato", "admissionNo": "ADM-001", "status": "active", "phone": "0700000001", "currentClass": { "id": 1, "name": "Primary Five" }, "deletedAt": null } ], "classes": [ { "id": 1, "name": "Primary Five" } ] },
+  "/api/academics/offline": { "classes": [ { "id": 1, "name": "Primary Five" } ], "data": [ { "id": 1, "name": "Primary Five" } ] } }

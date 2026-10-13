@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T14:21:11.130Z",
-  "last_commit": "a0b92def05368539daeaa4cf0da05e7a875988de",
+  "generated_at": "2026-10-13T14:23:49.600Z",
+  "last_commit": "ca1a06384b41bf14c6a31270417276f818a3617e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9449,7 +9449,20 @@
         }
       ],
       "commit": "a0b92def05"
+    },
+    {
+      "version": "2.50.64",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/enroll-bulk and the ID-card print page",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/enroll-bulk and the ID-card print page"
+        }
+      ],
+      "commit": "ca1a06384b"
     }
   ],
-  "app_version": "2.50.64"
+  "app_version": "2.50.65"
 }

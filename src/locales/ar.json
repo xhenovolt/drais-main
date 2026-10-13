@@ -2746,6 +2746,59 @@
       "doneBody": "تم تسجيل جميع الطلاب ({{count}}) بنجاح في {{className}}.",
       "returnToListCap": "العودة إلى قائمة الطلاب",
       "viewEnrollments": "عرض التسجيلات"
+    },
+    "offline": {
+      "loadFailed": "تعذر تحميل الطلاب",
+      "assignFailed": "تعذر تحديد الصف",
+      "unassignFailed": "تعذر إلغاء تحديد الصف",
+      "namesRequired": "الاسم الأول واسم العائلة مطلوبان.",
+      "saveFailed": "فشل الحفظ",
+      "confirmTrash": "نقل هذا الطالب إلى سلة المحذوفات؟",
+      "deleteFailed": "فشل الحذف",
+      "restoreFailed": "فشلت الاستعادة",
+      "title": "الطلاب (دون اتصال)",
+      "localSqlite": "SQLite محلي",
+      "refresh": "تحديث",
+      "addStudent": "إضافة طالب",
+      "intro": "سجلات الطلاب الأساسية مع تحديد الصف — اختر صفًا من القائمة لتحديد صف الطالب أو نقله؛ و«إلغاء التحديد» ينهي الصف الحالي دون بديل. الرسوم والبصمات والشهادات ليست ضمن هذه الشاشة بعد.",
+      "searchPlaceholder": "ابحث بالاسم أو برقم القبول…",
+      "showDeleted": "عرض المحذوفين",
+      "col": {
+        "name": "الاسم",
+        "admissionNo": "رقم القبول",
+        "class": "الصف",
+        "status": "الحالة",
+        "phone": "الهاتف",
+        "actions": "الإجراءات"
+      },
+      "none": "لا يوجد طلاب بعد. أضف أول طالب.",
+      "unassigned": "بلا صف",
+      "unassignTitle": "إلغاء تحديد الصف",
+      "restore": "استعادة",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "editStudent": "تعديل الطالب",
+      "f": {
+        "firstName": "الاسم الأول *",
+        "lastName": "اسم العائلة *",
+        "otherName": "اسم آخر",
+        "gender": "الجنس",
+        "dob": "تاريخ الميلاد",
+        "phone": "الهاتف",
+        "email": "البريد الإلكتروني",
+        "admissionNo": "رقم القبول",
+        "status": "الحالة",
+        "address": "العنوان",
+        "notes": "ملاحظات"
+      },
+      "cancel": "إلغاء",
+      "save": "حفظ",
+      "status": {
+        "active": "نشط",
+        "inactive": "غير نشط",
+        "suspended": "موقوف",
+        "admitted": "مقبول"
+      }
     }
   },
   "status": {

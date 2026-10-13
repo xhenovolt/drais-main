@@ -2079,6 +2079,59 @@
       "doneBody": "All {{count}} students have been successfully enrolled in {{className}}.",
       "returnToListCap": "Return to Student List",
       "viewEnrollments": "View Enrollments"
+    },
+    "offline": {
+      "loadFailed": "Failed to load students",
+      "assignFailed": "Failed to assign class",
+      "unassignFailed": "Failed to unassign class",
+      "namesRequired": "First and last name are required.",
+      "saveFailed": "Save failed",
+      "confirmTrash": "Move this student to trash?",
+      "deleteFailed": "Delete failed",
+      "restoreFailed": "Restore failed",
+      "title": "Students (Offline)",
+      "localSqlite": "Local SQLite",
+      "refresh": "Refresh",
+      "addStudent": "Add Student",
+      "intro": "Core student records plus class placement — pick a class inline to assign or move a student; \"Unassign\" ends the current placement with no replacement. Fees, fingerprints, and report cards are still not part of this screen.",
+      "searchPlaceholder": "Search name / admission no…",
+      "showDeleted": "Show deleted",
+      "col": {
+        "name": "Name",
+        "admissionNo": "Admission No",
+        "class": "Class",
+        "status": "Status",
+        "phone": "Phone",
+        "actions": "Actions"
+      },
+      "none": "No students yet. Add the first one.",
+      "unassigned": "Unassigned",
+      "unassignTitle": "Unassign from class",
+      "restore": "Restore",
+      "edit": "Edit",
+      "delete": "Delete",
+      "editStudent": "Edit Student",
+      "f": {
+        "firstName": "First name *",
+        "lastName": "Last name *",
+        "otherName": "Other name",
+        "gender": "Gender",
+        "dob": "Date of birth",
+        "phone": "Phone",
+        "email": "Email",
+        "admissionNo": "Admission No",
+        "status": "Status",
+        "address": "Address",
+        "notes": "Notes"
+      },
+      "cancel": "Cancel",
+      "save": "Save",
+      "status": {
+        "active": "active",
+        "inactive": "inactive",
+        "suspended": "suspended",
+        "admitted": "admitted"
+      }
     }
   },
   "common": {
