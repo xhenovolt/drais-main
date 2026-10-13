@@ -5,6 +5,7 @@ import { X, CheckSquare, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AddRequirementModalProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface AddRequirementModalProps {
 }
 
 const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose, onSuccess }) => {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     student_id: '',
     term_id: '',
@@ -54,13 +56,13 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.student_id) newErrors.student_id = 'Student is required';
-    if (!formData.term_id) newErrors.term_id = 'Term is required';
+    if (!formData.student_id) newErrors.student_id = t('students.requirements.form.studentRequired');
+    if (!formData.term_id) newErrors.term_id = t('students.requirements.form.termRequired');
     
     if (createNewRequirement) {
-      if (!newRequirement.name.trim()) newErrors.name = 'Requirement name is required';
+      if (!newRequirement.name.trim()) newErrors.name = t('students.requirements.form.nameRequired');
     } else {
-      if (!formData.requirement_id) newErrors.requirement_id = 'Requirement is required';
+      if (!formData.requirement_id) newErrors.requirement_id = t('students.requirements.form.requirementRequired');
     }
 
     setErrors(newErrors);
@@ -89,7 +91,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
 
         const requirementResult = await requirementResponse.json();
         if (!requirementResult.success) {
-          throw new Error(requirementResult.error || 'Failed to create requirement');
+          throw new Error(requirementResult.error || t('students.requirements.form.createFailed'));
         }
         requirementId = requirementResult.data.id;
       }
@@ -110,15 +112,15 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
       const result = await response.json();
 
       if (result.success) {
-        toast.success('Requirement added successfully!');
+        toast.success(t('students.requirements.form.added'));
         onSuccess();
         resetForm();
       } else {
-        toast.error(result.error || 'Failed to add requirement');
+        toast.error(result.error || t('students.requirements.form.addFailed'));
       }
     } catch (error: any) {
       console.error('Submit error:', error);
-      toast.error(error.message || 'An error occurred while adding requirement');
+      toast.error(error.message || t('students.requirements.form.addError'));
     } finally {
       setLoading(false);
     }
@@ -151,10 +153,10 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Add Student Requirement
+                {t('students.requirements.form.title')}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Track what students need to bring for a specific term
+                {t('students.requirements.form.subtitle')}
               </p>
             </div>
           </div>
@@ -172,7 +174,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Student *
+                {t('students.requirements.form.student')}
               </label>
               <select
                 value={formData.student_id}
@@ -181,7 +183,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
                   errors.student_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-slate-700 text-gray-900 dark:text-white`}
               >
-                <option value="">Select a student</option>
+                <option value="">{t('students.requirements.form.selectStudent')}</option>
                 {students.map((student: any) => (
                   <option key={student.id} value={student.id}>
                     {student.first_name} {student.last_name} - {student.admission_no}
@@ -195,7 +197,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Term *
+                {t('students.requirements.form.term')}
               </label>
               <select
                 value={formData.term_id}
@@ -204,7 +206,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
                   errors.term_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-slate-700 text-gray-900 dark:text-white`}
               >
-                <option value="">Select a term</option>
+                <option value="">{t('students.requirements.form.selectTerm')}</option>
                 {terms.map((term: any) => (
                   <option key={term.id} value={term.id}>
                     {term.name} {term.academic_year && `(${term.academic_year})`}
@@ -221,7 +223,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Requirement *
+                {t('students.requirements.form.requirement')}
               </label>
               <button
                 type="button"
@@ -229,7 +231,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
                 className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                {createNewRequirement ? 'Select existing' : 'Create new'}
+                {createNewRequirement ? t('students.requirements.form.selectExisting') : t('students.requirements.form.createNew')}
               </button>
             </div>
 
@@ -237,7 +239,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
               <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Requirement Name *
+                    {t('students.requirements.form.name')}
                   </label>
                   <input
                     type="text"
@@ -246,20 +248,20 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                       errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-slate-700 text-gray-900 dark:text-white`}
-                    placeholder="e.g., Exercise books, Pencils, School fees"
+                    placeholder={t('students.requirements.form.namePlaceholder')}
                   />
                   {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description
+                    {t('students.requirements.form.description')}
                   </label>
                   <textarea
                     value={newRequirement.description}
                     onChange={(e) => handleNewRequirementChange('description', e.target.value)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    placeholder="Additional details about this requirement"
+                    placeholder={t('students.requirements.form.descriptionPlaceholder')}
                   />
                 </div>
               </div>
@@ -271,7 +273,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
                   errors.requirement_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-slate-700 text-gray-900 dark:text-white`}
               >
-                <option value="">Select a requirement</option>
+                <option value="">{t('students.requirements.form.selectRequirement')}</option>
                 {requirements.map((req: any) => (
                   <option key={req.id} value={req.id}>
                     {req.name} {req.description && `- ${req.description}`}
@@ -295,20 +297,20 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
                 className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label htmlFor="brought" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Student has brought this requirement
+                {t('students.requirements.form.broughtCheck')}
               </label>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Notes
+                {t('students.requirements.form.notes')}
               </label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                placeholder="Additional notes about this requirement..."
+                placeholder={t('students.requirements.form.notesPlaceholder')}
               />
             </div>
           </div>
@@ -320,7 +322,7 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
-              Cancel
+              {t('students.requirements.form.cancel')}
             </button>
             <button
               type="submit"
@@ -330,12 +332,12 @@ const AddRequirementModal: React.FC<AddRequirementModalProps> = ({ open, onClose
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Adding...
+                  {t('students.requirements.form.adding')}
                 </>
               ) : (
                 <>
                   <CheckSquare className="w-4 h-4" />
-                  Add Requirement
+                  {t('students.requirements.form.submit')}
                 </>
               )}
             </button>

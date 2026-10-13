@@ -5,6 +5,7 @@ import { Plus, Trash2, Save, Search, Filter, CheckSquare, X } from 'lucide-react
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Requirement {
   id?: number;
@@ -25,6 +26,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
   onClose, 
   onSuccess 
 }) => {
+  const { t } = useI18n();
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('');
   const [requirements, setRequirements] = useState<Requirement[]>([
@@ -90,14 +92,14 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
 
   const handleSave = async () => {
     if (!selectedClass || !selectedTerm) {
-      toast.error('Please select a class and term');
+      toast.error(t('students.requirements.manager.selectBoth'));
       return;
     }
 
     const validRequirements = requirements.filter(req => req.requirement_item.trim());
     
     if (validRequirements.length === 0) {
-      toast.error('Please add at least one requirement');
+      toast.error(t('students.requirements.manager.addOne'));
       return;
     }
 
@@ -121,11 +123,11 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
         mutate();
         onSuccess();
       } else {
-        toast.error(result.error || 'Failed to save requirements');
+        toast.error(result.error || t('students.requirements.manager.saveFailed'));
       }
     } catch (error) {
       console.error('Save error:', error);
-      toast.error('An error occurred while saving requirements');
+      toast.error(t('students.requirements.manager.saveError'));
     } finally {
       setLoading(false);
     }
@@ -153,10 +155,10 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
             </div>
             <div>
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                Class Requirements Manager
+                {t('students.requirements.manager.title')}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Define requirements for specific classes and terms
+                {t('students.requirements.manager.subtitle')}
               </p>
             </div>
           </div>
@@ -173,14 +175,14 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Class *
+                {t('students.requirements.manager.selectClass')}
               </label>
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
               >
-                <option value="">Choose a class</option>
+                <option value="">{t('students.requirements.manager.chooseClass')}</option>
                 {classes.map((cls: any) => (
                   <option key={cls.id} value={cls.id}>{cls.name}</option>
                 ))}
@@ -189,14 +191,14 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Term *
+                {t('students.requirements.manager.selectTerm')}
               </label>
               <select
                 value={selectedTerm}
                 onChange={(e) => setSelectedTerm(e.target.value)}
                 className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
               >
-                <option value="">Choose a term</option>
+                <option value="">{t('students.requirements.manager.chooseTerm')}</option>
                 {terms.map((term: any) => (
                   <option key={term.id} value={term.id}>
                     {term.name} {term.academic_year && `(${term.academic_year})`}
@@ -207,16 +209,16 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Search Requirements
+                {t('students.requirements.manager.search')}
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search items..."
+                  placeholder={t('students.requirements.manager.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  className="w-full ps-10 pe-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
@@ -229,14 +231,14 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Requirements List
+                  {t('students.requirements.manager.list')}
                 </h3>
                 <button
                   onClick={addRequirement}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Requirement
+                  {t('students.requirements.manager.add')}
                 </button>
               </div>
 
@@ -253,7 +255,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
                       <div className="col-span-3">
                         <input
                           type="text"
-                          placeholder="Requirement item *"
+                          placeholder={t('students.requirements.manager.itemPlaceholder')}
                           value={req.requirement_item}
                           onChange={(e) => updateRequirement(index, 'requirement_item', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
@@ -263,7 +265,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
                       <div className="col-span-4">
                         <input
                           type="text"
-                          placeholder="Description"
+                          placeholder={t('students.requirements.manager.descriptionPlaceholder')}
                           value={req.description}
                           onChange={(e) => updateRequirement(index, 'description', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
@@ -273,7 +275,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
                       <div className="col-span-2">
                         <input
                           type="text"
-                          placeholder="Quantity"
+                          placeholder={t('students.requirements.manager.quantityPlaceholder')}
                           value={req.quantity}
                           onChange={(e) => updateRequirement(index, 'quantity', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
@@ -288,7 +290,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
                             onChange={(e) => updateRequirement(index, 'is_mandatory', e.target.checked)}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Mandatory</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-300">{t('students.requirements.mandatory')}</span>
                         </label>
                       </div>
 
@@ -310,7 +312,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
                 <div className="text-center py-8">
                   <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 dark:text-gray-400">
-                    No requirements match your search
+                    {t('students.requirements.manager.noMatch')}
                   </p>
                 </div>
               )}
@@ -319,10 +321,10 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
             <div className="text-center py-12">
               <Filter className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                Select Class and Term
+                {t('students.requirements.manager.pickTitle')}
               </h3>
               <p className="text-gray-500 dark:text-gray-400">
-                Choose a class and term to manage requirements
+                {t('students.requirements.manager.pickHint')}
               </p>
             </div>
           )}
@@ -335,7 +337,7 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
-              Cancel
+              {t('students.requirements.manager.cancel')}
             </button>
             <button
               onClick={handleSave}
@@ -345,12 +347,12 @@ const ClassRequirementsManager: React.FC<ClassRequirementsManagerProps> = ({
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
+                  {t('students.requirements.manager.saving')}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Save Requirements
+                  {t('students.requirements.manager.save')}
                 </>
               )}
             </button>

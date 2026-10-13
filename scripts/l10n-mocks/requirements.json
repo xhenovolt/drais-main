@@ -1,0 +1,8 @@
+{
+  "/api/students/requirements": { "success": true, "pagination": { "page": 1, "pages": 1, "total": 1, "limit": 50 }, "data": [ { "id": 1, "first_name": "Amina", "last_name": "Nakato", "admission_no": "ADM-001", "class_name": null, "term_name": "Term III", "requirement_name": "Exercise books", "requirement_description": "A4, ruled", "brought": 0, "date_reported": "2026-09-01" } ] },
+  "/api/class-requirements": { "success": true, "data": [ { "id": 1, "class_name": "Primary Five", "term_name": "Term III", "requirement_item": "Ream of paper", "quantity": 2, "description": "White", "is_mandatory": 1 } ] },
+  "/api/classes": { "data": [ { "id": 1, "name": "Primary Five" } ] },
+  "/api/terms": { "data": [ { "id": 1, "name": "Term III" } ] },
+  "/api/students/full": { "data": [ { "id": 1, "first_name": "Amina", "last_name": "Nakato", "admission_no": "ADM-001" } ] },
+  "/api/requirements": { "data": [ { "id": 1, "name": "Exercise books" } ] }
+}

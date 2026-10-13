@@ -9,9 +9,11 @@ import { toast } from 'react-hot-toast';
 import AddRequirementModal from '@/components/students/AddRequirementModal';
 import ClassRequirementsManager from '@/components/students/ClassRequirementsManager';
 import Pagination from '@/components/ui/Pagination';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const RequirementsPage: React.FC = () => {
   const { user } = useAuth();
+  const { t, formatNumber, digits } = useI18n();
   const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -25,8 +27,8 @@ const RequirementsPage: React.FC = () => {
   // Debounce free-text search instead of re-filtering thousands of rows
   // client-side on every keystroke.
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
   useEffect(() => { setPage(1); }, [termFilter, classFilter, statusFilter]);
 
@@ -73,13 +75,13 @@ const RequirementsPage: React.FC = () => {
       });
 
       if (response.ok) {
-        toast.success('Requirement status updated');
+        toast.success(t('students.requirements.statusUpdated'));
         mutate();
       } else {
-        toast.error('Failed to update requirement');
+        toast.error(t('students.requirements.updateFailed'));
       }
     } catch (error) {
-      toast.error('An error occurred');
+      toast.error(t('students.requirements.errorOccurred'));
     }
   };
 
@@ -90,10 +92,10 @@ const RequirementsPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              📋 Student Requirements
+              {t('students.requirements.title')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {pagination?.total ?? filteredRequirements.length} requirement records • {classRequirements.length} class requirements
+              {t('students.requirements.summary', { records: formatNumber(pagination?.total ?? filteredRequirements.length), classes: formatNumber(classRequirements.length) })}
             </p>
           </div>
           <div className="flex gap-3">
@@ -102,14 +104,14 @@ const RequirementsPage: React.FC = () => {
               className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:shadow-lg transition-all duration-200"
             >
               <Settings className="w-5 h-5" />
-              Manage Class Requirements
+              {t('students.requirements.manageClass')}
             </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all duration-200"
             >
               <Plus className="w-5 h-5" />
-              Add Individual Requirement
+              {t('students.requirements.addIndividual')}
             </button>
           </div>
         </div>
@@ -118,13 +120,13 @@ const RequirementsPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search students or requirements..."
+                placeholder={t('students.requirements.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                className="w-full ps-10 pe-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
               />
             </div>
 
@@ -133,7 +135,7 @@ const RequirementsPage: React.FC = () => {
               onChange={(e) => setClassFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Classes</option>
+              <option value="">{t('students.requirements.allClasses')}</option>
               {classes.map((cls: any) => (
                 <option key={cls.id} value={cls.id}>{cls.name}</option>
               ))}
@@ -144,7 +146,7 @@ const RequirementsPage: React.FC = () => {
               onChange={(e) => setTermFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Terms</option>
+              <option value="">{t('students.requirements.allTerms')}</option>
               {terms.map((term: any) => (
                 <option key={term.id} value={term.id}>{term.name}</option>
               ))}
@@ -155,9 +157,9 @@ const RequirementsPage: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Status</option>
-              <option value="brought">Brought</option>
-              <option value="not_brought">Not Brought</option>
+              <option value="">{t('students.requirements.allStatus')}</option>
+              <option value="brought">{t('students.requirements.brought')}</option>
+              <option value="not_brought">{t('students.requirements.notBrought')}</option>
             </select>
 
             <button
@@ -169,7 +171,7 @@ const RequirementsPage: React.FC = () => {
               }}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
-              Clear Filters
+              {t('students.requirements.clearFilters')}
             </button>
           </div>
         </div>
@@ -179,14 +181,14 @@ const RequirementsPage: React.FC = () => {
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Class Requirements Overview
+                {t('students.requirements.classOverview')}
               </h3>
               <button
                 onClick={() => setShowClassManager(true)}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
               >
                 <Settings className="w-4 h-4" />
-                Manage
+                {t('students.requirements.manage')}
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -209,7 +211,7 @@ const RequirementsPage: React.FC = () => {
                   </h4>
                   {req.quantity && (
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Quantity: {req.quantity}
+                      {t('students.requirements.quantity', { quantity: req.quantity })}
                     </p>
                   )}
                   {req.description && (
@@ -223,7 +225,7 @@ const RequirementsPage: React.FC = () => {
                         ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                         : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
                     }`}>
-                      {req.is_mandatory ? 'Mandatory' : 'Optional'}
+                      {req.is_mandatory ? t('students.requirements.mandatory') : t('students.requirements.optional')}
                     </span>
                   </div>
                 </motion.div>
@@ -235,7 +237,7 @@ const RequirementsPage: React.FC = () => {
                   onClick={() => setShowClassManager(true)}
                   className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
-                  View all {classRequirements.length} class requirements →
+                  {t('students.requirements.viewAllClass', { count: classRequirements.length })}
                 </button>
               </div>
             )}
@@ -246,37 +248,37 @@ const RequirementsPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Individual Student Requirements
+              {t('students.requirements.individualTitle')}
             </h3>
           </div>
 
           {isLoading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-500 dark:text-gray-400">Loading requirements...</p>
+              <p className="text-gray-500 dark:text-gray-400">{t('students.requirements.loading')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-gray-600">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Student
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.requirements.col.student')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Class
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.requirements.col.class')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Term
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.requirements.col.term')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Requirement
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.requirements.col.requirement')}
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Status
+                      {t('students.requirements.col.status')}
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Date Reported
+                    <th className="px-6 py-4 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {t('students.requirements.col.dateReported')}
                     </th>
                   </tr>
                 </thead>
@@ -305,7 +307,7 @@ const RequirementsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-900 dark:text-white">
-                            {req.class_name || 'Not Assigned'}
+                            {req.class_name || t('students.requirements.notAssigned')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -334,12 +336,12 @@ const RequirementsPage: React.FC = () => {
                                 : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300'
                             }`}
                           >
-                            {req.brought ? 'Brought ✓' : 'Not Brought ✗'}
+                            {req.brought ? t('students.requirements.broughtMark') : t('students.requirements.notBroughtMark')}
                           </button>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-900 dark:text-white">
-                            {req.date_reported || 'Not reported'}
+                            {req.date_reported ? digits(req.date_reported) : t('students.requirements.notReported')}
                           </span>
                         </td>
                       </motion.tr>
@@ -351,7 +353,7 @@ const RequirementsPage: React.FC = () => {
               {filteredRequirements.length === 0 && (
                 <div className="text-center py-12">
                   <CheckSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">No individual requirements found</p>
+                  <p className="text-gray-500 dark:text-gray-400">{t('students.requirements.none')}</p>
                 </div>
               )}
             </div>

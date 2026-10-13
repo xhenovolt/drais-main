@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:43:56.955Z",
-  "last_commit": "0dd92807334453090b1a4ef85b39a2d5978d9fdd",
+  "generated_at": "2026-10-13T10:47:43.517Z",
+  "last_commit": "8f6ee0d086b1cd89ce393c46197ad088e3d0a368",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9371,7 +9371,20 @@
         }
       ],
       "commit": "0dd9280733"
+    },
+    {
+      "version": "2.50.58",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Students list — counts, page numbers, balances and year names in Arabic digits; '{n} selected' was untranslated",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Students list — counts, page numbers, balances and year names in Arabic digits; '{n} selected' was untranslated"
+        }
+      ],
+      "commit": "8f6ee0d086"
     }
   ],
-  "app_version": "2.50.58"
+  "app_version": "2.50.59"
 }
