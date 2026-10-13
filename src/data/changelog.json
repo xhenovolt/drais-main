@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T14:23:49.600Z",
-  "last_commit": "ca1a06384b41bf14c6a31270417276f818a3617e",
+  "generated_at": "2026-10-13T14:26:57.708Z",
+  "last_commit": "710b7e7e9c04fe9c8dd390149c57b973241b4ecb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9462,7 +9462,20 @@
         }
       ],
       "commit": "ca1a06384b"
+    },
+    {
+      "version": "2.50.65",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/offline",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/offline"
+        }
+      ],
+      "commit": "710b7e7e9c"
     }
   ],
-  "app_version": "2.50.65"
+  "app_version": "2.50.66"
 }

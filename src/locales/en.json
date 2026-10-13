@@ -2132,6 +2132,61 @@
         "suspended": "suspended",
         "admitted": "admitted"
       }
+    },
+    "repairNames": {
+      "previewFailed": "Preview failed",
+      "previewError": "Preview error",
+      "nothingToApply": "No changes to apply — every row in the file already matches the database.",
+      "confirmApply": "Apply {{changes}} name change(s) across {{learners}} learner(s)?",
+      "applyFailed": "Apply failed",
+      "repaired": "Repaired {{count}} field(s).",
+      "confirmRollback": "Roll back this repair session? Every change applied here will be reverted to its previous value.",
+      "rollbackFailed": "Rollback failed",
+      "reverted": "Reverted {{count}} field(s).",
+      "title": "Repair learner names",
+      "subtitle": "Upload a corrections spreadsheet, review the diff, then apply or roll back. Every change is audited and reversible.",
+      "uploadTitle": "Upload corrections file",
+      "columns": "Required columns: {{adm}} + at least one of {{first}}, {{last}}, {{other}}. Leave a cell empty to keep the existing value; type {{clear}} to set it to NULL.",
+      "chooseFile": "Choose file",
+      "fileSize": "· {{size}} KB",
+      "analysing": "Analysing…",
+      "previewDiff": "Preview diff",
+      "reviewTitle": "Review the diff",
+      "session": "session #{{id}}",
+      "stat": {
+        "total": "Total rows",
+        "matched": "Matched",
+        "changes": "Changes",
+        "unmatched": "Unmatched"
+      },
+      "unmatchedTitle": "{{count}} row(s) did not match any learner",
+      "unmatchedRow": "Row {{row}}: {{adm}} — {{reason}}",
+      "allEqual": "Every matched row already equals the database. Nothing to apply.",
+      "col": {
+        "row": "Row",
+        "admNo": "Adm No",
+        "field": "Field",
+        "current": "Current",
+        "incoming": "→ Incoming",
+        "created": "Created",
+        "rows": "Rows",
+        "applied": "Applied",
+        "status": "Status",
+        "file": "File"
+      },
+      "applied": "Applied · session #{{id}}",
+      "applyN": "Apply {{count}} change(s)",
+      "applyChanges": "Apply changes",
+      "historyTitle": "Repair history",
+      "noHistory": "No repair sessions yet.",
+      "rollback": "Rollback",
+      "status": {
+        "applied": "applied",
+        "rolled_back": "rolled_back",
+        "preview": "preview",
+        "pending": "pending"
+      },
+      "refresh": "refresh"
     }
   },
   "common": {
