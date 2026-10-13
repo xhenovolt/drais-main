@@ -12,6 +12,7 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import type { CustomFieldDef, CustomFieldValue } from '@/lib/custom-fields';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Props {
   studentId: number;
@@ -25,6 +26,7 @@ interface Loaded {
 }
 
 export function CustomFieldsPanel({ studentId, onSaved }: Props) {
+  const { t } = useI18n();
   const [state, setState]   = useState<Loaded | null>(null);
   const [draft, setDraft]   = useState<Record<string, CustomFieldValue>>({});
   const [loading, setLoad]  = useState(true);
@@ -38,7 +40,7 @@ export function CustomFieldsPanel({ studentId, onSaved }: Props) {
     try {
       const res  = await fetch(`/api/students/${studentId}/custom-values`);
       const data = await res.json();
-      if (!res.ok || !data?.success) throw new Error(data?.error || 'Failed to load');
+      if (!res.ok || !data?.success) throw new Error(data?.error || t('students.learner.custom.loadFailed'));
       setState({ fields: data.fields ?? [], values: data.values ?? {} });
       setDraft({ ...(data.values ?? {}) });
     } catch (e) {
@@ -64,8 +66,8 @@ export function CustomFieldsPanel({ studentId, onSaved }: Props) {
         body: JSON.stringify({ values: draft }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.success) throw new Error(data?.error || 'Save failed');
-      setOk(`Saved (${data.written} written, ${data.cleared} cleared${data.skipped?.length ? `, skipped: ${data.skipped.join(', ')}` : ''})`);
+      if (!res.ok || !data?.success) throw new Error(data?.error || t('students.learner.custom.saveFailed'));
+      setOk(data.skipped?.length ? t('students.learner.custom.savedSkipped', { written: data.written, cleared: data.cleared, skipped: data.skipped.join(', ') }) : t('students.learner.custom.saved', { written: data.written, cleared: data.cleared }));
       onSaved?.();
       await load();
     } catch (e) {
@@ -75,14 +77,14 @@ export function CustomFieldsPanel({ studentId, onSaved }: Props) {
     }
   }
 
-  if (loading)        return <p className="text-xs text-gray-400">Loading custom fields…</p>;
-  if (error && !state) return <p className="text-xs text-rose-500">Failed to load: {error}</p>;
+  if (loading)        return <p className="text-xs text-gray-400">{t('students.learner.custom.loading')}</p>;
+  if (error && !state) return <p className="text-xs text-rose-500">{t('students.learner.custom.loadFailedWith', { error })}</p>;
   if (!state)         return null;
   if (!state.fields.length) {
     return (
       <div className="text-xs text-gray-400 italic">
-        No custom fields configured for this school yet.{' '}
-        <a className="text-indigo-500 hover:underline" href="/admin/custom-fields">Configure fields →</a>
+        {t('students.learner.custom.noneConfigured')}{' '}
+        <a className="text-indigo-500 hover:underline" href="/admin/custom-fields">{t('students.learner.custom.configure')}</a>
       </div>
     );
   }
@@ -109,13 +111,13 @@ export function CustomFieldsPanel({ studentId, onSaved }: Props) {
           onClick={save}
           className="text-xs px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving…' : dirty ? 'Save changes' : 'No changes'}
+          {saving ? t('students.learner.custom.saving') : dirty ? t('students.learner.custom.saveChanges') : t('students.learner.custom.noChanges')}
         </button>
         {dirty && (
           <button
             type="button" onClick={() => setDraft({ ...state.values })}
             className="text-xs text-gray-500 hover:text-gray-700"
-          >Reset</button>
+          >{t('students.learner.custom.reset')}</button>
         )}
         {okMsg && <span className="text-xs text-emerald-600">{okMsg}</span>}
         {error && <span className="text-xs text-rose-500">{error}</span>}
@@ -129,6 +131,7 @@ function FieldInput({ field, value, onChange }: {
   value: CustomFieldValue;
   onChange: (v: CustomFieldValue) => void;
 }) {
+  const { t } = useI18n();
   const labelEl = (
     <label className="block text-[11px] uppercase tracking-wide text-gray-500 mb-0.5">
       {field.label}{field.isRequired && <span className="text-rose-500">*</span>}
@@ -197,7 +200,7 @@ function FieldInput({ field, value, onChange }: {
             onChange={e => onChange(e.target.value || null)}
             className={baseCls}
           >
-            <option value="">— none —</option>
+            <option value="">{t('students.learner.custom.noneOption')}</option>
             {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>

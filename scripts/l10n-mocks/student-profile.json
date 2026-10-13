@@ -1,0 +1,183 @@
+{
+ "/api/lookups/student-profile": {
+  "success": true,
+  "data": {
+   "orphan_statuses": [
+    {
+     "id": 1,
+     "label": "Not orphan"
+    }
+   ],
+   "living_statuses": [
+    {
+     "id": 1,
+     "label": "Alive"
+    }
+   ],
+   "districts": [
+    {
+     "id": 1,
+     "name": "Mukono"
+    }
+   ],
+   "nationalities": [
+    {
+     "id": 1,
+     "name": "Ugandan"
+    }
+   ]
+  }
+ },
+ "/api/students/7/overview": {
+  "success": true,
+  "overview": {
+   "performance": {
+    "average": 71.5,
+    "graded_count": 12,
+    "trend": [
+     {
+      "label": "a",
+      "score": 60
+     },
+     {
+      "label": "b",
+      "score": 75
+     }
+    ]
+   },
+   "attendance": {
+    "rate": 92.5,
+    "total_days": 40,
+    "present": 37,
+    "window_days": 60
+   },
+   "fees": {
+    "balance": 350000,
+    "paid": 500000
+   },
+   "subjects": {
+    "active": 9
+   },
+   "timeline": [
+    {
+     "label": "Fee payment",
+     "at": "2026-09-02T10:00:00"
+    }
+   ]
+  }
+ },
+ "/api/students/7/custom-values": {
+  "success": true,
+  "fields": [],
+  "values": {}
+ },
+ "/api/enrollments": {
+  "data": [
+   {
+    "id": 3,
+    "class_name": "Primary Five",
+    "stream_name": "East",
+    "academic_year_name": "2026",
+    "term_name": "Term III",
+    "status": "active",
+    "joined_at": "2026-09-01",
+    "end_date": null
+   }
+  ]
+ },
+ "/api/students/7": {
+  "success": true,
+  "data": {
+   "id": 7,
+   "first_name": "Amina",
+   "last_name": "Nakato",
+   "other_name": null,
+   "admission_no": "ADM-001",
+   "student_status": "active",
+   "gender": "female",
+   "date_of_birth": "2014-03-09",
+   "phone": "0700000001",
+   "email": null,
+   "photo_url": null,
+   "fingerprints": {
+    "active": 2
+   },
+   "extended": {
+    "place_of_birth": "Mukono",
+    "place_of_residence": "Nakifuma",
+    "district_name": "Mukono",
+    "nationality_name": "Ugandan"
+   },
+   "additional": {
+    "previous_school": "Bright Future",
+    "notes": "Asthma"
+   },
+   "family_status": {
+    "orphan_status_label": "Not orphan",
+    "primary_guardian_name": "Hassan Kato",
+    "primary_guardian_contact": "0741341483",
+    "father_name": "Hassan Kato"
+   },
+   "next_of_kin": [
+    {
+     "id": 1,
+     "name": "Sarah Namu",
+     "occupation": "Nurse",
+     "contact": "0700000002",
+     "address": "Mukono"
+    }
+   ],
+   "education_levels": [
+    {
+     "id": 1,
+     "level_name": "Primary Four",
+     "education_type": "Primary",
+     "institution": "Bright Future",
+     "year_completed": 2025
+    }
+   ],
+   "parents": [
+    {
+     "id": 1,
+     "name": "Hassan Kato",
+     "relationship": "Father",
+     "phone": "0741341483"
+    }
+   ],
+   "contacts": [
+    {
+     "contact_id": 4,
+     "first_name": null,
+     "last_name": null,
+     "is_primary": 1,
+     "phone": "0741341483"
+    }
+   ],
+   "documents": [
+    {
+     "id": 1,
+     "document_type": "Birth certificate",
+     "uploaded_at": "2026-09-01T10:00:00",
+     "file_url": "#"
+    }
+   ],
+   "enrollments": [
+    {
+     "id": 3,
+     "status": "active",
+     "class_name": "Primary Five",
+     "stream_name": "East",
+     "academic_year_name": "2026",
+     "term_name": "Term III",
+     "study_mode_name": "Day",
+     "programs": [
+      {
+       "id": 1,
+       "name": "Secular"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

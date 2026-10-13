@@ -18,42 +18,17 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
-// Field/section label ↔ dictionary key map. Unknown labels render verbatim.
-const LABEL_KEYS: Record<string, string> = {
-  // Field labels
-  'Gender':            'fields.gender',
-  'Date of Birth':     'fields.dateOfBirth',
-  'Phone':             'fields.phone',
-  'Email':             'fields.email',
-  'Place of Birth':    'fields.placeOfBirth',
-  'Place of Residence':'fields.address',
-  'District':          'fields.district',
-  'Nationality':       'fields.nationality',
-  'Previous School':   'orgUnits.school',
-  'Orphan Status':     'common.status',
-  'Notes':             'academic.remarks',
-  'Primary Guardian':  'people.guardian',
-  'Guardian Contact':  'fields.phone',
-  // Section titles
-  'Personal Info':     'common.details',
-  'Family Status':     'common.details',
-  'Next of Kin':       'people.nextOfKin',
-  'Education History': 'nav.students.history',
-};
-
-function translateLabel(t: (k: string) => string, label: string): string {
-  const key = LABEL_KEYS[label];
-  if (!key) return label;
-  const translated = t(key);
-  return translated === key ? label : translated;
+// "Parents, Guardians & Contacts" → "parentsGuardiansContacts": every label has its own key under students.learner.label.
+const labelKey = (label: string) => label.replace(/[^A-Za-z0-9]+(.)?/g, (_m, c) => (c ? c.toUpperCase() : '')).replace(/^./, (c) => c.toLowerCase());
+function translateLabel(t: (k: string, fallback?: string) => string, label: string): string {
+  return t(`students.learner.label.${labelKey(label)}`, label);
 }
-
 function Field({ label, value }: { label: string; value?: string | null }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{translateLabel(t, label)}</p>
-      <p className="text-sm text-slate-700 dark:text-slate-200 mt-0.5">{value || '—'}</p>
+      <p className="text-sm text-slate-700 dark:text-slate-200 mt-0.5">{value ? digits(value) : '—'}</p>
     </div>
   );
 }
@@ -73,7 +48,7 @@ function Section({ title, icon: Icon, children }: { title: string; icon: React.E
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { t, lang } = useI18n();
+  const { t, lang, digits, formatDate, formatNumber } = useI18n();
 
   console.log('[StudentProfile] Fetching student:', id);
 
@@ -89,9 +64,9 @@ export default function StudentDetailPage() {
     return (
       <div className="p-8 flex flex-col items-center gap-3 text-center">
         <AlertCircle className="w-10 h-10 text-red-400" />
-        <p className="text-sm text-slate-500">Invalid student ID in URL.</p>
+        <p className="text-sm text-slate-500">{t('students.learner.invalidId')}</p>
         <Link href="/students/list" className="text-indigo-600 text-sm hover:underline flex items-center gap-1">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to students
+          <ArrowLeft className="w-3.5 h-3.5 rtl-flip" /> {t('students.learner.backToStudents')}
         </Link>
       </div>
     );
@@ -101,7 +76,7 @@ export default function StudentDetailPage() {
     return (
       <div className="p-8 flex items-center justify-center gap-3">
         <Loader className="w-5 h-5 text-indigo-500 animate-spin" />
-        <p className="text-sm text-slate-500">Loading student profile…</p>
+        <p className="text-sm text-slate-500">{t('students.learner.loading')}</p>
       </div>
     );
   }
@@ -110,10 +85,10 @@ export default function StudentDetailPage() {
     return (
       <div className="p-8 flex flex-col items-center gap-3 text-center">
         <AlertCircle className="w-10 h-10 text-red-400" />
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Student not found or access restricted</p>
-        <p className="text-xs text-slate-400">The student may not belong to your school, or the record was removed.</p>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('students.learner.notFound')}</p>
+        <p className="text-xs text-slate-400">{t('students.learner.notFoundHint')}</p>
         <Link href="/students/list" className="text-indigo-600 text-sm hover:underline flex items-center gap-1 mt-1">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to students
+          <ArrowLeft className="w-3.5 h-3.5 rtl-flip" /> {t('students.learner.backToStudents')}
         </Link>
       </div>
     );
@@ -132,7 +107,7 @@ export default function StudentDetailPage() {
         {/* Photo / avatar — clicking opens the editor (upload + remove). */}
         <button
           onClick={() => setPhotoModalOpen(true)}
-          title={s.photo_url ? 'Change or remove photo' : 'Add photo'}
+          title={s.photo_url ? t('students.learner.changePhoto') : t('students.learner.addPhoto')}
           className="relative group w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow overflow-hidden hover:ring-2 hover:ring-indigo-400 transition"
         >
           {s.photo_url ? (
@@ -157,7 +132,7 @@ export default function StudentDetailPage() {
             <p className="text-xs text-slate-400 truncate">{englishName}</p>
           )}
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-            <span className="text-xs text-slate-400">#{s.admission_no ?? '—'}</span>
+            <span className="text-xs text-slate-400">#{s.admission_no ? digits(s.admission_no) : '—'}</span>
             {activeEnrollment && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
                 {activeEnrollment.class_name} {activeEnrollment.stream_name ? `· ${activeEnrollment.stream_name}` : ''}
@@ -168,18 +143,18 @@ export default function StudentDetailPage() {
                 ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
             }`}>
-              {s.student_status ?? 'unknown'}
+              {t(`students.learner.status.${s.student_status ?? 'unknown'}`, String(s.student_status ?? 'unknown'))}
             </span>
             {s.fingerprints?.active > 0 && (
               <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                title={`${s.fingerprints.active} active fingerprint${s.fingerprints.active === 1 ? '' : 's'} enrolled`}>
-                <Fingerprint className="w-3 h-3" /> {s.fingerprints.active}
+                title={t('students.learner.fingerprints', { count: s.fingerprints.active })}>
+                <Fingerprint className="w-3 h-3" /> {formatNumber(s.fingerprints.active)}
               </span>
             )}
           </div>
         </div>
         <Link href="/students/list" className="flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0">
-          <ArrowLeft className="w-3.5 h-3.5" /> List
+          <ArrowLeft className="w-3.5 h-3.5 rtl-flip" /> {t('students.learner.list')}
         </Link>
       </div>
 
@@ -196,11 +171,11 @@ export default function StudentDetailPage() {
                 onClick={() => setExtModalOpen(true)}
                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
               >
-                <Pencil className="w-3 h-3" /> Edit Extended Profile
+                <Pencil className="w-3 h-3" /> {t('students.learner.editExtended')}
               </button>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Gender" value={s.gender} />
+              <Field label="Gender" value={s.gender ? t(`students.learner.gender.${String(s.gender).toLowerCase()}`, String(s.gender)) : s.gender} />
               <Field label="Date of Birth" value={s.date_of_birth} />
               <Field label="Phone" value={s.phone} />
               <Field label="Email" value={s.email} />
@@ -239,7 +214,7 @@ export default function StudentDetailPage() {
                       <p className="text-xs text-slate-400">{k.occupation || '—'}</p>
                     </div>
                     <div className="text-xs text-slate-500 space-y-0.5">
-                      {k.contact && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{k.contact}</div>}
+                      {k.contact && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{digits(k.contact)}</div>}
                       {k.address && <div className="flex items-center gap-1"><Home className="w-3 h-3" />{k.address}</div>}
                     </div>
                   </div>
@@ -260,7 +235,7 @@ export default function StudentDetailPage() {
                       </p>
                     </div>
                     {e.year_completed && (
-                      <span className="text-[10px] text-slate-500 font-mono">{e.year_completed}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">{digits(e.year_completed)}</span>
                     )}
                   </div>
                 ))}
@@ -278,16 +253,16 @@ export default function StudentDetailPage() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{p.name}</p>
-                      <p className="text-xs text-slate-400">Parent · {p.relationship}</p>
+                      <p className="text-xs text-slate-400">{t('students.learner.parentRelation', { relationship: p.relationship })}</p>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        {p.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{p.phone}</span>}
+                        {p.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{digits(p.phone)}</span>}
                         {p.email && <span className="text-xs text-slate-500 flex items-center gap-1"><Mail className="w-3 h-3" />{p.email}</span>}
                       </div>
                     </div>
                   </div>
                 ))}
                 {s.contacts?.map((c: any) => {
-                  const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || `Contact #${c.contact_id}`;
+                  const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || t('students.learner.contactNumber', { id: c.contact_id });
                   return (
                     <div key={`c-${c.contact_id}`} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                       <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 flex-shrink-0">
@@ -297,12 +272,12 @@ export default function StudentDetailPage() {
                         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                           {name}
                           {c.is_primary === 1 && (
-                            <span className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">Primary</span>
+                            <span className="ms-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">{t('students.learner.primary')}</span>
                           )}
                         </p>
                         <p className="text-xs text-slate-400">{c.relationship ?? c.contact_type}{c.occupation ? ` · ${c.occupation}` : ''}</p>
                         <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                          {c.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{c.phone}</span>}
+                          {c.phone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{digits(c.phone)}</span>}
                           {c.email && <span className="text-xs text-slate-500 flex items-center gap-1"><Mail className="w-3 h-3" />{c.email}</span>}
                         </div>
                       </div>
@@ -312,7 +287,7 @@ export default function StudentDetailPage() {
               </div>
               <Link href="/students/contacts"
                 className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-                <Plus className="w-3 h-3" /> Manage contacts <ExternalLink className="w-3 h-3" />
+                <Plus className="w-3 h-3" /> {t('students.learner.manageContacts')} <ExternalLink className="w-3 h-3" />
               </Link>
             </Section>
           )}
@@ -324,20 +299,20 @@ export default function StudentDetailPage() {
                   <div key={doc.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                     <div>
                       <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{doc.document_type}</p>
-                      <p className="text-[10px] text-slate-400">{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '—'}</p>
+                      <p className="text-[10px] text-slate-400">{doc.uploaded_at ? formatDate(doc.uploaded_at) : '—'}</p>
                     </div>
                     {doc.file_url && (
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline">View</a>
+                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline">{t('students.learner.view')}</a>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-400">No documents uploaded.</p>
+              <p className="text-xs text-slate-400">{t('students.learner.noDocuments')}</p>
             )}
             <Link href="/students/documents"
               className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-              <Plus className="w-3 h-3" /> Upload / manage documents <ExternalLink className="w-3 h-3" />
+              <Plus className="w-3 h-3" /> {t('students.learner.manageDocuments')} <ExternalLink className="w-3 h-3" />
             </Link>
           </Section>
 
@@ -358,7 +333,7 @@ export default function StudentDetailPage() {
                 {activeEnrollment.study_mode_name && <Field label="Study Mode" value={activeEnrollment.study_mode_name} />}
                 {activeEnrollment.programs?.length > 0 && (
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Programs</p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('students.learner.programs')}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {activeEnrollment.programs.map((prog: any) => (
                         <span key={prog.id} className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium">{prog.name}</span>
@@ -373,10 +348,10 @@ export default function StudentDetailPage() {
           <Section title="Actions" icon={CheckCircle2}>
             <div className="space-y-2">
               <Link href={`/students/enroll?student=${id}`} className="block text-xs text-indigo-600 hover:underline">
-                Re-enroll / promote →
+                {t('students.learner.reEnroll')}
               </Link>
               <Link href={`/students/list`} className="block text-xs text-slate-400 hover:text-slate-600">
-                ← Back to students list
+                {t('students.learner.backToList')}
               </Link>
             </div>
           </Section>

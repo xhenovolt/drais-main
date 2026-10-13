@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:55:16.640Z",
-  "last_commit": "673068e33178dedebc59f5d675cf4af5bd8a8802",
+  "generated_at": "2026-10-13T11:02:54.229Z",
+  "last_commit": "047aa35c5bbee67541ef149f4c08cfe17bee7df8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9410,7 +9410,20 @@
         }
       ],
       "commit": "673068e331"
+    },
+    {
+      "version": "2.50.61",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/id-cards (designer page)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/id-cards (designer page)"
+        }
+      ],
+      "commit": "047aa35c5b"
     }
   ],
-  "app_version": "2.50.61"
+  "app_version": "2.50.62"
 }

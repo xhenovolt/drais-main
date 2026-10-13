@@ -72,7 +72,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
   const handleFileSelect = async (f: File | null) => {
     if (!f) return;
     if (f.size > MAX_UPLOAD_BYTES) {
-      Swal.fire('File too large', 'Please select an image smaller than 100 MB.', 'error');
+      Swal.fire(t('students.learner.photo.tooLargeTitle'), t('students.learner.photo.tooLargeBody'), 'error');
       return;
     }
     // If large, compress client-side if above threshold
@@ -118,7 +118,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
         Swal.fire('Uploaded', 'Photo uploaded successfully.', 'success');
         onUpdated?.();
       } else {
-        Swal.fire('Upload failed', json.error || 'An error occurred during upload.', 'error');
+        Swal.fire(t('students.learner.photo.uploadFailedTitle'), json.error || t('students.learner.photo.uploadFailedBody'), 'error');
       }
     } catch (err) {
       console.error(err);
@@ -131,12 +131,12 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
   const handleDelete = async () => {
     if (!learner) return;
     const confirm = await Swal.fire({
-      title: 'Delete photo?',
-      text: 'This will remove the learner photo and revert to the default placeholder.',
+      title: t('students.learner.photo.deleteTitle'),
+      text: t('students.learner.photo.deleteBody'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete photo',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('students.learner.photo.deleteConfirm'),
+      cancelButtonText: t('students.learner.photo.cancel'),
     });
     if (!confirm.isConfirmed) return;
 
@@ -151,7 +151,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
         Swal.fire('Deleted', 'Learner photo removed.', 'success');
         onUpdated?.();
       } else {
-        Swal.fire('Delete failed', json.error || 'An error occurred while deleting the photo.', 'error');
+        Swal.fire(t('students.learner.photo.deleteFailedTitle'), json.error || t('students.learner.photo.deleteFailedBody'), 'error');
       }
     } catch (err) {
       console.error(err);
@@ -178,7 +178,7 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
               ) : (
                 <div className="text-center text-gray-400">
                   <Camera className="w-10 h-10 mx-auto" />
-                  <div className="text-sm mt-2">No photo</div>
+                  <div className="text-sm mt-2">{t('students.learner.photo.none')}</div>
                 </div>
               )}
             </div>
@@ -192,30 +192,30 @@ export default function PhotoEditorModal({ open, onClose, learner, onUpdated }: 
                 onChange={(e) => handleFileSelect(e.target.files ? e.target.files[0] : null)}
               />
               <button onClick={onChooseFile} className="btn-primary gap-2">
-                <Camera className="w-4 h-4" /> Choose Photo
+                <Camera className="w-4 h-4" /> {t('students.learner.photo.choose')}
               </button>
               <button onClick={handleUpload} disabled={uploading} className={clsx('btn-secondary gap-2', uploading && 'opacity-50 cursor-not-allowed')}>
-                {uploading ? 'Uploading…' : 'Upload'}
+                {uploading ? t('students.learner.photo.uploading') : t('students.learner.photo.upload')}
               </button>
               {previewUrl && learner?.photo_url && (
                 <button onClick={handleDelete} className="btn-danger gap-2">
-                  <Trash2 className="w-4 h-4" /> Delete Photo
+                  <Trash2 className="w-4 h-4" /> {t('students.learner.photo.delete')}
                 </button>
               )}
             </div>
 
             <p className="text-xs text-gray-500 mt-2 text-center">
-              Max file size: 100MB. Images larger than 5MB will be compressed in-browser to save upload time. Server may perform additional compression for very large images.
+              {t('students.learner.photo.limits')}
             </p>
           </div>
 
           <div className="text-sm text-gray-700 dark:text-gray-300">
             <p><strong>{learner?.first_name} {learner?.last_name}</strong></p>
-            <p className="mt-2">Tips for best results:</p>
-            <ul className="list-disc ml-5 mt-2 space-y-1">
-              <li>Use a clear, front-facing photo against a plain background.</li>
-              <li>Portrait orientation crops best.</li>
-              <li>If upload fails, try reducing the image resolution or file size.</li>
+            <p className="mt-2">{t('students.learner.photo.tips')}</p>
+            <ul className="list-disc ms-5 mt-2 space-y-1">
+              <li>{t('students.learner.photo.tip1')}</li>
+              <li>{t('students.learner.photo.tip2')}</li>
+              <li>{t('students.learner.photo.tip3')}</li>
             </ul>
           </div>
         </div>

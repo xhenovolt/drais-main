@@ -5,6 +5,9 @@ import { X, Plus, Trash2, Loader2, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
+// "Level / Class Reached" → "levelClassReached": the key of a field label under students.learner.label.
+const labelKey = (label: string) => label.replace(/[^A-Za-z0-9]+(.)?/g, (_m, c) => (c ? c.toUpperCase() : '')).replace(/^./, (c) => c.toLowerCase());
+
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
 interface NoK {
@@ -119,11 +122,11 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
         }),
       });
       const j = await res.json();
-      if (!res.ok || !j.success) throw new Error(j.error || 'Save failed');
-      toast.success('Profile saved');
+      if (!res.ok || !j.success) throw new Error(j.error || t('students.learner.ext.saveFailed'));
+      toast.success(t('students.learner.ext.profileSaved'));
       onSaved?.();
     } catch (e: any) {
-      toast.error(e?.message || 'Save failed');
+      toast.error(e?.message || t('students.learner.ext.saveFailed'));
     } finally { setSaving(false); }
   }
 
@@ -136,10 +139,10 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
         body:    JSON.stringify({ items: nok }),
       });
       const j = await res.json();
-      if (!res.ok || !j.success) throw new Error(j.error || 'Save failed');
-      toast.success('Next of kin saved');
+      if (!res.ok || !j.success) throw new Error(j.error || t('students.learner.ext.saveFailed'));
+      toast.success(t('students.learner.ext.kinSaved'));
       onSaved?.();
-    } catch (e: any) { toast.error(e?.message || 'Save failed'); }
+    } catch (e: any) { toast.error(e?.message || t('students.learner.ext.saveFailed')); }
     finally { setSaving(false); }
   }
 
@@ -152,10 +155,10 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
         body:    JSON.stringify({ items: edu }),
       });
       const j = await res.json();
-      if (!res.ok || !j.success) throw new Error(j.error || 'Save failed');
-      toast.success('Education history saved');
+      if (!res.ok || !j.success) throw new Error(j.error || t('students.learner.ext.saveFailed'));
+      toast.success(t('students.learner.ext.educationSaved'));
       onSaved?.();
-    } catch (e: any) { toast.error(e?.message || 'Save failed'); }
+    } catch (e: any) { toast.error(e?.message || t('students.learner.ext.saveFailed')); }
     finally { setSaving(false); }
   }
 
@@ -171,17 +174,17 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
         </div>
 
         <div className="flex gap-1 px-5 pt-3 border-b border-slate-100 dark:border-slate-800">
-          {(['personal', 'family', 'kin', 'education'] as Tab[]).map(t => (
+          {(['personal', 'family', 'kin', 'education'] as Tab[]).map(tabKey => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
               className={`px-3 py-2 text-xs font-semibold rounded-t-lg ${
-                tab === t
+                tab === tabKey
                   ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-b-2 border-indigo-500'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
-              {t === 'kin' ? 'Next of Kin' : t === 'education' ? 'Education' : t === 'family' ? 'Family Status' : 'Personal'}
+              {t(`students.learner.ext.tab.${tabKey}`)}
             </button>
           ))}
         </div>
@@ -232,14 +235,14 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
                   <Input label="Occupation" value={k.occupation || ''} onChange={v => setNok(nok.map((x, i) => i === idx ? { ...x, occupation: v } : x))} />
                   <Input label="Address" value={k.address || ''} onChange={v => setNok(nok.map((x, i) => i === idx ? { ...x, address: v } : x))} />
                   <button onClick={() => setNok(nok.filter((_, i) => i !== idx))}
-                    className="absolute top-2 right-2 p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20">
+                    className="absolute top-2 end-2 p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
               <button onClick={() => setNok([...nok, { name: '', sequence: nok.length + 1 }])}
                 className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-                <Plus className="w-3.5 h-3.5" /> Add Next of Kin
+                <Plus className="w-3.5 h-3.5" /> {t('students.learner.ext.addKin')}
               </button>
             </div>
           )}
@@ -250,25 +253,25 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
                 <div key={idx} className="grid sm:grid-cols-2 gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 relative">
                   <Select label="Type" value={e.education_type} onChange={v => setEdu(edu.map((x, i) => i === idx ? { ...x, education_type: v } : x))}
                     options={[
-                      { value: 'pre_primary', label: 'Pre-Primary' },
-                      { value: 'primary',     label: 'Primary'     },
-                      { value: 'secondary',   label: 'Secondary'   },
-                      { value: 'tertiary',    label: 'Tertiary'    },
-                      { value: 'tahfiz',      label: 'Tahfiz'      },
-                      { value: 'other',       label: 'Other'       },
+                      { value: 'pre_primary', label: t('students.learner.ext.eduType.pre_primary') },
+                      { value: 'primary',     label: t('students.learner.ext.eduType.primary') },
+                      { value: 'secondary',   label: t('students.learner.ext.eduType.secondary') },
+                      { value: 'tertiary',    label: t('students.learner.ext.eduType.tertiary') },
+                      { value: 'tahfiz',      label: t('students.learner.ext.eduType.tahfiz') },
+                      { value: 'other',       label: t('students.learner.ext.eduType.other') },
                     ]} />
                   <Input label="Level / Class Reached" value={e.level_name} onChange={v => setEdu(edu.map((x, i) => i === idx ? { ...x, level_name: v } : x))} />
                   <Input label="Institution" value={e.institution || ''} onChange={v => setEdu(edu.map((x, i) => i === idx ? { ...x, institution: v } : x))} />
                   <Input label="Year Completed (YYYY)" value={String(e.year_completed || '')} onChange={v => setEdu(edu.map((x, i) => i === idx ? { ...x, year_completed: v ? Number(v) : null } : x))} />
                   <button onClick={() => setEdu(edu.filter((_, i) => i !== idx))}
-                    className="absolute top-2 right-2 p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20">
+                    className="absolute top-2 end-2 p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
               <button onClick={() => setEdu([...edu, { education_type: 'primary', level_name: '' }])}
                 className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-                <Plus className="w-3.5 h-3.5" /> Add Education Level
+                <Plus className="w-3.5 h-3.5" /> {t('students.learner.ext.addEducation')}
               </button>
             </div>
           )}
@@ -276,7 +279,7 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
 
         <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700">
           <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-            Cancel
+            {t('students.learner.ext.cancel')}
           </button>
           <button
             disabled={saving}
@@ -288,7 +291,7 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save {tab === 'kin' ? 'Next of Kin' : tab === 'education' ? 'Education' : 'Profile'}
+            {t(`students.learner.ext.save.${tab === 'kin' ? 'kin' : tab === 'education' ? 'education' : 'profile'}`)}
           </button>
         </div>
       </div>
@@ -297,9 +300,10 @@ export default function ExtendedProfileModal({ open, onClose, studentId, initial
 }
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
   return (
     <label className="block">
-      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{label}</span>
+      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t(`students.learner.label.${labelKey(label)}`, label)}</span>
       <input
         value={value || ''}
         onChange={e => onChange(e.target.value)}
@@ -310,9 +314,10 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
 }
 
 function Textarea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
   return (
     <label className="block">
-      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{label}</span>
+      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t(`students.learner.label.${labelKey(label)}`, label)}</span>
       <textarea
         value={value || ''}
         onChange={e => onChange(e.target.value)}
@@ -324,15 +329,16 @@ function Textarea({ label, value, onChange }: { label: string; value: string; on
 }
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  const { t } = useI18n();
   return (
     <label className="block">
-      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{label}</span>
+      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t(`students.learner.label.${labelKey(label)}`, label)}</span>
       <select
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
-        <option value="">— Select —</option>
+        <option value="">{t('students.learner.ext.select')}</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </label>

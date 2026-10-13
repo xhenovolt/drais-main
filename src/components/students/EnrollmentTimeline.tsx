@@ -8,6 +8,7 @@ import React from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import {
   GraduationCap, CheckCircle2, Clock, ChevronRight, ArrowUpRight,
 } from 'lucide-react';
@@ -46,6 +47,7 @@ const statusDot: Record<string, string> = {
 };
 
 export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: Props) {
+  const { t, formatDate, digits } = useI18n();
   const { data, isLoading } = useSWR<any>(
     `/api/enrollments?student_id=${studentId}`,
     fetcher
@@ -78,12 +80,12 @@ export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: P
         <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto">
           <GraduationCap className="w-6 h-6 text-slate-400" />
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">No enrollment history found.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t('students.learner.timeline.none')}</p>
         <Link
           href="/students/enroll"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
         >
-          Enroll this student <ArrowUpRight className="w-3 h-3" />
+          {t('students.learner.timeline.enroll')} <ArrowUpRight className="w-3 h-3" />
         </Link>
       </div>
     );
@@ -92,7 +94,7 @@ export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: P
   return (
     <div className="space-y-0">
       <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4 uppercase tracking-wide">
-        Enrollment History
+        {t('students.learner.timeline.title')}
       </h3>
       <div className="relative">
         {enrollments.map((e, idx) => {
@@ -121,7 +123,7 @@ export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: P
                 className={clsx(
                   'flex-1 pb-5',
                   isCurrent
-                    ? 'rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/50 p-3 -ml-1 mb-2'
+                    ? 'rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/50 p-3 -ms-1 mb-2'
                     : ''
                 )}
               >
@@ -129,19 +131,19 @@ export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: P
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-slate-800 dark:text-white">
-                        {e.class_name ?? 'Unknown Class'}
+                        {e.class_name ?? t('students.learner.timeline.unknownClass')}
                         {e.stream_name && (
                           <span className="text-slate-500 dark:text-slate-400 font-normal"> · {e.stream_name}</span>
                         )}
                       </span>
                       {isCurrent && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-600 text-white text-xs font-bold">
-                          <Clock className="w-3 h-3" /> Current
+                          <Clock className="w-3 h-3" /> {t('students.learner.timeline.current')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {e.academic_year_name} · {e.term_name}
+                      {digits(e.academic_year_name)} · {e.term_name}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -162,13 +164,13 @@ export default function EnrollmentTimeline({ studentId, currentEnrollmentId }: P
                 {/* Extra info for non-active */}
                 {!isCurrent && e.end_date && (
                   <p className="text-xs text-slate-400 mt-1">
-                    Ended: {new Date(e.end_date).toLocaleDateString()}
+                    {t('students.learner.timeline.ended', { date: formatDate(e.end_date) })}
                     {e.end_reason && <span className="capitalize"> · {e.end_reason}</span>}
                   </p>
                 )}
                 {isCurrent && e.joined_at && (
                   <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1">
-                    Joined: {new Date(e.joined_at).toLocaleDateString()}
+                    {t('students.learner.timeline.joined', { date: formatDate(e.joined_at) })}
                   </p>
                 )}
               </div>

@@ -49,7 +49,7 @@ function Sparkline({ points }: { points: { label: string; score: number }[] }) {
 }
 
 export default function LearnerOverview({ studentId }: { studentId: string | number }) {
-  const { t } = useI18n();
+  const { t, lang, digits, formatNumber, formatDate } = useI18n();
   const { data, isLoading } = useSWR(
     studentId ? `/api/students/${studentId}/overview` : null,
     fetcher,
@@ -66,8 +66,8 @@ export default function LearnerOverview({ studentId }: { studentId: string | num
   if (!data?.success) return null;
   const o = data.overview;
 
-  const fmt = (n: number | null, suffix = '') => (n == null ? '—' : `${n}${suffix}`);
-  const money = (n: number | null) => (n == null ? '—' : Number(n).toLocaleString());
+  const fmt = (n: number | null, suffix = '') => (n == null ? '—' : `${digits(n)}${suffix === '%' && lang === 'ar' ? '٪' : suffix}`);
+  const money = (n: number | null) => (n == null ? '—' : (lang === 'ar' ? formatNumber(n) : Number(n).toLocaleString()));
 
   return (
     <div className="space-y-3">
@@ -121,8 +121,8 @@ export default function LearnerOverview({ studentId }: { studentId: string | num
                 {o.timeline.map((e: any, i: number) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <span className="text-slate-600 dark:text-slate-300 truncate">{e.label}</span>
-                    <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
-                      {e.at ? new Date(e.at).toLocaleDateString() : ''}
+                    <span className="text-[10px] text-slate-400 flex-shrink-0 ms-2">
+                      {e.at ? formatDate(e.at) : ''}
                     </span>
                   </div>
                 ))}
