@@ -20,6 +20,7 @@ import { IDCardPreview, IDCardStudent, IDCardMeta } from '@/components/students/
 import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/lib/idCardConfig';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Demo student (used when no real student is selected for preview) ─────────
 const DEMO_STUDENT: IDCardStudent = {
@@ -53,6 +54,7 @@ const presetPalettes: { label: string; bgColor: string; accentColor: string; tex
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function IDCardsPage() {
   const { school, isLoading: schoolLoading } = useSchoolConfig();
+  const { t, digits, formatNumber } = useI18n();
 
   const [config, setConfig]             = useState<IDCardConfig>(DEFAULT_ID_CARD_CONFIG);
   const [configLoading, setConfigLoading] = useState(true);
@@ -154,13 +156,13 @@ export default function IDCardsPage() {
       if (json.success) {
         setTemplateId(json.id);
         setSaved(true);
-        showToast('success', 'Template saved');
+        showToast('success', t('students.idCards.templateSaved'));
         setTimeout(() => setSaved(false), 2500);
       } else {
-        showToast('error', json.error || 'Save failed');
+        showToast('error', json.error || t('students.idCards.saveFailed'));
       }
     } catch {
-      showToast('error', 'Save failed');
+      showToast('error', t('students.idCards.saveFailed'));
     }
     setSaving(false);
   };
@@ -232,8 +234,8 @@ export default function IDCardsPage() {
             <LayoutTemplate className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900 dark:text-white leading-tight">ID Card Designer</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">Design · Preview · Print</p>
+            <h1 className="text-base font-bold text-slate-900 dark:text-white leading-tight">{t('students.idCards.title')}</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">{t('students.idCards.subtitle')}</p>
           </div>
         </div>
 
@@ -242,12 +244,12 @@ export default function IDCardsPage() {
             href="/students/id-cards/studio"
             className="px-3 py-2 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 text-sm font-semibold transition-colors"
           >
-            Two-sided &amp; Excel studio
+            {t('students.idCards.studio')}
           </Link>
           <OpenInDRCEButton />
           <button
             onClick={() => { setConfig(DEFAULT_ID_CARD_CONFIG); setSaved(false); }}
-            title="Reset to default"
+            title={t('students.idCards.reset')}
             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
@@ -262,14 +264,14 @@ export default function IDCardsPage() {
             }`}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
+            {saving ? t('students.idCards.saving') : saved ? t('students.idCards.saved') : t('students.idCards.save')}
           </button>
           <button
             onClick={openPrint}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-sm"
           >
             <Printer className="w-4 h-4" />
-            Print {selectedIds.size > 0 ? selectedIds.size : filteredLearners.length}
+            {t('students.idCards.printN', { count: selectedIds.size > 0 ? selectedIds.size : filteredLearners.length })}
           </button>
         </div>
       </header>
@@ -278,7 +280,7 @@ export default function IDCardsPage() {
       <div className="flex-1 flex min-h-0 overflow-hidden">
 
         {/* ══ LEFT: Controls ═══════════════════════════════════════════════ */}
-        <aside className="w-72 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto flex flex-col">
+        <aside className="w-72 flex-shrink-0 border-e border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto flex flex-col">
           <div className="p-4 space-y-2">
 
             {sections.map(sec => (
@@ -287,7 +289,7 @@ export default function IDCardsPage() {
                   onClick={() => toggleSection(sec.key)}
                   className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-750 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors"
                 >
-                  <span className="flex items-center gap-2">{sec.icon} {sec.label}</span>
+                  <span className="flex items-center gap-2">{sec.icon} {t(`students.idCards.section.${sec.key}`)}</span>
                   {sec.open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </button>
 
@@ -298,12 +300,12 @@ export default function IDCardsPage() {
                     {sec.key === 'palette' && (
                       <>
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Presets</p>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('students.idCards.presets')}</p>
                           <div className="grid grid-cols-4 gap-1.5">
                             {presetPalettes.map(p => (
                               <button
                                 key={p.label}
-                                title={p.label}
+                                title={t(`students.idCards.preset.${p.label.replace(/[^A-Za-z]+/g, '')}`, p.label)}
                                 onClick={() => applyPalette(p)}
                                 className="h-7 rounded-lg border-2 border-transparent hover:border-indigo-400 transition-all overflow-hidden shadow-sm"
                                 style={{ background: `linear-gradient(135deg, ${p.bgColor} 60%, ${p.accentColor})` }}
@@ -312,15 +314,15 @@ export default function IDCardsPage() {
                           </div>
                         </div>
 
-                        <ColorRow label="Background" value={config.bgColor}       onChange={v => set('bgColor', v)} />
-                        <ColorRow label="Accent"     value={config.accentColor}    onChange={v => set('accentColor', v)} />
-                        <ColorRow label="Text"       value={config.textColor}      onChange={v => set('textColor', v)} />
-                        <ColorRow label="Label"      value={config.labelColor}     onChange={v => set('labelColor', v)} />
-                        <ColorRow label="Footer Bg"  value={config.footerBgColor}  onChange={v => set('footerBgColor', v)} />
-                        <ColorRow label="Footer Text" value={config.footerTextColor} onChange={v => set('footerTextColor', v)} />
+                        <ColorRow label={t('students.idCards.color.background')} value={config.bgColor}       onChange={v => set('bgColor', v)} />
+                        <ColorRow label={t('students.idCards.color.accent')}     value={config.accentColor}    onChange={v => set('accentColor', v)} />
+                        <ColorRow label={t('students.idCards.color.text')}       value={config.textColor}      onChange={v => set('textColor', v)} />
+                        <ColorRow label={t('students.idCards.color.label')}      value={config.labelColor}     onChange={v => set('labelColor', v)} />
+                        <ColorRow label={t('students.idCards.color.footerBg')}  value={config.footerBgColor}  onChange={v => set('footerBgColor', v)} />
+                        <ColorRow label={t('students.idCards.color.footerText')} value={config.footerTextColor} onChange={v => set('footerTextColor', v)} />
 
                         <div>
-                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Corner Radius</label>
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">{t('students.idCards.cornerRadius')}</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="range" min={0} max={24} step={1}
@@ -328,7 +330,7 @@ export default function IDCardsPage() {
                               onChange={e => set('borderRadius', Number(e.target.value))}
                               className="flex-1"
                             />
-                            <span className="text-xs text-slate-500 w-8 text-right">{config.borderRadius}px</span>
+                            <span className="text-xs text-slate-500 w-8 text-end">{t('students.idCards.px', { value: config.borderRadius })}</span>
                           </div>
                         </div>
                       </>
@@ -338,7 +340,7 @@ export default function IDCardsPage() {
                     {sec.key === 'typo' && (
                       <>
                         <div>
-                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Base Font Size</label>
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">{t('students.idCards.fontSize')}</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="range" min={8} max={16} step={1}
@@ -346,12 +348,12 @@ export default function IDCardsPage() {
                               onChange={e => set('fontSize', Number(e.target.value))}
                               className="flex-1"
                             />
-                            <span className="text-xs text-slate-500 w-8 text-right">{config.fontSize}px</span>
+                            <span className="text-xs text-slate-500 w-8 text-end">{t('students.idCards.px', { value: config.fontSize })}</span>
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Font Weight</label>
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">{t('students.idCards.fontWeight')}</label>
                           <div className="flex gap-1.5 flex-wrap">
                             {['400', '500', '600', '700'].map(w => (
                               <button
@@ -364,7 +366,7 @@ export default function IDCardsPage() {
                                 }`}
                                 style={{ fontWeight: w }}
                               >
-                                {w}
+                                {digits(w)}
                               </button>
                             ))}
                           </div>
@@ -375,24 +377,24 @@ export default function IDCardsPage() {
                     {/* ── FIELDS ───────────────────────────────────────── */}
                     {sec.key === 'layout' && (
                       <>
-                        <ToggleRow label="Date of Birth"   checked={config.showDob}          onChange={v => set('showDob', v)} />
-                        <ToggleRow label="Gender"          checked={config.showGender}        onChange={v => set('showGender', v)} />
-                        <ToggleRow label="Class"           checked={config.showClass}         onChange={v => set('showClass', v)} />
-                        <ToggleRow label="Admission No."   checked={config.showAdmissionNo}   onChange={v => set('showAdmissionNo', v)} />
-                        <ToggleRow label="Signature Line"  checked={config.showSignatureLine} onChange={v => set('showSignatureLine', v)} />
-                        <ToggleRow label="Footer"          checked={config.showFooter}        onChange={v => set('showFooter', v)} />
+                        <ToggleRow label={t('students.idCards.field.dob')}   checked={config.showDob}          onChange={v => set('showDob', v)} />
+                        <ToggleRow label={t('students.idCards.field.gender')}          checked={config.showGender}        onChange={v => set('showGender', v)} />
+                        <ToggleRow label={t('students.idCards.field.class')}           checked={config.showClass}         onChange={v => set('showClass', v)} />
+                        <ToggleRow label={t('students.idCards.field.admissionNo')}   checked={config.showAdmissionNo}   onChange={v => set('showAdmissionNo', v)} />
+                        <ToggleRow label={t('students.idCards.field.signature')}  checked={config.showSignatureLine} onChange={v => set('showSignatureLine', v)} />
+                        <ToggleRow label={t('students.idCards.field.footer')}          checked={config.showFooter}        onChange={v => set('showFooter', v)} />
 
                         {config.showFooter && (
                           <div>
-                            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Footer Text</label>
+                            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">{t('students.idCards.footerText')}</label>
                             <input
                               type="text"
                               value={config.footerText}
                               onChange={e => set('footerText', e.target.value)}
-                              placeholder="Property of {schoolName}"
+                              placeholder={t('students.idCards.footerPlaceholder')}
                               className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                             />
-                            <p className="text-[10px] text-slate-400 mt-0.5">{'{schoolName}'} is replaced with the school name.</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{t('students.idCards.footerHint', { token: '{schoolName}' })}</p>
                           </div>
                         )}
                       </>
@@ -402,9 +404,9 @@ export default function IDCardsPage() {
                     {sec.key === 'images' && (
                       <>
                         <div>
-                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">School Logo Override</label>
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">{t('students.idCards.logoOverride')}</label>
                           <p className="text-[10px] text-slate-400 mb-2">
-                            Leave blank to use the logo from School Config.
+                            {t('students.idCards.logoHint')}
                           </p>
                           <div className="flex items-center gap-2">
                             {config.schoolLogoUrl && (
@@ -416,7 +418,7 @@ export default function IDCardsPage() {
                               onClick={() => logoInputRef.current?.click()}
                               className="flex-1 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg py-2 text-xs text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-center"
                             >
-                              {config.schoolLogoUrl ? 'Replace logo' : 'Upload logo'}
+                              {config.schoolLogoUrl ? t('students.idCards.replaceLogo') : t('students.idCards.uploadLogo')}
                             </button>
                             {config.schoolLogoUrl && (
                               <button
@@ -449,7 +451,7 @@ export default function IDCardsPage() {
           {/* Preview label */}
           <div className="flex items-center gap-2 self-stretch">
             <Eye className="w-4 h-4 text-slate-400" />
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Live Preview</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('students.idCards.livePreview')}</span>
             {previewStudent.id !== 0 && (
               <span className="text-xs text-slate-400">
                 — {previewStudent.first_name} {previewStudent.last_name}
@@ -475,25 +477,25 @@ export default function IDCardsPage() {
             </div>
 
             <p className="text-[10px] text-slate-400 mt-1 text-center">
-              Actual print size: 85.6 × 54 mm (credit card)
+              {t('students.idCards.printSize')}
             </p>
           </div>
         </main>
 
         {/* ══ RIGHT: Learner selector ═══════════════════════════════════════ */}
-        <aside className="w-72 flex-shrink-0 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col overflow-hidden">
+        <aside className="w-72 flex-shrink-0 border-s border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               <Users className="w-4 h-4 text-indigo-500" />
-              Learners
-              <span className="text-xs font-normal text-slate-400">({filteredLearners.length})</span>
+              {t('students.idCards.learners')}
+              <span className="text-xs font-normal text-slate-400">({formatNumber(filteredLearners.length)})</span>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={selectedIds.size === filteredLearners.length ? deselectAll : selectAll}
                 className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
               >
-                {selectedIds.size === filteredLearners.length ? 'Deselect all' : 'Select all'}
+                {selectedIds.size === filteredLearners.length ? t('students.idCards.deselectAll') : t('students.idCards.selectAll')}
               </button>
             </div>
           </div>
@@ -501,16 +503,16 @@ export default function IDCardsPage() {
           {/* Search */}
           <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
             <div className="relative flex items-center">
-              <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              <Search className="absolute start-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search learners…"
+                placeholder={t('students.idCards.searchPlaceholder')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full ps-8 pe-3 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="absolute right-2 text-slate-400 hover:text-slate-600">
+                <button onClick={() => setSearch('')} className="absolute end-2 text-slate-400 hover:text-slate-600">
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -525,10 +527,10 @@ export default function IDCardsPage() {
               </div>
             )}
             {learnersError && (
-              <p className="text-xs text-red-500 px-4 py-3">{learnersError}</p>
+              <p className="text-xs text-red-500 px-4 py-3">{t('students.idCards.loadFailed')}</p>
             )}
             {!learnersLoading && !learnersError && filteredLearners.length === 0 && (
-              <p className="text-xs text-slate-400 px-4 py-3 italic">No learners found</p>
+              <p className="text-xs text-slate-400 px-4 py-3 italic">{t('students.idCards.none')}</p>
             )}
             {filteredLearners.map(learner => {
               const selected   = selectedIds.has(learner.id);
@@ -585,7 +587,7 @@ export default function IDCardsPage() {
                 className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-colors"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Print {selectedIds.size} card{selectedIds.size !== 1 ? 's' : ''}
+                {t('students.idCards.printCards', { count: selectedIds.size })}
               </button>
             </div>
           )}
@@ -644,6 +646,7 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
  * DRCE they can stop using this page entirely; we don't force the switch.
  */
 function OpenInDRCEButton() {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   async function open() {
     setBusy(true);
@@ -651,7 +654,7 @@ function OpenInDRCEButton() {
       const res  = await fetch('/api/id-card-templates/convert-to-drce', { method: 'POST' });
       const data = await res.json();
       if (!res.ok || !data?.success) {
-        showToast('error', data?.error ?? 'Could not open in DRCE editor');
+        showToast('error', data?.error ?? t('students.idCards.drceFailed'));
         return;
       }
       window.open(`/reports/kitchen/drce/${data.id}`, '_blank', 'noopener');
@@ -665,12 +668,12 @@ function OpenInDRCEButton() {
     <button
       onClick={open}
       disabled={busy}
-      title="Open your ID card layout in the universal DRCE editor (beta — both editors stay usable)"
+      title={t('students.idCards.drceTooltip')}
       className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-      Open in DRCE editor
-      <ArrowRight className="w-3 h-3" />
+      {t('students.idCards.drceOpen')}
+      <ArrowRight className="w-3 h-3 rtl-flip" />
     </button>
   );
 }

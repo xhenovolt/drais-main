@@ -1682,6 +1682,77 @@
         "delete": "Delete",
         "close": "Close"
       }
+    },
+    "idCards": {
+      "title": "ID Card Designer",
+      "subtitle": "Design · Preview · Print",
+      "studio": "Two-sided & Excel studio",
+      "reset": "Reset to default",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "save": "Save",
+      "printN": "Print {{count}}",
+      "printCards": {
+        "one": "Print {{count}} card",
+        "other": "Print {{count}} cards"
+      },
+      "templateSaved": "Template saved",
+      "saveFailed": "Save failed",
+      "loadFailed": "Could not load learners",
+      "section": {
+        "palette": "Colours",
+        "typo": "Typography",
+        "layout": "Fields",
+        "images": "Images"
+      },
+      "presets": "Presets",
+      "preset": {
+        "NavyGold": "Navy & Gold",
+        "ForestCream": "Forest & Cream",
+        "MaroonWhite": "Maroon & White",
+        "MidnightBlue": "Midnight Blue",
+        "TealSilver": "Teal & Silver",
+        "DarkPurple": "Dark Purple",
+        "SlateAmber": "Slate & Amber",
+        "ClassicBlack": "Classic Black"
+      },
+      "color": {
+        "background": "Background",
+        "accent": "Accent",
+        "text": "Text",
+        "label": "Label",
+        "footerBg": "Footer Bg",
+        "footerText": "Footer Text"
+      },
+      "cornerRadius": "Corner Radius",
+      "px": "{{value}}px",
+      "fontSize": "Base Font Size",
+      "fontWeight": "Font Weight",
+      "field": {
+        "dob": "Date of Birth",
+        "gender": "Gender",
+        "class": "Class",
+        "admissionNo": "Admission No.",
+        "signature": "Signature Line",
+        "footer": "Footer"
+      },
+      "footerText": "Footer Text",
+      "footerPlaceholder": "Property of {schoolName}",
+      "footerHint": "{{token}} is replaced with the school name.",
+      "logoOverride": "School Logo Override",
+      "logoHint": "Leave blank to use the logo from School Config.",
+      "replaceLogo": "Replace logo",
+      "uploadLogo": "Upload logo",
+      "livePreview": "Live Preview",
+      "printSize": "Actual print size: 85.6 × 54 mm (credit card)",
+      "learners": "Learners",
+      "deselectAll": "Deselect all",
+      "selectAll": "Select all",
+      "searchPlaceholder": "Search learners…",
+      "none": "No learners found",
+      "drceFailed": "Could not open in DRCE editor",
+      "drceTooltip": "Open your ID card layout in the universal DRCE editor (beta — both editors stay usable)",
+      "drceOpen": "Open in DRCE editor"
     }
   },
   "common": {

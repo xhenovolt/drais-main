@@ -2314,6 +2314,81 @@
         "delete": "حذف",
         "close": "إغلاق"
       }
+    },
+    "idCards": {
+      "title": "مصمم بطاقات الهوية",
+      "subtitle": "تصميم · معاينة · طباعة",
+      "studio": "استوديو الوجهين و Excel",
+      "reset": "إعادة إلى الافتراضي",
+      "saving": "جارٍ الحفظ…",
+      "saved": "تم الحفظ",
+      "save": "حفظ",
+      "printN": "طباعة {{count}}",
+      "printCards": {
+        "zero": "طباعة",
+        "one": "طباعة بطاقة واحدة",
+        "two": "طباعة بطاقتين",
+        "few": "طباعة {{count}} بطاقات",
+        "many": "طباعة {{count}} بطاقة",
+        "other": "طباعة {{count}} بطاقة"
+      },
+      "templateSaved": "تم حفظ القالب",
+      "saveFailed": "فشل الحفظ",
+      "loadFailed": "تعذر تحميل المتعلمين",
+      "section": {
+        "palette": "الألوان",
+        "typo": "الخطوط",
+        "layout": "الحقول",
+        "images": "الصور"
+      },
+      "presets": "ألوان جاهزة",
+      "preset": {
+        "NavyGold": "كحلي وذهبي",
+        "ForestCream": "أخضر داكن وكريمي",
+        "MaroonWhite": "عنابي وأبيض",
+        "MidnightBlue": "أزرق ليلي",
+        "TealSilver": "فيروزي وفضي",
+        "DarkPurple": "بنفسجي داكن",
+        "SlateAmber": "رمادي وكهرماني",
+        "ClassicBlack": "أسود كلاسيكي"
+      },
+      "color": {
+        "background": "الخلفية",
+        "accent": "اللون المميز",
+        "text": "النص",
+        "label": "العناوين",
+        "footerBg": "خلفية التذييل",
+        "footerText": "نص التذييل"
+      },
+      "cornerRadius": "استدارة الزوايا",
+      "px": "{{value}} بكسل",
+      "fontSize": "حجم الخط الأساسي",
+      "fontWeight": "سماكة الخط",
+      "field": {
+        "dob": "تاريخ الميلاد",
+        "gender": "الجنس",
+        "class": "الصف",
+        "admissionNo": "رقم القبول",
+        "signature": "خط التوقيع",
+        "footer": "التذييل"
+      },
+      "footerText": "نص التذييل",
+      "footerPlaceholder": "ملك لـ {schoolName}",
+      "footerHint": "يُستبدل {{token}} باسم المدرسة.",
+      "logoOverride": "شعار بديل للمدرسة",
+      "logoHint": "اتركه فارغًا لاستخدام الشعار من إعدادات المدرسة.",
+      "replaceLogo": "استبدال الشعار",
+      "uploadLogo": "رفع الشعار",
+      "livePreview": "معاينة مباشرة",
+      "printSize": "حجم الطباعة الفعلي: 85.6 × 54 مم (بحجم بطاقة الائتمان)",
+      "learners": "المتعلمون",
+      "deselectAll": "إلغاء تحديد الكل",
+      "selectAll": "تحديد الكل",
+      "searchPlaceholder": "ابحث عن المتعلمين…",
+      "none": "لا يوجد متعلمون",
+      "drceFailed": "تعذر الفتح في محرر DRCE",
+      "drceTooltip": "افتح تصميم بطاقة الهوية في محرر DRCE الموحد (تجريبي — يبقى المحرران متاحين)",
+      "drceOpen": "فتح في محرر DRCE"
     }
   },
   "status": {
