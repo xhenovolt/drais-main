@@ -328,7 +328,7 @@ export default function StudentsListPage() {
       setStudyModes([]);
       setAcademicYears([]);
       setTerms([]);
-      showToast('error', 'Failed to load form options');
+      showToast('error', t('students.list.enroll.formOptionsFailed'));
     }
   };
 
@@ -349,7 +349,7 @@ export default function StudentsListPage() {
   // ── Local Direct Enrollment ────────────────────────────────────────────────
   const sendLocalEnrollCommand = async (studentId: number) => {
     const label = `Direct (${localDeviceIp})`;
-    setStudentEnrollStep(studentId, { step: 'waking', deviceName: label, message: `Connecting to ${localDeviceIp}…` });
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName: label, message: t('students.list.enroll.connectingTo', { ip: localDeviceIp }) });
     try {
       const res = await apiFetch('/api/device/local-enroll', {
         method: 'POST',
@@ -364,9 +364,9 @@ export default function StudentsListPage() {
         setStudentEnrollStep(studentId, {
           step: 'waiting',
           deviceName: label,
-          message: `Scan finger now — waiting for capture confirmation…`,
+          message: t('students.list.enroll.scanNow'),
         });
-        setLastEnrolled({ name: res.student_name || 'Student', studentId, uid: res.uid, device: label, ts: new Date() });
+        setLastEnrolled({ name: res.student_name || t('students.list.enroll.defaultStudentName'), studentId, uid: res.uid, device: label, ts: new Date() });
 
         const enrollmentId = res.enrollment_id;
         const startedAt = Date.now();
@@ -376,7 +376,7 @@ export default function StudentsListPage() {
             setStudentEnrollStep(studentId, {
               step: 'failed',
               deviceName: label,
-              message: 'Captured on device not yet confirmed by DRAIS — check device connectivity (ADMS) and the enrollment page.',
+              message: t('students.list.enroll.capturedUnconfirmed'),
             });
             setTimeout(() => clearStudentEnroll(studentId), 10000);
             return;
@@ -390,7 +390,7 @@ export default function StudentsListPage() {
               setStudentEnrollStep(studentId, {
                 step: 'success',
                 deviceName: label,
-                message: `Fingerprint captured and confirmed by DRAIS (${st.label || 'Active'}).`,
+                message: t('students.list.enroll.capturedConfirmed', { status: st.label || t('students.list.enroll.statusActive') }),
               });
               setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
               fetchFingerprintStatus();
@@ -402,7 +402,7 @@ export default function StudentsListPage() {
               setStudentEnrollStep(studentId, {
                 step: 'failed',
                 deviceName: label,
-                message: st.note || 'Enrollment failed on device.',
+                message: st.note || t('students.list.enroll.failedOnDevice'),
               });
               setTimeout(() => clearStudentEnroll(studentId), 8000);
               return;
@@ -412,14 +412,14 @@ export default function StudentsListPage() {
         };
         setTimeout(poll, 3000);
       } else {
-        throw new Error(res?.error || 'Local enrollment failed');
+        throw new Error(res?.error || t('students.list.enroll.localFailed'));
       }
     } catch (err: any) {
       enrollInFlight.current.delete(studentId);
       setStudentEnrollStep(studentId, {
         step: 'failed',
         deviceName: label,
-        message: err?.message || 'Direct connection failed',
+        message: err?.message || t('students.list.enroll.directFailed'),
       });
       setTimeout(() => clearStudentEnroll(studentId), 5000);
     }
@@ -434,7 +434,7 @@ export default function StudentsListPage() {
       return;
     }
     const label = `Relay (${sn})`;
-    setStudentEnrollStep(studentId, { step: 'waking', deviceName: label, message: 'Queuing relay command…' });
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName: label, message: t('students.list.enroll.queuingRelay') });
     try {
       const res = await apiFetch('/api/device/relay-enroll', {
         method: 'POST',
@@ -442,15 +442,15 @@ export default function StudentsListPage() {
         body: JSON.stringify({ student_id: studentId, device_sn: sn }),
         silent: true,
       });
-      if (!res?.success) throw new Error(res?.error || 'Relay enroll failed');
-      const studentName = res.student_name || 'Student';
+      if (!res?.success) throw new Error(res?.error || t('students.list.enroll.relayFailed'));
+      const studentName = res.student_name || t('students.list.enroll.defaultStudentName');
 
       // Local warm-up succeeded — server reached device directly, no polling needed
       if (res.local_warmup) {
         setStudentEnrollStep(studentId, {
           step: 'success',
           deviceName: label,
-          message: res.message || 'Identity Synchronized. Machine is ready for scanning.',
+          message: res.message || t('students.list.enroll.identitySynced'),
         });
         setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
         setLastEnrolled({ name: studentName, studentId, uid: res.uid, device: label, ts: new Date() });
@@ -460,18 +460,18 @@ export default function StudentsListPage() {
       }
 
       const commandId = res.command_id;
-      const hint = res.relay_online ? '' : ' (relay agent offline — command queued)';
+      const hint = res.relay_online ? '' : t('students.list.enroll.relayOfflineHint');
       setStudentEnrollStep(studentId, {
         step: 'waking',
         commandId,
         deviceName: label,
-        message: `Sent to relay agent${hint}…`,
+        message: t('students.list.enroll.sentToRelay', { hint }),
       });
       startRelayPolling(studentId, commandId, label, sn, studentName);
-      showToast('info', `Relay enroll queued for ${studentName}${hint}`);
+      showToast('info', t('students.list.enroll.relayQueuedFor', { name: studentName, hint }));
     } catch (err: any) {
-      setStudentEnrollStep(studentId, { step: 'failed', deviceName: label, message: err?.message || 'Relay enroll failed' });
-      showToast('error', err?.message || 'Relay enroll failed');
+      setStudentEnrollStep(studentId, { step: 'failed', deviceName: label, message: err?.message || t('students.list.enroll.relayFailed') });
+      showToast('error', err?.message || t('students.list.enroll.relayFailed'));
       setTimeout(() => clearStudentEnroll(studentId), 5000);
     }
   };
@@ -493,9 +493,9 @@ export default function StudentsListPage() {
 
         if (status === 'sent') {
           pendingSeconds = 0;
-          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'Relay agent executing on device…' });
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: t('students.list.enroll.relayExecuting') });
         } else if (status === 'completed') {
-          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Identity Synchronized — scan finger now ⬆' });
+          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: t('students.list.enroll.identitySyncedScan') });
           if (studentName) setLastEnrolled({ name: studentName, studentId, device: deviceName, ts: new Date() });
           clearInterval(timer);
           pollTimers.current.delete(studentId);
@@ -503,7 +503,7 @@ export default function StudentsListPage() {
         } else if (status === 'failed') {
           setStudentEnrollStep(studentId, {
             step: 'failed', commandId, deviceName,
-            message: data?.data?.error_message || 'Relay command failed',
+            message: data?.data?.error_message || t('students.list.enroll.relayCommandFailed'),
           });
           clearInterval(timer);
           pollTimers.current.delete(studentId);
@@ -512,11 +512,11 @@ export default function StudentsListPage() {
           // still pending
           pendingSeconds += 2;
           const hint = !agentOnline && pendingSeconds >= 10
-            ? ' — relay agent offline?'
+            ? t('students.list.enroll.relayOfflineQuestion')
             : `… (${pendingSeconds}s)`;
           setStudentEnrollStep(studentId, {
             step: 'waking', commandId, deviceName,
-            message: `Waiting for relay agent${hint}`,
+            message: t('students.list.enroll.waitingRelay', { hint }),
           });
         }
       } catch {
@@ -563,11 +563,11 @@ export default function StudentsListPage() {
         body: JSON.stringify({ student_id: studentId, device_sn: deviceSn }),
         silent: true,
       });
-      if (!res?.success) throw new Error(res?.error || 'Face enrolment failed');
-      showToast('success', res.message || 'Face capture requested');
+      if (!res?.success) throw new Error(res?.error || t('students.list.enroll.faceFailed'));
+      showToast('success', res.message || t('students.list.enroll.faceRequested'));
       fetchFingerprintStatus();
     } catch (err: any) {
-      showToast('error', err?.message || 'Face enrolment failed');
+      showToast('error', err?.message || t('students.list.enroll.faceFailed'));
     } finally {
       setFaceBusyIds(prev => { const s = new Set(prev); s.delete(studentId); return s; });
     }
@@ -621,9 +621,9 @@ export default function StudentsListPage() {
         const status = data?.data?.status;
 
         if (status === 'sent') {
-          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: 'Syncing to device…' });
+          setStudentEnrollStep(studentId, { step: 'sent', commandId, deviceName, message: t('students.list.enroll.syncingToDevice') });
         } else if (status === 'acknowledged') {
-          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: 'Synced! Enroll fingerprint on device now.' });
+          setStudentEnrollStep(studentId, { step: 'success', commandId, deviceName, message: t('students.list.enroll.syncedEnrollNow') });
           // Add to enrolled set
           setFingerprintEnrolledIds(prev => new Set(prev).add(studentId));
           // Stop polling & auto-clear after 4s
@@ -631,7 +631,7 @@ export default function StudentsListPage() {
           pollTimers.current.delete(studentId);
           setTimeout(() => clearStudentEnroll(studentId), 4000);
         } else if (status === 'expired' || status === 'failed') {
-          setStudentEnrollStep(studentId, { step: 'failed', commandId, deviceName, message: data?.data?.error_message || 'Command expired or failed.' });
+          setStudentEnrollStep(studentId, { step: 'failed', commandId, deviceName, message: data?.data?.error_message || t('students.list.enroll.commandExpired') });
           clearInterval(timer);
           pollTimers.current.delete(studentId);
           setTimeout(() => clearStudentEnroll(studentId), 5000);
@@ -653,7 +653,7 @@ export default function StudentsListPage() {
   }, []);
 
   const sendEnrollCommand = async (studentId: number, deviceSn: string, deviceName: string) => {
-    setStudentEnrollStep(studentId, { step: 'waking', deviceName, message: 'Syncing identity to device…' });
+    setStudentEnrollStep(studentId, { step: 'waking', deviceName, message: t('students.list.enroll.syncingIdentity') });
     try {
       const result = await apiFetch('/api/students/enroll-fingerprint', {
         method: 'POST',
@@ -661,7 +661,7 @@ export default function StudentsListPage() {
         body: JSON.stringify({ student_id: studentId, device_sn: deviceSn }),
         silent: true,
       });
-      const studentName = result?.student_name || 'Student';
+      const studentName = result?.student_name || t('students.list.enroll.defaultStudentName');
       const commandId = result?.command_id;
 
       if (commandId) {
@@ -672,14 +672,14 @@ export default function StudentsListPage() {
           setStudentEnrollStep(studentId, { step: 'waking', commandId, deviceName, message: `Sending ${studentName} to device…` });
         }
         startPolling(studentId, commandId, deviceName);
-        showToast('info', `Syncing ${studentName} to ${deviceName}`);
+        showToast('info', t('students.list.enroll.syncingNamed', { name: studentName, device: deviceName }));
       } else {
         clearStudentEnroll(studentId);
-        showToast('success', result?.message || 'Enrollment command sent');
+        showToast('success', result?.message || t('students.list.enroll.commandSent'));
       }
     } catch (err: any) {
-      setStudentEnrollStep(studentId, { step: 'failed', deviceName, message: err?.message || 'Failed to send command' });
-      showToast('error', err?.message || 'Failed to send enrollment command');
+      setStudentEnrollStep(studentId, { step: 'failed', deviceName, message: err?.message || t('students.list.enroll.sendCommandFailed') });
+      showToast('error', err?.message || t('students.list.enroll.sendEnrollFailed'));
       setTimeout(() => clearStudentEnroll(studentId), 4000);
     }
   };
@@ -774,7 +774,7 @@ export default function StudentsListPage() {
       }
       setStudentBalances(map);
     } catch {
-      showToast('error', 'Failed to load fee balances');
+      showToast('error', t('students.list.toast.feeBalancesFailed'));
     } finally {
       setFeesLoading(false);
     }
@@ -793,7 +793,7 @@ export default function StudentsListPage() {
     const original = String(student[field as keyof Student] ?? '');
     if (value === original) return;
 
-    const savingToast = toast.loading('Saving…', { duration: Infinity });
+    const savingToast = toast.loading(t('common.saving'), { duration: Infinity });
     // Optimistic update
     setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: value } : s));
     setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: value } : s));
@@ -816,13 +816,13 @@ export default function StudentsListPage() {
           // Revert
           setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
           setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
-          toast.error(result?.message || `Failed to update ${field.replace('_', ' ')}`);
+          toast.error(result?.message || t('students.list.toast.saveFailed'));
         }
       } catch (err) {
         toast.dismiss(savingToast);
         setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
         setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, [field]: original } : s));
-          toast.error('Failed to save changes');
+          toast.error(t('students.list.toast.saveFailed'));
       }
     });
   };
@@ -835,7 +835,7 @@ export default function StudentsListPage() {
     const original = student.residency_status ?? 'day';
     if (value === original) return;
 
-    const savingToast = toast.loading('Saving…', { duration: Infinity });
+    const savingToast = toast.loading(t('common.saving'), { duration: Infinity });
     setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: value } : s));
     setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: value } : s));
 
@@ -849,17 +849,17 @@ export default function StudentsListPage() {
         });
         toast.dismiss(savingToast);
         if (result?.success) {
-          toast.success(`Residency updated to ${value}`);
+          toast.success(t('students.list.toast.residencyUpdated', { value: t(`students.list.residency.${value === 'boarding' ? 'boarding' : 'day'}`) }));
         } else {
           setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
           setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
-          toast.error(result?.error || 'Failed to update residency');
+          toast.error(result?.error || t('students.list.toast.residencyFailed'));
         }
       } catch (err) {
         toast.dismiss(savingToast);
         setEnrolledStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
         setAdmittedStudents(prev => prev.map(s => s.id === student.id ? { ...s, residency_status: original } : s));
-        toast.error('Failed to save changes');
+        toast.error(t('students.list.toast.saveFailed'));
       }
     });
   };
@@ -913,14 +913,14 @@ export default function StudentsListPage() {
 
   const handleEnroll = async () => {
     if (!validateEnrollForm(enrollForm)) {
-      showToast('error', 'Please fill all required fields');
-      setEnrollError('All fields marked with * are required');
+      showToast('error', t('students.list.toast.requiredFields'));
+      setEnrollError(t('students.list.form.allRequired'));
       return;
     }
 
     if (checkDuplicateEnrollment(enrollForm.student_id, enrollForm.academic_year_id, enrollForm.program_ids[0])) {
-      setEnrollError('Student is already enrolled in this program for this academic year');
-      showToast('error', 'Student is already enrolled in this program for this academic year');
+      setEnrollError(t('students.list.toast.alreadyEnrolled'));
+      showToast('error', t('students.list.toast.alreadyEnrolled'));
       return;
     }
 
@@ -931,13 +931,13 @@ export default function StudentsListPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(enrollForm),
-        successMessage: 'Student enrolled successfully',
+        successMessage: t('students.list.toast.enrolled'),
       });
       setShowEnrollModal(false);
       setSelectedIds(prev => { const next = new Set(prev); next.delete(enrollForm.student_id); return next; });
       fetchStudents();
     } catch (error: any) {
-      const errorMsg = error.message || 'Enrollment failed - please try again';
+      const errorMsg = error.message || t('students.list.toast.enrollFailed');
       setEnrollError(errorMsg);
     } finally {
       setEnrollLoading(false);
@@ -958,30 +958,30 @@ export default function StudentsListPage() {
   const handleDeleteAllLearners = async () => {
     const total = enrolledStudents.length + admittedStudents.length;
     const confirmed = await confirmAction(
-      '⚠️ Remove ALL Learners',
-      `This will permanently remove all ${total > 0 ? total : ''} learners from this school. Enrollments, fee records, and fingerprint mappings will become orphaned. This action CANNOT be undone. Are you absolutely sure?`,
-      'Yes, Delete All Learners',
+      t('students.list.confirm.removeAllTitle'),
+      t('students.list.confirm.removeAllBody', { total }),
+      t('students.list.confirm.removeAllButton'),
     );
     if (!confirmed) return;
 
     // Second confirmation — type-check style via a second SweetAlert prompt
     const { value: typed } = await (await import('sweetalert2')).default.fire({
-      title: 'Type DELETE to confirm',
+      title: t('students.list.confirm.typeDelete'),
       input: 'text',
       inputPlaceholder: 'DELETE',
       showCancelButton: true,
       confirmButtonColor: '#d33',
-      confirmButtonText: 'Confirm',
-      inputValidator: (v) => v !== 'DELETE' ? 'You must type DELETE exactly' : null,
+      confirmButtonText: t('students.list.confirm.confirm'),
+      inputValidator: (v) => v !== 'DELETE' ? t('students.list.confirm.mustTypeDelete') : null,
     });
     if (typed !== 'DELETE') return;
 
     try {
       const res = await apiFetch('/api/students/bulk/delete-all', {
         method: 'DELETE',
-        successMessage: `All learners removed successfully`,
+        successMessage: t('students.list.toast.allRemovedOk'),
       });
-      showToast('success', res?.message || 'All learners removed');
+      showToast('success', res?.message || t('students.list.toast.allRemoved'));
       setSelectedIds(new Set());
       fetchStudents();
     } catch (error) {
@@ -995,9 +995,9 @@ export default function StudentsListPage() {
     if (!student) return;
 
     const confirmed = await confirmAction(
-      'Delete Student',
-      `Remove ${safeString(student.first_name)} ${safeString(student.last_name)}? They will be soft-deleted and recoverable.`,
-      'Delete'
+      t('students.list.confirm.deleteTitle'),
+      t('students.list.confirm.deleteBody', { name: `${safeString(student.first_name)} ${safeString(student.last_name)}` }),
+      t('students.list.confirm.deleteButton')
     );
     if (!confirmed) return;
 
@@ -1006,7 +1006,7 @@ export default function StudentsListPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: studentId }),
-        successMessage: 'Student removed',
+        successMessage: t('students.list.toast.removed'),
       });
       fetchStudents();
     } catch (error) {
@@ -1017,9 +1017,9 @@ export default function StudentsListPage() {
   // Hard (permanent) delete — only for already-soft-deleted students
   const handlePermanentDelete = async (studentId: number, name: string) => {
     const confirmed = await confirmAction(
-      '⚠️ Permanently Delete',
-      `This will PERMANENTLY delete ${name} and all their records. This CANNOT be undone.`,
-      'Delete Forever',
+      t('students.list.confirm.permanentTitle'),
+      t('students.list.confirm.permanentBody', { name }),
+      t('students.list.confirm.permanentButton'),
     );
     if (!confirmed) return;
     try {
@@ -1027,7 +1027,7 @@ export default function StudentsListPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: studentId }),
-        successMessage: 'Permanently deleted',
+        successMessage: t('students.list.toast.permanentlyDeleted'),
       });
       fetchStudents();
     } catch (error) {
@@ -1041,9 +1041,9 @@ export default function StudentsListPage() {
     if (!student || !student.photo_url) return;
 
     const confirmed = await confirmAction(
-      'Remove Photo',
-      `Remove the photo for ${safeString(student.first_name)} ${safeString(student.last_name)}?`,
-      'Remove'
+      t('students.list.confirm.removePhotoTitle'),
+      t('students.list.confirm.removePhotoBody', { name: `${safeString(student.first_name)} ${safeString(student.last_name)}` }),
+      t('students.list.confirm.removePhotoButton')
     );
     if (!confirmed) return;
 
@@ -1057,7 +1057,7 @@ export default function StudentsListPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_id: studentId }),
-        successMessage: 'Photo removed successfully',
+        successMessage: t('students.list.toast.photoRemoved'),
       });
     } catch (error: any) {
       // Revert optimistic update on error
@@ -1124,12 +1124,12 @@ export default function StudentsListPage() {
 
   // Bulk status change — uses the existing /api/students/bulk/status endpoint.
   const handleBulkStatus = async (status: string) => {
-    if (selectedIds.size === 0) { showToast('error', 'Select learners first'); return; }
+    if (selectedIds.size === 0) { showToast('error', t('students.list.toast.selectLearnersFirst')); return; }
     setShowBulkStatusMenu(false);
     let reason: string | null = null;
     if (status === 'left' || status === 'suspended') {
       reason = window.prompt(`Reason for marking ${selectedIds.size} learner(s) as "${status}"?`) || null;
-      if (status === 'left' && !reason) { showToast('error', 'A reason is required to mark as left'); return; }
+      if (status === 'left' && !reason) { showToast('error', t('students.list.toast.reasonRequired')); return; }
     }
     setBulkStatusBusy(true);
     const ids = Array.from(selectedIds);
@@ -1146,7 +1146,7 @@ export default function StudentsListPage() {
         setSelectedIds(new Set());
       }
     } catch {
-      showToast('error', 'Bulk status update failed');
+      showToast('error', t('students.list.toast.bulkStatusFailed'));
     } finally {
       setBulkStatusBusy(false);
     }
@@ -1155,7 +1155,7 @@ export default function StudentsListPage() {
   // Bulk day/boarding reclassification — separate audited endpoint from
   // handleBulkStatus above (students.residency_status, not students.status).
   const handleBulkResidency = async (residency_status: 'day' | 'boarding') => {
-    if (selectedIds.size === 0) { showToast('error', 'Select learners first'); return; }
+    if (selectedIds.size === 0) { showToast('error', t('students.list.toast.selectLearnersFirst')); return; }
     setShowBulkResidencyMenu(false);
     setBulkResidencyBusy(true);
     const ids = Array.from(selectedIds);
@@ -1172,7 +1172,7 @@ export default function StudentsListPage() {
         setSelectedIds(new Set());
       }
     } catch {
-      showToast('error', 'Bulk residency update failed');
+      showToast('error', t('students.list.toast.bulkResidencyFailed'));
     } finally {
       setBulkResidencyBusy(false);
     }
@@ -1181,8 +1181,8 @@ export default function StudentsListPage() {
   // Bulk SMS to the guardians of the selected learners.
   const handleBulkMessage = async () => {
     const msg = bulkMessage.trim();
-    if (!msg) { showToast('error', 'Type a message first'); return; }
-    if (selectedIds.size === 0) { showToast('error', 'Select learners first'); return; }
+    if (!msg) { showToast('error', t('students.list.toast.typeMessageFirst')); return; }
+    if (selectedIds.size === 0) { showToast('error', t('students.list.toast.selectLearnersFirst')); return; }
     setBulkMsgBusy(true);
     try {
       const data = await apiFetch<any>('/api/admin/comm/broadcast', {
@@ -1199,7 +1199,7 @@ export default function StudentsListPage() {
       setBulkMessage('');
       setSelectedIds(new Set());
     } catch {
-      showToast('error', 'Failed to send messages');
+      showToast('error', t('students.list.toast.sendMessagesFailed'));
     } finally {
       setBulkMsgBusy(false);
     }
@@ -1208,7 +1208,7 @@ export default function StudentsListPage() {
   // Bulk class reassignment with optimistic UI update
   const handleReassignClass = async (newClassId: number, reason: string) => {
     if (selectedIds.size === 0) {
-      showToast('error', 'Please select students first');
+      showToast('error', t('students.list.toast.selectStudentsFirst'));
       return;
     }
     setIsReassigning(true);
@@ -1346,7 +1346,7 @@ export default function StudentsListPage() {
         <span
           className={`text-sm font-semibold text-slate-800 dark:text-white ${widthClass} truncate border-b border-transparent hover:border-slate-300 cursor-text py-0.5 transition-colors`}
           onClick={() => openCell(field)}
-          title={`Click to edit ${field.replace('_', ' ')}`}
+          title={t('students.list.row.clickToEdit')}
         >
           {student[field]}
         </span>
@@ -1427,7 +1427,7 @@ export default function StudentsListPage() {
       );
     }
 
-    const label = currentGender === 'male' ? 'Male' : currentGender === 'female' ? 'Female' : '—';
+    const label = currentGender === 'male' ? t('students.list.gender.male') : currentGender === 'female' ? t('students.list.gender.female') : '—';
     return (
       <button
         type="button"
@@ -1436,7 +1436,7 @@ export default function StudentsListPage() {
           setEditValue(currentGender === 'female' ? 'female' : 'male');
         }}
         className="text-xs text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-b border-transparent hover:border-slate-300 transition-colors capitalize"
-        title="Click to edit gender"
+        title={t('students.list.gender.clickToEdit')}
       >
         {label}
       </button>
@@ -1454,10 +1454,10 @@ export default function StudentsListPage() {
         value={current}
         onChange={e => updateStudentResidency(student, e.target.value as 'day' | 'boarding')}
         className="h-7 px-1.5 rounded-md border border-transparent hover:border-slate-300 dark:hover:border-slate-600 bg-transparent text-xs text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 capitalize cursor-pointer"
-        title="Day scholar or boarding — feeds day/boarding-scoped attendance rules"
+        title={t('students.list.residency.hint')}
       >
-        <option value="day">Day</option>
-        <option value="boarding">Boarding</option>
+        <option value="day">{t('students.list.residency.day')}</option>
+        <option value="boarding">{t('students.list.residency.boarding')}</option>
       </select>
     );
   };
@@ -1525,7 +1525,7 @@ export default function StudentsListPage() {
             }`}
           >
             <GraduationCap className="w-3.5 h-3.5" />
-            Enrolled
+            {t('students.list.tabs.enrolled')}
             <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'enrolled' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
               {enrolledCount}
             </span>
@@ -1539,7 +1539,7 @@ export default function StudentsListPage() {
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            Admitted
+            {t('students.list.tabs.admitted')}
             <span className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'admitted' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
               {admittedCount}
             </span>
@@ -1583,7 +1583,7 @@ export default function StudentsListPage() {
                 <option value={0}>{`${t('common.all')} — ${t('orgUnits.classes')}`}</option>
                 {(() => {
                   const grouped = (Array.isArray(classes) ? classes : []).reduce((acc: Record<string, SelectOption[]>, c) => {
-                    const key = c.program_name || 'General';
+                    const key = c.program_name || t('students.list.generalProgram');
                     (acc[key] = acc[key] || []).push(c);
                     return acc;
                   }, {});
@@ -1669,7 +1669,7 @@ export default function StudentsListPage() {
           <div className="relative" ref={modeSettingsRef}>
             <button
               onClick={() => setShowModeSettings(v => !v)}
-              title={captureMode === 'local' ? `Local Direct — ${localDeviceIp}` : captureMode === 'relay' ? `Relay Bridge — ${relayDeviceSn || 'no device'}` : 'Cloud ADMS Mode'}
+              title={captureMode === 'local' ? t('students.list.capture.modeLocalTitle', { ip: localDeviceIp }) : captureMode === 'relay' ? t('students.list.capture.modeRelayTitle', { device: relayDeviceSn || t('students.list.capture.noDevice') }) : t('students.list.capture.modeCloudTitle')}
               className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
                 captureMode === 'local'
                   ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
@@ -1685,7 +1685,7 @@ export default function StudentsListPage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowModeSettings(false)} />
                 <div className="absolute right-0 top-9 z-50 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 text-xs">
-                  <p className="font-semibold text-slate-700 dark:text-slate-200 mb-2">Fingerprint Capture Mode</p>
+                  <p className="font-semibold text-slate-700 dark:text-slate-200 mb-2">{t('students.list.capture.title')}</p>
 
                   <button
                     onClick={() => setCaptureMode('adms')}
@@ -1693,8 +1693,8 @@ export default function StudentsListPage() {
                   >
                     <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                     <div className="text-left">
-                      <div>Cloud / ADMS</div>
-                      <div className="text-[10px] opacity-60 font-normal">Queues ENROLL_FP via device heartbeat</div>
+                      <div>{t('students.list.capture.cloud')}</div>
+                      <div className="text-[10px] opacity-60 font-normal">{t('students.list.capture.cloudHint')}</div>
                     </div>
                   </button>
 
@@ -1704,8 +1704,8 @@ export default function StudentsListPage() {
                   >
                     <Radio className="w-3.5 h-3.5 flex-shrink-0" />
                     <div className="text-left">
-                      <div>Relay Bridge ☁→🖧</div>
-                      <div className="text-[10px] opacity-60 font-normal">CMD_STARTENROLL via relay agent on LAN</div>
+                      <div>{t('students.list.capture.relay')}</div>
+                      <div className="text-[10px] opacity-60 font-normal">{t('students.list.capture.relayHint')}</div>
                     </div>
                   </button>
 
@@ -1715,32 +1715,32 @@ export default function StudentsListPage() {
                   >
                     <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
                     <div className="text-left">
-                      <div>Local / Direct ⚡</div>
-                      <div className="text-[10px] opacity-60 font-normal">Instant TCP — server on same LAN</div>
+                      <div>{t('students.list.capture.local')}</div>
+                      <div className="text-[10px] opacity-60 font-normal">{t('students.list.capture.localHint')}</div>
                     </div>
                   </button>
 
                   {captureMode === 'relay' && (
                     <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
                       <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                        Device Serial Number
+                        {t('students.list.capture.deviceSerial')}
                       </label>
                       <input
                         type="text"
                         value={relayDeviceSn}
                         onChange={e => setRelayDeviceSn(e.target.value.trim())}
-                        placeholder="e.g. GED7254601154"
+                        placeholder={t('students.list.capture.serialPlaceholder')}
                         className="w-full h-7 px-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
                       />
                       <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                        Relay agent must be running on school LAN
+                        {t('students.list.capture.relayMustRun')}
                       </p>
                     </div>
                   )}
                   {captureMode === 'local' && (
                     <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
                       <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                        Device IP
+                        {t('students.list.capture.deviceIp')}
                       </label>
                       <input
                         type="text"
@@ -1785,7 +1785,7 @@ export default function StudentsListPage() {
             <Zap className="w-4 h-4" />
           </Link>
 
-          <Link href="/students/trash" title="Trash — soft-deleted learners (restore / delete forever)"
+          <Link href="/students/trash" title={t('students.list.toolbar.trash')}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors">
             <Trash2 className="w-4 h-4" />
           </Link>
@@ -1795,7 +1795,7 @@ export default function StudentsListPage() {
             <button
               onClick={handleToggleFees}
               disabled={feesLoading}
-              title={showFees ? 'Hide fee balances' : 'Show fee balances'}
+              title={showFees ? t('students.list.toolbar.hideFees') : t('students.list.toolbar.showFees')}
               className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-semibold transition-colors ${
                 showFees
                   ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
@@ -1819,19 +1819,19 @@ export default function StudentsListPage() {
           </Link>
 
           <button
-            title="Folder Photo Upload — auto-match photos by filename"
+            title={t('students.list.toolbar.folderPhotos')}
             onClick={() => setShowFolderUploadModal(true)}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 text-violet-500 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition-colors"
           >
             <FolderOpen className="w-3.5 h-3.5" />
           </button>
 
-          <button title="Sync from Device — pull users &amp; fingerprints from ZKTeco K40" onClick={() => setShowSyncModal(true)}
+          <button title={t('students.list.toolbar.syncFromDevice')} onClick={() => setShowSyncModal(true)}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
             <Wifi className="w-3.5 h-3.5" />
           </button>
 
-          <button title="Remove ALL learners from this school — destructive" onClick={handleDeleteAllLearners}
+          <button title={t('students.list.toolbar.removeAll')} onClick={handleDeleteAllLearners}
             className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1851,7 +1851,7 @@ export default function StudentsListPage() {
                     {allPageSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4" />}
                   </button>
                 </th>
-                <th className="w-[52px] px-1 py-2.5 text-center" title="Biometric enrollment — fingerprint and face">
+                <th className="w-[52px] px-1 py-2.5 text-center" title={t('students.list.enroll.biometricColumn')}>
                   <div className="flex items-center justify-center gap-1">
                     <Fingerprint className="w-3.5 h-3.5 text-slate-400" />
                     <ScanFace className="w-3.5 h-3.5 text-slate-400" />
@@ -1889,10 +1889,10 @@ export default function StudentsListPage() {
                         <Users className="w-6 h-6 text-slate-400" />
                       </div>
                       <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                        {search ? `No results for "${search}"` : activeTab === 'enrolled' ? 'No enrolled students' : 'No admitted students'}
+                        {search ? t('students.list.empty.noResultsFor', { query: search }) : activeTab === 'enrolled' ? t('students.list.empty.noEnrolled') : t('students.list.empty.noAdmitted')}
                       </p>
                       {search && (
-                        <button onClick={() => { setSearch(''); resetPage(); }} className="text-xs text-indigo-600 hover:underline">Clear search</button>
+                        <button onClick={() => { setSearch(''); resetPage(); }} className="text-xs text-indigo-600 hover:underline">{t('students.list.empty.clearSearch')}</button>
                       )}
                     </div>
                   </td>
@@ -1961,10 +1961,10 @@ export default function StudentsListPage() {
                           const lvl = fingerprintLevel({ label: fpLabel, fingerCount, hasFace: fpStatus?.face_captured });
                           const fingerNote = fpStatus?.finger_indices?.length
                             ? ` · ${describeFingers(fpStatus.finger_indices)}`
-                            : fingerCount > 0 ? ` · ${fingerCount} finger${fingerCount === 1 ? '' : 's'}` : '';
+                            : fingerCount > 0 ? ` · ${t('students.list.enroll.fingerCount', { count: fingerCount })}` : '';
                           const fpTitle = fpStatus
-                            ? `${lvl.text}${fingerNote}${fpStatus.pin ? ` · PIN ${fpStatus.pin}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''} — click to enroll another finger`
-                            : 'Enroll fingerprint';
+                            ? `${lvl.text}${fingerNote}${fpStatus.pin ? ` · PIN ${fpStatus.pin}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''} — ${t('students.list.enroll.clickAnother')}`
+                            : t('students.list.enroll.enrollFingerprint');
                           return (
                             <button
                               onClick={() => handleQuickCapture(student.id)}
@@ -1981,7 +1981,7 @@ export default function StudentsListPage() {
                           const busy = faceBusyIds.has(student.id);
                           if (busy) {
                             return (
-                              <div className="flex items-center justify-center w-6 h-6" title="Requesting face capture…">
+                              <div className="flex items-center justify-center w-6 h-6" title={t('students.list.enroll.requestingFace')}>
                                 <Loader className="w-3.5 h-3.5 text-amber-500 animate-spin" />
                               </div>
                             );
@@ -1990,10 +1990,10 @@ export default function StudentsListPage() {
                           const faceRequested = !!fpStatus?.face_requested;
                           const faceColor = faceCaptured ? '#22c55e' : faceRequested ? '#f59e0b' : '#9ca3af';
                           const faceTitle = faceCaptured
-                            ? 'Face enrolled'
+                            ? t('students.list.enroll.faceEnrolled')
                             : faceRequested
-                              ? 'Face capture requested — waiting for the device'
-                              : 'Enroll face';
+                              ? t('students.list.enroll.faceWaiting')
+                              : t('students.list.enroll.enrollFace');
                           return (
                             <button
                               onClick={() => handleFaceCapture(student.id)}
@@ -2136,20 +2136,20 @@ export default function StudentsListPage() {
                               </button>
                               <RowMore
                                 items={[
-                                  { label: 'Fees ledger',  icon: <DollarSign className="w-3.5 h-3.5 text-emerald-500" />, href: `/students/${student.id}/fees` },
-                                  { label: 'Soft delete',  icon: <Trash2     className="w-3.5 h-3.5 text-rose-500" />,    onClick: () => handleDeleteStudent(student.id), danger: true },
+                                  { label: t('students.list.row.feesLedger'),  icon: <DollarSign className="w-3.5 h-3.5 text-emerald-500" />, href: `/students/${student.id}/fees` },
+                                  { label: t('students.list.row.softDelete'),  icon: <Trash2     className="w-3.5 h-3.5 text-rose-500" />,    onClick: () => handleDeleteStudent(student.id), danger: true },
                                 ]}
                               />
                             </>
                           ) : (
                             <>
-                              <button onClick={() => openEnrollModal(student)} title="Enroll student" className="flex items-center justify-center w-6 h-6 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
+                              <button onClick={() => openEnrollModal(student)} title={t('students.list.row.enrollStudent')} className="flex items-center justify-center w-6 h-6 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
                                 <UserPlus className="w-3.5 h-3.5" />
                               </button>
                               <RowMore
                                 items={[
-                                  { label: 'Soft delete',         icon: <Trash2 className="w-3.5 h-3.5 text-rose-500" />, onClick: () => handleDeleteStudent(student.id), danger: true },
-                                  { label: 'Permanently delete',  icon: <X      className="w-3.5 h-3.5 text-rose-600" />, onClick: () => handlePermanentDelete(student.id, `${student.first_name} ${student.last_name}`), danger: true },
+                                  { label: t('students.list.row.softDelete'),         icon: <Trash2 className="w-3.5 h-3.5 text-rose-500" />, onClick: () => handleDeleteStudent(student.id), danger: true },
+                                  { label: t('students.list.row.permanentDelete'),  icon: <X      className="w-3.5 h-3.5 text-rose-600" />, onClick: () => handlePermanentDelete(student.id, `${student.first_name} ${student.last_name}`), danger: true },
                                 ]}
                               />
                             </>
@@ -2168,7 +2168,7 @@ export default function StudentsListPage() {
         {!loading && filteredData.length > 0 && (
           <div className="flex-shrink-0 flex items-center justify-between px-4 h-10 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm text-xs text-slate-500 dark:text-slate-400">
             <span className="tabular-nums">
-              Showing <strong className="text-slate-700 dark:text-slate-200">{showFrom}–{showTo}</strong> of <strong className="text-slate-700 dark:text-slate-200">{filteredData.length}</strong>
+              {t('students.list.showingRange', { from: showFrom, to: showTo, total: filteredData.length })}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -2336,19 +2336,19 @@ export default function StudentsListPage() {
                 onClick={() => setShowBulkMessage(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-teal-600 hover:bg-teal-500 rounded-lg text-xs font-semibold transition-colors"
               >
-                <MessageSquare className="w-3.5 h-3.5" /> Message
+                <MessageSquare className="w-3.5 h-3.5" /> {t('students.list.toolbar.message')}
               </button>
               <button
                 onClick={() => setShowBulkSms(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-sky-600 hover:bg-sky-500 rounded-lg text-xs font-semibold transition-colors"
               >
-                <MessageSquare className="w-3.5 h-3.5" /> Message
+                <MessageSquare className="w-3.5 h-3.5" /> {t('students.list.toolbar.message')}
               </button>
               <button
                 onClick={() => setShowPhotoUploadModal(true)}
                 className="flex items-center gap-1.5 h-7 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-semibold transition-colors"
               >
-                <Camera className="w-3.5 h-3.5" /> Photos
+                <Camera className="w-3.5 h-3.5" /> {t('students.list.toolbar.photos')}
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
@@ -2402,7 +2402,7 @@ export default function StudentsListPage() {
                   study_mode_id: formData.studyModeId || undefined,
                   stream_id: formData.streamId || undefined,
                 }),
-                successMessage: 'Program assigned successfully',
+                successMessage: t('students.list.toast.programAssigned'),
               });
               showToast('success', data?.message || `Assigned program to ${selectedIds.size} students`);
               setShowAssignProgramModal(false);
@@ -2445,7 +2445,7 @@ export default function StudentsListPage() {
                   study_mode_id: formData.studyModeId || undefined,
                   program_ids: formData.programIds?.length ? formData.programIds : undefined,
                 }),
-                successMessage: `Bulk enrollment complete`,
+                successMessage: t('students.list.toast.bulkEnrollDone'),
               });
               showToast('success', data.message || `Enrolled ${data.enrolled} students`);
               setShowBulkEnrollModal(false);
@@ -2476,7 +2476,7 @@ export default function StudentsListPage() {
           }))}
         onUploadComplete={() => {
           setShowPhotoUploadModal(false);
-          showToast('success', 'Photos uploaded successfully');
+          showToast('success', t('students.list.toast.photosUploaded'));
           fetchStudents();
         }}
       />
@@ -2502,7 +2502,7 @@ export default function StudentsListPage() {
             prev.map(s => updated[s.id] ? { ...s, photo_url: updated[s.id] } : s)
           );
           setShowFolderUploadModal(false);
-          showToast('success', `Photos uploaded for ${Object.keys(updated).length} learner${Object.keys(updated).length !== 1 ? 's' : ''}`);
+          showToast('success', t('students.list.toast.photosUploadedFor', { count: Object.keys(updated).length }));
           fetchStudents();
         }}
       />
@@ -2543,7 +2543,7 @@ export default function StudentsListPage() {
               <MessageSquare className="w-4 h-4 text-teal-500" />
               <h3 className="text-sm font-bold text-slate-800 dark:text-white">{`${t('operations.messages')} — ${t('people.guardians')}`}</h3>
             </div>
-            <p className="text-xs text-slate-400 mb-3">Sends to the guardians of {selectedIds.size} selected learner(s). The school SMS prefix is added automatically.</p>
+            <p className="text-xs text-slate-400 mb-3">{t('students.list.bulkMessageHint', { count: selectedIds.size })}</p>
             <textarea
               value={bulkMessage}
               onChange={e => setBulkMessage(e.target.value)}
@@ -2556,7 +2556,7 @@ export default function StudentsListPage() {
               <span className="text-[10px] text-slate-400">{bulkMessage.length}/1600</span>
             </div>
             <div className="flex gap-2 mt-3">
-              <button onClick={() => setShowBulkMessage(false)} disabled={bulkMsgBusy} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">Cancel</button>
+              <button onClick={() => setShowBulkMessage(false)} disabled={bulkMsgBusy} className="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">{t('common.cancel')}</button>
               <button onClick={handleBulkMessage} disabled={bulkMsgBusy || !bulkMessage.trim()} className="flex-1 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
                 {bulkMsgBusy ? <Loader className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />} Send
               </button>
@@ -2591,7 +2591,7 @@ export default function StudentsListPage() {
           if (!quickEdit) return;
           setEnrolledStudents(prev => prev.map(s => s.id === quickEdit.id ? { ...s, ...updated } as typeof s : s));
           setAdmittedStudents(prev => prev.map(s => s.id === quickEdit.id ? { ...s, ...updated } as typeof s : s));
-          showToast('success', 'Learner updated');
+          showToast('success', t('students.list.toast.learnerUpdated'));
         }}
       />
     </div>
@@ -2654,20 +2654,21 @@ function RowMore({ items }: { items: RowMoreItem[] }) {
 
 // ─── STATUS BADGE ──────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
   const map: Record<string, { dot: string; label: string; bg: string; text: string }> = {
-    active:      { dot: 'bg-emerald-500', label: 'Active',     bg: 'bg-emerald-50  dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400' },
-    admitted:    { dot: 'bg-sky-500',     label: 'Admitted',   bg: 'bg-sky-50      dark:bg-sky-900/20',     text: 'text-sky-700    dark:text-sky-400' },
-    suspended:   { dot: 'bg-amber-500',   label: 'Suspended',  bg: 'bg-amber-50    dark:bg-amber-900/20',   text: 'text-amber-700  dark:text-amber-400' },
-    inactive:    { dot: 'bg-slate-400',   label: 'Inactive',   bg: 'bg-slate-100   dark:bg-slate-800',      text: 'text-slate-500  dark:text-slate-400' },
-    dropped_out: { dot: 'bg-red-500',     label: 'Dropped',    bg: 'bg-red-50      dark:bg-red-900/20',     text: 'text-red-600    dark:text-red-400' },
-    expelled:    { dot: 'bg-red-700',     label: 'Expelled',   bg: 'bg-red-50      dark:bg-red-900/20',     text: 'text-red-700    dark:text-red-400' },
-    on_leave:    { dot: 'bg-violet-500',  label: 'On Leave',   bg: 'bg-violet-50   dark:bg-violet-900/20',  text: 'text-violet-700 dark:text-violet-400' },
+    active:      { dot: 'bg-emerald-500', label: 'active',     bg: 'bg-emerald-50  dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400' },
+    admitted:    { dot: 'bg-sky-500',     label: 'admitted',   bg: 'bg-sky-50      dark:bg-sky-900/20',     text: 'text-sky-700    dark:text-sky-400' },
+    suspended:   { dot: 'bg-amber-500',   label: 'suspended',  bg: 'bg-amber-50    dark:bg-amber-900/20',   text: 'text-amber-700  dark:text-amber-400' },
+    inactive:    { dot: 'bg-slate-400',   label: 'inactive',   bg: 'bg-slate-100   dark:bg-slate-800',      text: 'text-slate-500  dark:text-slate-400' },
+    dropped_out: { dot: 'bg-red-500',     label: 'dropped_out',    bg: 'bg-red-50      dark:bg-red-900/20',     text: 'text-red-600    dark:text-red-400' },
+    expelled:    { dot: 'bg-red-700',     label: 'expelled',   bg: 'bg-red-50      dark:bg-red-900/20',     text: 'text-red-700    dark:text-red-400' },
+    on_leave:    { dot: 'bg-violet-500',  label: 'on_leave',   bg: 'bg-violet-50   dark:bg-violet-900/20',  text: 'text-violet-700 dark:text-violet-400' },
   };
   const cfg = map[status] ?? map['inactive'];
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
-      {cfg.label}
+      {t(`students.list.status.${cfg.label}`)}
     </span>
   );
 }
@@ -2773,7 +2774,7 @@ function EnrollmentModal({
                   : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
               }`}>
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                  Class <span className="text-red-600">*</span>
+                  {t('students.list.form.class')} <span className="text-red-600">*</span>
                 </label>
                 <select
                   value={form.class_id}
@@ -2782,11 +2783,11 @@ function EnrollmentModal({
                   disabled={safeClasses.length === 0}
                 >
                   <option value={0}>
-                    {safeClasses.length === 0 ? '⚠️ No classes' : 'Select class'}
+                    {safeClasses.length === 0 ? t('students.list.form.noClasses') : t('students.list.form.selectClass')}
                   </option>
                   {(() => {
                     const grouped = safeClasses.reduce((acc: Record<string, SelectOption[]>, c) => {
-                      const key = c.program_name || 'General';
+                      const key = c.program_name || t('students.list.generalProgram');
                       (acc[key] = acc[key] || []).push(c);
                       return acc;
                     }, {});
@@ -2802,13 +2803,13 @@ function EnrollmentModal({
                   })()}
                 </select>
                 {safeClasses.length === 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">Contact administrator to add classes.</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{t('students.list.form.contactAdminClasses')}</p>
                 )}
               </div>
 
               {/* Stream Selection */}
               <div className="space-y-2 p-4 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20">
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Stream (Optional)</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">{t('students.list.form.streamOptional')}</label>
                 <select
                   value={form.stream_id || 0}
                   onChange={(e) => setForm({ ...form, stream_id: e.target.value ? parseInt(e.target.value) : undefined })}
@@ -2828,7 +2829,7 @@ function EnrollmentModal({
                   : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
               }`}>
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                  Academic Year <span className="text-red-600">*</span>
+                  {t('students.list.form.academicYear')} <span className="text-red-600">*</span>
                 </label>
                 <select
                   value={form.academic_year_id}
@@ -2837,14 +2838,14 @@ function EnrollmentModal({
                   disabled={safeAcademicYears.length === 0}
                 >
                   <option value={0}>
-                    {safeAcademicYears.length === 0 ? '⚠️ No years' : 'Select year'}
+                    {safeAcademicYears.length === 0 ? t('students.list.form.noYears') : t('students.list.form.selectYear')}
                   </option>
                   {safeAcademicYears.map(y => (
                     <option key={y.id} value={y.id}>{safeString(y.name)}</option>
                   ))}
                 </select>
                 {safeAcademicYears.length === 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">No academic years configured.</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{t('students.list.form.noAcademicYears')}</p>
                 )}
               </div>
             </div>
@@ -2859,7 +2860,7 @@ function EnrollmentModal({
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
                 }`}>
                   <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                    Study Mode <span className="text-red-600">*</span>
+                    {t('students.list.form.studyMode')} <span className="text-red-600">*</span>
                   </label>
                   {safeStudyModes.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
@@ -2878,7 +2879,7 @@ function EnrollmentModal({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">No study modes available.</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">{t('students.list.form.noStudyModes')}</p>
                   )}
                 </div>
 
@@ -2889,7 +2890,7 @@ function EnrollmentModal({
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
                 }`}>
                   <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                    Term <span className="text-red-600">*</span>
+                    {t('students.list.form.term')} <span className="text-red-600">*</span>
                   </label>
                   <select
                     value={form.term_id}
@@ -2898,14 +2899,14 @@ function EnrollmentModal({
                     disabled={filteredTerms.length === 0}
                   >
                     <option value={0}>
-                      {filteredTerms.length === 0 ? '⚠️ No terms' : 'Select term'}
+                      {filteredTerms.length === 0 ? t('students.list.form.noTerms') : t('students.list.form.selectTerm')}
                     </option>
                     {filteredTerms.map(t => (
                       <option key={t.id} value={t.id}>{safeString(t.name)}</option>
                     ))}
                   </select>
                   {filteredTerms.length === 0 && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">No terms available for selected year.</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">{t('students.list.form.noTermsForYear')}</p>
                   )}
                 </div>
               </div>
@@ -2917,7 +2918,7 @@ function EnrollmentModal({
                   : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20'
               }`}>
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                  Programs <span className="text-red-600">*</span> — Select at least one
+                  {t('students.list.form.programs')} <span className="text-red-600">*</span> — {t('students.list.form.selectAtLeastOne')}
                 </label>
                 {safePrograms.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
@@ -2938,7 +2939,7 @@ function EnrollmentModal({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">No programs available. Contact administrator.</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{t('students.list.form.noPrograms')}</p>
                 )}
               </div>
             </div>
@@ -2952,7 +2953,7 @@ function EnrollmentModal({
             disabled={loading}
             className="px-6 py-2.5 rounded-lg text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={onEnroll}
@@ -2960,7 +2961,7 @@ function EnrollmentModal({
             className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
           >
             {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-            {loading ? 'Enrolling...' : 'Enroll Student'}
+            {loading ? t('students.list.form.enrolling') : t('students.list.form.enrollStudent')}
           </button>
         </div>
       </div>
@@ -3029,7 +3030,7 @@ function BulkEnrollModal({
                 <option value="">{t('academicTime.currentTerm')}</option>
                 {(() => {
                   const grouped = (Array.isArray(classes) ? classes : []).reduce((acc: Record<string, SelectOption[]>, c) => {
-                    const key = c.program_name || 'General';
+                    const key = c.program_name || t('students.list.generalProgram');
                     (acc[key] = acc[key] || []).push(c);
                     return acc;
                   }, {});
@@ -3070,7 +3071,7 @@ function BulkEnrollModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Term (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('students.list.form.termOptional')}</label>
               <select
                 value={termId ?? ''}
                 onChange={e => setTermId(e.target.value ? Number(e.target.value) : null)}
@@ -3085,7 +3086,7 @@ function BulkEnrollModal({
           {/* Row 3: Study Mode */}
           {studyModes.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Study Mode (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('students.list.form.studyModeOptional')}</label>
               <div className="flex flex-wrap gap-2">
                 {studyModes.map(m => (
                   <button
@@ -3107,7 +3108,7 @@ function BulkEnrollModal({
           {/* Row 4: Programs */}
           {programs.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Programs (optional)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('students.list.form.programsOptional')}</label>
               <div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto">
                 {programs.map(p => (
                   <label key={p.id} className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all text-sm ${
@@ -3135,7 +3136,7 @@ function BulkEnrollModal({
             disabled={isLoading}
             className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => onSubmit({ classId, streamId, academicYearId, termId, studyModeId, programIds: selectedProgramIds })}
@@ -3207,7 +3208,7 @@ function BulkAssignProgramModal({
               {`${t('common.add')} — ${selectedCount} ${t('people.students')}`}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Adds a second program enrollment. Existing enrollments are preserved.
+              {t('students.list.form.addsSecondProgram')}
             </p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -3219,7 +3220,7 @@ function BulkAssignProgramModal({
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            Each student will show multiple program tags (e.g. <strong>Secular: P5</strong> and <strong>Theology: P3</strong>) in the student list.
+            {t('students.list.form.multipleTagsHint')}
           </p>
         </div>
 
@@ -3255,7 +3256,7 @@ function BulkAssignProgramModal({
                   ? (Array.isArray(classes) ? classes : []).filter(c => c.program_id === programId)
                   : (Array.isArray(classes) ? classes : []);
                 if (programId && programClasses.length === 0) {
-                  return <option disabled value={-1}>⚠ No classes assigned to this program yet</option>;
+                  return <option disabled value={-1}>{t('students.list.form.noClassesForProgram')}</option>;
                 }
                 return programClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>);
               })()}
@@ -3266,7 +3267,7 @@ function BulkAssignProgramModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-                Academic Year <span className="text-red-500">*</span>
+                {t('students.list.form.academicYear')} <span className="text-red-500">*</span>
               </label>
               <select
                 value={academicYearId}
@@ -3279,7 +3280,7 @@ function BulkAssignProgramModal({
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-                Term <span className="text-red-500">*</span>
+                {t('students.list.form.term')} <span className="text-red-500">*</span>
               </label>
               <select
                 value={termId}
@@ -3301,13 +3302,13 @@ function BulkAssignProgramModal({
                 onChange={e => setStreamId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
               >
-                <option value="">No stream</option>
+                <option value="">{t('students.list.form.noStream')}</option>
                 {streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             {studyModes.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Study Mode (optional)</label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('students.list.form.studyModeOptional')}</label>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {studyModes.map(m => (
                     <button
@@ -3337,7 +3338,7 @@ function BulkAssignProgramModal({
             disabled={isLoading}
             className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"

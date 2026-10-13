@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T08:14:58.534Z",
-  "last_commit": "f62b7c59cd64b9c97be3c417a165f27263b7b978",
+  "generated_at": "2026-10-13T08:25:28.811Z",
+  "last_commit": "623a4e6ed610eb032c8a035c2d60161f611411f8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9176,7 +9176,20 @@
         }
       ],
       "commit": "f62b7c59cd"
+    },
+    {
+      "version": "2.50.43",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Hold SMS instead of failing them when the provider refuses a valid key",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Hold SMS instead of failing them when the provider refuses a valid key"
+        }
+      ],
+      "commit": "623a4e6ed6"
     }
   ],
-  "app_version": "2.50.43"
+  "app_version": "2.50.44"
 }
