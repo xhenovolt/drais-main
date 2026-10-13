@@ -152,3 +152,63 @@ that returns nothing; open a row's menu; open quick edit, the snapshot and the r
 single and a bulk enrolment; trigger a delete confirmation and cancel it; send a bulk message to one learner;
 toggle fee balances; start a fingerprint enrolment in each capture mode; open Import, choose a file and reach
 the preview and column-mapping step; open bulk photo upload and folder photo upload; open Sync from Device.
+
+---
+
+## 2026-10-13 — Rendering harness, and what it found on `/students/list`
+
+`scripts/l10n-render.mjs` bundles one page or component with the real `I18nProvider` and dictionaries and
+renders it in headless Chrome in English, then Arabic, then English again — no server and no login. Sample
+data comes from `scripts/l10n-mocks/*.json`; dialogs are opened with `--props '{"open":true}'`.
+
+It reports: whether the component mounts; `<html dir>` in each language; any translation key shown on screen;
+every text still in Latin script while in Arabic; whether switching back restores English; and console errors.
+
+**It is a real browser rendering real components, but it is not the real page.** Styling is not compiled
+(so it says nothing about layout or right-to-left appearance), data is sample data, and only the initial
+state of each component is exercised. A signed-in look at the live page is still required to close a route.
+
+### Defects it found that the static checks had passed
+
+| Found | Detail | Fixed |
+|---|---|---|
+| **Crash** | `LearnerSnapshotModal` threw `t is not defined`: the import and the `t()` calls were added but not the `useI18n()` line. Opening a learner's snapshot from the students list broke. This was live in production from `3e6e953a` until `2210fbd5`. | Yes |
+| Raw key on screen | The device picker showed `deviceDialogs.selector.noneOnlineHelp`. The message was computed in a mount effect before the dictionary had loaded, and stored. | Yes — two ways: dictionaries are now bundled and synchronous in `I18nProvider` (no "not loaded yet" window anywhere), and the picker stores which message to show instead of its text |
+| 2 tooltips | `Program: …` and `Charged: … · Paid: …` on list rows | Yes |
+| 10 split sentences | Counts written as `{n} students`, `{a}/{b} assigned`, `{n} with existing photo`, `{n} learners)` and similar in the reassign, photo-upload and folder-upload dialogs; two help lines in the sync dialog | Yes |
+
+### Result after fixes (Arabic selected)
+
+| Rendered | Texts | Keys leaked | Latin-only text remaining |
+|---|---|---|---|
+| `/students/list` with 3 sample learners | 64 | 0 | 9 — all sample data (names, admission numbers, programme and stream names, initials) |
+| `/students/admit` | 27 | 0 | 0 |
+| Reassign class dialog | 11 | 0 | 0 |
+| Device picker | 4 | 0 | 0 |
+| Sync from device | 12 | 0 | 1 — the IP address placeholder |
+| Import dialog (first step) | 14 | 0 | 0 |
+| Bulk photo upload | 26 | 0 | 7 — sample learner names and numbers |
+| Folder photo upload | 19 | 0 | 2 — the example file names |
+| Bulk SMS dialog | 8 | 0 | 0 |
+
+In every case `<html dir>` was `rtl` in Arabic and `ltr` in English, and English → Arabic → English returned
+the original English text.
+
+### Not exercised by the harness
+
+Later steps of each dialog (import preview and column mapping, photo review and upload progress, sync
+results), the enrolment forms and the row menu (they open on a click), toasts and confirmation dialogs, the
+quick-edit drawer and learner snapshot (they need a fuller sample record), and all layout.
+
+## 2026-10-13 — Phase 2, route 2: `/students/admit` — TRANSLATED, rendered in the harness
+
+| State | Status |
+|---|---|
+| Inventoried | Yes — page and `components/admissions/VoiceNameCapture.tsx` |
+| Translated | Yes — 44 keys under `students.admit.*` |
+| Browser-tested | In the harness: 27 of 27 visible texts Arabic, no leaked keys, direction correct, English restored. **Not yet on the live page.** |
+| Interactions tested | **No** — submitting the form, the success screen and the voice button were not exercised |
+| Closed | **No** |
+
+The example names in the two placeholders are localised ("مثال: فاطمة"). The "Enroll Now" arrow now flips
+in right-to-left.

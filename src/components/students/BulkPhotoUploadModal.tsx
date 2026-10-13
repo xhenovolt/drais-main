@@ -511,7 +511,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                   {t('students.photoUpload.uploadPhotos')}
                 </h3>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {assignedCount}/{totalPhotos} assigned
+                  {t('students.photoUpload.assignedOf', { assigned: assignedCount, total: totalPhotos })}
                 </span>
               </div>
 
@@ -658,7 +658,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                     </span>
                   )}
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {filteredStudents.length} students
+                    {t('students.photoUpload.studentCount', { count: filteredStudents.length })}
                   </span>
                 </div>
               </div>
@@ -844,7 +844,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           <div className="flex items-center gap-2 pt-1 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
                             <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
                             <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                              <Camera className="w-3 h-3" /> {withPhoto.length} with existing photo
+                              <Camera className="w-3 h-3" /> {t('students.photoUpload.withExisting', { count: withPhoto.length })}
                             </span>
                             <div className="h-px flex-1 bg-amber-300 dark:bg-amber-700" />
                           </div>
@@ -860,7 +860,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           <div className="flex items-center gap-2 pt-3 pb-2 sticky top-0 bg-white dark:bg-slate-900/80 backdrop-blur-sm z-10">
                             <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
                             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                              <User className="w-3 h-3" /> {withoutPhoto.length} no photo yet
+                              <User className="w-3 h-3" /> {t('students.photoUpload.withoutPhoto', { count: withoutPhoto.length })}
                             </span>
                             <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
                           </div>
@@ -883,9 +883,9 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
           {/* Enhanced Footer - Fixed at bottom */}
           <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-700 flex-shrink-0">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              <span className="font-medium">{assignedCount}</span> photos ready to upload
+              <span className="font-medium">{t('students.photoUpload.readyCount', { count: assignedCount })}</span>
               {totalPhotos > 0 && (
-                <span className="ml-2">• {totalPhotos - assignedCount} unassigned</span>
+                <span className="ml-2">{t('students.photoUpload.unassignedCount', { count: totalPhotos - assignedCount })}</span>
               )}
             </div>
             <div className="flex gap-3">

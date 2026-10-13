@@ -1,7 +1,9 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useCallback } from 'react';
 import { useThemeStore } from '@/hooks/useThemeStore';
 import { translate, type Dictionary, type TVars } from '@/lib/i18n/core';
+import enDictionary from '@/locales/en.json';
+import arDictionary from '@/locales/ar.json';
 import { formatDate as fmtDate, formatMoney as fmtMoney, formatNumber as fmtNumber, formatPercent as fmtPercent, type DateStyle } from '@/lib/i18n/format';
 
 interface I18nContextValue {
@@ -39,21 +41,18 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-async function loadDictionary(lang: string): Promise<Dictionary> {
-  try {
-    switch(lang){
-      case 'ar': return (await import('@/locales/ar.json')).default as any;
-      case 'en': default: return (await import('@/locales/en.json')).default as any;
-    }
-  } catch (error) {
-    console.error(`Failed to load dictionary for language: ${lang}`, error);
-    // Fallback to English if loading fails
-    if (lang !== 'en') {
-      return (await import('@/locales/en.json')).default as any;
-    }
-    throw error;
-  }
-}
+// Both dictionaries are bundled and available synchronously.
+//
+// They used to be fetched on demand, which left a window after mount (and after every language
+// switch) in which t() had no dictionary and returned the raw key. Anything computed in that
+// window and then stored — a message put in state by a mount effect, a toast fired while data
+// loaded — kept the raw key ("deviceDialogs.selector.noneOnlineHelp" was seen on screen, found by
+// rendering the device picker in a browser). With the dictionaries always present there is no
+// such window: t() is correct from the first render and `ready` is always true.
+const DICTIONARIES: Record<string, Dictionary> = {
+  en: enDictionary as unknown as Dictionary,
+  ar: arDictionary as unknown as Dictionary,
+};
 
 // Dev-only: warn once per missing key so untranslated strings are easy to find
 // during the route-localization sweep. Silent in production.
@@ -71,10 +70,11 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
   const setLanguage = useThemeStore(s=>s.setLanguage);
   const languageExplicit = useThemeStore(s=>s.languageExplicit);
   const setLanguageFromSchoolDefault = useThemeStore(s=>s.setLanguageFromSchoolDefault);
-  const [dict, setDict] = useState<Dictionary>({});
-  const [ready, setReady] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const dict = DICTIONARIES[lang] ?? DICTIONARIES.en;
+  // Kept in the context value for existing consumers; the dictionaries are always available.
+  const ready = true;
+  const loading = false;
+  const error: string | null = null;
 
   /**
    * Phase 6 — once per mount, fetch the school's default_locale and apply
@@ -101,34 +101,6 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [languageExplicit, loadSchoolDefault]);
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError(null);
-    setReady(false);
-    
-    loadDictionary(lang)
-      .then(d => {
-        if (active) {
-          setDict(d);
-          setReady(true);
-          setError(null);
-        }
-      })
-      .catch(err => {
-        if (active) {
-          setError(err.message || 'Failed to load translations');
-          console.error('I18n loading error:', err);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-    
-    return () => { active = false; };
-  }, [lang]);
 
   useEffect(() => {
     document.documentElement.lang = lang;

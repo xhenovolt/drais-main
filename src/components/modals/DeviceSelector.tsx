@@ -49,7 +49,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
   const [loading, setLoading] = useState(true);
   const [selectedSn, setSelectedSn] = useState<string>('');
   const [rememberDevice, setRememberDevice] = useState(false);
-  const [autoMessage, setAutoMessage] = useState('');
+  const [autoMessage, setAutoMessage] = useState<{ kind: 'auto' | 'none' | 'failed'; name?: string } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -58,7 +58,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
 
   const fetchOnlineDevices = async () => {
     setLoading(true);
-    setAutoMessage('');
+    setAutoMessage(null);
     try {
       const data = await apiFetch('/api/attendance/zk/devices', { silent: true });
       const allDevices: OnlineDevice[] = (data?.data || []);
@@ -70,13 +70,13 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
 
       if (online.length === 1) {
         setSelectedSn(online[0].serial_number);
-        setAutoMessage(`Auto-selecting only online device: ${online[0].device_name}`);
+        setAutoMessage({ kind: 'auto', name: online[0].device_name });
       } else if (online.length === 0) {
-        setAutoMessage('No devices online. Ensure your device is powered on and connected.');
+        setAutoMessage({ kind: 'none' });
       }
     } catch {
       setDevices([]);
-      setAutoMessage('Failed to fetch devices.');
+      setAutoMessage({ kind: 'failed' });
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
             <>
               {autoMessage && (
                 <div className={`text-xs px-3 py-2 rounded-lg ${devices.length === 0 ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'}`}>
-                  {autoMessage}
+                  {autoMessage.kind === 'auto' ? t('deviceDialogs.selector.autoSelecting', { name: autoMessage.name ?? '' }) : autoMessage.kind === 'none' ? t('deviceDialogs.selector.noneOnlineHelp') : t('deviceDialogs.selector.fetchFailed')}
                 </div>
               )}
 

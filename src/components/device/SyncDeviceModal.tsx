@@ -128,7 +128,7 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('deviceDialogs.sync.title')}</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Pull users &amp; fingerprints from ZKTeco K40</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('deviceDialogs.sync.subtitle')}</p>
                 </div>
               </div>
               <button
@@ -178,7 +178,7 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white disabled:opacity-60"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    The local bridge must be running. Leave blank to use the school&apos;s registered device IP.
+                    {t('deviceDialogs.sync.localHint')}
                   </p>
                 </div>
               )}

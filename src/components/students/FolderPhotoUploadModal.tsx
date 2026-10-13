@@ -377,7 +377,7 @@ export function FolderPhotoUploadModal({
                     <option value="">{t('students.folderPhotos.allClasses', { count: students.length })}</option>
                     {classList.map(c => (
                       <option key={c} value={c}>
-                        {c} ({students.filter(s => s.class_name === c).length} learners)
+                        {t('students.folderPhotos.classOption', { name: c, count: students.filter(s => s.class_name === c).length })}
                       </option>
                     ))}
                   </select>

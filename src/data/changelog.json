@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T09:19:29.426Z",
-  "last_commit": "df60cac549e6eb01164161b78610d28b18a60f6b",
+  "generated_at": "2026-10-13T09:24:59.805Z",
+  "last_commit": "2210fbd5bd9859990e4f01b652f39600324e2e7c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9254,7 +9254,20 @@
         }
       ],
       "commit": "df60cac549"
+    },
+    {
+      "version": "2.50.49",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Learner snapshot dialog crashed with 't is not defined'",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Learner snapshot dialog crashed with 't is not defined'"
+        }
+      ],
+      "commit": "2210fbd5bd"
     }
   ],
-  "app_version": "2.50.49"
+  "app_version": "2.50.50"
 }

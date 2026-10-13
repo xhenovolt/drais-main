@@ -1271,7 +1271,14 @@
         "reasonLabel": "سبب النقل (اختياري)",
         "reasonPlaceholder": "أدخل سبب النقل...",
         "auditNote": "سيُسجَّل هذا في سجل التدقيق",
-        "reassigning": "جارٍ النقل..."
+        "reassigning": "جارٍ النقل...",
+        "selectedCount": {
+          "one": "طالب واحد محدد للنقل",
+          "two": "طالبان محددان للنقل",
+          "few": "{{count}} طلاب محددون للنقل",
+          "many": "{{count}} طالبًا محددًا للنقل",
+          "other": "{{count}} طالب محدد للنقل"
+        }
       },
       "quickEdit": {
         "updateFailed": "فشل التحديث",
@@ -1395,7 +1402,27 @@
         "few": "رفع {{count}} صور",
         "many": "رفع {{count}} صورة",
         "other": "رفع {{count}} صورة"
-      }
+      },
+      "assignedOf": "{{assigned}}/{{total}} مرتبطة",
+      "studentCount": {
+        "zero": "لا طلاب",
+        "one": "طالب واحد",
+        "two": "طالبان",
+        "few": "{{count}} طلاب",
+        "many": "{{count}} طالبًا",
+        "other": "{{count}} طالب"
+      },
+      "withExisting": "{{count}} لديهم صورة حالية",
+      "withoutPhoto": "{{count}} بلا صورة بعد",
+      "readyCount": {
+        "zero": "لا صور جاهزة للرفع",
+        "one": "صورة واحدة جاهزة للرفع",
+        "two": "صورتان جاهزتان للرفع",
+        "few": "{{count}} صور جاهزة للرفع",
+        "many": "{{count}} صورة جاهزة للرفع",
+        "other": "{{count}} صورة جاهزة للرفع"
+      },
+      "unassignedCount": "• {{count}} غير مرتبطة"
     },
     "folderPhotos": {
       "confidence": {
@@ -1475,7 +1502,8 @@
         "other": "رفع {{count}} صورة"
       },
       "pleaseWait": "جارٍ الرفع — يرجى الانتظار…",
-      "cancelUpload": "إلغاء الرفع"
+      "cancelUpload": "إلغاء الرفع",
+      "classOption": "{{name}} ({{count}} متعلمًا)"
     },
     "import": {
       "previewFailed": "فشلت المعاينة",
@@ -3026,7 +3054,10 @@
       "noneOnline": "لم يُعثر على أجهزة متصلة",
       "retry": "إعادة المحاولة",
       "remember": "استخدم هذا الجهاز دائمًا في هذه الجلسة",
-      "useDevice": "استخدام الجهاز"
+      "useDevice": "استخدام الجهاز",
+      "noneOnlineHelp": "لا توجد أجهزة متصلة. تأكد من أن جهازك يعمل ومتصل بالشبكة.",
+      "autoSelecting": "اختيار الجهاز المتصل الوحيد تلقائيًا: {{name}}",
+      "fetchFailed": "تعذّر جلب الأجهزة."
     },
     "sync": {
       "completeLocal": "اكتملت المزامنة — {{users}} مستخدمًا، وأُضيفت {{fingerprints}} بصمة",
@@ -3056,7 +3087,9 @@
       "fingerprintsAdded": "البصمات المضافة",
       "close": "إغلاق",
       "syncing": "جارٍ المزامنة…",
-      "start": "بدء المزامنة"
+      "start": "بدء المزامنة",
+      "subtitle": "جلب المستخدمين والبصمات من ZKTeco K40",
+      "localHint": "يجب أن يكون الجسر المحلي قيد التشغيل. اتركه فارغًا لاستخدام عنوان IP المسجّل لجهاز المدرسة."
     }
   }
 }

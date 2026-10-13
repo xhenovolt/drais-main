@@ -729,7 +729,11 @@
         "reasonLabel": "Reason for Reassignment (Optional)",
         "reasonPlaceholder": "Enter reason for reassignment...",
         "auditNote": "This will be recorded in the audit trail",
-        "reassigning": "Reassigning..."
+        "reassigning": "Reassigning...",
+        "selectedCount": {
+          "one": "{{count}} student selected for reassignment",
+          "other": "{{count}} students selected for reassignment"
+        }
       },
       "quickEdit": {
         "updateFailed": "Update failed",
@@ -834,7 +838,19 @@
       "uploadCount": {
         "one": "Upload {{count}} Photo",
         "other": "Upload {{count}} Photos"
-      }
+      },
+      "assignedOf": "{{assigned}}/{{total}} assigned",
+      "studentCount": {
+        "one": "{{count}} student",
+        "other": "{{count}} students"
+      },
+      "withExisting": "{{count}} with existing photo",
+      "withoutPhoto": "{{count}} no photo yet",
+      "readyCount": {
+        "one": "{{count}} photo ready to upload",
+        "other": "{{count}} photos ready to upload"
+      },
+      "unassignedCount": "• {{count}} unassigned"
     },
     "folderPhotos": {
       "confidence": {
@@ -904,7 +920,8 @@
         "other": "Upload {{count}} Photos"
       },
       "pleaseWait": "Uploading — please wait…",
-      "cancelUpload": "Cancel Upload"
+      "cancelUpload": "Cancel Upload",
+      "classOption": "{{name}} ({{count}} learners)"
     },
     "import": {
       "previewFailed": "Preview failed",
@@ -2967,7 +2984,10 @@
       "noneOnline": "No online devices found",
       "retry": "Retry",
       "remember": "Always use this device for this session",
-      "useDevice": "Use Device"
+      "useDevice": "Use Device",
+      "noneOnlineHelp": "No devices online. Ensure your device is powered on and connected.",
+      "autoSelecting": "Auto-selecting only online device: {{name}}",
+      "fetchFailed": "Failed to fetch devices."
     },
     "sync": {
       "completeLocal": "Sync complete — {{users}} users, {{fingerprints}} fingerprints added",
@@ -2997,7 +3017,9 @@
       "fingerprintsAdded": "Fingerprints added",
       "close": "Close",
       "syncing": "Syncing…",
-      "start": "Start Sync"
+      "start": "Start Sync",
+      "subtitle": "Pull users & fingerprints from ZKTeco K40",
+      "localHint": "The local bridge must be running. Leave blank to use the school's registered device IP."
     }
   }
 }

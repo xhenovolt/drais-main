@@ -115,9 +115,9 @@ async function snapshot(lang) {
   const data = await page.evaluate(() => {
     const visible = (el) => { const s = getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden'; };
     const out = new Set();
-    const walk = document.createTreeWalker(document.getElementById('root'), NodeFilter.SHOW_TEXT);
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); // body, not #root: dialogs render in portals
     for (let n = walk.nextNode(); n; n = walk.nextNode()) { const t = n.textContent.replace(/\s+/g, ' ').trim(); if (t && n.parentElement && visible(n.parentElement)) out.add(t); }
-    for (const el of document.querySelectorAll('#root [placeholder], #root [title], #root [aria-label], #root [alt]')) {
+    for (const el of document.querySelectorAll('[placeholder], [title], [aria-label], [alt]')) {
       for (const a of ['placeholder', 'title', 'aria-label', 'alt']) { const v = el.getAttribute(a); if (v && v.trim()) out.add(`[${a}] ${v.trim()}`); }
     }
     return { texts: [...out], dir: document.documentElement.dir, lang: document.documentElement.lang, crashed: document.getElementById('__render_error')?.textContent ?? null };

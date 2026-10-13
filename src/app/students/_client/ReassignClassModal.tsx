@@ -96,7 +96,7 @@ export default function ReassignClassModal({
           <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
             <AlertCircle size={20} className="text-blue-600 dark:text-blue-400" />
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              {selectedStudentCount} student{selectedStudentCount !== 1 ? 's' : ''} selected for reassignment
+              {t('students.list.reassign.selectedCount', { count: selectedStudentCount })}
             </p>
           </div>
 
