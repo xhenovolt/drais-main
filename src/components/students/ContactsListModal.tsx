@@ -5,6 +5,7 @@ import { X, Search, Phone, MessageSquare, Edit2, Trash2, Mail, MapPin, Briefcase
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import EditContactModal from './EditContactModal';
 import SMSComposerModal from './SMSComposerModal';
 
@@ -16,6 +17,7 @@ interface ContactsListModalProps {
 }
 
 const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, studentId, studentName }) => {
+  const { t, digits } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [editingContact, setEditingContact] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -49,7 +51,7 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
   };
 
   const handleDelete = async (contactId: string) => {
-    if (!confirm('Delete this contact?')) return;
+    if (!confirm(t('students.contacts.list.confirmDelete'))) return;
 
     setDeleting(contactId);
     try {
@@ -58,13 +60,13 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
       });
 
       if (response.ok) {
-        toast.success('Contact deleted');
+        toast.success(t('students.contacts.list.deleted'));
         mutate();
       } else {
-        toast.error('Failed to delete contact');
+        toast.error(t('students.contacts.list.deleteFailed'));
       }
     } catch (err) {
-      toast.error('Error deleting contact');
+      toast.error(t('students.contacts.list.deleteError'));
       console.error(err);
     } finally {
       setDeleting(null);
@@ -74,7 +76,7 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
   const handleCall = (phoneNumber: string, contactName: string) => {
     // Open phone dialer
     window.location.href = `tel:${phoneNumber}`;
-    toast.success(`Opening dialer for ${contactName}`);
+    toast.success(t('students.contacts.list.openingDialer', { name: contactName }));
   };
 
   const handleSMS = (contact: any) => {
@@ -103,11 +105,11 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Contacts
+                {t('students.contacts.list.title')}
               </h2>
               {studentName && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  for {studentName}
+                  {t('students.contacts.list.forStudent', { name: studentName })}
                 </p>
               )}
             </div>
@@ -122,13 +124,13 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
           {/* Search Bar */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute start-3 top-3 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, phone, or relationship..."
+                placeholder={t('students.contacts.list.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-sm"
+                className="w-full ps-10 pe-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-sm"
               />
             </div>
           </div>
@@ -139,7 +141,7 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
               <div className="p-12 text-center text-gray-500 dark:text-gray-400">
                 <Phone className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">
-                  {searchQuery.trim() ? 'No contacts match your search' : 'No contacts added yet'}
+                  {searchQuery.trim() ? t('students.contacts.list.noMatch') : t('students.contacts.list.noneYet')}
                 </p>
               </div>
             ) : (
@@ -165,18 +167,18 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
                                 {contact.contact_first_name} {contact.contact_last_name}
                               </p>
                               <p className="text-sm text-blue-600 dark:text-blue-400 font-mono">
-                                {contact.contact_phone}
+                                {digits(contact.contact_phone)}
                               </p>
                             </div>
                             {contact.is_primary && (
                               <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs font-medium rounded">
-                                Primary
+                                {t('students.contacts.primary')}
                               </span>
                             )}
                           </div>
 
                           {/* Contact Details */}
-                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 ml-12">
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 ms-12">
                             {contact.relationship && (
                               <p className="flex items-center gap-1">
                                 <span className="text-gray-400">•</span> {contact.relationship}
@@ -205,21 +207,21 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
                           <button
                             onClick={() => handleCall(contact.contact_phone, contact.contact_first_name)}
                             className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                            title="Call"
+                            title={t('students.contacts.call')}
                           >
                             <Phone className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleSMS(contact)}
                             className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-                            title="Send SMS"
+                            title={t('students.contacts.sendSms')}
                           >
                             <MessageSquare className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleEdit(contact)}
                             className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                            title="Edit"
+                            title={t('students.contacts.edit')}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
@@ -227,7 +229,7 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
                             onClick={() => handleDelete(contact.contact_id)}
                             disabled={deleting === contact.contact_id}
                             className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50"
-                            title="Delete"
+                            title={t('students.contacts.list.delete')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -246,7 +248,7 @@ const ContactsListModal: React.FC<ContactsListModalProps> = ({ open, onClose, st
               onClick={onClose}
               className="w-full py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors font-medium text-sm"
             >
-              Close
+              {t('students.contacts.list.close')}
             </button>
           </div>
         </motion.div>

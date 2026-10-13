@@ -9,9 +9,11 @@ import AddContactModal from '@/components/students/AddContactModal';
 import ImportContactsModal from '@/components/students/ImportContactsModal';
 import ContactsListModal from '@/components/students/ContactsListModal';
 import Pagination from '@/components/ui/Pagination';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const ContactsPage: React.FC = () => {
   const { user } = useAuth();
+  const { t, formatNumber, digits } = useI18n();
   const schoolId = user?.schoolId ?? 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -24,8 +26,8 @@ const ContactsPage: React.FC = () => {
   // Debounce free-text search instead of re-filtering thousands of rows
   // client-side on every keystroke.
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   // This route previously fetched EVERY contact for EVERY student in the
@@ -60,10 +62,10 @@ const ContactsPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              📞 Student Contacts
+              {t('students.contacts.title')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {pagination?.total ?? filteredContacts.length} contact records
+              {t('students.contacts.recordCount', { count: formatNumber(pagination?.total ?? filteredContacts.length) })}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -71,15 +73,15 @@ const ContactsPage: React.FC = () => {
               onClick={() => setShowImportModal(true)}
               className="rounded-lg border border-emerald-300 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 dark:bg-slate-800 dark:text-emerald-300"
             >
-              <FileSpreadsheet className="mr-2 inline h-5 w-5" />
-              Import Excel
+              <FileSpreadsheet className="me-2 inline h-5 w-5" />
+              {t('students.contacts.importExcel')}
             </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="btn-primary flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-white shadow-lg transition-all duration-200 hover:shadow-xl"
             >
               <Plus className="h-5 w-5" />
-              Add Contact
+              {t('students.contacts.addContact')}
             </button>
           </div>
         </div>
@@ -87,13 +89,13 @@ const ContactsPage: React.FC = () => {
         {/* Search */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search students, contacts, or relationships..."
+              placeholder={t('students.contacts.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+              className="w-full ps-10 pe-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             />
           </div>
         </div>
@@ -103,7 +105,7 @@ const ContactsPage: React.FC = () => {
           {isLoading ? (
             <div className="col-span-full text-center py-12">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-500 dark:text-gray-400">Loading contacts...</p>
+              <p className="text-gray-500 dark:text-gray-400">{t('students.contacts.loading')}</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -133,7 +135,7 @@ const ContactsPage: React.FC = () => {
                         {contact.student_first_name} {contact.student_last_name}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {contact.class_name || 'Not Assigned'} • {contact.admission_no}
+                        {contact.class_name || t('students.contacts.notAssigned')} • {contact.admission_no}
                       </p>
                     </div>
                   </div>
@@ -151,7 +153,7 @@ const ContactsPage: React.FC = () => {
                           </h4>
                           {contact.is_primary && (
                             <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                              Primary
+                              {t('students.contacts.primary')}
                             </span>
                           )}
                         </div>
@@ -167,7 +169,7 @@ const ContactsPage: React.FC = () => {
                       {contact.contact_phone && (
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                           <Phone className="w-4 h-4" />
-                          <span className="font-mono">{contact.contact_phone}</span>
+                          <span className="font-mono">{digits(contact.contact_phone)}</span>
                         </div>
                       )}
                       {contact.contact_email && (
@@ -178,7 +180,7 @@ const ContactsPage: React.FC = () => {
                       )}
                       {contact.occupation && (
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          <span className="font-medium">Occupation:</span> {contact.occupation}
+                          <span className="font-medium">{t('students.contacts.occupation')}</span> {contact.occupation}
                         </div>
                       )}
                     </div>
@@ -191,10 +193,10 @@ const ContactsPage: React.FC = () => {
                           window.location.href = `tel:${contact.contact_phone}`;
                         }}
                         className="flex-1 p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
-                        title="Call"
+                        title={t('students.contacts.call')}
                       >
                         <Phone className="w-4 h-4" />
-                        Call
+                        {t('students.contacts.call')}
                       </button>
                       <button
                         onClick={(e) => {
@@ -209,10 +211,10 @@ const ContactsPage: React.FC = () => {
                           }, 100);
                         }}
                         className="flex-1 p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
-                        title="Send SMS"
+                        title={t('students.contacts.sendSms')}
                       >
                         <MessageSquare className="w-4 h-4" />
-                        SMS
+                        {t('students.contacts.sms')}
                       </button>
                       <button
                         onClick={(e) => {
@@ -224,10 +226,10 @@ const ContactsPage: React.FC = () => {
                           setShowContactsList(true);
                         }}
                         className="flex-1 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
-                        title="Edit"
+                        title={t('students.contacts.edit')}
                       >
                         <Edit2 className="w-4 h-4" />
-                        Manage
+                        {t('students.contacts.manage')}
                       </button>
                     </div>
                   </div>
@@ -239,7 +241,7 @@ const ContactsPage: React.FC = () => {
           {filteredContacts.length === 0 && !isLoading && (
             <div className="col-span-full text-center py-12">
               <Phone className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No contacts found</p>
+              <p className="text-gray-500 dark:text-gray-400">{t('students.contacts.none')}</p>
             </div>
           )}
         </div>

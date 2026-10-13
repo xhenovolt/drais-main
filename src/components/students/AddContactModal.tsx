@@ -5,6 +5,7 @@ import { X, User, Phone, Search, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface AddContactModalProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface AddContactModalProps {
 }
 
 const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSuccess }) => {
+  const { t } = useI18n();
   const [step, setStep] = useState<'search' | 'form'>('search'); // Two-step workflow
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -69,8 +71,8 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.student_id) newErrors.student_id = 'Student is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    if (!formData.student_id) newErrors.student_id = t('students.contacts.add.studentRequired');
+    if (!formData.phone.trim()) newErrors.phone = t('students.contacts.phoneRequired');
     // All other fields are OPTIONAL to speed up data entry
 
     setErrors(newErrors);
@@ -80,7 +82,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
-      toast.error('Student and phone number are required');
+      toast.error(t('students.contacts.add.studentPhoneRequired'));
       return;
     }
 
@@ -93,7 +95,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
       });
 
       if (response.ok) {
-        toast.success('✓ Saved for ' + selectedStudent?.first_name);
+        toast.success(t('students.contacts.add.savedFor', { name: selectedStudent?.first_name ?? '' }));
         
         // Reset but keep modal open for rapid entries
         setFormData({
@@ -113,10 +115,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
         onSuccess();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to add contact');
+        toast.error(error.error || t('students.contacts.add.failed'));
       }
     } catch (err) {
-      toast.error('An error occurred');
+      toast.error(t('students.contacts.errorOccurred'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -155,7 +157,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {step === 'search' ? 'Find Student' : `Phone for ${selectedStudent?.first_name}`}
+            {step === 'search' ? t('students.contacts.add.findStudent') : t('students.contacts.add.phoneFor', { name: selectedStudent?.first_name ?? '' })}
           </h2>
           <button
             onClick={onClose}
@@ -173,12 +175,12 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <div className="flex items-center gap-2">
                   <Search className="w-4 h-4" />
-                  <span>Search by name or admission #</span>
+                  <span>{t('students.contacts.add.searchLabel')}</span>
                 </div>
               </label>
               <input
                 type="text"
-                placeholder="Type name or admission number..."
+                placeholder={t('students.contacts.add.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
@@ -194,7 +196,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
                     key={student.id}
                     onClick={() => handleSelectStudent(student)}
                     whileHover={{ backgroundColor: '#f0f9ff' }}
-                    className="w-full px-4 py-3 text-left border-b border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition-colors flex items-center justify-between group"
+                    className="w-full px-4 py-3 text-start border-b border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition-colors flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-3 flex-1">
                       <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
@@ -217,14 +219,14 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
 
             {searchQuery.trim() && filteredStudents.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No students found matching "{searchQuery}"</p>
+                <p className="text-sm">{t('students.contacts.add.noMatch', { query: searchQuery })}</p>
               </div>
             )}
 
             {!searchQuery.trim() && (
               <div className="text-center py-12 text-gray-500">
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Start typing a name or admission number</p>
+                <p className="text-sm">{t('students.contacts.add.startTyping')}</p>
               </div>
             )}
 
@@ -233,7 +235,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
               onClick={onClose}
               className="w-full py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-sm"
             >
-              Cancel
+              {t('students.contacts.cancel')}
             </button>
           </div>
         )}
@@ -247,7 +249,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
                 <User className="w-5 h-5 text-blue-600 dark:text-blue-300" />
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Selected Learner</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('students.contacts.add.selectedLearner')}</p>
                 <p className="font-semibold text-gray-900 dark:text-white">
                   {selectedStudent.first_name} {selectedStudent.last_name}
                 </p>
@@ -259,12 +261,12 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  <span>Phone Number *</span>
+                  <span>{t('students.contacts.phoneLabel')}</span>
                 </div>
               </label>
               <input
                 type="tel"
-                placeholder="+966 50 xxx xxxx"
+                placeholder={t('students.contacts.add.phonePlaceholder')}
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 autoFocus
@@ -273,77 +275,77 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
                 }`}
               />
               {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-              <p className="text-xs text-gray-500 mt-1">This is what we need for notifications</p>
+              <p className="text-xs text-gray-500 mt-1">{t('students.contacts.add.phoneHint')}</p>
             </div>
 
             {/* Advanced Section - Collapsible optional fields */}
             <details className="border-t pt-4">
               <summary className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                Optional Details (to add later)
+                {t('students.contacts.add.optional')}
               </summary>
               <div className="mt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    First Name
+                    {t('students.contacts.firstName')}
                   </label>
                   <input
                     type="text"
                     value={formData.first_name}
                     onChange={(e) => handleInputChange('first_name', e.target.value)}
-                    placeholder="Contact's first name"
+                    placeholder={t('students.contacts.add.firstNamePlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Last Name
+                    {t('students.contacts.lastName')}
                   </label>
                   <input
                     type="text"
                     value={formData.last_name}
                     onChange={(e) => handleInputChange('last_name', e.target.value)}
-                    placeholder="Contact's last name"
+                    placeholder={t('students.contacts.add.lastNamePlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Relationship
+                    {t('students.contacts.relationship')}
                   </label>
                   <input
                     type="text"
                     value={formData.relationship}
                     onChange={(e) => handleInputChange('relationship', e.target.value)}
-                    placeholder="e.g., Father, Mother, Uncle"
+                    placeholder={t('students.contacts.add.relationshipPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Occupation
+                    {t('students.contacts.occupationLabel')}
                   </label>
                   <input
                     type="text"
                     value={formData.occupation}
                     onChange={(e) => handleInputChange('occupation', e.target.value)}
-                    placeholder="e.g., Engineer, Teacher"
+                    placeholder={t('students.contacts.occupationPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Email
+                    {t('students.contacts.email')}
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="Contact email"
+                    placeholder={t('students.contacts.add.emailPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
@@ -357,14 +359,14 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ open, onClose, onSucc
                 onClick={() => setStep('search')}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
               >
-                Back
+                {t('students.contacts.add.back')}
               </button>
               <button
                 type="submit"
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-medium text-sm"
               >
-                {loading ? 'Saving...' : 'Save Phone Number'}
+                {loading ? t('students.contacts.saving') : t('students.contacts.add.save')}
               </button>
             </div>
           </form>

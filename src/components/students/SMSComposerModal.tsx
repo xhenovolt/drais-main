@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, MessageSquare, Phone, Send } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { toast } from 'react-hot-toast';
 import { mutate as globalMutate } from 'swr';
 
@@ -12,6 +13,7 @@ interface SMSComposerModalProps {
 }
 
 const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, contact }) => {
+  const { t, rich, digits } = useI18n();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sentCount, setSentCount] = useState(0);
@@ -21,12 +23,12 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
     e.preventDefault();
 
     if (!message.trim()) {
-      toast.error('Message cannot be empty');
+      toast.error(t('students.contacts.smsForm.empty'));
       return;
     }
 
     if (!contact?.contact_phone) {
-      toast.error('No phone number available');
+      toast.error(t('students.contacts.smsForm.noPhone'));
       return;
     }
 
@@ -44,7 +46,7 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
 
       if (response.ok) {
         const data = await response.json();
-        toast.success(`✓ SMS sent to ${contact.contact_first_name}`);
+        toast.success(t('students.contacts.smsForm.sentTo', { name: contact.contact_first_name }));
         globalMutate('/api/sms/quota');
         setSentCount(sentCount + 1);
         setMessage('');
@@ -56,10 +58,10 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
         }, 2000);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to send SMS');
+        toast.error(error.error || t('students.contacts.smsForm.failed'));
       }
     } catch (err) {
-      toast.error('Error sending SMS');
+      toast.error(t('students.contacts.smsForm.error'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -84,7 +86,7 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
-              Send SMS
+              {t('students.contacts.sendSms')}
             </h2>
           </div>
           <button
@@ -102,12 +104,12 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
               <Phone className="w-5 h-5 text-purple-600 dark:text-purple-300" />
             </div>
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Sending to</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('students.contacts.smsForm.sendingTo')}</p>
               <p className="font-semibold text-gray-900 dark:text-white">
                 {contact.contact_first_name} {contact.contact_last_name}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                {contact.contact_phone}
+                {digits(contact.contact_phone)}
               </p>
             </div>
           </div>
@@ -118,12 +120,12 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
           {/* Message Box */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Message
+              {t('students.contacts.smsForm.message')}
             </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value.slice(0, maxChars * 3))} // Allow ~3 SMS
-              placeholder="Type your message here..."
+              placeholder={t('students.contacts.smsForm.placeholder')}
               maxLength={maxChars * 3}
               rows={5}
               autoFocus
@@ -134,12 +136,12 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
             <div className="mt-2 flex items-center justify-between text-xs">
               <div className="text-gray-600 dark:text-gray-400">
                 <span className={charCount > maxChars * 2 ? 'text-orange-600 dark:text-orange-400 font-medium' : ''}>
-                  {charCount}
+                  {digits(charCount)}
                 </span>
-                <span className="text-gray-500"> / {maxChars * 3}</span>
+                <span className="text-gray-500"> / {digits(maxChars * 3)}</span>
               </div>
               <div className="text-gray-700 dark:text-gray-300 font-medium">
-                SMS: <span className={smsCount > 1 ? 'text-blue-600 dark:text-blue-400' : ''}>{smsCount}</span>
+                {rich('students.contacts.smsForm.smsCount', { count: <span className={smsCount > 1 ? 'text-blue-600 dark:text-blue-400' : ''}>{digits(smsCount)}</span> })}
               </div>
             </div>
           </div>
@@ -147,36 +149,36 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
           {/* Predefined Templates */}
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase">
-              Quick Templates
+              {t('students.contacts.smsForm.templates')}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setMessage("Hi, this is a message from the school regarding your ward's status.")}
+                onClick={() => setMessage(t('students.contacts.smsForm.tpl.updateText'))}
                 className="px-3 py-2 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
               >
-                School Update
+                {t('students.contacts.smsForm.tpl.update')}
               </button>
               <button
                 type="button"
-                onClick={() => setMessage("Your ward has pending payments. Please contact the school office for details.")}
+                onClick={() => setMessage(t('students.contacts.smsForm.tpl.feesText'))}
                 className="px-3 py-2 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
               >
-                Fees Reminder
+                {t('students.contacts.smsForm.tpl.fees')}
               </button>
               <button
                 type="button"
-                onClick={() => setMessage("Greetings! How are you doing today?")}
+                onClick={() => setMessage(t('students.contacts.smsForm.tpl.greetingText'))}
                 className="px-3 py-2 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
               >
-                Greeting
+                {t('students.contacts.smsForm.tpl.greeting')}
               </button>
               <button
                 type="button"
-                onClick={() => setMessage("Your child has achieved excellent results. Well done!")}
+                onClick={() => setMessage(t('students.contacts.smsForm.tpl.congratsText'))}
                 className="px-3 py-2 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
               >
-                Congratulations
+                {t('students.contacts.smsForm.tpl.congrats')}
               </button>
             </div>
           </div>
@@ -188,7 +190,7 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
               onClick={onClose}
               className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
             >
-              Cancel
+              {t('students.contacts.cancel')}
             </button>
             <button
               type="submit"
@@ -196,13 +198,13 @@ const SMSComposerModal: React.FC<SMSComposerModalProps> = ({ open, onClose, cont
               className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-medium text-sm flex items-center justify-center gap-2"
             >
               <Send className="w-4 h-4" />
-              {loading ? 'Sending...' : 'Send SMS'}
+              {loading ? t('students.contacts.smsForm.sending') : t('students.contacts.sendSms')}
             </button>
           </div>
 
           {/* Note */}
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Messages are sent via AFRICASTALKING. Standard SMS rates may apply.
+            {t('students.contacts.smsForm.note')}
           </p>
         </form>
       </motion.div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Phone, User } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { toast } from 'react-hot-toast';
 
 interface EditContactModalProps {
@@ -12,6 +13,7 @@ interface EditContactModalProps {
 }
 
 const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, contact, onSuccess }) => {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     contact_first_name: '',
     contact_last_name: '',
@@ -52,7 +54,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
     const newErrors: { [key: string]: string } = {};
 
     if (!formData.contact_phone.trim()) {
-      newErrors.contact_phone = 'Phone number is required';
+      newErrors.contact_phone = t('students.contacts.phoneRequired');
     }
 
     setErrors(newErrors);
@@ -62,7 +64,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
-      toast.error('Phone number is required');
+      toast.error(t('students.contacts.phoneRequired'));
       return;
     }
 
@@ -84,15 +86,15 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
       });
 
       if (response.ok) {
-        toast.success('✓ Contact updated');
+        toast.success(t('students.contacts.editForm.updated'));
         onSuccess();
         onClose();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to update contact');
+        toast.error(error.error || t('students.contacts.editForm.failed'));
       }
     } catch (err) {
-      toast.error('An error occurred');
+      toast.error(t('students.contacts.errorOccurred'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -112,7 +114,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Edit Contact
+            {t('students.contacts.editForm.title')}
           </h2>
           <button
             onClick={onClose}
@@ -130,7 +132,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
               <User className="w-5 h-5 text-blue-600 dark:text-blue-300" />
             </div>
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Updating Contact</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('students.contacts.editForm.updating')}</p>
               <p className="font-semibold text-gray-900 dark:text-white">
                 {contact.contact_first_name} {contact.contact_last_name}
               </p>
@@ -140,13 +142,13 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* First Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              First Name
+              {t('students.contacts.firstName')}
             </label>
             <input
               type="text"
               value={formData.contact_first_name}
               onChange={(e) => handleInputChange('contact_first_name', e.target.value)}
-              placeholder="First name"
+              placeholder={t('students.contacts.editForm.firstNamePlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -154,13 +156,13 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* Last Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Last Name
+              {t('students.contacts.lastName')}
             </label>
             <input
               type="text"
               value={formData.contact_last_name}
               onChange={(e) => handleInputChange('contact_last_name', e.target.value)}
-              placeholder="Last name"
+              placeholder={t('students.contacts.editForm.lastNamePlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -170,14 +172,14 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
-                <span>Phone Number *</span>
+                <span>{t('students.contacts.phoneLabel')}</span>
               </div>
             </label>
             <input
               type="tel"
               value={formData.contact_phone}
               onChange={(e) => handleInputChange('contact_phone', e.target.value)}
-              placeholder="+256 700 xxx xxx"
+              placeholder={t('students.contacts.editForm.phonePlaceholder')}
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white ${
                 errors.contact_phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
               }`}
@@ -188,13 +190,13 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
+              {t('students.contacts.email')}
             </label>
             <input
               type="email"
               value={formData.contact_email}
               onChange={(e) => handleInputChange('contact_email', e.target.value)}
-              placeholder="email@example.com"
+              placeholder={t('students.contacts.editForm.emailPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -202,13 +204,13 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Address
+              {t('students.contacts.editForm.address')}
             </label>
             <input
               type="text"
               value={formData.contact_address}
               onChange={(e) => handleInputChange('contact_address', e.target.value)}
-              placeholder="Street address"
+              placeholder={t('students.contacts.editForm.addressPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -216,13 +218,13 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* Relationship */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Relationship
+              {t('students.contacts.relationship')}
             </label>
             <input
               type="text"
               value={formData.relationship}
               onChange={(e) => handleInputChange('relationship', e.target.value)}
-              placeholder="e.g., Father, Mother, Guardian"
+              placeholder={t('students.contacts.editForm.relationshipPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -230,13 +232,13 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* Occupation */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Occupation
+              {t('students.contacts.occupationLabel')}
             </label>
             <input
               type="text"
               value={formData.occupation}
               onChange={(e) => handleInputChange('occupation', e.target.value)}
-              placeholder="e.g., Engineer, Teacher"
+              placeholder={t('students.contacts.occupationPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -244,15 +246,15 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
           {/* Alive Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Status
+              {t('students.contacts.editForm.status')}
             </label>
             <select
               value={formData.alive_status}
               onChange={(e) => handleInputChange('alive_status', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
             >
-              <option value="alive">Alive</option>
-              <option value="deceased">Deceased</option>
+              <option value="alive">{t('students.contacts.editForm.alive')}</option>
+              <option value="deceased">{t('students.contacts.editForm.deceased')}</option>
             </select>
           </div>
 
@@ -263,14 +265,14 @@ const EditContactModal: React.FC<EditContactModalProps> = ({ open, onClose, cont
               onClick={onClose}
               className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
             >
-              Cancel
+              {t('students.contacts.cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-medium text-sm"
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? t('students.contacts.saving') : t('students.contacts.editForm.save')}
             </button>
           </div>
         </form>

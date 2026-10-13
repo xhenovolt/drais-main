@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:47:43.517Z",
-  "last_commit": "8f6ee0d086b1cd89ce393c46197ad088e3d0a368",
+  "generated_at": "2026-10-13T10:52:50.484Z",
+  "last_commit": "1affc3a6fb0322e44908c218f9798da7652c2353",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9384,7 +9384,20 @@
         }
       ],
       "commit": "8f6ee0d086"
+    },
+    {
+      "version": "2.50.59",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /students/requirements (page, class requirements manager, add-requirement dialog)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /students/requirements (page, class requirements manager, add-requirement dialog)"
+        }
+      ],
+      "commit": "1affc3a6fb"
     }
   ],
-  "app_version": "2.50.59"
+  "app_version": "2.50.60"
 }
