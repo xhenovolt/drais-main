@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Wifi, WifiOff, Fingerprint, Loader, Check, Radio } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const STORAGE_KEY = 'preferred_enrollment_device';
 
@@ -43,6 +44,7 @@ export function clearPreferredDevice() {
 }
 
 export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: DeviceSelectorProps) {
+  const { t } = useI18n();
   const [devices, setDevices] = useState<OnlineDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSn, setSelectedSn] = useState<string>('');
@@ -82,7 +84,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
 
   const handleConfirm = () => {
     if (!selectedSn) {
-      showToast('error', 'Please select a device');
+      showToast('error', t('deviceDialogs.selector.selectFirst'));
       return;
     }
     const device = devices.find(d => d.serial_number === selectedSn);
@@ -105,7 +107,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Fingerprint className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Select Enrollment Device</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('deviceDialogs.selector.title')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X className="w-4 h-4 text-slate-500" />
@@ -117,7 +119,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
           {loading ? (
             <div className="flex items-center justify-center py-8 gap-2 text-sm text-slate-500">
               <Loader className="w-4 h-4 animate-spin" />
-              Discovering devices…
+              {t('deviceDialogs.selector.discovering')}
             </div>
           ) : (
             <>
@@ -162,12 +164,12 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
               {devices.length === 0 && !loading && (
                 <div className="flex flex-col items-center gap-2 py-6 text-center">
                   <WifiOff className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-                  <p className="text-sm text-slate-500">No online devices found</p>
+                  <p className="text-sm text-slate-500">{t('deviceDialogs.selector.noneOnline')}</p>
                   <button
                     onClick={fetchOnlineDevices}
                     className="text-xs text-indigo-600 hover:underline"
                   >
-                    Retry
+                    {t('deviceDialogs.selector.retry')}
                   </button>
                 </div>
               )}
@@ -187,7 +189,7 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
               />
               <span className="text-xs text-slate-600 dark:text-slate-400">
-                Always use this device for this session
+                {t('deviceDialogs.selector.remember')}
               </span>
             </label>
 
@@ -196,14 +198,14 @@ export default function DeviceSelector({ isOpen, onClose, onDeviceSelected }: De
                 onClick={onClose}
                 className="flex-1 h-9 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={!selectedSn}
                 className="flex-1 h-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors"
               >
-                Use Device
+                {t('deviceDialogs.selector.useDevice')}
               </button>
             </div>
           </div>

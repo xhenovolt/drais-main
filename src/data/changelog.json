@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T08:29:00.360Z",
-  "last_commit": "499bdcdcd30f59a21247e4b63eef6be5815b28ba",
+  "generated_at": "2026-10-13T09:08:20.233Z",
+  "last_commit": "3e6e953ac127af7cc57eb98402b160f0f555ea7e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9215,7 +9215,20 @@
         }
       ],
       "commit": "499bdcdcd3"
+    },
+    {
+      "version": "2.50.46",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Verification log for /students/list (in progress) and refreshed inventory",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Verification log for /students/list (in progress) and refreshed inventory"
+        }
+      ],
+      "commit": "3e6e953ac1"
     }
   ],
-  "app_version": "2.50.46"
+  "app_version": "2.50.47"
 }

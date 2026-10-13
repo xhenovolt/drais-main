@@ -778,6 +778,131 @@
         "feeBalance": "Fee Balance",
         "arrived": "✓ Arrived {{time}}"
       }
+    },
+    "photoUpload": {
+      "compressionError": "Compression/thumbnail failed",
+      "compressionFailedTitle": "Compression Failed",
+      "compressionFailedBody": "Failed to compress {{file}}. Upload of this file will be skipped.",
+      "noCanvas": "Canvas context not available",
+      "compressionFailed": "Compression failed",
+      "thumbnailFailed": "Thumbnail generation failed",
+      "nothingToUploadTitle": "No Photos to Upload",
+      "nothingToUploadBody": "Please assign students to photos before uploading.",
+      "uploadFailed": "Upload failed",
+      "completeTitle": "Upload Complete!",
+      "completeTitlePartial": "Upload Complete",
+      "allUploaded": {
+        "one": "{{count}} photo uploaded successfully.",
+        "other": "All {{count}} photos uploaded successfully."
+      },
+      "okCount": {
+        "one": "{{count}} photo uploaded successfully",
+        "other": "{{count}} photos uploaded successfully"
+      },
+      "failCount": {
+        "one": "{{count}} photo failed to upload",
+        "other": "{{count}} photos failed to upload"
+      },
+      "uploadingPhotos": "Uploading photos...",
+      "uploadPhotos": "Upload Photos",
+      "dropHere": "Drop photos here",
+      "dragDrop": "Drag & drop photos here",
+      "orBrowse": "or click to browse files",
+      "supports": "Supports: JPG, PNG, GIF, WebP (Max 100MB each) — large images will be compressed automatically",
+      "preview": "Preview",
+      "unassign": "Unassign student",
+      "removePhoto": "Remove photo",
+      "assignToStudents": "Assign to Students",
+      "searchPlaceholder": "Search students by name, ID, or admission number...",
+      "hasExisting": "Has existing photo",
+      "oldBadge": "OLD",
+      "hasPhoto": "⚠ Has photo",
+      "willReplace": "✓ Will replace",
+      "removeAssignment": "Remove assignment",
+      "noPhotosUploaded": "No photos uploaded",
+      "chooseReplacement": "↺ Choose replacement...",
+      "assignPhoto": "+ Assign photo...",
+      "current": "Current",
+      "currentPhoto": "Current photo",
+      "replacedBy": "replaced by",
+      "new": "New",
+      "newPhoto": "New photo",
+      "noMatch": "No students match your search",
+      "uploading": "Uploading...",
+      "uploadCount": {
+        "one": "Upload {{count}} Photo",
+        "other": "Upload {{count}} Photos"
+      }
+    },
+    "folderPhotos": {
+      "confidence": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "none": "No match"
+      },
+      "noImagesTitle": "No images found",
+      "noImagesBody": "No supported image files were found in the selection.",
+      "uploadFailed": "Upload failed",
+      "steps": {
+        "select": "Select",
+        "review": "Review",
+        "upload": "Upload",
+        "done": "Done"
+      },
+      "filterByClass": "Filter by class",
+      "filterHint": "(optional — narrows matching scope)",
+      "allClasses": "All classes ({{count}} learners)",
+      "dropHere": "Drop photos here!",
+      "selectOrDrag": "Select a folder or drag images",
+      "autoMatchHint": "Files named after learners will be auto-matched · JPG, PNG, WebP, HEIC",
+      "pickFolder": "Pick Folder",
+      "pickFiles": "Pick Files",
+      "namingTip": "💡 Name your photo files after the learner —",
+      "or": "or",
+      "fileCount": {
+        "one": "{{count}} file",
+        "other": "{{count}} files"
+      },
+      "countHigh": "{{count}} high",
+      "countMedium": "{{count}} medium",
+      "countLow": "{{count}} low",
+      "countUnmatched": "{{count}} unmatched",
+      "countSkipped": "{{count}} skipped",
+      "skipUnmatched": "Skip unmatched",
+      "skipLow": "Skip low confidence",
+      "reselect": "Re-select",
+      "colPhoto": "Photo",
+      "colFile": "File",
+      "colMatched": "Matched learner",
+      "colMatch": "Match",
+      "colAction": "Action",
+      "searchLearner": "Search learner…",
+      "skipThisFile": "— Skip this file",
+      "noResults": "No results",
+      "possibleMatches": {
+        "one": "{{count}} possible match",
+        "other": "{{count}} possible matches"
+      },
+      "notMatched": "Not matched",
+      "skipped": "Skipped",
+      "reassign": "Reassign to different learner",
+      "unskip": "Un-skip",
+      "skipFile": "Skip this file",
+      "uploadingProgress": "Uploading {{done}} / {{total}}",
+      "uploadedCount": "✓ {{count}} uploaded",
+      "failedCount": "✗ {{count}} failed",
+      "allUploaded": "All photos uploaded!",
+      "uploadComplete": "Upload complete",
+      "summary": "{{ok}} uploaded, {{failed}} failed, {{skipped}} skipped",
+      "failedUploads": "Failed uploads",
+      "close": "Close",
+      "uploadCount": {
+        "one": "Upload {{count}} Photo",
+        "other": "Upload {{count}} Photos"
+      },
+      "pleaseWait": "Uploading — please wait…",
+      "cancelUpload": "Cancel Upload"
     }
   },
   "common": {
@@ -2671,5 +2796,46 @@
   "workplans": "Workplans",
   "total_classes": "Total Classes",
   "total_learners": "Total Learners",
-  "no_active_term": "No Active Term"
+  "no_active_term": "No Active Term",
+  "deviceDialogs": {
+    "selector": {
+      "selectFirst": "Please select a device",
+      "title": "Select Enrollment Device",
+      "discovering": "Discovering devices…",
+      "noneOnline": "No online devices found",
+      "retry": "Retry",
+      "remember": "Always use this device for this session",
+      "useDevice": "Use Device"
+    },
+    "sync": {
+      "completeLocal": "Sync complete — {{users}} users, {{fingerprints}} fingerprints added",
+      "admsQueued": "ADMS sync commands queued — device will push data when it checks in",
+      "failed": "Sync failed",
+      "pullingLocal": "Connecting to device and pulling data…",
+      "queueingAdms": "Queueing ADMS commands…",
+      "merging": "Merging data into DRAIS database…",
+      "complete": "Sync complete",
+      "title": "Sync from Device",
+      "method": "Sync Method",
+      "localIp": "Local IP",
+      "localIpDesc": "Bridge talks to device directly on LAN (fast)",
+      "cloudAdms": "Cloud ADMS",
+      "cloudAdmsDesc": "Queue commands — device pushes data next check-in",
+      "deviceIp": "Device IP Address",
+      "deviceSerialOptional": "Device Serial (optional)",
+      "serialPlaceholder": "GED7254601154 — leave blank for all devices",
+      "admsHint": "Queues {{cmd1}} + {{cmd2}} commands. The device pushes data back when it next contacts the ADMS server.",
+      "successful": "Sync Successful",
+      "failedTitle": "Sync Failed",
+      "usersPulled": "Users pulled",
+      "templatesPulled": "Templates pulled",
+      "matched": "Matched",
+      "orphaned": "Orphaned",
+      "namesUpdated": "Names updated",
+      "fingerprintsAdded": "Fingerprints added",
+      "close": "Close",
+      "syncing": "Syncing…",
+      "start": "Start Sync"
+    }
+  }
 }

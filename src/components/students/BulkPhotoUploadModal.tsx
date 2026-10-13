@@ -97,7 +97,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context not available');
+    if (!ctx) throw new Error(t('students.photoUpload.noCanvas'));
 
     ctx.drawImage(bitmap, 0, 0, width, height);
 
@@ -109,7 +109,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
 
     if (onProgress) onProgress(95);
 
-    if (!blob) throw new Error('Compression failed');
+    if (!blob) throw new Error(t('students.photoUpload.compressionFailed'));
 
     const ext = outputMime === 'image/webp' ? 'webp' : 'jpg';
     const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, `.${ext}`), {
@@ -157,7 +157,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
     canvas.width = target;
     canvas.height = target;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context not available for thumbnail');
+    if (!ctx) throw new Error(t('students.photoUpload.noCanvas'));
 
     ctx.drawImage(bitmap, sx, sy, sWidth, sHeight, 0, 0, target, target);
 
@@ -166,7 +166,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
       canvas.toBlob((b) => resolve(b), outputMime, 0.8);
     });
 
-    if (!blob) throw new Error('Thumbnail generation failed');
+    if (!blob) throw new Error(t('students.photoUpload.thumbnailFailed'));
 
     const ext = outputMime === 'image/webp' ? 'webp' : 'jpg';
     const thumbnailFile = new File([blob], `thumb_${file.name.replace(/\.[^/.]+$/, `.${ext}`)}`, {
@@ -247,10 +247,10 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
         })
         .catch((err) => {
           console.error('Compression/thumbnail failed', err);
-          setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, status: 'error', error: 'Compression/thumbnail failed', progress: 0 } : p));
+          setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, status: 'error', error: t('students.photoUpload.compressionError'), progress: 0 } : p));
           Swal.fire({
-            title: 'Compression Failed',
-            text: `Failed to compress ${photo.file.name}. Upload of this file will be skipped.`,
+            title: t('students.photoUpload.compressionFailedTitle'),
+            text: t('students.photoUpload.compressionFailedBody', { file: photo.file.name }),
             icon: 'error',
             customClass: { popup: 'rounded-2xl' }
           });
@@ -306,8 +306,8 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
 
     if (photosToUpload.length === 0) {
       Swal.fire({
-        title: 'No Photos to Upload',
-        text: 'Please assign students to photos before uploading.',
+        title: t('students.photoUpload.nothingToUploadTitle'),
+        text: t('students.photoUpload.nothingToUploadBody'),
         icon: 'warning',
         customClass: {
           popup: 'rounded-2xl'
@@ -383,7 +383,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
       } catch (error) {
         setPhotos(prev => prev.map(p =>
           p.id === photo.id
-            ? { ...p, status: 'error', progress: 0, error: 'Upload failed' }
+            ? { ...p, status: 'error', progress: 0, error: t('students.photoUpload.uploadFailed') }
             : p
         ));
         errorCount++;
@@ -397,8 +397,8 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
     // Show completion message
     if (errorCount === 0) {
       await Swal.fire({
-        title: 'Upload Complete!',
-        text: `All ${successCount} photos uploaded successfully.`,
+        title: t('students.photoUpload.completeTitle'),
+        text: t('students.photoUpload.allUploaded', { count: successCount }),
         icon: 'success',
         timer: 3000,
         showConfirmButton: false,
@@ -409,11 +409,11 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
       onUploadComplete();
     } else {
       await Swal.fire({
-        title: 'Upload Complete',
+        title: t('students.photoUpload.completeTitlePartial'),
         html: `
           <div class="text-center space-y-2">
-            <p><span class="text-green-600 font-semibold">${successCount}</span> photos uploaded successfully</p>
-            <p><span class="text-red-600 font-semibold">${errorCount}</span> photos failed to upload</p>
+            <p class="text-green-600 font-semibold">${t('students.photoUpload.okCount', { count: successCount })}</p>
+            <p class="text-red-600 font-semibold">${t('students.photoUpload.failCount', { count: errorCount })}</p>
           </div>
         `,
         icon: 'warning',
@@ -486,7 +486,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
             <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  Uploading photos...
+                  {t('students.photoUpload.uploadingPhotos')}
                 </span>
                 <span className="text-sm text-blue-600 dark:text-blue-400">
                   {uploadProgress}%
@@ -508,7 +508,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
               <div className="flex items-center justify-between mb-6 flex-shrink-0">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <Upload className="w-5 h-5" />
-                  Upload Photos
+                  {t('students.photoUpload.uploadPhotos')}
                 </h3>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   {assignedCount}/{totalPhotos} assigned
@@ -534,13 +534,13 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                   </div>
                   <div>
                     <p className="text-base font-medium text-gray-700 dark:text-gray-300">
-                      {isDragActive ? 'Drop photos here' : 'Drag & drop photos here'}
+                      {isDragActive ? t('students.photoUpload.dropHere') : t('students.photoUpload.dragDrop')}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      or click to browse files
+                      {t('students.photoUpload.orBrowse')}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Supports: JPG, PNG, GIF, WebP (Max 100MB each) — large images will be compressed automatically
+                      {t('students.photoUpload.supports')}
                     </p>
                   </div>
                 </motion.div>
@@ -567,7 +567,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           >
                             <img
                               src={thumbSrc}
-                              alt="Preview"
+                              alt={t('students.photoUpload.preview')}
                               onClick={() => { if (photo.fullPreview) setViewerUrl(photo.fullPreview); else setViewerUrl(photo.fullPreview || photo.thumbnailPreview || undefined); }}
                               className="w-12 h-12 rounded-lg object-cover shadow-md flex-shrink-0 cursor-pointer"
                             />
@@ -620,7 +620,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                                 <button
                                   onClick={() => unassignPhoto(photo.id)}
                                   className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded text-blue-600 dark:text-blue-400 transition-all duration-200"
-                                  title="Unassign student"
+                                  title={t('students.photoUpload.unassign')}
                                 >
                                   <X className="w-4 h-4" />
                                 </button>
@@ -629,7 +629,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                                 onClick={() => removePhoto(photo.id)}
                                 className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400 transition-all duration-200"
                                 disabled={photo.status === 'uploading'}
-                                title="Remove photo"
+                                title={t('students.photoUpload.removePhoto')}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -648,7 +648,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
               <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Assign to Students
+                  {t('students.photoUpload.assignToStudents')}
                 </h3>
                 <div className="flex items-center gap-2">
                   {photos.filter(p => p.studentId && students.find(s => s.id === p.studentId)?.photo_url).length > 0 && (
@@ -668,7 +668,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search students by name, ID, or admission number..."
+                  placeholder={t('students.photoUpload.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
@@ -715,13 +715,13 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                                   }`}
                                 />
                                 {!assignedPhoto && (
-                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-md" title="Has existing photo">
+                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-md" title={t('students.photoUpload.hasExisting')}>
                                     <Camera className="w-3 h-3 text-white" />
                                   </div>
                                 )}
                                 {assignedPhoto && (
                                   <div className="absolute inset-0 rounded-xl flex items-center justify-center bg-black/20">
-                                    <span className="text-white text-xs font-bold">OLD</span>
+                                    <span className="text-white text-xs font-bold">{t('students.photoUpload.oldBadge')}</span>
                                   </div>
                                 )}
                               </div>
@@ -740,12 +740,12 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                                 <span className="text-xs text-gray-400">{student.admission_no ?? `ID ${student.id}`}</span>
                                 {hasPhoto && !assignedPhoto && (
                                   <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
-                                    ⚠ Has photo
+                                    {t('students.photoUpload.hasPhoto')}
                                   </span>
                                 )}
                                 {hasPhoto && assignedPhoto && (
                                   <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200">
-                                    ✓ Will replace
+                                    {t('students.photoUpload.willReplace')}
                                   </span>
                                 )}
                               </div>
@@ -757,7 +757,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                             <button
                               onClick={() => unassignPhoto(assignedPhoto.id)}
                               className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                              title="Remove assignment"
+                              title={t('students.photoUpload.removeAssignment')}
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -779,8 +779,8 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                             >
                               <option value="">
                                 {unassignedPhotos.length === 0
-                                  ? 'No photos uploaded'
-                                  : hasPhoto ? '↺ Choose replacement...' : '+ Assign photo...'}
+                                  ? t('students.photoUpload.noPhotosUploaded')
+                                  : hasPhoto ? t('students.photoUpload.chooseReplacement') : t('students.photoUpload.assignPhoto')}
                               </option>
                               {unassignedPhotos.map(photo => (
                                 <option key={photo.id} value={photo.id}>
@@ -797,22 +797,22 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                         {assignedPhoto && hasPhoto && (
                           <div className="px-3 pb-3 flex items-center gap-2">
                             <div className="flex-1 flex flex-col items-center gap-1">
-                              <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">Current</span>
+                              <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">{t('students.photoUpload.current')}</span>
                               <img
                                 src={student.photo_url!}
-                                alt="Current photo"
+                                alt={t('students.photoUpload.currentPhoto')}
                                 className="w-16 h-16 rounded-xl object-cover ring-2 ring-red-300 opacity-70"
                               />
                             </div>
                             <div className="flex flex-col items-center gap-1 px-1">
                               <span className="text-lg text-gray-400">→</span>
-                              <span className="text-xs text-gray-400">replaced by</span>
+                              <span className="text-xs text-gray-400">{t('students.photoUpload.replacedBy')}</span>
                             </div>
                             <div className="flex-1 flex flex-col items-center gap-1">
-                              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">New</span>
+                              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{t('students.photoUpload.new')}</span>
                               <img
                                 src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
-                                alt="New photo"
+                                alt={t('students.photoUpload.newPhoto')}
                                 className="w-16 h-16 rounded-xl object-cover ring-2 ring-emerald-400 shadow-md"
                               />
                             </div>
@@ -824,7 +824,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           <div className="px-3 pb-3 flex items-center gap-2">
                             <img
                               src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
-                              alt="New photo"
+                              alt={t('students.photoUpload.newPhoto')}
                               className="w-14 h-14 rounded-xl object-cover ring-2 ring-blue-400 shadow-md"
                             />
                             <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
@@ -871,7 +871,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                       )}
 
                       {filteredStudents.length === 0 && (
-                        <div className="py-10 text-center text-sm text-gray-400">No students match your search</div>
+                        <div className="py-10 text-center text-sm text-gray-400">{t('students.photoUpload.noMatch')}</div>
                       )}
                     </div>
                   );
@@ -894,7 +894,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                 className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-xl transition-all duration-200 font-medium"
                 disabled={isUploading}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={uploadPhotos}
@@ -904,12 +904,12 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                 {isUploading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Uploading...
+                    {t('students.photoUpload.uploading')}
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    Upload {assignedCount} Photos
+                    {t('students.photoUpload.uploadCount', { count: assignedCount })}
                   </>
                 )}
               </button>

@@ -5,6 +5,7 @@ import { X, Wifi, Globe, Loader, CheckCircle2, AlertCircle, RefreshCw } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.168.1.197', defaultDeviceSn = '' }: Props) {
+  const { t } = useI18n();
   const [strategy, setStrategy]       = useState<SyncStrategy>('local');
   const [deviceIp, setDeviceIp]       = useState(defaultDeviceIp);
   const [deviceSn, setDeviceSn]       = useState(defaultDeviceSn);
@@ -84,17 +86,17 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
         setPhase('done');
         setResult(res);
         if (strategy === 'local') {
-          showToast('success', `Sync complete — ${res.users_pulled ?? 0} users, ${res.fingerprints_added ?? 0} fingerprints added`);
+          showToast('success', t('deviceDialogs.sync.completeLocal', { users: res.users_pulled ?? 0, fingerprints: res.fingerprints_added ?? 0 }));
         } else {
-          showToast('success', 'ADMS sync commands queued — device will push data when it checks in');
+          showToast('success', t('deviceDialogs.sync.admsQueued'));
         }
       } else {
-        throw new Error((res as any)?.error || 'Sync failed');
+        throw new Error((res as any)?.error || t('deviceDialogs.sync.failed'));
       }
     } catch (err: any) {
       setPhase('error');
-      setResult({ success: false, strategy, message: err?.message || 'Sync failed' });
-      showToast('error', err?.message || 'Sync failed');
+      setResult({ success: false, strategy, message: err?.message || t('deviceDialogs.sync.failed') });
+      showToast('error', err?.message || t('deviceDialogs.sync.failed'));
     } finally {
       setSyncing(false);
     }
@@ -102,10 +104,10 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
 
   const phaseLabel = {
     idle: '',
-    pulling: strategy === 'local' ? 'Connecting to device and pulling data…' : 'Queueing ADMS commands…',
-    merging: 'Merging data into DRAIS database…',
-    done: 'Sync complete',
-    error: 'Sync failed',
+    pulling: strategy === 'local' ? t('deviceDialogs.sync.pullingLocal') : t('deviceDialogs.sync.queueingAdms'),
+    merging: t('deviceDialogs.sync.merging'),
+    done: t('deviceDialogs.sync.complete'),
+    error: t('deviceDialogs.sync.failed'),
   }[phase];
 
   return (
@@ -125,7 +127,7 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
                   <RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sync from Device</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('deviceDialogs.sync.title')}</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Pull users &amp; fingerprints from ZKTeco K40</p>
                 </div>
               </div>
@@ -142,20 +144,20 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
             <div className="p-6 space-y-5">
               {/* Strategy selector */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sync Method</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('deviceDialogs.sync.method')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <StrategyCard
                     active={strategy === 'local'}
                     icon={<Wifi className="w-5 h-5" />}
-                    title="Local IP"
-                    desc="Bridge talks to device directly on LAN (fast)"
+                    title={t('deviceDialogs.sync.localIp')}
+                    desc={t('deviceDialogs.sync.localIpDesc')}
                     onClick={() => !syncing && setStrategy('local')}
                   />
                   <StrategyCard
                     active={strategy === 'adms'}
                     icon={<Globe className="w-5 h-5" />}
-                    title="Cloud ADMS"
-                    desc="Queue commands — device pushes data next check-in"
+                    title={t('deviceDialogs.sync.cloudAdms')}
+                    desc={t('deviceDialogs.sync.cloudAdmsDesc')}
                     onClick={() => !syncing && setStrategy('adms')}
                   />
                 </div>
@@ -165,7 +167,7 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
               {strategy === 'local' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Device IP Address
+                    {t('deviceDialogs.sync.deviceIp')}
                   </label>
                   <input
                     type="text"
@@ -184,18 +186,18 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
               {strategy === 'adms' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Device Serial (optional)
+                    {t('deviceDialogs.sync.deviceSerialOptional')}
                   </label>
                   <input
                     type="text"
                     value={deviceSn}
                     onChange={e => setDeviceSn(e.target.value)}
                     disabled={syncing}
-                    placeholder="GED7254601154 — leave blank for all devices"
+                    placeholder={t('deviceDialogs.sync.serialPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white disabled:opacity-60"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Queues <code>DATA QUERY user</code> + <code>DATA QUERY templatev10</code> commands. The device pushes data back when it next contacts the ADMS server.
+                    {t('deviceDialogs.sync.admsHint', { cmd1: 'DATA QUERY user', cmd2: 'DATA QUERY templatev10' })}
                   </p>
                 </div>
               )}
@@ -216,18 +218,18 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
                       ? <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
                       : <AlertCircle  className="w-5 h-5 text-red-600 dark:text-red-400" />}
                     <span className={`font-semibold text-sm ${result.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
-                      {result.success ? 'Sync Successful' : 'Sync Failed'}
+                      {result.success ? t('deviceDialogs.sync.successful') : t('deviceDialogs.sync.failedTitle')}
                     </span>
                   </div>
 
                   {result.success && result.strategy === 'local' && (
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <StatRow label="Users pulled"      value={result.users_pulled} />
-                      <StatRow label="Templates pulled"  value={result.templates_pulled} />
-                      <StatRow label="Matched"           value={result.users_matched} />
-                      <StatRow label="Orphaned"          value={result.users_orphaned} />
-                      <StatRow label="Names updated"     value={result.users_name_updated} />
-                      <StatRow label="Fingerprints added" value={result.fingerprints_added} highlight />
+                      <StatRow label={t('deviceDialogs.sync.usersPulled')}      value={result.users_pulled} />
+                      <StatRow label={t('deviceDialogs.sync.templatesPulled')}  value={result.templates_pulled} />
+                      <StatRow label={t('deviceDialogs.sync.matched')}           value={result.users_matched} />
+                      <StatRow label={t('deviceDialogs.sync.orphaned')}          value={result.users_orphaned} />
+                      <StatRow label={t('deviceDialogs.sync.namesUpdated')}     value={result.users_name_updated} />
+                      <StatRow label={t('deviceDialogs.sync.fingerprintsAdded')} value={result.fingerprints_added} highlight />
                     </dl>
                   )}
 
@@ -262,7 +264,7 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
                 disabled={syncing}
                 className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
               >
-                {result?.success ? 'Close' : 'Cancel'}
+                {result?.success ? t('deviceDialogs.sync.close') : t('common.cancel')}
               </button>
               <button
                 onClick={handleSync}
@@ -270,8 +272,8 @@ export default function SyncDeviceModal({ open, onClose, defaultDeviceIp = '192.
                 className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-60 shadow-sm"
               >
                 {syncing
-                  ? <><Loader className="w-4 h-4 animate-spin" /> Syncing…</>
-                  : <><RefreshCw className="w-4 h-4" /> Start Sync</>}
+                  ? <><Loader className="w-4 h-4 animate-spin" /> {t('deviceDialogs.sync.syncing')}</>
+                  : <><RefreshCw className="w-4 h-4" /> {t('deviceDialogs.sync.start')}</>}
               </button>
             </div>
           </motion.div>

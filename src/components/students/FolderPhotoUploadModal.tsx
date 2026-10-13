@@ -181,8 +181,8 @@ export function FolderPhotoUploadModal({
     const newMatches = buildMatches(files, scopedStudents);
     if (!newMatches.length) {
       Swal.fire({
-        title: 'No images found',
-        text: 'No supported image files were found in the selection.',
+        title: t('students.folderPhotos.noImagesTitle'),
+        text: t('students.folderPhotos.noImagesBody'),
         icon: 'warning',
         customClass: { popup: 'rounded-2xl' },
       });
@@ -266,10 +266,10 @@ export function FolderPhotoUploadModal({
             prev.map(m => m.uid === match.uid ? { ...m, uploadStatus: 'success', newPhotoUrl: photoUrl } : m)
           );
         } else {
-          throw new Error(json.results?.[0]?.error || json.error || 'Upload failed');
+          throw new Error(json.results?.[0]?.error || json.error || t('students.folderPhotos.uploadFailed'));
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Upload failed';
+        const message = err instanceof Error ? err.message : t('students.folderPhotos.uploadFailed');
         setMatches(prev =>
           prev.map(m => m.uid === match.uid ? { ...m, uploadStatus: 'error', uploadError: message } : m)
         );
@@ -341,7 +341,7 @@ export function FolderPhotoUploadModal({
                       ? 'bg-violet-600 text-white'
                       : 'text-gray-400 dark:text-gray-500'
                   }`}>
-                    {['Select', 'Review', 'Upload', 'Done'][i]}
+                    {t(`students.folderPhotos.steps.${['select', 'review', 'upload', 'done'][i]}`)}
                   </span>
                 </React.Fragment>
               ))}
@@ -366,15 +366,15 @@ export function FolderPhotoUploadModal({
               {classList.length > 0 && (
                 <div className="w-full max-w-sm">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
-                    Filter by class
-                    <span className="ml-1 text-gray-400 font-normal">(optional — narrows matching scope)</span>
+                    {t('students.folderPhotos.filterByClass')}
+                    <span className="ml-1 text-gray-400 font-normal">{t('students.folderPhotos.filterHint')}</span>
                   </label>
                   <select
                     value={classFilter}
                     onChange={e => setClassFilter(e.target.value)}
                     className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                   >
-                    <option value="">All classes ({students.length} learners)</option>
+                    <option value="">{t('students.folderPhotos.allClasses', { count: students.length })}</option>
                     {classList.map(c => (
                       <option key={c} value={c}>
                         {c} ({students.filter(s => s.class_name === c).length} learners)
@@ -398,10 +398,10 @@ export function FolderPhotoUploadModal({
               >
                 <FolderOpen className="w-12 h-12 mx-auto mb-3 text-violet-400" />
                 <p className="text-base font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                  {dragOver ? 'Drop photos here!' : 'Select a folder or drag images'}
+                  {dragOver ? t('students.folderPhotos.dropHere') : t('students.folderPhotos.selectOrDrag')}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                  Files named after learners will be auto-matched&nbsp;·&nbsp;JPG, PNG, WebP, HEIC
+                  {t('students.folderPhotos.autoMatchHint')}
                 </p>
                 <div
                   className="flex flex-col sm:flex-row gap-3 justify-center"
@@ -412,14 +412,14 @@ export function FolderPhotoUploadModal({
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
                   >
                     <FolderOpen className="w-4 h-4" />
-                    Pick Folder
+                    {t('students.folderPhotos.pickFolder')}
                   </button>
                   <button
                     onClick={() => filesInputRef.current?.click()}
                     className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition-colors"
                   >
                     <Upload className="w-4 h-4" />
-                    Pick Files
+                    {t('students.folderPhotos.pickFiles')}
                   </button>
                 </div>
               </div>
@@ -447,8 +447,8 @@ export function FolderPhotoUploadModal({
               />
 
               <p className="text-xs text-gray-400 max-w-md text-center">
-                💡 Name your photo files after the learner —{' '}
-                <code className="bg-gray-100 dark:bg-slate-700 px-1 rounded">John Doe.jpg</code> or{' '}
+                {t('students.folderPhotos.namingTip')}{' '}
+                <code className="bg-gray-100 dark:bg-slate-700 px-1 rounded">John Doe.jpg</code> {t('students.folderPhotos.or')}{' '}
                 <code className="bg-gray-100 dark:bg-slate-700 px-1 rounded">Namatovu Mary.png</code>
               </p>
             </div>
@@ -460,31 +460,31 @@ export function FolderPhotoUploadModal({
               {/* Stats bar */}
               <div className="flex flex-wrap items-center gap-2 px-6 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-slate-750 flex-shrink-0 text-xs">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">
-                  {matches.length} file{matches.length !== 1 ? 's' : ''}
+                  {t('students.folderPhotos.fileCount', { count: matches.length })}
                 </span>
                 <span className="text-gray-300 dark:text-gray-600">·</span>
-                {highC   > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">{highC} high</span>}
-                {mediumC > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{mediumC} medium</span>}
-                {lowC    > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{lowC} low</span>}
-                {noMatchC > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">{noMatchC} unmatched</span>}
-                {skippedC > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400">{skippedC} skipped</span>}
+                {highC   > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">{t('students.folderPhotos.countHigh', { count: highC })}</span>}
+                {mediumC > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{t('students.folderPhotos.countMedium', { count: mediumC })}</span>}
+                {lowC    > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t('students.folderPhotos.countLow', { count: lowC })}</span>}
+                {noMatchC > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">{t('students.folderPhotos.countUnmatched', { count: noMatchC })}</span>}
+                {skippedC > 0 && <span className="px-2 py-0.5 rounded-full font-semibold bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400">{t('students.folderPhotos.countSkipped', { count: skippedC })}</span>}
 
                 <div className="ml-auto flex items-center gap-3">
                   {noMatchC > 0 && (
                     <button onClick={skipAllUnmatched} className="text-red-600 hover:text-red-700 dark:text-red-400 underline">
-                      Skip unmatched
+                      {t('students.folderPhotos.skipUnmatched')}
                     </button>
                   )}
                   {lowC > 0 && (
                     <button onClick={skipAllLow} className="text-amber-600 hover:text-amber-700 dark:text-amber-400 underline">
-                      Skip low confidence
+                      {t('students.folderPhotos.skipLow')}
                     </button>
                   )}
                   <button
                     onClick={() => setStep('select')}
                     className="text-violet-600 hover:text-violet-700 dark:text-violet-400 underline flex items-center gap-1"
                   >
-                    <RefreshCw className="w-3 h-3" /> Re-select
+                    <RefreshCw className="w-3 h-3" /> {t('students.folderPhotos.reselect')}
                   </button>
                 </div>
               </div>
@@ -494,12 +494,12 @@ export function FolderPhotoUploadModal({
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 z-10">
                     <tr className="text-xs text-gray-500 dark:text-gray-400">
-                      <th className="text-left px-4 py-2 font-medium w-12">Photo</th>
-                      <th className="text-left px-4 py-2 font-medium">File</th>
+                      <th className="text-left px-4 py-2 font-medium w-12">{t('students.folderPhotos.colPhoto')}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t('students.folderPhotos.colFile')}</th>
                       <th className="text-center px-2 py-2 font-medium w-6 text-gray-300">→</th>
-                      <th className="text-left px-4 py-2 font-medium">Matched learner</th>
-                      <th className="text-center px-3 py-2 font-medium w-24">Match</th>
-                      <th className="text-right px-4 py-2 font-medium w-24">Action</th>
+                      <th className="text-left px-4 py-2 font-medium">{t('students.folderPhotos.colMatched')}</th>
+                      <th className="text-center px-3 py-2 font-medium w-24">{t('students.folderPhotos.colMatch')}</th>
+                      <th className="text-right px-4 py-2 font-medium w-24">{t('students.folderPhotos.colAction')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
@@ -544,7 +544,7 @@ export function FolderPhotoUploadModal({
                                 <Search className="w-3 h-3 text-gray-400 absolute left-2 pointer-events-none" />
                                 <input
                                   autoFocus
-                                  placeholder="Search learner…"
+                                  placeholder={t('students.folderPhotos.searchLearner')}
                                   value={editSearch}
                                   onChange={e => setEditSearch(e.target.value)}
                                   className="w-full pl-6 pr-2 py-1 text-xs border border-violet-400 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:outline-none"
@@ -555,7 +555,7 @@ export function FolderPhotoUploadModal({
                                   onClick={() => reassign(match.uid, null)}
                                   className="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-600 border-b border-gray-100 dark:border-gray-600"
                                 >
-                                  — Skip this file
+                                  {t('students.folderPhotos.skipThisFile')}
                                 </button>
                                 {editSearchResults.map(s => (
                                   <button
@@ -572,7 +572,7 @@ export function FolderPhotoUploadModal({
                                   </button>
                                 ))}
                                 {editSearchResults.length === 0 && (
-                                  <p className="px-3 py-2 text-xs text-gray-400">No results</p>
+                                  <p className="px-3 py-2 text-xs text-gray-400">{t('students.folderPhotos.noResults')}</p>
                                 )}
                               </div>
                             </div>
@@ -580,7 +580,7 @@ export function FolderPhotoUploadModal({
                             <div className="flex items-center gap-1.5">
                               <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                               <span className="text-amber-700 dark:text-amber-400 text-xs">
-                                {match.ambiguousCandidates.length} possible matches
+                                {t('students.folderPhotos.possibleMatches', { count: match.ambiguousCandidates.length })}
                               </span>
                             </div>
                           ) : match.matchedStudent ? (
@@ -608,17 +608,17 @@ export function FolderPhotoUploadModal({
                               </div>
                             </div>
                           ) : (
-                            <span className="text-red-500 text-xs italic">Not matched</span>
+                            <span className="text-red-500 text-xs italic">{t('students.folderPhotos.notMatched')}</span>
                           )}
                         </td>
 
                         {/* Confidence badge */}
                         <td className="text-center px-3 py-2">
                           {match.skip ? (
-                            <span className="text-xs text-gray-400">Skipped</span>
+                            <span className="text-xs text-gray-400">{t('students.folderPhotos.skipped')}</span>
                           ) : (
                             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${CONFIDENCE_STYLES[match.confidence]}`}>
-                              {CONFIDENCE_LABELS[match.confidence]}
+                              {t(`students.folderPhotos.confidence.${match.confidence}`)}
                             </span>
                           )}
                         </td>
@@ -629,14 +629,14 @@ export function FolderPhotoUploadModal({
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => { setEditingUid(match.uid); setEditSearch(''); }}
-                                title="Reassign to different learner"
+                                title={t('students.folderPhotos.reassign')}
                                 className="p-1.5 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/20 text-violet-600 dark:text-violet-400 transition-colors"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => toggleSkip(match.uid)}
-                                title={match.skip ? 'Un-skip' : 'Skip this file'}
+                                title={match.skip ? t('students.folderPhotos.unskip') : t('students.folderPhotos.skipFile')}
                                 className={`p-1.5 rounded-lg transition-colors ${
                                   match.skip
                                     ? 'hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'
@@ -672,7 +672,7 @@ export function FolderPhotoUploadModal({
               <div>
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="font-semibold text-gray-900 dark:text-white">
-                    Uploading {uploadDone} / {uploadTotal}
+                    {t('students.folderPhotos.uploadingProgress', { done: uploadDone, total: uploadTotal })}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400">{uploadPct}%</span>
                 </div>
@@ -684,8 +684,8 @@ export function FolderPhotoUploadModal({
                   />
                 </div>
                 <div className="flex gap-4 mt-1.5 text-xs text-gray-500">
-                  {uploadSuccess > 0 && <span className="text-green-600 dark:text-green-400">✓ {uploadSuccess} uploaded</span>}
-                  {uploadFailed  > 0 && <span className="text-red-500 dark:text-red-400">✗ {uploadFailed} failed</span>}
+                  {uploadSuccess > 0 && <span className="text-green-600 dark:text-green-400">{t('students.folderPhotos.uploadedCount', { count: uploadSuccess })}</span>}
+                  {uploadFailed  > 0 && <span className="text-red-500 dark:text-red-400">{t('students.folderPhotos.failedCount', { count: uploadFailed })}</span>}
                 </div>
               </div>
 
@@ -739,19 +739,19 @@ export function FolderPhotoUploadModal({
 
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                  {uploadFailed === 0 ? 'All photos uploaded!' : 'Upload complete'}
+                  {uploadFailed === 0 ? t('students.folderPhotos.allUploaded') : t('students.folderPhotos.uploadComplete')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {uploadSuccess} uploaded successfully
-                  {uploadFailed > 0 && `, ${uploadFailed} failed`}
-                  {skippedC > 0    && `, ${skippedC} skipped`}
+                  {t('students.folderPhotos.summary', { ok: uploadSuccess, failed: uploadFailed, skipped: skippedC })}
+                  
+                  
                 </p>
               </div>
 
               {uploadFailed > 0 && (
                 <div className="w-full max-w-md border border-red-200 dark:border-red-900/40 rounded-xl overflow-hidden">
                   <p className="text-xs font-semibold text-red-600 dark:text-red-400 px-4 py-2 bg-red-50 dark:bg-red-900/20">
-                    Failed uploads
+                    {t('students.folderPhotos.failedUploads')}
                   </p>
                   {matches.filter(m => m.uploadStatus === 'error').map(m => (
                     <div key={m.uid} className="flex items-center gap-2 px-4 py-2 border-t border-red-100 dark:border-red-900/20">
@@ -771,7 +771,7 @@ export function FolderPhotoUploadModal({
                 onClick={handleClose}
                 className="px-8 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
               >
-                Close
+                {t('students.folderPhotos.close')}
               </button>
             </div>
           )}
@@ -795,7 +795,7 @@ export function FolderPhotoUploadModal({
                     onClick={handleClose}
                     className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-xl transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={runUpload}
@@ -803,7 +803,7 @@ export function FolderPhotoUploadModal({
                     className="px-6 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-gray-600 dark:disabled:to-gray-600 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
                   >
                     <Upload className="w-4 h-4" />
-                    Upload {ready} Photo{ready !== 1 ? 's' : ''}
+                    {t('students.folderPhotos.uploadCount', { count: ready })}
                   </button>
                 </div>
               </>
@@ -812,13 +812,13 @@ export function FolderPhotoUploadModal({
             {step === 'uploading' && (
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Uploading — please wait…
+                  {t('students.folderPhotos.pleaseWait')}
                 </p>
                 <button
                   onClick={() => { cancelRef.current = true; }}
                   className="px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl border border-red-300 dark:border-red-700 transition-colors font-medium"
                 >
-                  Cancel Upload
+                  {t('students.folderPhotos.cancelUpload')}
                 </button>
               </>
             )}
