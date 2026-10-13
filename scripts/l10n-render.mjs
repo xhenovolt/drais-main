@@ -151,6 +151,13 @@ const KEYLIKE = /^(\[[a-z-]+\] )?[a-z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+){1,5}$/;
 const hasArabic = (s) => /[؀-ۿ]/.test(s);
 const latinOnly = ar.texts.filter((t) => !hasArabic(t) && /[A-Za-z]{2}/.test(t));
 const leakedKeys = [...en.texts, ...ar.texts].filter((t) => KEYLIKE.test(t));
+// The rule: English shows English only, Arabic shows Arabic only — digits included.
+// A text counts as a Western-digit leak in Arabic when it has 0-9 not glued to Latin letters
+// (identifiers such as "ADM-001" or "K40" are data and stay as they are).
+const freeDigits = (t) => t.split(/\s+/).some((w) => /[0-9]/.test(w) && !/[A-Za-z]/.test(w));
+const westernDigits = ar.texts.filter(freeDigits);
+// The language switch itself legitimately shows the other language's name.
+const arabicInEnglish = en.texts.filter((t) => hasArabic(t) && t.trim() !== 'العربية');
 const same = JSON.stringify(en.texts) === JSON.stringify(enAgain.texts);
 
 console.log(`\n${target}`);
@@ -159,10 +166,14 @@ console.log(`  Arabic  : ${ar.texts.length} texts, <html lang="${ar.lang}" dir="
 console.log(`  Arabic texts containing Arabic script : ${ar.texts.filter(hasArabic).length}`);
 console.log(`  Translation keys leaked to the screen : ${leakedKeys.length}${leakedKeys.length ? '  -> ' + leakedKeys.join(' | ') : ''}`);
 console.log(`  English -> Arabic -> English restores the same text : ${same ? 'yes' : 'NO'}`);
+console.log(`  Western digits shown in Arabic (${westernDigits.length})${westernDigits.length ? ' — every number must go through t(), a formatter or digits()' : ''}`);
+for (const t of westernDigits) console.log(`     ${t.slice(0, 110)}`);
+console.log(`  Arabic text shown in English (${arabicInEnglish.length})`);
+for (const t of arabicInEnglish) console.log(`     ${t.slice(0, 110)}`);
 console.log(`  Still Latin-only in Arabic (${latinOnly.length}) — review each: is it intentional?`);
 for (const t of latinOnly) console.log(`     ${t.slice(0, 110)}`);
 console.log(`  Errors / missing-key warnings: ${errors.length ? '\n     ' + [...new Set(errors)].slice(0, 12).join('\n     ') : 'none'}`);
 console.log(`  Requests the page made (answered with ${mockPath ? 'mock data or ' : ''}an empty success): ${[...requested].slice(0, 30).join(', ') || 'none'}`);
 console.log(`  Screenshots (unstyled): ${path.join(outDir, 'en.png')} , ${path.join(outDir, 'ar.png')}`);
-fs.writeFileSync(path.join(outDir, 'result.json'), JSON.stringify({ target, en, ar, latinOnly, leakedKeys, restores: same, errors }, null, 1));
+fs.writeFileSync(path.join(outDir, 'result.json'), JSON.stringify({ target, en, ar, latinOnly, westernDigits, arabicInEnglish, leakedKeys, restores: same, errors }, null, 1));
 process.exit(leakedKeys.length || ar.crashed || en.crashed || !same || (!onlyLang && ar.dir !== 'rtl') ? 1 : 0);

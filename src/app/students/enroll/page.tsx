@@ -110,6 +110,7 @@ const DECISION_CFG: Record<Decision, {
 
 // ──────────────────────────────────── Step Indicator ────────────────────
 function StepIndicator({ step, total }: { step: number; total: number }) {
+  const { digits } = useI18n();
   return (
     <div className="flex items-center gap-1">
       {Array.from({ length: total }).map((_, i) => (
@@ -120,7 +121,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
             i + 1 === step ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-900' :
             'bg-slate-200 dark:bg-slate-700 text-slate-400',
           )}>
-            {i + 1 < step ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+            {i + 1 < step ? <CheckCircle2 className="w-4 h-4" /> : digits(i + 1)}
           </div>
           {i < total - 1 && (
             <div className={clsx('h-0.5 w-8', i + 1 < step ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700')} />
@@ -187,7 +188,7 @@ function StudentPicker({
           )}
           {open && q.length >= 2 && results.length === 0 && (
             <div className="absolute z-30 w-full mt-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl p-4 text-center">
-              <p className="text-sm text-slate-500">{t('students.enroll.noneFound')}{' '}<Link href="/students/admit" className="text-indigo-600 hover:underline">{t('students.enroll.admitNew')}</Link></p>
+              <p className="text-sm text-slate-500">{t('students.enroll.noneFound')}{' '}<Link href="/students/admit" className="text-indigo-600 hover:underline">{t('students.enroll.admitNewQuestion')}</Link></p>
             </div>
           )}
         </>
@@ -198,7 +199,7 @@ function StudentPicker({
 
 // ──────────────────────────── Previous Context Banner ───────────────────
 function PreviousContextBanner({ prev, loading }: { prev: PreviousEnrollment | null; loading: boolean }) {
-  const { t } = useI18n();
+  const { t, rich, digits } = useI18n();
   if (loading) {
     return (
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 p-4 animate-pulse space-y-2">
@@ -243,16 +244,16 @@ function PreviousContextBanner({ prev, loading }: { prev: PreviousEnrollment | n
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 border-t border-indigo-100 dark:border-indigo-800">
           <div className="flex items-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-300">
             <Award className="w-3.5 h-3.5" />
-            <strong>{t('students.enroll.prev.subjectCount', { count: prev.results_summary.result_count })}</strong>
+            <span>{rich('students.enroll.prev.subjectCount', { n: <strong>{digits(prev.results_summary.result_count)}</strong> }, { count: prev.results_summary.result_count })}</span>
           </div>
           {prev.results_summary.avg_score != null && (
-            <span className="text-xs text-indigo-600 dark:text-indigo-400">{t('students.enroll.prev.avg', { value: prev.results_summary.avg_score })}</span>
+            <span className="text-xs text-indigo-600 dark:text-indigo-400">{rich('students.enroll.prev.avg', { value: <strong>{digits(prev.results_summary.avg_score)}</strong> })}</span>
           )}
           {prev.results_summary.max_score != null && (
-            <span className="text-xs text-indigo-600 dark:text-indigo-400">{t('students.enroll.prev.best', { value: prev.results_summary.max_score })}</span>
+            <span className="text-xs text-indigo-600 dark:text-indigo-400">{rich('students.enroll.prev.best', { value: <strong>{digits(prev.results_summary.max_score)}</strong> })}</span>
           )}
           {prev.results_summary.passed_count != null && (
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">{t('students.enroll.prev.passed', { value: prev.results_summary.passed_count })}</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">{rich('students.enroll.prev.passed', { value: <strong>{digits(prev.results_summary.passed_count)}</strong> })}</span>
           )}
         </div>
       )}
@@ -260,7 +261,7 @@ function PreviousContextBanner({ prev, loading }: { prev: PreviousEnrollment | n
         <div className="flex flex-wrap gap-1.5 pt-1">
           {prev.top_subjects.map((s, i) => (
             <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white dark:bg-slate-700 border border-indigo-100 dark:border-indigo-700 text-slate-600 dark:text-slate-300">
-              {s.subject_name}: <strong>{s.score}</strong>{s.grade ? ` (${s.grade})` : ''}
+              {s.subject_name}: <strong>{digits(s.score)}</strong>{s.grade ? ` (${s.grade})` : ''}
             </span>
           ))}
         </div>
@@ -291,7 +292,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 // ─────────────────────────────────── Main Page ──────────────────────────
 export default function EnrollStudentPage() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, rich, digits } = useI18n();
   const searchParams = useSearchParams();
 
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
@@ -872,7 +873,7 @@ export default function EnrollStudentPage() {
 
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700 text-xs text-rose-700 dark:text-rose-400 font-semibold">
                   <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                  {t('students.enroll.step3.bothRequired')}
+                  <span>{rich('students.enroll.step3.bothRequired', { required: <strong>{t('students.enroll.step3.required')}</strong> })}</span>
                 </div>
 
                 {/* ── Study Mode Section ── */}
@@ -935,14 +936,14 @@ export default function EnrollStudentPage() {
                           {active && <CheckCircle2 className="w-4 h-4 text-indigo-500 absolute top-2.5 end-2.5" />}
                           <span className="block">{sm.name}</span>
                           {sm.is_default ? <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{t('students.enroll.default')}</span> : null}
-                          {isPrevious && <span className="block text-[10px] font-bold text-indigo-400 mt-0.5">{t('students.enroll.previous')}</span>}
+                          {isPrevious && <span className="block text-[10px] font-bold text-indigo-400 mt-0.5">{t('students.enroll.previousArrow')}</span>}
                         </button>
                       );
                     })}
                   </div>
                   <button onClick={() => setIsAddingStudyMode(true)}
                     className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-2">
-                    <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step3.addStudyMode')}
+                    <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step3.addStudyModeLink')}
                   </button>
                   </>
                 )}
@@ -1007,14 +1008,14 @@ export default function EnrollStudentPage() {
                           {active && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute top-2.5 end-2.5" />}
                           <span className="block">{cur.name}</span>
                           <span className="block text-[10px] font-normal text-slate-400 mt-0.5">{cur.code}</span>
-                          {isPrevious && <span className="block text-[10px] font-bold text-emerald-400 mt-0.5">{t('students.enroll.previous')}</span>}
+                          {isPrevious && <span className="block text-[10px] font-bold text-emerald-400 mt-0.5">{t('students.enroll.previousArrow')}</span>}
                         </button>
                       );
                     })}
                   </div>
                   <button onClick={() => setIsAddingCurriculum(true)}
                     className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors mt-2">
-                    <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step3.addCurriculum')}
+                    <Plus className="w-3.5 h-3.5" /> {t('students.enroll.step3.addCurriculumLink')}
                   </button>
                   </>
                 )}
@@ -1263,7 +1264,7 @@ export default function EnrollStudentPage() {
                 </div>
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('students.enroll.done.title')}</h2>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  {t('students.enroll.done.body', { name: `${selectedStudent.first_name} ${selectedStudent.last_name}`, className: classes.find(c => String(c.id) === selectedClass)?.name ?? '', term: allTerms.find(x => String(x.id) === selectedTerm)?.name ?? '' })}
+                  {rich('students.enroll.done.body', { name: <strong>{selectedStudent.first_name} {selectedStudent.last_name}</strong>, className: <strong>{classes.find(c => String(c.id) === selectedClass)?.name}</strong>, term: <strong>{allTerms.find(x => String(x.id) === selectedTerm)?.name}</strong> })}
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center">
                   <button onClick={resetSingle} className="btn-secondary px-5 py-2 rounded-xl text-sm flex items-center gap-2">
@@ -1332,7 +1333,7 @@ export default function EnrollStudentPage() {
             {bulkFromClass && bulkToClass && (
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-sm text-amber-700 dark:text-amber-400">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{t('students.enroll.bulk.warning', { from: classes.find(c => String(c.id) === bulkFromClass)?.name ?? '', to: classes.find(c => String(c.id) === bulkToClass)?.name ?? '' })}</span>
+                <span>{rich('students.enroll.bulk.warning', { from: <strong>{classes.find(c => String(c.id) === bulkFromClass)?.name}</strong>, to: <strong>{classes.find(c => String(c.id) === bulkToClass)?.name}</strong> })}</span>
               </div>
             )}
 

@@ -64,7 +64,7 @@ const REASON_KEYS: Record<string, string> = {
 
 // ─── Page ───────────────────────────────────────────────────────────
 export default function DuplicatesPage() {
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, digits } = useI18n();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DetectionResult | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
@@ -166,7 +166,7 @@ export default function DuplicatesPage() {
       title: t('students.duplicates.mergeAll.title'),
       html: `
         <div class="text-start space-y-2">
-          <p>${t('students.duplicates.mergeAll.intro', { duplicates: totalDups, groups: totalGroups })}</p>
+          <p>${t('students.duplicates.mergeAll.intro', { duplicates: `<strong>${digits(totalDups)}</strong>`, groups: `<strong>${digits(totalGroups)}</strong>` })}</p>
           <p>${t('students.duplicates.mergeAll.explain')}</p>
           <p class="text-red-600 font-semibold">${t('students.duplicates.cannotUndo')}</p>
         </div>
@@ -253,14 +253,14 @@ export default function DuplicatesPage() {
             <p>${t('students.duplicates.purge.groupsFound', { count: preview.groups_found })}</p>
             <div class="flex gap-4 mt-2">
               <div class="flex-1 p-3 bg-red-50 rounded-lg border border-red-200">
-                <p class="text-2xl font-bold text-red-700">${preview.ghosts_to_delete}</p>
+                <p class="text-2xl font-bold text-red-700">${digits(preview.ghosts_to_delete)}</p>
                 <p class="text-sm text-red-600 font-medium">${t('students.duplicates.purge.ghosts')}</p>
-                <p class="text-xs text-red-500 mt-1">${t('students.duplicates.purge.ghostsNote')}</p>
+                <p class="text-xs text-red-500 mt-1">${t('students.duplicates.purge.ghostsNote', { deleted: `<strong>${t('students.duplicates.purge.permanentlyDeleted')}</strong>` })}</p>
               </div>
               <div class="flex-1 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                <p class="text-2xl font-bold text-amber-700">${preview.data_records_to_merge}</p>
+                <p class="text-2xl font-bold text-amber-700">${digits(preview.data_records_to_merge)}</p>
                 <p class="text-sm text-amber-600 font-medium">${t('students.duplicates.purge.dataRecords')}</p>
-                <p class="text-xs text-amber-500 mt-1">${t('students.duplicates.purge.dataNote')}</p>
+                <p class="text-xs text-amber-500 mt-1">${t('students.duplicates.purge.dataNote', { merged: `<strong>${t('students.duplicates.purge.merged')}</strong>` })}</p>
               </div>
             </div>
             <p class="text-xs text-slate-500 mt-2">${t('students.duplicates.purge.warning')}</p>
@@ -484,7 +484,7 @@ export default function DuplicatesPage() {
                                       {isPrimary && <Shield className="w-3 h-3" />}
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3 font-mono text-xs text-slate-500">#{student.id}</td>
+                                  <td className="px-4 py-3 font-mono text-xs text-slate-500">#{digits(student.id)}</td>
                                   <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                                     {student.first_name} {student.last_name}
                                     {isPrimary && (
@@ -560,10 +560,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function DataCount({ count }: { count: number }) {
-  if (count === 0) return <span className="text-xs text-slate-400">0</span>;
+  const { digits } = useI18n();
+  if (count === 0) return <span className="text-xs text-slate-400">{digits(0)}</span>;
   return (
     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-      {count}
+      {digits(count)}
     </span>
   );
 }

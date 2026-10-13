@@ -47,7 +47,7 @@ These are owner decisions; the work is blocked or changes shape without them (au
 | 1 | Is the Control Center (`/control/*`, 64 routes) in scope? | No. It is the operator console, not seen by schools. Leave it English. |
 | 2 | Are the Help guides (`/help/*`, 14 routes of long articles) in scope now? | Translate the page frame now; schedule the articles as a separate writing task with a reviewer. |
 | 3 | Is the parent portal (`/portal/*`, `/parent/*`, 10 routes) in scope? | Yes, straight after Students. Parents are the audience most likely to need Arabic. |
-| 4 | Digits in Arabic mode: Western (0123) or Arabic-Indic (٠١٢٣)? Hijri dates? | Western digits and Gregorian dates in the interface, matching current behaviour; keep the existing per-report numeral choice. |
+| 4 | Digits in Arabic mode: Western (0123) or Arabic-Indic (٠١٢٣)? Hijri dates? | **Changed by the owner 2026-10-13: Arabic-Indic digits everywhere Arabic is shown.** Earlier: Western digits and Gregorian dates in the interface, matching current behaviour; keep the existing per-report numeral choice. |
 | 5 | Who reviews Arabic wording for education, fees and attendance terms? | Name one Arabic-speaking reviewer; build a short glossary with them in Phase 1. |
 | 6 | Browser verification: add a browser-test tool, or verify by hand? | Verify by hand for Students and record it; decide on tooling in Phase 6 with real experience of the cost. |
 

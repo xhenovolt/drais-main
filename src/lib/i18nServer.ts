@@ -11,7 +11,7 @@
  */
 import { cookies } from 'next/headers';
 import { translate, type Dictionary, type Lang, type TVars } from '@/lib/i18n/core';
-import { formatDate, formatMoney, formatNumber, type DateStyle } from '@/lib/i18n/format';
+import { formatDate, formatMoney, formatNumber, localizeDigits, type DateStyle } from '@/lib/i18n/format';
 
 export async function serverLang(): Promise<Lang> {
   try {
@@ -42,5 +42,6 @@ export async function getServerI18n(langOverride?: Lang) {
     formatDate: (v: Date | string | number | null | undefined, style?: DateStyle | Intl.DateTimeFormatOptions) => formatDate(v, lang, style),
     formatNumber: (v: number | string | null | undefined, o?: Intl.NumberFormatOptions) => formatNumber(v, lang, o),
     formatMoney: (v: number | string | null | undefined, currency?: string) => formatMoney(v, lang, currency),
+    digits: (v: string | number | null | undefined) => localizeDigits(v, lang),
   };
 }

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { translate, interpolate, selectPlural, isPluralEntry, resolveKey, flattenKeys, placeholdersOf } from '../core.ts';
-import { formatDate, formatNumber, formatMoney, formatPercent, localeFor } from '../format.ts';
+import { formatDate, formatNumber, formatMoney, formatPercent, localeFor, localizeDigits } from '../format.ts';
 
 const dict = {
   common: { save: 'Save', pageOf: 'Page {{current}} of {{total}}' },
@@ -46,9 +46,9 @@ describe('plurals', () => {
     assert.equal(t(0), 'لا أحد');
     assert.equal(t(1), 'متعلم واحد');
     assert.equal(t(2), 'متعلمان');
-    assert.equal(t(5), '5 متعلمين');
-    assert.equal(t(11), '11 متعلمًا');
-    assert.equal(t(100), '100 متعلم');
+    assert.equal(t(5), '٥ متعلمين');
+    assert.equal(t(11), '١١ متعلمًا');
+    assert.equal(t(100), '١٠٠ متعلم');
   });
   it('falls back to "other" when a form is not supplied', () => {
     assert.equal(selectPlural({ other: 'x' }, 2, 'ar'), 'x');
@@ -75,13 +75,31 @@ describe('dictionary helpers', () => {
   });
 });
 
+describe('Arabic digits in translated text', () => {
+  const d = { a: 'أرسلنا رمزًا من 6 أرقام إلى {{phone}}', b: 'جهاز ZKTeco K40 — {{count}} مستخدم', c: 'الطالب {{adm}} في {{term}}' };
+  it('converts digits in the text and in numeric values', () => {
+    assert.equal(translate(d, 'ar', 'a', { phone: '0741341483' }), 'أرسلنا رمزًا من ٦ أرقام إلى ٠٧٤١٣٤١٤٨٣');
+    assert.equal(translate(d, 'ar', 'b', { count: 12 }), 'جهاز ZKTeco K40 — ١٢ مستخدم');
+  });
+  it('leaves identifiers and names alone', () => {
+    assert.equal(translate(d, 'ar', 'c', { adm: 'ADM-001', term: 'Term 3' }), 'الطالب ADM-001 في Term 3');
+  });
+  it('English is untouched', () => {
+    assert.equal(translate({ a: 'Sent to {{phone}}, 6 digits' }, 'en', 'a', { phone: '0741341483' }), 'Sent to 0741341483, 6 digits');
+  });
+  it('localizeDigits keeps the shape of the value', () => {
+    assert.equal(localizeDigits('07:42', 'ar'), '٠٧:٤٢');
+    assert.equal(localizeDigits(78, 'en'), '78');
+  });
+});
+
 describe('formatting', () => {
   const day = new Date(Date.UTC(2026, 9, 12, 5, 18));
-  it('Arabic keeps Western digits and the Gregorian calendar', () => {
-    assert.equal(localeFor('ar'), 'ar-u-nu-latn-ca-gregory');
+  it('Arabic shows Arabic-Indic digits on the Gregorian calendar', () => {
+    assert.equal(localeFor('ar'), 'ar-u-nu-arab-ca-gregory');
     const out = formatDate(day, 'ar', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
-    assert.match(out, /12/); assert.match(out, /2026/);
-    assert.doesNotMatch(out, /[٠-٩]/, 'no Arabic-Indic digits');
+    assert.match(out, /١٢/); assert.match(out, /٢٠٢٦/);
+    assert.doesNotMatch(out, /[0-9]/, 'no Western digits');
     assert.match(out, /[؀-ۿ]/, 'month name is Arabic');
   });
   it('English dates are day-first', () => {
@@ -92,18 +110,18 @@ describe('formatting', () => {
     assert.equal(formatDate('not a date', 'ar'), '—');
     assert.equal(formatDate('', 'en', 'short', ''), '');
   });
-  it('numbers are grouped, with Western digits in both languages', () => {
+  it('numbers are grouped, in the digits of each language', () => {
     assert.equal(formatNumber(1234567, 'en'), '1,234,567');
-    assert.equal(formatNumber(1234567, 'ar'), '1,234,567');
+    assert.equal(formatNumber(1234567, 'ar'), '١٬٢٣٤٬٥٦٧');
     assert.equal(formatNumber('abc', 'en'), '—');
   });
   it('money keeps the currency code in Latin letters', () => {
     assert.equal(formatMoney(30000, 'en'), 'UGX 30,000');
-    assert.equal(formatMoney(30000, 'ar').replace(/[⁦⁩]/g, ''), '30,000 UGX');
+    assert.equal(formatMoney(30000, 'ar').replace(/[⁦⁩]/g, ''), '٣٠٬٠٠٠ UGX');
     assert.equal(formatMoney(null, 'ar'), '—');
   });
   it('percentages', () => {
     assert.equal(formatPercent(0.424, 'en', true), '42%');
-    assert.equal(formatPercent(42, 'ar'), '42%');
+    assert.equal(formatPercent(42, 'ar'), '٤٢٪');
   });
 });

@@ -160,3 +160,18 @@ messages are never shown to users in either language.
 6. Run `node scripts/l10n-audit.mjs` and the completeness check; both must pass.
 7. Look at the page in Arabic and in English, at desktop and phone width, and record it in the route
    inventory's verification log.
+
+## The two rules every translated page must pass (owner, 2026-10-13)
+
+1. **English shows English only, and exactly the English it showed before.** Translating a page must
+   not reword, re-capitalise or restructure its English. The English dictionary value is the original
+   string, character for character. A sentence with a bold name or a link inside it stays one
+   sentence: use `rich('key', { name: <strong>…</strong> })`.
+2. **Arabic shows Arabic only — digits included.** Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) wherever Arabic
+   is shown. `t()` converts digits in dictionary text and in numeric placeholder values;
+   `formatNumber`, `formatMoney`, `formatPercent` and `formatDate` produce them; a bare number in
+   JSX (`{count}`, `#{id}`, `{score}%`) does not, so pass it through `formatNumber`, `formatPercent`
+   or `digits()`. Identifiers that contain Latin letters ("ADM-001", "K40") are data and stay.
+
+`node scripts/l10n-render.mjs <page>` reports both: "Western digits shown in Arabic" and "Arabic text
+shown in English" must be 0 before a page is called translated.

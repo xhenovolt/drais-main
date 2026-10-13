@@ -26,7 +26,7 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export default function AdmissionsPage() {
-  const { t, formatDate } = useI18n();
+  const { t, rich, formatDate, formatNumber, digits } = useI18n();
   const [filter, setFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -54,7 +54,7 @@ export default function AdmissionsPage() {
           <div>
             <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('admissions.list.title')}</h1>
             <p className="text-xs text-slate-400">
-              {t('admissions.list.subtitle', { mode: t(`admissions.mode.${mode}`) })}
+              {rich('admissions.list.subtitle', { mode: <span className="font-mono">{t(`admissions.mode.${mode}`)}</span> })}
             </p>
           </div>
         </div>
@@ -74,10 +74,10 @@ export default function AdmissionsPage() {
         <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm">
           <p className="font-semibold text-amber-700 dark:text-amber-300">{t('admissions.list.flexibleTitle')}</p>
           <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-            {t('admissions.list.flexibleBody')}{' '}
-            <Link href="/students/admit" className="underline font-semibold">{t('admissions.list.admitDirectly')}</Link>
-            {' · '}
-            <Link href="/admin/admission-mode" className="underline font-semibold">{t('admissions.list.modeSettings')}</Link>
+            {rich('admissions.list.flexibleBody', {
+              admit: <Link href="/students/admit" className="underline">/students/admit</Link>,
+              settings: <Link href="/admin/admission-mode" className="underline">{t('admissions.list.modeSettings')}</Link>,
+            })}
           </p>
         </div>
       )}
@@ -99,7 +99,7 @@ export default function AdmissionsPage() {
                 ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}>
-            {f.label}{f.n !== undefined ? ` (${f.n})` : ''}
+            {f.label}{f.n !== undefined ? ` (${formatNumber(f.n)})` : ''}
           </button>
         ))}
         <div className="ms-auto relative">
@@ -141,19 +141,19 @@ export default function AdmissionsPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {data.data.map((r: any) => (
                 <tr key={r.id} className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{r.application_no ?? `#${r.id}`}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{r.application_no ?? `#${digits(r.id)}`}</td>
                   <td className="px-4 py-3">
                     <Link href={`/admissions/${r.id}`} className="font-semibold text-indigo-600 hover:text-indigo-700">
                       {[r.first_name, r.other_name, r.last_name].filter(Boolean).join(' ')}
                     </Link>
-                    {r.applicant_phone && <p className="text-[10px] text-slate-400 font-mono">{r.applicant_phone}</p>}
+                    {r.applicant_phone && <p className="text-[10px] text-slate-400 font-mono">{digits(r.applicant_phone)}</p>}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{r.desired_class_name ?? '—'}</td>
                   <td className="px-4 py-3">
                     {r.guardian_name ? (
                       <>
                         <p className="text-xs">{r.guardian_name}</p>
-                        {r.guardian_phone && <p className="text-[10px] text-slate-400 font-mono">{r.guardian_phone}</p>}
+                        {r.guardian_phone && <p className="text-[10px] text-slate-400 font-mono">{digits(r.guardian_phone)}</p>}
                       </>
                     ) : <span className="text-slate-400 text-xs">—</span>}
                   </td>

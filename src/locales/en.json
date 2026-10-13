@@ -1087,7 +1087,7 @@
     },
     "enroll": {
       "title": "Enroll Student",
-      "subtitle": "Place a learner in a class with their full academic history in view",
+      "subtitle": "Informed academic placement with full context",
       "next": "Next",
       "back": "Back",
       "review": "Review",
@@ -1096,12 +1096,12 @@
       "default": "Default",
       "previous": "Previous",
       "notSelected": "Not selected",
-      "notAvailable": "Not available",
-      "noAdmNo": "No admission number",
+      "notAvailable": "N/A",
+      "noAdmNo": "No Adm. No",
       "enterEsc": "Press Enter to save · Esc to cancel",
-      "searchPlaceholder": "Search student by name or admission number…",
+      "searchPlaceholder": "Search student by name or admission no…",
       "noneFound": "No students found.",
-      "admitNew": "Admit a new student",
+      "admitNew": "Admit a new student →",
       "mode": {
         "single": "Single Student",
         "bulk": "Bulk Promotion"
@@ -1132,13 +1132,13 @@
         }
       },
       "status": {
-        "active": "Active",
-        "completed": "Completed",
-        "withdrawn": "Withdrawn"
+        "active": "active",
+        "completed": "completed",
+        "withdrawn": "withdrawn"
       },
       "field": {
         "student": "Student",
-        "admNo": "Admission no.",
+        "admNo": "Adm. No",
         "decision": "Decision",
         "class": "Class",
         "stream": "Stream",
@@ -1160,10 +1160,10 @@
         "none": "No previous enrollment — this will be the student's first placement.",
         "title": "Previous Enrollment",
         "subjectCount": {
-          "one": "{{count}} subject",
-          "other": "{{count}} subjects"
+          "one": "{{n}} subjects",
+          "other": "{{n}} subjects"
         },
-        "avg": "Average: {{value}}",
+        "avg": "Avg: {{value}}",
         "best": "Best: {{value}}",
         "passed": "Passed: {{value}}"
       },
@@ -1180,7 +1180,7 @@
       "step1": {
         "hint": "Search for an admitted student. Their previous academic record will load automatically.",
         "mustAdmit": "Student must be admitted first.",
-        "loadingContext": "Loading record…"
+        "loadingContext": "Loading context…"
       },
       "step2": {
         "title": "Enrollment Decision",
@@ -1193,46 +1193,49 @@
       },
       "step3": {
         "title": "Study Mode & Curriculum",
-        "bothRequired": "Both study mode and curriculum are required. Enrollment is blocked without them.",
+        "bothRequired": "Both study mode and curriculum are {{required}}. Enrollment is blocked without them.",
         "noStudyModeSelected": "No study mode selected — you must select one to proceed.",
         "noStudyModes": "No study modes configured yet.",
-        "addStudyMode": "Add study mode",
+        "addStudyMode": "Add Study Mode",
         "studyModePlaceholder": "e.g. Day, Boarding…",
         "noCurriculums": "No curriculums configured yet.",
-        "addCurriculum": "Add curriculum",
+        "addCurriculum": "Add Curriculum",
         "codePlaceholder": "Code (e.g. UNEB)",
-        "namePlaceholder": "Name (e.g. National Curriculum)"
+        "namePlaceholder": "Name (e.g. National Curriculum)",
+        "addStudyModeLink": "Add study mode",
+        "addCurriculumLink": "Add curriculum",
+        "required": "required"
       },
       "step4": {
         "hint": "Select the academic program for this enrollment (e.g. Tahfiz, General Education, Theology).",
         "none": "No programs configured yet.",
-        "quickAdd": "Quick add program",
-        "placeholder": "e.g. Secular Studies, Tahfiz…",
+        "quickAdd": "Quick Add Program",
+        "placeholder": "e.g. Secular Studies, Tahfiz...",
         "addAnother": "Add another program"
       },
       "step5": {
         "title": "Confirm Enrollment",
-        "avgScore": "Average score: {{value}}",
+        "avgScore": "Avg score: {{value}}",
         "newEnrollment": "New Enrollment",
-        "missing": "Required choices are missing — go back and select the study mode, curriculum and program before proceeding.",
+        "missing": "Required dimensions missing — go back to select study mode, curriculum, and program before proceeding.",
         "closeNote": "Any existing active enrollment for this student will be closed and marked as completed.",
         "enrolling": "Enrolling…"
       },
       "done": {
-        "title": "Enrollment complete!",
+        "title": "Enrollment Complete!",
         "body": "{{name}} has been enrolled in {{className}} for {{term}}.",
-        "another": "Enroll another",
-        "viewList": "View student list"
+        "another": "Enroll Another",
+        "viewList": "View Student List"
       },
       "bulk": {
         "title": "Bulk Class Promotion",
         "hint": "Move all active students from one class to another. Previous enrollments will be closed.",
         "currentTerm": "Current term",
-        "fromClass": "From class",
-        "toClass": "To class",
+        "fromClass": "From Class",
+        "toClass": "To Class",
         "warning": "All active students in {{from}} will be moved to {{to}}. This cannot be undone easily.",
         "promoting": "Promoting…",
-        "promoteAll": "Promote all students"
+        "promoteAll": "Promote All Students"
       },
       "toast": {
         "completeRequired": "Please complete all required fields",
@@ -1245,7 +1248,7 @@
         "programAddOne": "Please add at least one program",
         "enrollFailed": "Enrollment failed",
         "enrolled": "{{name}} enrolled successfully!",
-        "bulkRequired": "Select the from class, the to class and the academic year",
+        "bulkRequired": "Select from class, to class, and academic year",
         "promoteFailed": "Promotion failed",
         "promoted": {
           "one": "{{count}} student promoted successfully!",
@@ -1260,24 +1263,26 @@
         "studyModeNameRequired": "Study mode name is required",
         "studyModeCreateFailed": "Failed to create study mode",
         "studyModeCreated": "Study mode \"{{name}}\" created"
-      }
+      },
+      "admitNewQuestion": "Admit a new student?",
+      "previousArrow": "← Previous"
     },
     "history": {
-      "title": "Academic History",
+      "title": "📚 Academic History",
       "recordCount": {
         "one": "{{count}} student record",
         "other": "{{count}} student records"
       },
       "grid": "Grid",
       "list": "List",
-      "searchPlaceholder": "Search students…",
-      "allStudents": "All students",
-      "clearFilters": "Clear filters",
-      "loading": "Loading academic history…",
+      "searchPlaceholder": "Search students...",
+      "allStudents": "All Students",
+      "clearFilters": "Clear Filters",
+      "loading": "Loading academic history...",
       "results": "Results",
       "average": "Average",
-      "recentResults": "Recent results:",
-      "viewFull": "View full history",
+      "recentResults": "Recent Results:",
+      "viewFull": "View Full History",
       "col": {
         "student": "Student",
         "subject": "Subject",
@@ -1286,60 +1291,60 @@
         "grade": "Grade",
         "date": "Date"
       },
-      "noGrade": "Not graded",
+      "noGrade": "N/A",
       "none": "No academic history found"
     },
     "documents": {
-      "title": "Student Documents",
+      "title": "📄 Student Documents",
       "count": {
         "one": "{{count}} document",
         "other": "{{count}} documents"
       },
-      "upload": "Upload document",
-      "searchPlaceholder": "Search students or documents…",
-      "allTypes": "All document types",
-      "clearFilters": "Clear filters",
-      "loading": "Loading documents…",
+      "upload": "Upload Document",
+      "searchPlaceholder": "Search students or documents...",
+      "allTypes": "All Document Types",
+      "clearFilters": "Clear Filters",
+      "loading": "Loading documents...",
       "sizeLabel": "Size: {{size}}",
       "issuedLabel": "Issued: {{date}}",
       "view": "View",
       "download": "Download",
       "none": "No documents found",
       "size": {
-        "bytes": "{{value}} bytes",
+        "bytes": "{{value}} Bytes",
         "kb": "{{value}} KB",
         "mb": "{{value}} MB",
         "gb": "{{value}} GB"
       },
       "form": {
-        "title": "Upload student document",
+        "title": "Upload Student Document",
         "close": "Close",
         "student": "Student",
         "selectStudent": "Select a student",
         "loadingStudents": "Loading students…",
-        "type": "Document type",
+        "type": "Document Type",
         "selectType": "Select document type",
         "loading": "Loading…",
-        "issuedBy": "Issued by",
+        "issuedBy": "Issued By",
         "issuedByPlaceholder": "Who issued this document?",
-        "issueDate": "Issue date",
-        "file": "File",
+        "issueDate": "Issue Date",
+        "file": "File Upload",
         "fileSizeMb": "{{value}} MB",
         "removeFile": "Remove file",
         "dropHere": "Drop the file here",
-        "dragOrClick": "Drag and drop a file here, or click to select",
-        "supports": "Supports: PDF, DOC, DOCX, JPG, PNG (max 10 MB)",
+        "dragOrClick": "Drag & drop a file here, or click to select",
+        "supports": "Supports: PDF, DOC, DOCX, JPG, PNG (Max 10 MB)",
         "notes": "Notes",
         "notesPlaceholder": "Additional notes about this document",
         "cancel": "Cancel",
         "uploading": "Uploading…",
-        "submit": "Upload document",
+        "submit": "Upload Document",
         "studentRequired": "Student is required",
         "typeRequired": "Document type is required",
         "fileRequired": "File is required",
         "uploaded": "Document uploaded successfully!",
         "uploadFailed": "Failed to upload document",
-        "uploadError": "An error occurred while uploading the document"
+        "uploadError": "An error occurred while uploading document"
       }
     },
     "duplicates": {
@@ -1350,36 +1355,36 @@
       "cannotUndo": "This action cannot be undone.",
       "detectFailed": "Failed to detect duplicates",
       "selectPrimary": "Please select a primary record to keep",
-      "scanning": "Scanning for duplicates…",
-      "noneTitle": "No duplicates found",
-      "noneBody": "All {{count}} student records are unique.",
+      "scanning": "Scanning for duplicates...",
+      "noneTitle": "No Duplicates Found",
+      "noneBody": "All {{count}} student records are unique. Great data hygiene!",
       "primary": "(Primary)",
       "recordCount": {
-        "one": "{{count}} record",
+        "one": "{{count}} records",
         "other": "{{count}} records"
       },
       "confidence": {
-        "high": "High confidence",
-        "medium": "Medium confidence",
-        "low": "Low confidence"
+        "high": "high confidence",
+        "medium": "medium confidence",
+        "low": "low confidence"
       },
       "status": {
-        "active": "Active",
-        "admitted": "Admitted",
-        "suspended": "Suspended",
-        "inactive": "Inactive"
+        "active": "active",
+        "admitted": "admitted",
+        "suspended": "suspended",
+        "inactive": "inactive"
       },
       "stat": {
-        "totalStudents": "Total students",
-        "groups": "Duplicate groups",
-        "totalDuplicates": "Total duplicates",
-        "toMerge": "Records to merge"
+        "totalStudents": "Total Students",
+        "groups": "Duplicate Groups",
+        "totalDuplicates": "Total Duplicates",
+        "toMerge": "Records to Merge"
       },
       "col": {
         "keep": "Keep",
         "id": "ID",
         "name": "Name",
-        "admNo": "Admission no.",
+        "admNo": "Adm #",
         "class": "Class",
         "status": "Status",
         "created": "Created",
@@ -1389,44 +1394,46 @@
       },
       "merge": {
         "button": "Merge",
-        "title": "Merge duplicates",
+        "title": "Merge Duplicates",
         "body": {
-          "one": "Keep \"{{name}}\" (#{{id}}) and merge {{count}} duplicate into it. All enrollment, attendance and result records will be transferred. This cannot be undone.",
-          "other": "Keep \"{{name}}\" (#{{id}}) and merge {{count}} duplicates into it. All enrollment, attendance and result records will be transferred. This cannot be undone."
+          "one": "Keep \"{{name}}\" (#{{id}}) and merge {{count}} duplicate(s) into it. All enrollment, attendance, and result records will be transferred. This cannot be undone.",
+          "other": "Keep \"{{name}}\" (#{{id}}) and merge {{count}} duplicate(s) into it. All enrollment, attendance, and result records will be transferred. This cannot be undone."
         },
-        "confirm": "Merge now",
-        "done": "Merged {{count}} duplicate record(s) into #{{id}}"
+        "confirm": "Merge Now",
+        "done": "Merged {{count}} duplicate(s) into #{{id}}"
       },
       "mergeAll": {
-        "title": "Merge all duplicates",
+        "title": "Merge All Duplicates",
         "intro": "You are about to merge {{duplicates}} duplicate students across {{groups}} groups.",
-        "explain": "For each group, the record with the most data will be kept. All enrollment, attendance, results and fee records will be transferred.",
-        "confirm": "Merge all",
-        "button": "Merge all ({{count}} duplicates)",
+        "explain": "For each group, the record with the most data will be kept. All enrollment, attendance, results, and fee records will be transferred.",
+        "confirm": "Merge All",
+        "button": "Merge All ({{count}} duplicates)",
         "progress": "Merging {{done}}/{{total}} groups…",
-        "done": "Merged {{merged}} groups ({{removed}} duplicates removed)",
-        "partial": "Merged {{merged}} groups, {{failed}} failed — run it again to retry"
+        "done": "Merged {{merged}} group(s) ({{removed}} duplicates removed)",
+        "partial": "Merged {{merged}} group(s), {{failed}} failed — re-run to retry"
       },
       "purge": {
-        "button": "Purge empty duplicates",
-        "tooltip": "Permanently delete duplicates that hold no data, and merge the ones that do",
-        "nothingTitle": "Nothing to purge",
+        "button": "Purge Ghosts",
+        "tooltip": "Hard-delete zero-data ghosts, merge data-bearing secondaries",
+        "nothingTitle": "Nothing to Purge",
         "nothingBody": "All duplicate groups have already been cleaned up.",
-        "title": "Purge empty duplicates",
-        "groupsFound": "Duplicate groups found: {{count}}",
-        "ghosts": "Empty records",
-        "ghostsNote": "No data — will be permanently deleted",
-        "dataRecords": "Records with data",
-        "dataNote": "Have data — will be merged into the primary record",
-        "warning": "Deletions cannot be reversed. Merges can be traced in the audit log.",
-        "confirm": "Purge now",
+        "title": "Purge Duplicate Ghosts",
+        "groupsFound": "{{count}} duplicate group(s) found.",
+        "ghosts": "Ghost records",
+        "ghostsNote": "Zero data — will be {{deleted}}",
+        "dataRecords": "Data records",
+        "dataNote": "Have data — will be {{merged}} into primary",
+        "warning": "Ghost deletions are irreversible. Merges can be traced via audit log.",
+        "confirm": "Purge Now",
         "done": "Purged: {{deleted}} deleted, {{merged}} merged",
-        "partial": "{{deleted}} deleted, {{merged}} merged, {{failed}} failed"
+        "partial": "{{deleted}} deleted, {{merged}} merged, {{failed}} failed",
+        "permanentlyDeleted": "permanently deleted",
+        "merged": "merged"
       },
       "reason": {
         "exactName": "Exact name match",
-        "nameAndAdmNo": "Same name and same admission number",
-        "nameAndClass": "Same name and same class",
+        "nameAndAdmNo": "Same name + same admission number",
+        "nameAndClass": "Same name + same class",
         "admNo": "Same admission number"
       }
     }
@@ -3525,7 +3532,7 @@
   },
   "admissions": {
     "common": {
-      "failed": "Something went wrong. Please try again.",
+      "failed": "Failed",
       "cancel": "Cancel",
       "close": "Close",
       "retry": "Retry",
@@ -3533,16 +3540,16 @@
       "loadFailed": "Failed to load"
     },
     "mode": {
-      "flexible": "Flexible",
-      "structured": "Structured"
+      "flexible": "flexible",
+      "structured": "structured"
     },
     "status": {
-      "applicant": "Applicant",
-      "review": "In review",
-      "approved": "Approved",
-      "enrolled": "Enrolled",
-      "rejected": "Rejected",
-      "archived": "Archived"
+      "applicant": "applicant",
+      "review": "review",
+      "approved": "approved",
+      "enrolled": "enrolled",
+      "rejected": "rejected",
+      "archived": "archived"
     },
     "gender": {
       "male": "Male",
@@ -3555,8 +3562,7 @@
       "modeButton": "Mode",
       "newApplication": "New Application",
       "flexibleTitle": "This school is in Flexible mode.",
-      "flexibleBody": "The structured pipeline still works, but most schools use it only after switching mode. You can keep admitting learners directly, or switch to Structured mode.",
-      "admitDirectly": "Admit a student directly",
+      "flexibleBody": "The Structured pipeline still works, but most schools use it only after switching mode. You can keep using {{admit}} directly, or switch to Structured mode in {{settings}}.",
       "modeSettings": "Mode settings",
       "filter": {
         "all": "All",
@@ -3567,14 +3573,14 @@
         "rejected": "Rejected",
         "archived": "Archived"
       },
-      "searchPlaceholder": "Search name or application number…",
+      "searchPlaceholder": "Search name or app number…",
       "none": "No applications yet.",
-      "noneWithStatus": "No applications with the status \"{{status}}\".",
-      "createFirst": "Create the first application",
+      "noneWithStatus": "No {{status}} applicants.",
+      "createFirst": "Create the first application →",
       "col": {
-        "appNo": "Application no.",
+        "appNo": "App #",
         "applicant": "Applicant",
-        "desiredClass": "Desired class",
+        "desiredClass": "Desired Class",
         "guardian": "Guardian",
         "status": "Status",
         "submitted": "Submitted"
@@ -3583,50 +3589,50 @@
     "section": {
       "applicant": "Applicant",
       "guardian": "Guardian",
-      "placement": "Desired placement",
+      "placement": "Desired Placement",
       "notes": "Notes",
       "documents": "Documents",
-      "history": "Status history"
+      "history": "Status History"
     },
     "field": {
-      "firstNameRequired": "First name *",
-      "lastNameRequired": "Last name *",
-      "otherName": "Other name",
+      "firstNameRequired": "First Name *",
+      "lastNameRequired": "Last Name *",
+      "otherName": "Other Name",
       "gender": "Gender",
-      "dateOfBirth": "Date of birth",
-      "applicantPhone": "Applicant phone",
-      "guardianName": "Guardian name",
-      "guardianPhone": "Guardian phone",
-      "guardianEmail": "Guardian email",
+      "dateOfBirth": "Date of Birth",
+      "applicantPhone": "Applicant Phone",
+      "guardianName": "Guardian Name",
+      "guardianPhone": "Guardian Phone",
+      "guardianEmail": "Guardian Email",
       "relation": "Relation",
       "class": "Class",
       "stream": "Stream",
       "term": "Term",
       "year": "Year",
-      "previousSchool": "Previous school",
+      "previousSchool": "Previous School",
       "notes": "Notes",
       "name": "Name",
       "phone": "Phone",
       "email": "Email"
     },
     "form": {
-      "nameRequired": "First name and last name are required.",
+      "nameRequired": "Name required",
       "created": "Application created ({{number}})",
       "relationPlaceholder": "parent / guardian",
       "create": "Create"
     },
     "detail": {
       "back": "Back to applications",
-      "movedTo": "Moved to: {{status}}",
+      "movedTo": "Moved to {{status}}",
       "enrolledAs": "Enrolled as student #{{id}} ({{number}})",
-      "convertConfirm": "Convert this applicant to an enrolled student? This will create a student record and an active enrollment.",
-      "rejectPrompt": "Why is this application being rejected?",
-      "invalidId": "Invalid application number.",
+      "convertConfirm": "Convert this applicant to an enrolled student? This will create a student record + active enrollment.",
+      "rejectPrompt": "Rejection reason?",
+      "invalidId": "Invalid application id.",
       "notFound": "Application not found.",
-      "moveToReview": "Move to review",
+      "moveToReview": "Move to Review",
       "approve": "Approve",
       "reject": "Reject",
-      "convert": "Convert to enrolled",
+      "convert": "Convert to Enrolled",
       "archive": "Archive",
       "reopen": "Reopen",
       "viewStudent": "View student record",

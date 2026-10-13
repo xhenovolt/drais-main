@@ -30,7 +30,7 @@ const TONE: Record<string, string> = {
 export default function AdmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, digits } = useI18n();
   const statusLabel = (s: string) => t(`admissions.status.${s}`, String(s ?? ''));
   const { data, error, isLoading, mutate } = useSWR<any>(
     id && /^\d+$/.test(id) ? `/api/admissions/${id}` : null,
@@ -129,7 +129,7 @@ export default function AdmissionDetailPage() {
         </div>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">{fullName}</h1>
-          <p className="text-xs text-slate-400 font-mono">{a.application_no ?? `#${a.id}`}</p>
+          <p className="text-xs text-slate-400 font-mono">{a.application_no ?? `#${digits(a.id)}`}</p>
         </div>
       </div>
 
@@ -274,10 +274,11 @@ function Section({ title, icon: Icon, children }: { title: string; icon: any; ch
 }
 
 function Field({ label, value }: { label: string; value?: string | null }) {
+  const { digits } = useI18n();
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{label}</p>
-      <p className="text-sm text-slate-700 dark:text-slate-200 mt-0.5">{value || '—'}</p>
+      <p className="text-sm text-slate-700 dark:text-slate-200 mt-0.5">{value ? digits(value) : '—'}</p>
     </div>
   );
 }

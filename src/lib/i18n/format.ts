@@ -1,18 +1,46 @@
 /**
  * Language-aware formatting for dates, numbers and money — PURE.
  *
- * Rule for Arabic (owner decision, 2026-10): the interface keeps WESTERN digits (0123) and the
- * GREGORIAN calendar, with Arabic month and day names. Reports keep their own per-report numeral
- * setting (src/lib/snapshots/normalizers.ts). Stored values are never changed, only how they show.
+ * Rule for Arabic (owner decision, 2026-10-13, replacing the earlier "Western digits" one): the
+ * interface shows ARABIC-INDIC digits (٠١٢٣٤٥٦٧٨٩) wherever Arabic is shown, on the GREGORIAN
+ * calendar with Arabic month and day names. Reports keep their own per-report numeral setting
+ * (src/lib/snapshots/normalizers.ts). Stored values are never changed, only how they show.
  *
  * Use these instead of toLocaleDateString('en-GB') / toLocaleString() in components. In a
  * component, prefer the bound versions from useI18n(): const { formatDate, formatNumber } = useI18n().
  */
 export type FormatLang = 'en' | 'ar' | string;
 
-/** BCP-47 tag for a DRAIS language. Arabic pins latin digits + the Gregorian calendar. */
+/** BCP-47 tag for a DRAIS language. Arabic pins Arabic-Indic digits + the Gregorian calendar. */
 export function localeFor(lang: FormatLang): string {
-  return lang === 'ar' ? 'ar-u-nu-latn-ca-gregory' : 'en-GB';
+  return lang === 'ar' ? 'ar-u-nu-arab-ca-gregory' : 'en-GB';
+}
+
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+/** 0-9 → ٠-٩. Everything else is left as it is. */
+export function toArabicDigits(value: string | number): string {
+  return String(value).replace(/[0-9]/g, (d) => ARABIC_DIGITS[Number(d)]);
+}
+
+/**
+ * Show a value's digits in the interface language WITHOUT regrouping or rounding — for things that
+ * are numbers to the reader but not quantities: "#12", a score "78", "3/10", a time "07:42".
+ * English returns the value unchanged. A value containing Latin letters is an identifier or a name
+ * ("ADM-001", "S.4", "Term 3") and is returned unchanged in Arabic too — the same rule t() applies
+ * to placeholder values — so it is safe to pass any piece of data through it.
+ */
+export function localizeDigits(value: string | number | null | undefined, lang: FormatLang): string {
+  if (value == null) return '';
+  return lang === 'ar' && !/[A-Za-z]/.test(String(value)) ? toArabicDigits(value) : String(value);
+}
+
+/**
+ * Digits inside a piece of interface TEXT. Digits glued to Latin letters are identifiers and stay
+ * ("K40", "MP3", "A4", "ADM-001" as a whole word); free-standing numbers are converted.
+ */
+export function localizeDigitsInText(text: string, lang: FormatLang): string {
+  if (lang !== 'ar' || !/[0-9]/.test(text)) return text;
+  return text.replace(/[A-Za-z0-9][A-Za-z0-9._/:#@-]*/g,(word) => (/[A-Za-z]/.test(word) ? word : toArabicDigits(word)));
 }
 
 type DateInput = Date | string | number | null | undefined;
@@ -63,5 +91,5 @@ export function formatMoney(amount: number | string | null | undefined, lang: Fo
 /** Format a ratio (0.42) or a ready percentage (42) as "42%". */
 export function formatPercent(value: number | null | undefined, lang: FormatLang, isRatio = false, digits = 0, empty = '—'): string {
   if (value == null || !Number.isFinite(value)) return empty;
-  return `${formatNumber(isRatio ? value * 100 : value, lang, { maximumFractionDigits: digits })}%`;
+  return `${formatNumber(isRatio ? value * 100 : value, lang, { maximumFractionDigits: digits })}${lang === 'ar' ? '٪' : '%'}`;
 }

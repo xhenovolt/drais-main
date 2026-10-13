@@ -4,7 +4,7 @@ import { useThemeStore } from '@/hooks/useThemeStore';
 import { translate, type Dictionary, type TVars } from '@/lib/i18n/core';
 import enDictionary from '@/locales/en.json';
 import arDictionary from '@/locales/ar.json';
-import { formatDate as fmtDate, formatMoney as fmtMoney, formatNumber as fmtNumber, formatPercent as fmtPercent, type DateStyle } from '@/lib/i18n/format';
+import { formatDate as fmtDate, formatMoney as fmtMoney, formatNumber as fmtNumber, formatPercent as fmtPercent, localizeDigits, type DateStyle } from '@/lib/i18n/format';
 
 interface I18nContextValue {
   lang: string;
@@ -33,6 +33,20 @@ interface I18nContextValue {
   formatNumber: (value: number | string | null | undefined, options?: Intl.NumberFormatOptions) => string;
   formatMoney: (amount: number | string | null | undefined, currency?: string) => string;
   formatPercent: (value: number | null | undefined, isRatio?: boolean, digits?: number) => string;
+  /**
+   * A value's digits in the active language, with nothing else changed: digits('07:42') → "٠٧:٤٢",
+   * digits(78) → "٧٨". For numbers that are not quantities (an id, a score, "3/10"); use
+   * formatNumber for quantities. In Arabic every number on screen must go through t(), a
+   * formatter or this — a bare {count} in JSX shows Western digits.
+   */
+  digits: (value: string | number | null | undefined) => string;
+  /**
+   * A sentence with elements inside it — a bold name, a link — kept as ONE translatable sentence:
+   *   rich('x.movedTo', { from: <strong>{a}</strong>, to: <strong>{b}</strong> })
+   * with "All students in {{from}} will be moved to {{to}}." Plain values (and `count` for a
+   * plural entry) go in the third argument.
+   */
+  rich: (key: string, nodes: Record<string, React.ReactNode>, vars?: Record<string, string | number>) => React.ReactNode;
   setLang: (lng: string) => void;
   ready: boolean;
   loading: boolean;
@@ -145,11 +159,21 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
   const formatMoney = useCallback<I18nContextValue['formatMoney']>((v, c) => fmtMoney(v, lang, c), [lang]);
   const formatPercent = useCallback<I18nContextValue['formatPercent']>((v, r, d) => fmtPercent(v, lang, r, d), [lang]);
 
+  const digits = useCallback<I18nContextValue['digits']>((v) => localizeDigits(v, lang), [lang]);
+
+  const rich = useCallback<I18nContextValue['rich']>((key, nodes, vars) => {
+    const text = t(key, vars ?? {});   // placeholders that are nodes are left in place by t()
+    return text.split(/(\{\{\s*\w+\s*\}\})/g).map((part, i) => {
+      const m = /^\{\{\s*(\w+)\s*\}\}$/.exec(part);
+      return <React.Fragment key={i}>{m && m[1] in nodes ? nodes[m[1]] : part}</React.Fragment>;
+    });
+  }, [t]);
+
   const value: I18nContextValue = { 
     lang, 
     t, 
     dir: lang === 'ar' ? 'rtl' : 'ltr', 
-    formatDate, formatNumber, formatMoney, formatPercent,
+    formatDate, formatNumber, formatMoney, formatPercent, digits, rich,
     setLang: setLanguage, 
     ready,
     loading,

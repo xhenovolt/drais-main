@@ -5,6 +5,8 @@
  *
  * Key conventions: docs/localization/TRANSLATION_KEY_CONVENTIONS.md
  */
+import { localizeDigitsInText, toArabicDigits } from './format';
+
 export type Lang = 'en' | 'ar';
 export interface Dictionary { [key: string]: string | Dictionary }
 export type TVars = Record<string, string | number>;
@@ -62,7 +64,14 @@ export function translate(
   if (typeof node === 'string') text = node;
   else if (isPluralEntry(node)) text = selectPlural(node, Number(vars?.count ?? 0), lang);
   else { onMissing?.(key); text = fallback ?? key; }
-  return interpolate(text, vars);
+  if (lang !== 'ar') return interpolate(text, vars);
+  // Arabic shows Arabic-Indic digits. Digits written in the dictionary text are converted (unless
+  // glued to Latin letters: "K40"); a placeholder value is converted when it is a number or a
+  // string with no Latin letters (a count, a date, a phone number) and left alone when it is an
+  // identifier or a name ("ADM-001", "Term 3").
+  const shown: TVars | undefined = vars && Object.fromEntries(Object.entries(vars).map(([k, v]) =>
+    [k, typeof v === 'number' || (typeof v === 'string' && !/[A-Za-z]/.test(v)) ? toArabicDigits(v) : v]));
+  return localizeDigitsInText(text, lang).replace(/\{\{\s*(\w+)\s*\}\}/g,(whole, name) => (shown && name in shown ? String(shown[name]) : whole));
 }
 
 /** Every leaf key of a dictionary as a dotted path; a plural entry counts as ONE key. */

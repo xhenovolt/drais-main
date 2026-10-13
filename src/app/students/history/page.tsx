@@ -12,7 +12,7 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 
 const AcademicHistoryPage: React.FC = () => {
   const router = useRouter();
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, formatNumber, formatPercent } = useI18n();
   const searchParams = useSearchParams();
   const studentIdFromUrl = searchParams?.get("studentId") || "";
 
@@ -210,12 +210,12 @@ const AcademicHistoryPage: React.FC = () => {
                   {/* Performance Summary */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{group.results ? group.results.length : group.result_count}</div>
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(group.results ? group.results.length : group.result_count)}</div>
                       <div className="text-xs text-blue-600 dark:text-blue-400">{t('students.history.results')}</div>
                     </div>
                     <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {group.results ? calculateAverage(group.results) : group.average_score}%
+                        {formatPercent(Number(group.results ? calculateAverage(group.results) : group.average_score), false, 1)}
                       </div>
                       <div className="text-xs text-green-600 dark:text-green-400">{t('students.history.average')}</div>
                     </div>
@@ -243,7 +243,7 @@ const AcademicHistoryPage: React.FC = () => {
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${getGradeColor(result.score || 0)}`}
                           >
-                            {result.score || 0}%
+                            {formatPercent(Number(result.score || 0), false, 1)}
                           </span>
                         </div>
                       ))}
@@ -335,7 +335,7 @@ const AcademicHistoryPage: React.FC = () => {
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${getGradeColor(result.score || 0)}`}
                           >
-                            {result.score || 0}%
+                            {formatPercent(Number(result.score || 0), false, 1)}
                           </span>
                         </td>
                         <td className="px-6 py-4">

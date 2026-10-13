@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:26:14.595Z",
-  "last_commit": "fc372327d71f4ce78581f1dfa622dcdf9eaba8fa",
+  "generated_at": "2026-10-13T10:40:49.143Z",
+  "last_commit": "27993f78d65476de0ff3fae2254bc3bf5438171f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9345,7 +9345,20 @@
         }
       ],
       "commit": "fc372327d7"
+    },
+    {
+      "version": "2.50.56",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Verification log for the parent portal and Students routes 3-8",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Verification log for the parent portal and Students routes 3-8"
+        }
+      ],
+      "commit": "27993f78d6"
     }
   ],
-  "app_version": "2.50.56"
+  "app_version": "2.50.57"
 }
