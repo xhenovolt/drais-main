@@ -2027,7 +2027,7 @@ export default function StudentsListPage() {
                                 <span
                                   key={e.enrollment_id}
                                   className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 whitespace-nowrap"
-                                  title={e.program_name ? `Program: ${e.program_name}` : undefined}
+                                  title={e.program_name ? t('students.list.row.programTitle', { name: e.program_name }) : undefined}
                                 >
                                   {e.program_name && (
                                     <span className="text-indigo-400 dark:text-indigo-500 mr-0.5">{e.program_name}:</span>
@@ -2090,7 +2090,7 @@ export default function StudentsListPage() {
                             return (
                               <Link
                                 href={`/students/${student.id}/fees`}
-                                title={`Charged: ${charged.toFixed(2)} · Paid: ${paid.toFixed(2)}`}
+                                title={t('students.list.row.feeTitle', { charged: charged.toFixed(2), paid: paid.toFixed(2) })}
                                 className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-80 ${
                                   owing
                                     ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'

@@ -10,6 +10,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Mic, MicOff, Check, X, HelpCircle } from 'lucide-react';
 import { findClosestName, NameMatch } from '@/lib/voiceNameMatcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface VoiceNameCaptureProps {
   /** Label shown on the mic button tooltip */
@@ -23,7 +24,9 @@ type State = 'idle' | 'listening' | 'processing' | 'suggestions' | 'error';
 // Web Speech API — not in standard TS lib; use `any` wrappers safely
 type AnyRecognition = any;
 
-export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNameCaptureProps) {
+export default function VoiceNameCapture({ label: labelProp, onCapture }: VoiceNameCaptureProps) {
+  const { t } = useI18n();
+  const label = labelProp ?? t('students.admit.voice.defaultField');
   const [uiState, setUiState] = useState<State>('idle');
   const [suggestions, setSuggestions] = useState<NameMatch[]>([]);
   const [rawTranscript, setRawTranscript] = useState('');
@@ -115,8 +118,8 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
       <button
         type="button"
         disabled
-        title="Voice input is not supported in this browser. Try Chrome or Edge."
-        aria-label="Voice input not supported"
+        title={t('students.admit.voice.unsupported')}
+        aria-label={t('students.admit.voice.unsupportedShort')}
         className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed"
       >
         <Mic className="w-4 h-4" />
@@ -140,11 +143,11 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
         type="button"
         onClick={handleMicClick}
         disabled={uiState === 'processing'}
-        aria-label={`Voice capture for ${label}`}
+        aria-label={t('students.admit.voice.captureFor', { field: label })}
         title={
           uiState === 'listening'
-            ? 'Tap to stop recording'
-            : `Tap to speak ${label}`
+            ? t('students.admit.voice.tapToStop')
+            : t('students.admit.voice.tapToSpeak', { field: label })
         }
         className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${micBtnClass}`}
       >
@@ -158,21 +161,21 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
       {/* Listening indicator */}
       {uiState === 'listening' && (
         <span className="text-xs text-red-500 dark:text-red-400 font-medium animate-pulse select-none">
-          Listening…
+          {t('students.admit.voice.listening')}
         </span>
       )}
 
       {/* Processing indicator */}
       {uiState === 'processing' && (
         <span className="text-xs text-amber-500 dark:text-amber-400 select-none">
-          Matching…
+          {t('students.admit.voice.matching')}
         </span>
       )}
 
       {/* Error feedback */}
       {uiState === 'error' && (
         <span className="text-xs text-red-500 dark:text-red-400 select-none">
-          Could not hear — try again
+          {t('students.admit.voice.couldNotHear')}
         </span>
       )}
 
@@ -191,7 +194,7 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
           {suggestions.length > 1 &&
             suggestions[0].confidence - suggestions[1].confidence < 15 && (
               <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Did you mean…
+                {t('students.admit.voice.didYouMean')}
               </p>
             )}
 
@@ -229,7 +232,7 @@ export default function VoiceNameCapture({ label = 'Name', onCapture }: VoiceNam
             className="w-full text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300
                        flex items-center justify-center gap-1 mt-1 transition-colors"
           >
-            <X className="w-3 h-3" /> Dismiss
+            <X className="w-3 h-3" /> {t('students.admit.voice.dismiss')}
           </button>
         </div>
       )}

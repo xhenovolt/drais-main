@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T09:11:54.210Z",
-  "last_commit": "d65ad733cb8d930e07958c8c8f79b7bdd2969bcd",
+  "generated_at": "2026-10-13T09:19:29.426Z",
+  "last_commit": "df60cac549e6eb01164161b78610d28b18a60f6b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9241,7 +9241,20 @@
         }
       ],
       "commit": "d65ad733cb"
+    },
+    {
+      "version": "2.50.48",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Finish translating /students/list — import dialog and remaining strings",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Finish translating /students/list — import dialog and remaining strings"
+        }
+      ],
+      "commit": "df60cac549"
     }
   ],
-  "app_version": "2.50.48"
+  "app_version": "2.50.49"
 }

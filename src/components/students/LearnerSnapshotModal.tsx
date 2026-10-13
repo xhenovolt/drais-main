@@ -19,6 +19,7 @@ export default function LearnerSnapshotModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   if (!open || !studentId) return null;
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 backdrop-blur-sm pt-[8vh] px-4" onMouseDown={onClose}>

@@ -10,12 +10,14 @@ import { UserPlus, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import VoiceNameCapture from '@/components/admissions/VoiceNameCapture';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fieldBase =
   'w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition';
 
 export default function AdmitStudentPage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -47,16 +49,16 @@ export default function AdmitStudentPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Admission failed');
+      if (!res.ok) throw new Error(data.error || t('students.admit.failed'));
       setAdmitted({
         id: data.student_id,
         admission_no: data.admission_no ?? `#${data.student_id}`,
         name: `${firstName} ${lastName}`,
       });
-      toast.success(`${firstName} ${lastName} admitted!`);
+      toast.success(t('students.admit.admittedToast', { name: `${firstName} ${lastName}`.trim() }));
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
-      toast.error(err.message || 'Admission failed');
+      setError(err.message || t('students.admit.somethingWrong'));
+      toast.error(err.message || t('students.admit.failed'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +79,8 @@ export default function AdmitStudentPage() {
             <UserPlus className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Admit Student</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Step 1 of 2 — Create student record</p>
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('students.admit.title')}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('students.admit.subtitle')}</p>
           </div>
         </div>
 
@@ -86,19 +88,19 @@ export default function AdmitStudentPage() {
         <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-sm text-blue-700 dark:text-blue-300">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <p>
-            Admission creates a student record only. After admitting, go to{' '}
-            <Link href="/students/enroll" className="font-semibold underline">Enroll Student</Link>{' '}
-            to assign them to a class and term.
+            {t('students.admit.infoBefore')}{' '}
+            <Link href="/students/enroll" className="font-semibold underline">{t('students.admit.infoLink')}</Link>{' '}
+            {t('students.admit.infoAfter')}
           </p>
         </div>
 
         {/* Steps */}
         <div className="flex rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white text-xs font-semibold">
-            <UserPlus className="w-3.5 h-3.5" /> 1. Admit
+            <UserPlus className="w-3.5 h-3.5" /> {t('students.admit.step1')}
           </div>
           <div className="flex-1 flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold border-l border-slate-200 dark:border-slate-700">
-            <ArrowRight className="w-3.5 h-3.5" /> 2. Enroll
+            <ArrowRight className="w-3.5 h-3.5" /> {t('students.admit.step2')}
           </div>
         </div>
 
@@ -109,58 +111,58 @@ export default function AdmitStudentPage() {
               <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-1">Student Admitted!</h2>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{t('students.admit.successTitle')}</h2>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                <strong>{admitted.name}</strong> — Adm. No:{' '}
+                <strong>{admitted.name}</strong> — {t('students.admit.admNo')}{' '}
                 <code className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs">{admitted.admission_no}</code>
               </p>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Now enroll this student into a class and term.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('students.admit.nowEnroll')}</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/students/enroll" className="btn-primary px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-                Enroll Now <ArrowRight className="w-4 h-4" />
+                {t('students.admit.enrollNow')} <ArrowRight className="w-4 h-4 rtl-flip" />
               </Link>
-              <button onClick={handleAnother} className="btn-secondary px-5 py-2.5 rounded-xl text-sm">Admit Another</button>
-              <Link href="/students/list" className="btn-secondary px-5 py-2.5 rounded-xl text-sm text-center">View Students</Link>
+              <button onClick={handleAnother} className="btn-secondary px-5 py-2.5 rounded-xl text-sm">{t('students.admit.admitAnother')}</button>
+              <Link href="/students/list" className="btn-secondary px-5 py-2.5 rounded-xl text-sm text-center">{t('students.admit.viewStudents')}</Link>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="card-glass p-6 space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">First Name *</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.admit.firstNameRequired')}</label>
                 <div className="flex items-center gap-2">
-                  <input required value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="e.g., Fatuma" className={fieldBase} />
-                  <VoiceNameCapture label="First Name" onCapture={setFirstName} />
+                  <input required value={firstName} onChange={e => setFirstName(e.target.value)} placeholder={t('students.admit.firstNamePlaceholder')} className={fieldBase} />
+                  <VoiceNameCapture label={t('students.admit.firstName')} onCapture={setFirstName} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Last Name <span className="font-normal text-slate-400">(optional)</span></label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.admit.lastName')} <span className="font-normal text-slate-400">{t('students.admit.optional')}</span></label>
                 <div className="flex items-center gap-2">
-                  <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="e.g., Nakibuuka" className={fieldBase} />
-                  <VoiceNameCapture label="Last Name" onCapture={setLastName} />
+                  <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder={t('students.admit.lastNamePlaceholder')} className={fieldBase} />
+                  <VoiceNameCapture label={t('students.admit.lastName')} onCapture={setLastName} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Other Name</label>
-                <input value={otherName} onChange={e => setOtherName(e.target.value)} placeholder="Middle name (optional)" className={fieldBase} />
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.admit.otherName')}</label>
+                <input value={otherName} onChange={e => setOtherName(e.target.value)} placeholder={t('students.admit.otherNamePlaceholder')} className={fieldBase} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Gender</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.admit.gender')}</label>
                 <select value={gender} onChange={e => setGender(e.target.value)} className={fieldBase}>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="other">Other</option>
-                  <option value="not_specified">Prefer not to say</option>
+                  <option value="female">{t('students.admit.female')}</option>
+                  <option value="male">{t('students.admit.male')}</option>
+                  <option value="other">{t('students.admit.other')}</option>
+                  <option value="not_specified">{t('students.admit.preferNot')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Date of Birth</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.admit.dob')}</label>
                 <input type="date" value={dob} onChange={e => setDob(e.target.value)} className={fieldBase} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Phone</label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g., 0700 000 000" className={fieldBase} />
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('students.admit.phone')}</label>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder={t('students.admit.phonePlaceholder')} className={fieldBase} />
               </div>
             </div>
 
@@ -171,16 +173,16 @@ export default function AdmitStudentPage() {
             )}
 
             <div className="flex items-center justify-between pt-2">
-              <Link href="/students/list" className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">Cancel</Link>
+              <Link href="/students/list" className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">{t('common.cancel')}</Link>
               <button
                 type="submit"
                 disabled={loading || !firstName.trim()}
                 className="btn-primary px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Admitting…</>
+                  <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> {t('students.admit.admitting')}</>
                 ) : (
-                  <><UserPlus className="w-4 h-4" /> Admit Student</>
+                  <><UserPlus className="w-4 h-4" /> {t('students.admit.title')}</>
                 )}
               </button>
             </div>

@@ -1,0 +1,16 @@
+{
+  "/api/students/enrolled": { "success": true, "data": [
+    { "id": 1, "enrollment_id": 11, "person_id": 101, "first_name": "Kigoonya", "last_name": "Yusufu", "admission_no": "NHS/2026/0412", "class_id": 4, "class_name": "S.4", "stream_id": 2, "stream_name": "East", "program_id": 1, "program_name": "Secular", "status": "active", "gender": "male", "residency_status": "day", "admission_date": "2026-02-03", "photo_url": null },
+    { "id": 2, "enrollment_id": 12, "person_id": 102, "first_name": "Namatovu", "last_name": "Mary", "admission_no": "NHS/2026/0077", "class_id": 2, "class_name": "S.2", "stream_id": 3, "stream_name": "West", "program_id": 1, "program_name": "Secular", "status": "suspended", "gender": "female", "residency_status": "boarding", "admission_date": "2025-02-10", "photo_url": null }
+  ] },
+  "/api/students/admitted": { "success": true, "data": [
+    { "id": 3, "person_id": 103, "first_name": "Abdul", "last_name": "Rahman", "admission_no": "NHS/2026/0500", "status": "admitted", "gender": "male", "residency_status": "day", "admission_date": "2026-10-01", "photo_url": null }
+  ] },
+  "/api/classes": { "success": true, "data": [ { "id": 4, "name": "S.4", "program_name": "Secular" }, { "id": 2, "name": "S.2", "program_name": "Secular" } ] },
+  "/api/streams": { "success": true, "data": [ { "id": 2, "name": "East", "class_id": 4 }, { "id": 3, "name": "West", "class_id": 2 } ] },
+  "/api/programs": { "success": true, "data": [ { "id": 1, "name": "Secular" }, { "id": 2, "name": "Theology" } ] },
+  "/api/study-modes": { "success": true, "data": [ { "id": 1, "name": "Day" }, { "id": 2, "name": "Boarding" } ] },
+  "/api/academic_years": { "success": true, "data": [ { "id": 1, "name": "2026", "is_current": 1 } ] },
+  "/api/terms": { "success": true, "data": [ { "id": 3, "name": "Term III", "academic_year_id": 1, "is_current": 1 } ] },
+  "/api/students/fingerprint-status": { "success": true, "data": { "1": { "label": "Active", "finger_count": 2, "face_captured": false } } }
+}
