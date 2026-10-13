@@ -12,6 +12,7 @@ import { apiFetch } from '@/lib/apiClient';
 import { showToast } from '@/lib/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/currency';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,8 +71,11 @@ export default function StudentFeesPage() {
   const { id } = useParams<{ id: string }>();
   const studentId = parseInt(id);
   const { user } = useAuth();
+  const { t, lang, rich, digits, formatNumber, formatMoney, formatDate } = useI18n();
   const currency = user?.school?.currency || 'UGX';
-  const money = (n: number) => formatCurrency(n, currency);
+  const money = (n: number) => (lang === 'ar' ? formatMoney(n, currency) : formatCurrency(n, currency));
+  // Ledger figures: the original English formatting, Arabic digits in Arabic.
+  const num = (n: number) => (lang === 'ar' ? formatNumber(n) : fmt(n));
 
   const [balance, setBalance]   = useState<Balance | null>(null);
   const [ledger, setLedger]     = useState<LedgerEntry[]>([]);
@@ -137,7 +141,7 @@ export default function StudentFeesPage() {
           // `display_name` is the localised name the API composes via
           // personDisplayName(); fall back to the raw name parts.
           display_name:
-            p.display_name || `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || `Learner #${studentId}`,
+            p.display_name || `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim(),
           first_name: p.first_name,
           last_name: p.last_name,
           admission_no: p.admission_no,
@@ -145,7 +149,7 @@ export default function StudentFeesPage() {
         });
       }
     } catch (e) {
-      showToast('error', 'Failed to load fee data');
+      showToast('error', t('students.fees.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -157,7 +161,7 @@ export default function StudentFeesPage() {
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!payAmount || parseFloat(payAmount) <= 0) {
-      showToast('error', 'Enter a valid amount'); return;
+      showToast('error', t('students.fees.validAmount')); return;
     }
     setPaySubmitting(true);
     try {
@@ -206,9 +210,9 @@ export default function StudentFeesPage() {
   const handleAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adjAmount || parseFloat(adjAmount) <= 0) {
-      showToast('error', 'Enter a valid amount'); return;
+      showToast('error', t('students.fees.validAmount')); return;
     }
-    if (!adjRef.trim()) { showToast('error', 'Reference is required'); return; }
+    if (!adjRef.trim()) { showToast('error', t('students.fees.referenceRequired')); return; }
     setAdjSubmitting(true);
     try {
       // Same fix as handlePayment: apiFetch throws on failure and toasts on
@@ -239,7 +243,7 @@ export default function StudentFeesPage() {
     return (
       <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
         <Loader className="w-5 h-5 animate-spin" />
-        <span className="text-sm">Loading fee data…</span>
+        <span className="text-sm">{t('students.fees.loading')}</span>
       </div>
     );
   }
@@ -263,19 +267,19 @@ export default function StudentFeesPage() {
                 money must be able to confirm at a glance that they are on the
                 right person — the page title is the same on every one. */}
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-              {student ? student.display_name : `Learner #${studentId}`}
+              {student?.display_name || t('students.fees.learnerNumber', { id: studentId })}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {student
-                ? [student.admission_no, student.class_name].filter(Boolean).join(' · ') || 'Fee ledger'
-                : 'Loading learner…'}
+                ? [student.admission_no, student.class_name].filter(Boolean).join(' · ') || t('students.fees.ledger')
+                : t('students.fees.loadingLearner')}
             </p>
           </div>
         </div>
         <button
           onClick={load}
           className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          title="Refresh"
+          title={t('students.fees.refresh')}
         >
           <RefreshCw className="w-4 h-4 text-slate-400" />
         </button>
@@ -285,22 +289,22 @@ export default function StudentFeesPage() {
       {balance && (
         <div className="grid grid-cols-3 gap-3">
           <StatCard
-            label="Total Charged"
+            label={t('students.fees.totalCharged')}
             value={money(balance.total_charged)}
-            sub={`${balance.entry_count} entries`}
+            sub={t('students.fees.entries', { count: balance.entry_count })}
             icon={TrendingUp}
             color="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
           />
           <StatCard
-            label="Total Paid"
+            label={t('students.fees.totalPaid')}
             value={money(balance.total_paid)}
             icon={CreditCard}
             color="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
           />
           <StatCard
-            label={isOverdue ? 'Balance Due' : 'Credit Balance'}
+            label={isOverdue ? t('students.fees.balanceDue') : t('students.fees.creditBalance')}
             value={money(Math.abs(balance.balance))}
-            sub={isOverdue ? '⚠ Outstanding' : '✓ Overpaid / Clear'}
+            sub={isOverdue ? t('students.fees.outstandingMark') : t('students.fees.clearMark')}
             icon={isOverdue ? AlertCircle : CheckCircle2}
             color={
               isOverdue
@@ -318,21 +322,21 @@ export default function StudentFeesPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
         >
           <Receipt className="w-4 h-4" />
-          Record Payment
+          {t('students.fees.recordPayment')}
         </button>
         <button
           onClick={() => { setShowAdjust(v => !v); setShowPayment(false); }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 transition-colors"
         >
           <Wallet className="w-4 h-4" />
-          Adjust Balance
+          {t('students.fees.adjustBalance')}
         </button>
         <Link
           href={`/students/${studentId}`}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Profile
+          <ArrowLeft className="w-4 h-4 rtl-flip" />
+          {t('students.fees.profile')}
         </Link>
       </div>
 
@@ -345,28 +349,28 @@ export default function StudentFeesPage() {
         <div className="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 flex items-center gap-3 flex-wrap">
           <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span className="text-sm text-emerald-800 dark:text-emerald-200 flex-1 min-w-0">
-            Payment recorded · receipt <span className="font-mono font-semibold">{lastReceipt.receiptNo}</span>
+            {rich('students.fees.paymentRecorded', { receipt: <span className="font-mono font-semibold">{lastReceipt.receiptNo}</span> })}
           </span>
           <a
             href={`/finance/receipts/${encodeURIComponent(lastReceipt.receiptNo)}`}
             target="_blank" rel="noopener noreferrer"
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white"
           >
-            View / print
+            {t('students.fees.viewPrint')}
           </a>
           {lastReceipt.paymentId && (
             <a
               href={`/api/finance/payments/${lastReceipt.paymentId}/receipt`}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-emerald-400 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300"
             >
-              Download PDF
+              {t('students.fees.downloadPdf')}
             </a>
           )}
           <button
             onClick={() => setLastReceipt(null)}
             className="text-xs text-emerald-700 dark:text-emerald-400 hover:underline"
           >
-            Dismiss
+            {t('students.fees.dismiss')}
           </button>
         </div>
       )}
@@ -375,11 +379,11 @@ export default function StudentFeesPage() {
       {showPayment && (
         <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 p-5">
           <h3 className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-4 flex items-center gap-2">
-            <Receipt className="w-4 h-4" /> Record Payment
+            <Receipt className="w-4 h-4" /> {t('students.fees.recordPayment')}
           </h3>
           <form onSubmit={handlePayment} className="grid grid-cols-2 gap-3">
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Amount ({currency}) *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.amount', { currency })}</label>
               <input
                 type="number" min="1" step="0.01"
                 value={payAmount} onChange={e => setPayAmount(e.target.value)}
@@ -388,43 +392,43 @@ export default function StudentFeesPage() {
               />
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Method</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.method')}</label>
               <select value={payMethod} onChange={e => setPayMethod(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-indigo-500 outline-none">
                 {['cash','mpesa','airtel','bank_transfer','card','cheque','other'].map(m => (
-                  <option key={m} value={m}>{m.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>
+                  <option key={m} value={m}>{t(`students.fees.methods.${m}`)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Account</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.account')}</label>
               <select value={payAccountId} onChange={e => setPayAccountId(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-indigo-500 outline-none">
-                <option value="">— select account —</option>
+                <option value="">{t('students.fees.selectAccount')}</option>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Reference / Receipt No.</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.referenceLabel')}</label>
               <input type="text" value={payReference} onChange={e => setPayReference(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-indigo-500 outline-none"
-                placeholder="M-Pesa code, bank ref…" />
+                placeholder={t('students.fees.referencePlaceholder')} />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Paid By (parent/guardian)</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.paidBy')}</label>
               <input type="text" value={payPaidBy} onChange={e => setPayPaidBy(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-indigo-500 outline-none"
-                placeholder="Guardian name" />
+                placeholder={t('students.fees.paidByPlaceholder')} />
             </div>
             <div className="col-span-2 flex gap-2 justify-end">
               <button type="button" onClick={() => setShowPayment(false)}
                 className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
-                Cancel
+                {t('students.fees.cancel')}
               </button>
               <button type="submit" disabled={paySubmitting}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-60">
                 {paySubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Save Payment
+                {t('students.fees.savePayment')}
               </button>
             </div>
           </form>
@@ -435,42 +439,42 @@ export default function StudentFeesPage() {
       {showAdjust && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-5">
           <h3 className="text-sm font-bold text-amber-700 dark:text-amber-300 mb-4 flex items-center gap-2">
-            <Wallet className="w-4 h-4" /> Manual Balance Adjustment
+            <Wallet className="w-4 h-4" /> {t('students.fees.adjustTitle')}
           </h3>
           <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
-            A new ledger entry is created — nothing is overwritten.
+            {t('students.fees.adjustNote')}
           </p>
           <form onSubmit={handleAdjust} className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Type</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.type')}</label>
               <select value={adjType} onChange={e => setAdjType(e.target.value as 'debit'|'credit')}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-amber-500 outline-none">
-                <option value="credit">Credit — reduce balance (e.g. waiver)</option>
-                <option value="debit">Debit — increase balance (e.g. penalty)</option>
+                <option value="credit">{t('students.fees.typeCredit')}</option>
+                <option value="debit">{t('students.fees.typeDebit')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Amount ({currency}) *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.amount', { currency })}</label>
               <input type="number" min="1" step="0.01"
                 value={adjAmount} onChange={e => setAdjAmount(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-amber-500 outline-none"
                 placeholder="10000" required />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Reference (reason) *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t('students.fees.reasonLabel')}</label>
               <input type="text" value={adjRef} onChange={e => setAdjRef(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:border-amber-500 outline-none"
-                placeholder="e.g. Scholarship waiver / Data correction" required />
+                placeholder={t('students.fees.reasonPlaceholder')} required />
             </div>
             <div className="col-span-2 flex gap-2 justify-end">
               <button type="button" onClick={() => setShowAdjust(false)}
                 className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
-                Cancel
+                {t('students.fees.cancel')}
               </button>
               <button type="submit" disabled={adjSubmitting}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold disabled:opacity-60">
                 {adjSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Apply Adjustment
+                {t('students.fees.applyAdjustment')}
               </button>
             </div>
           </form>
@@ -482,27 +486,27 @@ export default function StudentFeesPage() {
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-indigo-500" />
-            Full Ledger History
+            {t('students.fees.history')}
           </h2>
-          <span className="text-xs text-slate-400">{ledger.length} entries</span>
+          <span className="text-xs text-slate-400">{t('students.fees.entries', { count: ledger.length })}</span>
         </div>
 
         {!ledger.length ? (
           <div className="p-12 text-center text-slate-400">
             <DollarSign className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No ledger entries yet.</p>
-            <p className="text-xs mt-1">Assign fees or record a payment to get started.</p>
+            <p className="text-sm">{t('students.fees.noEntries')}</p>
+            <p className="text-xs mt-1">{t('students.fees.noEntriesHint')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 text-left">
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Date</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Reference</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Term</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide text-right">Debit</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide text-right">Credit</th>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 text-start">
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">{t('students.fees.col.date')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">{t('students.fees.col.reference')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">{t('students.fees.col.term')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide text-end">{t('students.fees.col.debit')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide text-end">{t('students.fees.col.credit')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -512,7 +516,7 @@ export default function StudentFeesPage() {
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                   >
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-                      {new Date(entry.created_at).toLocaleDateString('en-GB')}
+                      {lang === 'ar' ? formatDate(entry.created_at, 'short') : new Date(entry.created_at).toLocaleDateString('en-GB')}
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-700 dark:text-slate-200">{entry.reference}</span>
@@ -521,17 +525,17 @@ export default function StudentFeesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">{entry.term_name || '—'}</td>
-                    <td className="px-4 py-3 text-right font-mono">
+                    <td className="px-4 py-3 text-end font-mono">
                       {entry.type === 'debit' ? (
                         <span className="text-red-600 dark:text-red-400 font-semibold">
-                          {fmt(entry.amount)}
+                          {num(entry.amount)}
                         </span>
                       ) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">
+                    <td className="px-4 py-3 text-end font-mono">
                       {entry.type === 'credit' ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                          {fmt(entry.amount)}
+                          {num(entry.amount)}
                         </span>
                       ) : '—'}
                     </td>
@@ -543,25 +547,25 @@ export default function StudentFeesPage() {
                 <tfoot className="bg-slate-50 dark:bg-slate-800/60 font-bold">
                   <tr>
                     <td colSpan={3} className="px-4 py-3 text-xs text-slate-500 uppercase tracking-wide">
-                      Net Balance
+                      {t('students.fees.netBalance')}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm text-red-600 dark:text-red-400">
-                      {fmt(balance.total_charged)}
+                    <td className="px-4 py-3 text-end font-mono text-sm text-red-600 dark:text-red-400">
+                      {num(balance.total_charged)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm text-emerald-600 dark:text-emerald-400">
-                      {fmt(balance.total_paid)}
+                    <td className="px-4 py-3 text-end font-mono text-sm text-emerald-600 dark:text-emerald-400">
+                      {num(balance.total_paid)}
                     </td>
                   </tr>
                   <tr>
                     <td colSpan={4} className="px-4 py-3 text-xs text-slate-500 uppercase tracking-wide">
-                      Outstanding
+                      {t('students.fees.outstanding')}
                     </td>
-                    <td className={`px-4 py-3 text-right font-mono text-base font-bold ${
+                    <td className={`px-4 py-3 text-end font-mono text-base font-bold ${
                       balance.balance > 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-emerald-600 dark:text-emerald-400'
                     }`}>
-                      {balance.balance > 0 ? money(balance.balance) : 'CLEAR'}
+                      {balance.balance > 0 ? money(balance.balance) : t('students.fees.clear')}
                     </td>
                   </tr>
                 </tfoot>

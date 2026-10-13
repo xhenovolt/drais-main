@@ -1,0 +1,7 @@
+{
+  "/api/finance/student-ledger": { "ledger": [ { "id": 1, "type": "debit", "amount": 850000, "reference": "Term III fees", "notes": null, "term_name": "Term III", "created_at": "2026-09-01T10:00:00" }, { "id": 2, "type": "credit", "amount": 500000, "reference": "RCT-2026-00412", "notes": "Mobile Money", "term_name": "Term III", "created_at": "2026-09-02T10:00:00" } ] },
+  "/api/finance/balance/7": { "total_charged": 850000, "total_paid": 500000, "balance": 350000, "entry_count": 2 },
+  "/api/finance/accounts": [ { "id": 1, "name": "Main account" } ],
+  "/api/students/7/profile": { "success": true, "data": { "first_name": "Amina", "last_name": "Nakato", "display_name": "Amina Nakato", "admission_no": "ADM-001", "enrollments": [ { "status": "active", "class_name": "Primary Five" } ] } },
+  "/api/students/list": { "success": true, "data": [ { "id": 7, "first_name": "Amina", "last_name": "Nakato", "admission_no": "ADM-001", "deleted_at": "2026-10-01T09:00:00", "delete_reason": "Duplicate" } ] }
+}

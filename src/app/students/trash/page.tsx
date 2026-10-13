@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Trash2, RotateCcw, Loader2, AlertTriangle, Search, ArrowLeft, RefreshCw } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { apiFetch } from '@/lib/apiClient';
 import { showToast, confirmAction } from '@/lib/toast';
 
@@ -31,6 +32,7 @@ const fmt = (d: string | null) => {
 };
 
 export default function StudentTrashPage() {
+  const { t, lang, formatDate, digits } = useI18n();
   const [rows, setRows] = useState<TrashRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
@@ -72,7 +74,7 @@ export default function StudentTrashPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }), silent: true,
       });
-      showToast('success', `Restored ${res?.restored ?? ids.length} learner${ids.length === 1 ? '' : 's'}`);
+      showToast('success', t('students.trash.restored', { count: res?.restored ?? ids.length }));
       load();
     } catch { /* handled */ }
   }, [load]);
@@ -82,9 +84,9 @@ export default function StudentTrashPage() {
   const hardDelete = useCallback(async (ids: number[]) => {
     if (ids.length === 0) return;
     const confirmed = await confirmAction(
-      '⚠️ Delete Forever',
-      `Permanently delete ${ids.length} learner${ids.length === 1 ? '' : 's'} and ALL their records (fees, enrollment, results, attendance). This CANNOT be undone.`,
-      'Delete Forever',
+      t('students.trash.confirmTitle'),
+      t('students.trash.confirmDelete', { count: ids.length }),
+      t('students.trash.deleteForever'),
     );
     if (!confirmed) return;
     setBusy({ verb: 'Deleting', done: 0, total: ids.length });
@@ -101,7 +103,7 @@ export default function StudentTrashPage() {
     }
     setBusy(null);
     showToast(fail > 0 ? 'warning' : 'success',
-      `Deleted ${ok} forever${fail > 0 ? `, ${fail} failed` : ''}`);
+      fail > 0 ? t('students.trash.deletedForeverFailed', { count: ok, failed: fail }) : t('students.trash.deletedForever', { count: ok }));
     load();
   }, [load]);
 
@@ -109,39 +111,39 @@ export default function StudentTrashPage() {
     <div className="max-w-6xl mx-auto p-4 space-y-4">
       <div className="flex items-center gap-2">
         <Link href="/students/list" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500">
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 rtl-flip" />
         </Link>
         <Trash2 className="w-5 h-5 text-rose-500" />
-        <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Student Trash</h1>
-        <span className="text-sm text-gray-500">{rows.length} soft-deleted</span>
-        <button onClick={load} className="ml-auto p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500" title="Refresh">
+        <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('students.trash.title')}</h1>
+        <span className="text-sm text-gray-500">{t('students.trash.softDeleted', { count: rows.length })}</span>
+        <button onClick={load} className="ms-auto p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500" title={t('students.trash.refresh')}>
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Soft-deleted learners live here and stay fully recoverable. Restore brings a learner back
-        exactly as they were; Delete Forever removes them and every linked record permanently.
+        {t('students.trash.intro')}
+        
       </p>
 
       {/* Controls */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name / admission no…"
-            className="pl-8 pr-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-gray-100 w-64 max-w-full" />
+          <Search className="w-4 h-4 text-gray-400 absolute start-2.5 top-1/2 -translate-y-1/2" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={t('students.trash.searchPlaceholder')}
+            className="ps-8 pe-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-gray-100 w-64 max-w-full" />
         </div>
         {selected.size > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">{selected.size} selected</span>
+            <span className="text-sm text-gray-500">{t('students.trash.selected', { count: selected.size })}</span>
             <button onClick={() => restore([...selected])} disabled={!!busy}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-50">
-              <RotateCcw className="w-3.5 h-3.5" /> Restore
+              <RotateCcw className="w-3.5 h-3.5" /> {t('students.trash.restore')}
             </button>
             <button onClick={() => hardDelete([...selected])} disabled={!!busy}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium disabled:opacity-50">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              {busy ? `${busy.verb} ${busy.done}/${busy.total}…` : 'Delete Forever'}
+              {busy ? t('students.trash.deleting', { done: busy.done, total: busy.total }) : t('students.trash.deleteForever')}
             </button>
           </div>
         )}
@@ -153,11 +155,11 @@ export default function StudentTrashPage() {
           <thead className="text-gray-500 border-b border-gray-200 dark:border-slate-700 text-xs uppercase">
             <tr>
               <th className="px-3 py-2 w-8"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
-              <th className="px-3 py-2 text-left">Learner</th>
-              <th className="px-3 py-2 text-left">Admission No</th>
-              <th className="px-3 py-2 text-left">Deleted</th>
-              <th className="px-3 py-2 text-left">Reason</th>
-              <th className="px-3 py-2 text-right">Actions</th>
+              <th className="px-3 py-2 text-start">{t('students.trash.col.learner')}</th>
+              <th className="px-3 py-2 text-start">{t('students.trash.col.admissionNo')}</th>
+              <th className="px-3 py-2 text-start">{t('students.trash.col.deleted')}</th>
+              <th className="px-3 py-2 text-start">{t('students.trash.col.reason')}</th>
+              <th className="px-3 py-2 text-end">{t('students.trash.col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -167,7 +169,7 @@ export default function StudentTrashPage() {
             {!loading && filtered.length === 0 && (
               <tr><td colSpan={6} className="px-3 py-12 text-center text-gray-400">
                 <Trash2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                {q ? 'No matching soft-deleted learners.' : 'Trash is empty — nothing has been deleted.'}
+                {q ? t('students.trash.noMatch') : t('students.trash.empty')}
               </td></tr>
             )}
             {!loading && filtered.map(r => (
@@ -177,17 +179,17 @@ export default function StudentTrashPage() {
                   {r.display_name || `${r.first_name} ${r.last_name}`}
                 </td>
                 <td className="px-3 py-2 font-mono text-gray-500">{r.admission_no || '—'}</td>
-                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmt(r.deleted_at)}</td>
+                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{lang === 'ar' ? formatDate(r.deleted_at, 'datetime') : fmt(r.deleted_at)}</td>
                 <td className="px-3 py-2 text-gray-500 max-w-[220px] truncate">{r.delete_reason || '—'}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center justify-end gap-1.5">
                     <button onClick={() => restore([r.id])} disabled={!!busy}
                       className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs hover:bg-emerald-200 disabled:opacity-50">
-                      <RotateCcw className="w-3 h-3" /> Restore
+                      <RotateCcw className="w-3 h-3" /> {t('students.trash.restore')}
                     </button>
                     <button onClick={() => hardDelete([r.id])} disabled={!!busy}
                       className="flex items-center gap-1 px-2 py-1 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-xs hover:bg-rose-200 disabled:opacity-50">
-                      <Trash2 className="w-3 h-3" /> Forever
+                      <Trash2 className="w-3 h-3" /> {t('students.trash.forever')}
                     </button>
                   </div>
                 </td>
@@ -199,7 +201,7 @@ export default function StudentTrashPage() {
 
       {rows.length > 0 && (
         <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-          <AlertTriangle className="w-3.5 h-3.5" /> Delete Forever is permanent and cascades to fees, enrollment, results, and attendance.
+          <AlertTriangle className="w-3.5 h-3.5" /> {t('students.trash.warning')}
         </p>
       )}
     </div>
