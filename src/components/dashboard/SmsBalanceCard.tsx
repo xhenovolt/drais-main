@@ -5,6 +5,11 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { MessageSquare, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { toArabicDigits } from '@/lib/i18n/format';
+
+/** Arabic-Indic digits when the interface is Arabic; unchanged in English. */
+const ad = (v: string | number, isAr: boolean) => (isAr ? toArabicDigits(v) : String(v));
+
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -49,7 +54,7 @@ export default function SmsBalanceCard() {
   };
   const s = styles[level];
   const pctUsed = quota && quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
-  const fmt = (n: number) => n.toLocaleString();
+  const fmt = (n: number) => ad(n.toLocaleString(), isAr);
 
   return (
     <div className={`relative bg-white dark:bg-gray-800 rounded-xl border overflow-hidden ${s.border}`}>

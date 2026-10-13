@@ -4392,5 +4392,45 @@
       "viewDocument": "View",
       "noHistory": "No history yet."
     }
+  },
+  "attendancePages": {
+    "strip": {
+      "title": "Attendance Intelligence",
+      "fullCenter": "Full center",
+      "health": "Health",
+      "operational": "Operational",
+      "status": {
+        "degraded": "degraded",
+        "critical": "critical",
+        "warning": "warning",
+        "down": "down",
+        "unknown": "unknown"
+      },
+      "checking": "checking…",
+      "analysing": "analysing…",
+      "scanning": "scanning…",
+      "watchList": "Behaviour watch-list",
+      "rosterReview": "{{count}} for roster review",
+      "gaps": "Attendance gaps",
+      "needRecovery": "need recovery",
+      "flowing": "flowing normally",
+      "clock": "Clock integrity",
+      "drifting": "device(s) drifting",
+      "timeTrusted": "time trusted",
+      "identity": "Identity health",
+      "identitySub": "{{duplicates}} dup · {{unknowns}} unknown",
+      "fleet": "Device fleet",
+      "needMaintenance": "{{count}} need maintenance",
+      "devicesHealthy": "{{count}} device(s) healthy",
+      "trends": "Trends",
+      "eventExplorer": "Event Explorer",
+      "founderIndependence": "Founder Independence"
+    },
+    "clockBadges": {
+      "deviceTime": "Device time",
+      "offsetHours": "{{sign}}{{hours}}h",
+      "tooltip": "{{device}}: {{cause}} — {{confidence}}% time confidence ({{batch}} punches). Click to review.",
+      "fix": "fix"
+    }
   }
 }

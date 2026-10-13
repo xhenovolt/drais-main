@@ -4531,5 +4531,45 @@
       "viewDocument": "عرض",
       "noHistory": "لا يوجد سجل بعد."
     }
+  },
+  "attendancePages": {
+    "strip": {
+      "title": "ذكاء الحضور",
+      "fullCenter": "المركز الكامل",
+      "health": "السلامة",
+      "operational": "يعمل بشكل طبيعي",
+      "status": {
+        "degraded": "أداء متراجع",
+        "critical": "حرج",
+        "warning": "تحذير",
+        "down": "متوقف",
+        "unknown": "غير معروف"
+      },
+      "checking": "جارٍ الفحص…",
+      "analysing": "جارٍ التحليل…",
+      "scanning": "جارٍ المسح…",
+      "watchList": "قائمة مراقبة السلوك",
+      "rosterReview": "{{count}} لمراجعة الكشف",
+      "gaps": "فجوات الحضور",
+      "needRecovery": "تحتاج إلى استرجاع",
+      "flowing": "يتدفق بشكل طبيعي",
+      "clock": "سلامة الساعة",
+      "drifting": "أجهزة منحرفة التوقيت",
+      "timeTrusted": "التوقيت موثوق",
+      "identity": "سلامة الهوية",
+      "identitySub": "{{duplicates}} مكرر · {{unknowns}} مجهول",
+      "fleet": "الأجهزة",
+      "needMaintenance": "{{count}} تحتاج إلى صيانة",
+      "devicesHealthy": "{{count}} جهاز سليم",
+      "trends": "الاتجاهات",
+      "eventExplorer": "مستكشف الأحداث",
+      "founderIndependence": "استقلالية المؤسس"
+    },
+    "clockBadges": {
+      "deviceTime": "توقيت الأجهزة",
+      "offsetHours": "{{sign}}{{hours}} س",
+      "tooltip": "{{device}}: {{cause}} — ثقة التوقيت {{confidence}}٪ ({{batch}} بصمة). اضغط للمراجعة.",
+      "fix": "أصلح"
+    }
   }
 }

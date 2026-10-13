@@ -12,6 +12,12 @@ import useSWR from 'swr';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { UserX, Clock, Award, TrendingUp } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { toArabicDigits } from '@/lib/i18n/format';
+
+/** Arabic-Indic digits when the interface is Arabic; unchanged in English. */
+const ad = (v: string | number, isAr: boolean) => (isAr ? toArabicDigits(v) : String(v));
+const pp = (n: number, isAr: boolean) => (isAr ? `${toArabicDigits(n)}٪` : `${n}%`);
+
 
 const STATUS_HEX = { present: '#10b981', late: '#f59e0b', absent: '#ef4444' } as const;
 
@@ -52,7 +58,7 @@ function DistributionDonut({ d, isAr, schoolDays }: { d: RoleInsights['distribut
                 {data.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
               </Pie>
               <Tooltip
-                formatter={(v: any, n: any) => [`${pct(Number(v))}% (${Number(v).toLocaleString()})`, n]}
+                formatter={(v: any, n: any) => [`${pp(pct(Number(v)), isAr)} (${ad(Number(v).toLocaleString(), isAr)})`, n]}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
             </PieChart>
@@ -68,7 +74,7 @@ function DistributionDonut({ d, isAr, schoolDays }: { d: RoleInsights['distribut
               <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: x.color }} />
               <span className="text-slate-500 dark:text-slate-400">{x.label}</span>
               <span className="font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
-                {pct(x.v)}% <span className="font-normal text-slate-400">({x.v.toLocaleString()})</span>
+                {pp(pct(x.v), isAr)} <span className="font-normal text-slate-400">({ad(x.v.toLocaleString(), isAr)})</span>
               </span>
             </div>
           ))}
@@ -76,7 +82,7 @@ function DistributionDonut({ d, isAr, schoolDays }: { d: RoleInsights['distribut
       </div>
       <p className="text-[11px] text-slate-400">
         {isAr
-          ? `بناءً على ${schoolDays} يوم دراسي تم تسجيله`
+          ? toArabicDigits(`بناءً على ${schoolDays} يوم دراسي تم تسجيله`)
           : `Based on ${schoolDays} school day${schoolDays === 1 ? '' : 's'} tracked so far`}
       </p>
     </div>
@@ -94,9 +100,9 @@ function ResidenceSplit({ byResidence, isAr }: { byResidence: NonNullable<RoleIn
           <span className="text-slate-400">{isAr ? 'لا بيانات' : 'no data'}</span>
         ) : (
           <span className="tabular-nums">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{pct(d.present)}%</span>{isAr ? ' حاضر · ' : ' present · '}
-            <span className="text-amber-600 dark:text-amber-400 font-semibold">{pct(d.late)}%</span>{isAr ? ' متأخر · ' : ' late · '}
-            <span className="text-red-600 dark:text-red-400 font-semibold">{pct(d.absent)}%</span>{isAr ? ' غائب' : ' absent'}
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{pp(pct(d.present), isAr)}</span>{isAr ? ' حاضر · ' : ' present · '}
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">{pp(pct(d.late), isAr)}</span>{isAr ? ' متأخر · ' : ' late · '}
+            <span className="text-red-600 dark:text-red-400 font-semibold">{pp(pct(d.absent), isAr)}</span>{isAr ? ' غائب' : ' absent'}
           </span>
         )}
       </div>
@@ -132,7 +138,7 @@ function TopList({ title, icon, people, metric, unit, accent, isAr }: {
                 {p.detail && <span className="text-slate-400 dark:text-slate-500"> · {p.detail}</span>}
               </span>
               <span className={`font-semibold tabular-nums whitespace-nowrap ${accent}`}>
-                {metric(p)} {unit}
+                {ad(metric(p), isAr)} {unit}
               </span>
             </li>
           ))}

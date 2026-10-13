@@ -1,0 +1,234 @@
+{
+ "/api/dashboard/overview": {
+  "success": true,
+  "data": {
+   "kpis": {
+    "totalStudents": 1240,
+    "enrollmentGrowth": 12,
+    "presentToday": 1100,
+    "absentToday": 140,
+    "defaultersCount": 37,
+    "attendanceRate": 88
+   },
+   "attendance": {
+    "date": "2026-10-13",
+    "staff": {
+     "present": 40,
+     "late": 3,
+     "absent": 2,
+     "total": 45
+    },
+    "learners": {
+     "present": 1100,
+     "late": 60,
+     "absent": 80,
+     "total": 1240
+    }
+   }
+  }
+ },
+ "/api/attendance/intelligence-summary": {
+  "health": {
+   "score": 92,
+   "status": "degraded"
+  },
+  "people": {
+   "watch": 4,
+   "roster": 9
+  },
+  "gaps": {
+   "gaps": 2
+  },
+  "clock": {
+   "anomalies": 1
+  },
+  "identity": {
+   "duplicates": 3,
+   "unknowns": 5
+  },
+  "devices": {
+   "fleet": 87,
+   "needMaint": 1,
+   "count": 4
+  }
+ },
+ "/api/attendance/time-health": {
+  "devices": [
+   {
+    "device_sn": "CQUH233560091",
+    "status": "anomaly",
+    "offset_min": 180,
+    "cause": "Clock ahead",
+    "confidence": 40,
+    "batch": 120
+   }
+  ]
+ },
+ "/api/attendance/insights": {
+  "success": true,
+  "days": 30,
+  "staff": {
+   "distribution": {
+    "present": 300,
+    "late": 20,
+    "absent": 10
+   },
+   "mostAbsent": [
+    {
+     "personId": 1,
+     "name": "Sarah Namu",
+     "detail": "Teacher",
+     "absents": 4,
+     "lates": 1,
+     "presents": 20,
+     "days": 25
+    }
+   ],
+   "mostLate": [],
+   "bestPresent": [],
+   "people": 45,
+   "schoolDaysCounted": 22
+  },
+  "learners": {
+   "distribution": {
+    "present": 9000,
+    "late": 500,
+    "absent": 700
+   },
+   "byResidence": {
+    "day": {
+     "present": 5000,
+     "late": 400,
+     "absent": 500
+    },
+    "boarding": {
+     "present": 4000,
+     "late": 100,
+     "absent": 200
+    }
+   },
+   "mostAbsent": [],
+   "mostLate": [
+    {
+     "personId": 2,
+     "name": "Amina Nakato",
+     "detail": "P5",
+     "absents": 1,
+     "lates": 6,
+     "presents": 15,
+     "days": 22
+    }
+   ],
+   "bestPresent": [],
+   "people": 1240,
+   "schoolDaysCounted": 22
+  },
+  "data": {
+   "days": 30,
+   "staff": {
+    "distribution": {
+     "present": 300,
+     "late": 20,
+     "absent": 10
+    },
+    "mostAbsent": [
+     {
+      "personId": 1,
+      "name": "Sarah Namu",
+      "detail": "Teacher",
+      "absents": 4,
+      "lates": 1,
+      "presents": 20,
+      "days": 25
+     }
+    ],
+    "mostLate": [],
+    "bestPresent": [],
+    "people": 45,
+    "schoolDaysCounted": 22
+   },
+   "learners": {
+    "distribution": {
+     "present": 9000,
+     "late": 500,
+     "absent": 700
+    },
+    "byResidence": {
+     "day": {
+      "present": 5000,
+      "late": 400,
+      "absent": 500
+     },
+     "boarding": {
+      "present": 4000,
+      "late": 100,
+      "absent": 200
+     }
+    },
+    "mostAbsent": [],
+    "mostLate": [
+     {
+      "personId": 2,
+      "name": "Amina Nakato",
+      "detail": "P5",
+      "absents": 1,
+      "lates": 6,
+      "presents": 15,
+      "days": 22
+     }
+    ],
+    "bestPresent": [],
+    "people": 1240,
+    "schoolDaysCounted": 22
+   }
+  }
+ },
+ "/api/intelligence/overview": {
+  "success": true,
+  "data": {
+   "signals": [
+    {
+     "type": "risk",
+     "icon": "alert",
+     "label": "12 learners at risk",
+     "detail": "Falling attendance",
+     "value": 12,
+     "action": "/intelligence?tab=risk"
+    }
+   ]
+  }
+ },
+ "/api/intelligence/attendance-overview": {
+  "success": true,
+  "data": {
+   "today_scans": 1100,
+   "total_enrolled": 1240,
+   "week_trend": "improving",
+   "week_delta_pct": 4,
+   "scan_rate_pct": 88,
+   "total_scanned_students": 1100
+  }
+ },
+ "/api/sms/quota": {
+  "success": true,
+  "data": {
+   "quota": 5000,
+   "used": 1200,
+   "remaining": 3800
+  },
+  "quota": 5000,
+  "used": 1200,
+  "remaining": 3800
+ },
+ "/api/devices/summary": {
+  "success": true,
+  "data": {
+   "total": 4,
+   "online": 3,
+   "offline": 1
+  },
+  "total": 4,
+  "online": 3,
+  "offline": 1
+ }
+}

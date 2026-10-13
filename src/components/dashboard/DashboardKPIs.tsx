@@ -2,6 +2,11 @@
 import React from 'react';
 import { Users, UserCheck, UserX, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { toArabicDigits } from '@/lib/i18n/format';
+
+/** Arabic-Indic digits when the interface is Arabic; unchanged in English. */
+const ad = (v: string | number, isAr: boolean) => (isAr ? toArabicDigits(v) : String(v));
+
 
 interface KPIData {
   totalStudents: number;
@@ -87,7 +92,7 @@ function RoleAttendanceCard({ label, counts, isAr }: { label: string; counts: Ro
         <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</p>
         <p className="text-xs text-slate-400 dark:text-slate-500">
           {isAr
-            ? `${pct}٪ حضور من ${counts.total.toLocaleString()}`
+            ? toArabicDigits(`${pct}٪ حضور من ${counts.total.toLocaleString()}`)
             : `${pct}% of ${counts.total.toLocaleString()}`}
         </p>
       </div>
@@ -96,7 +101,7 @@ function RoleAttendanceCard({ label, counts, isAr }: { label: string; counts: Ro
         <div className="grid grid-cols-3 gap-2 flex-1">
           {cells.map((c) => (
             <div key={c.label} className="text-center">
-              <p className={`text-xl font-bold ${c.cls}`}>{c.v.toLocaleString()}</p>
+              <p className={`text-xl font-bold ${c.cls}`}>{ad(c.v.toLocaleString(), isAr)}</p>
               <p className="text-[11px] text-slate-400 dark:text-slate-500">{c.label}</p>
             </div>
           ))}
@@ -126,9 +131,9 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
   const allCards = [
     {
       label: isAr ? 'إجمالي الطلاب' : 'Total Students',
-      value: (data.totalStudents || 0).toLocaleString(),
+      value: ad((data.totalStudents || 0).toLocaleString(), isAr),
       sub: isAr
-        ? `${data.enrollmentGrowth || 0} مُسجَّل هذا الشهر`
+        ? toArabicDigits(`${data.enrollmentGrowth || 0} مُسجَّل هذا الشهر`)
         : `${data.enrollmentGrowth || 0} enrolled this month`,
       icon: <Users className="w-4 h-4" />,
       iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
@@ -138,9 +143,9 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
       // the role attendance cards are absent (older API), never unlabeled.
       attendanceTile: true,
       label: isAr ? 'الطلاب الحاضرون اليوم' : 'Learners Present Today',
-      value: (data.presentToday || 0).toLocaleString(),
+      value: ad((data.presentToday || 0).toLocaleString(), isAr),
       sub: isAr
-        ? `معدل الحضور ${attendancePct}٪`
+        ? toArabicDigits(`معدل الحضور ${attendancePct}٪`)
         : `${attendancePct}% attendance rate`,
       subColor: attendanceColor,
       icon: <UserCheck className="w-4 h-4" />,
@@ -151,7 +156,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
     {
       attendanceTile: true,
       label: isAr ? 'الطلاب الغائبون اليوم' : 'Learners Absent Today',
-      value: (data.absentToday || 0).toLocaleString(),
+      value: ad((data.absentToday || 0).toLocaleString(), isAr),
       sub: data.absentToday > 0
         ? (isAr ? 'بحاجة إلى متابعة' : 'needs follow-up')
         : (isAr ? 'الجميع حاضر' : 'all present'),
@@ -162,7 +167,7 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
     },
     {
       label: isAr ? 'المتأخرون عن الرسوم' : 'Fee Defaulters',
-      value: (data.defaultersCount || 0).toLocaleString(),
+      value: ad((data.defaultersCount || 0).toLocaleString(), isAr),
       sub: data.defaultersCount > 10
         ? (isAr ? '⚠️ يلزم اتخاذ إجراء' : '⚠️ action required')
         : (isAr ? 'غير مدفوع / جزئي' : 'unpaid / partial'),
@@ -181,12 +186,12 @@ const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ data, attendance }) => {
       {attendance && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <RoleAttendanceCard
-            label={isAr ? `حضور الموظفين اليوم (${attendance.date})` : `Staff Attendance Today (${attendance.date})`}
+            label={isAr ? toArabicDigits(`حضور الموظفين اليوم (${attendance.date})`) : `Staff Attendance Today (${attendance.date})`}
             counts={attendance.staff}
             isAr={isAr}
           />
           <RoleAttendanceCard
-            label={isAr ? `حضور الطلاب اليوم (${attendance.date})` : `Learners Attendance Today (${attendance.date})`}
+            label={isAr ? toArabicDigits(`حضور الطلاب اليوم (${attendance.date})`) : `Learners Attendance Today (${attendance.date})`}
             counts={attendance.learners}
             isAr={isAr}
           />

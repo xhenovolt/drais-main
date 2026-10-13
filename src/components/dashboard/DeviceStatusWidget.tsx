@@ -5,6 +5,9 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { Server, Wifi, WifiOff, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { toArabicDigits } from '@/lib/i18n/format';
+
+const ad = (v: string | number, isAr: boolean) => (isAr ? toArabicDigits(v) : String(v));
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -69,17 +72,17 @@ export default function DeviceStatusWidget() {
         ) : (
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{summary.total}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{ad(summary.total, isAr)}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{isAr ? 'الإجمالي' : 'Total'}</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.online}</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{ad(summary.online, isAr)}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
                 <Wifi className="w-3 h-3" /> {isAr ? 'متصل' : 'Online'}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.offline}</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{ad(summary.offline, isAr)}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
                 <WifiOff className="w-3 h-3" /> {isAr ? 'غير متصل' : 'Offline'}
               </p>

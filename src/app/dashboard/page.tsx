@@ -26,6 +26,11 @@ import DeviceStatusWidget from '@/components/dashboard/DeviceStatusWidget';
 import SmsBalanceCard from '@/components/dashboard/SmsBalanceCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { toArabicDigits } from '@/lib/i18n/format';
+
+/** Arabic-Indic digits when the interface is Arabic; unchanged in English. */
+const ad = (v: string | number, isAr: boolean) => (isAr ? toArabicDigits(v) : String(v));
+
 
 // Pulls in recharts (PieChart) — this is the main /dashboard route every
 // user hits on login, so keep the chart lib out of its server compile pass.
@@ -174,7 +179,7 @@ function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
           <Fingerprint className="w-4 h-4 text-violet-500" />
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{isAr ? 'ذكاء الحضور' : 'Attendance Intelligence'}</span>
           <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">
-            {d?.tracked_days ?? 0} {isAr ? 'يومًا مُتتبَّعًا' : 'days tracked'}
+            {ad(d?.tracked_days ?? 0, isAr)} {isAr ? 'يومًا مُتتبَّعًا' : 'days tracked'}
           </span>
         </div>
         <Link href="/intelligence?tab=attendance" className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 flex-shrink-0">
@@ -186,8 +191,8 @@ function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
         {/* Metric 1: Today's scans */}
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
           <span className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'تم المسح اليوم' : 'Today Scanned'}</span>
-          <span className="text-xl font-bold text-slate-900 dark:text-white">{d?.today_scans ?? 0}</span>
-          <span className="text-xs text-slate-400">{isAr ? `من ${d?.total_enrolled ?? '–'} مسجَّل` : `of ${d?.total_enrolled ?? '–'} enrolled`}</span>
+          <span className="text-xl font-bold text-slate-900 dark:text-white">{ad(d?.today_scans ?? 0, isAr)}</span>
+          <span className="text-xs text-slate-400">{isAr ? toArabicDigits(`من ${d?.total_enrolled ?? '–'} مسجَّل`) : `of ${d?.total_enrolled ?? '–'} enrolled`}</span>
         </div>
 
         {/* Metric 2: Week trend */}
@@ -195,16 +200,16 @@ function AttendanceInsightCard({ schoolId }: { schoolId: number | null }) {
           <span className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'اتجاه الأسبوع' : 'Week Trend'}</span>
           <div className="flex items-center gap-1">
             {TREND_ICON[trend as keyof typeof TREND_ICON] ?? TREND_ICON.no_data}
-            <span className={`text-sm font-bold capitalize ${trendColor}`}>{trend === 'no_data' ? '–' : trend}</span>
+            <span className={`text-sm font-bold capitalize ${trendColor}`}>{trend === 'no_data' ? '–' : isAr ? ({ improving: 'في تحسّن', declining: 'في تراجع', stable: 'مستقر' } as Record<string, string>)[trend] ?? trend : trend}</span>
           </div>
-          {deltaLabel && <span className={`text-xs font-medium ${trendColor}`}>{isAr ? `${deltaLabel} مقابل الأسبوع السابق` : `${deltaLabel} vs prev week`}</span>}
+          {deltaLabel && <span className={`text-xs font-medium ${trendColor}`}>{isAr ? toArabicDigits(`${deltaLabel} مقابل الأسبوع السابق`) : `${deltaLabel} vs prev week`}</span>}
         </div>
 
         {/* Metric 3: Coverage */}
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 flex flex-col gap-1">
           <span className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'تغطية البصمة' : 'Biometric Coverage'}</span>
-          <span className="text-xl font-bold text-slate-900 dark:text-white">{d?.scan_rate_pct ?? 0}%</span>
-          <span className="text-xs text-slate-400">{isAr ? `${d?.total_scanned_students ?? 0} طالبًا تم مسحه` : `${d?.total_scanned_students ?? 0} students scanned`}</span>
+          <span className="text-xl font-bold text-slate-900 dark:text-white">{isAr ? `${toArabicDigits(d?.scan_rate_pct ?? 0)}٪` : `${d?.scan_rate_pct ?? 0}%`}</span>
+          <span className="text-xs text-slate-400">{isAr ? toArabicDigits(`${d?.total_scanned_students ?? 0} طالبًا تم مسحه`) : `${d?.total_scanned_students ?? 0} students scanned`}</span>
         </div>
       </div>
 

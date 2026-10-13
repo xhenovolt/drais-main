@@ -23,6 +23,8 @@ interface DeviceChip {
   batch: number;
 }
 
+import { useI18n } from '@/components/i18n/I18nProvider';
+
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then((r) => r.json());
 
 export default function ClockHealthBadges({ quiet = false }: {
@@ -32,6 +34,7 @@ export default function ClockHealthBadges({ quiet = false }: {
   const { data } = useSWR<any>('/api/attendance/time-health?banner=1', fetcher, {
     refreshInterval: 5 * 60_000, revalidateOnFocus: false,
   });
+  const { t, lang, digits } = useI18n();
   const devices: DeviceChip[] = data?.devices || [];
   if (!devices.length) return null;
   if (quiet && devices.every((d) => d.status === 'trusted')) return null;
@@ -39,19 +42,19 @@ export default function ClockHealthBadges({ quiet = false }: {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-        <Clock className="w-3.5 h-3.5" /> Device time
+        <Clock className="w-3.5 h-3.5" /> {t('attendancePages.clockBadges.deviceTime')}
       </span>
       {devices.map((d) => {
         const bad = d.status === 'anomaly';
         const review = d.status === 'review';
         const offsetLabel = d.offset_min
-          ? ` ${d.offset_min > 0 ? '+' : '−'}${Math.round(Math.abs(d.offset_min) / 60 * 10) / 10}h`
+          ? (lang === 'ar' ? ` ${t('attendancePages.clockBadges.offsetHours', { sign: d.offset_min > 0 ? '+' : '−', hours: Math.round(Math.abs(d.offset_min) / 60 * 10) / 10 })}` : ` ${d.offset_min > 0 ? '+' : '−'}${Math.round(Math.abs(d.offset_min) / 60 * 10) / 10}h`)
           : '';
         return (
           <a
             key={d.device_sn}
             href="/attendance/time-health"
-            title={`${d.device_sn}: ${d.cause} — ${d.confidence}% time confidence (${d.batch} punches). Click to review.`}
+            title={t('attendancePages.clockBadges.tooltip', { device: d.device_sn, cause: d.cause, confidence: d.confidence, batch: d.batch })}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
               bad
                 ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800'
@@ -62,9 +65,9 @@ export default function ClockHealthBadges({ quiet = false }: {
           >
             {bad ? <AlertTriangle className="w-3 h-3" /> : review ? <Clock className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
             <span className="font-mono">…{d.device_sn.slice(-6)}</span>
-            <span>{d.confidence}%</span>
+            <span>{lang === 'ar' ? `${digits(d.confidence)}٪` : `${d.confidence}%`}</span>
             {bad && offsetLabel && <span className="font-semibold">{offsetLabel}</span>}
-            {bad && <span className="font-semibold uppercase">fix</span>}
+            {bad && <span className="font-semibold uppercase">{t('attendancePages.clockBadges.fix')}</span>}
           </a>
         );
       })}
