@@ -204,7 +204,15 @@ export async function sendViaSchoolRoute(
   return { response, provider: type, routeLabel: `central ${SMS_PROVIDER_ADAPTERS[type]?.displayName ?? type}` };
 }
 
-export interface ProviderPacing { providerId: number; limit: number; used: number; remaining: number }
+/** After the provider refuses our key, wait this long before asking it again. One message is
+ *  then allowed through as a probe; if it is accepted, everything that was held follows. */
+export const KEY_REFUSED_PAUSE_SECONDS = 180;
+
+export interface ProviderPacing {
+  providerId: number; limit: number; used: number; remaining: number;
+  /** > 0 while the provider is refusing our key and the pause has not run out: send nothing. */
+  holdSeconds: number;
+}
 
 /**
  * How many more messages may go to this school's provider right now. Null = the provider has no
@@ -218,16 +226,23 @@ export interface ProviderPacing { providerId: number; limit: number; used: numbe
 export async function providerPacingForSchool(schoolId: number): Promise<ProviderPacing | null> {
   const plan = await planForSchool(schoolId);
   if (plan.kind !== 'central') return null;
-  const row = ((await query(`SELECT provider_type, encrypted_config FROM sms_provider_configs WHERE id = ? LIMIT 1`, [plan.providerId]).catch(() => [])) as any[])[0];
+  const row = ((await query(
+    `SELECT provider_type, encrypted_config, status, TIMESTAMPDIFF(SECOND, last_failure_at, NOW()) AS since_failure
+       FROM sms_provider_configs WHERE id = ? LIMIT 1`, [plan.providerId],
+  ).catch(() => [])) as any[])[0];
   if (!row) return null;
+  // recordProviderSend() sets 'authentication_failed' on a 401/403 and clears it on the next success.
+  const since = row.since_failure == null ? null : Number(row.since_failure);
+  const holdSeconds = row.status === 'authentication_failed' && since != null && since >= 0 && since < KEY_REFUSED_PAUSE_SECONDS
+    ? KEY_REFUSED_PAUSE_SECONDS - since : 0;
   let configured = NaN;
   try { configured = Number(decryptProviderConfig(String(row.encrypted_config)).rateLimitPerMinute); } catch { /* use the adapter default */ }
   const limit = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : SMS_PROVIDER_ADAPTERS[row.provider_type as SmsProviderType]?.defaultRateLimitPerMinute;
-  if (!limit) return null;
+  if (!limit) return holdSeconds > 0 ? { providerId: plan.providerId, limit: Number.MAX_SAFE_INTEGER, used: 0, remaining: 0, holdSeconds } : null;
   const used = Number((((await query(
     `SELECT COUNT(*) AS n FROM sms_provider_operations WHERE provider_id = ? AND operation = 'send' AND created_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)`, [plan.providerId],
   ).catch(() => [])) as any[])[0])?.n ?? 0);
-  return { providerId: plan.providerId, limit, used, remaining: Math.max(0, limit - used) };
+  return { providerId: plan.providerId, limit, used, remaining: holdSeconds > 0 ? 0 : Math.max(0, limit - used), holdSeconds };
 }
 
 /** Keep Control Center's provider health truthful for routed sends too (last success/failure +
@@ -248,7 +263,15 @@ export async function recordProviderSend(providerId: number, type: string, phone
     `INSERT INTO sms_provider_operations (provider_id, provider_type, operation, success, http_status, provider_message_id, recipient_phone, error_message, metadata_json)
      VALUES (?, ?, 'send', ?, ?, ?, ?, ?, ?)`,
     [providerId, type, ok, httpStatusOf(result), result.messageId || null, phone, result.error ? result.error.slice(0, 500) : null,
-      JSON.stringify({ status: result.status || null, cost: result.cost || null, schoolId: schoolId ?? null, senderIdUsed: (result.details as any)?.sender_id_used ?? null })],
+      JSON.stringify({
+        status: result.status || null, cost: result.cost || null, schoolId: schoolId ?? null,
+        senderIdUsed: (result.details as any)?.sender_id_used ?? null,
+        // Evidence for the provider's support when a key is refused: their id for the request, and
+        // whether the second way of presenting the credentials was tried (or is what worked).
+        requestId: result.requestId ?? null,
+        ...(result.authRejected ? { keyRefused: true, triedAlternateAuth: !!result.triedAlternateAuth } : {}),
+        ...((result.details as any)?.auth_alternate_used ? { acceptedViaAlternateAuth: true } : {}),
+      })],
   ).catch(() => {});
 }
 

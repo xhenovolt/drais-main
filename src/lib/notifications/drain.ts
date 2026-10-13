@@ -32,12 +32,15 @@ import { getCommSettings } from '@/lib/comm/settings';
 import { ensureNotificationSchema } from '@/lib/notifications/migrations/notification-tables-schema';
 import { revalidateQueuedAttendanceMessage } from '@/lib/notifications/attendance-sms-eligibility';
 import { recordSmsUsage } from '@/lib/sms/usage';
-import { sendViaSchoolRoute, providerPacingForSchool } from '@/lib/sms/school-routing';
+import { sendViaSchoolRoute, providerPacingForSchool, KEY_REFUSED_PAUSE_SECONDS } from '@/lib/sms/school-routing';
 import { notifyDeliveryStatus } from '@/lib/sms/delivery-alerts';
+import { checkProviderKeys } from '@/lib/sms/key-health';
 
 const BATCH = 50;
 /** How long a message waits when the provider's per-minute budget is used up. */
 const PACING_DELAY_SECONDS = 45;
+/** Shown on a held message while the provider is refusing our credentials. */
+const KEY_REFUSED_NOTE = "Waiting: the SMS provider is refusing DRAIS's key. Messages are held and will send automatically when it is accepted again";
 
 export interface DrainResult {
   attempted: number;
@@ -166,6 +169,9 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
   // When it is used up, the rest of the batch waits instead of being fired at the provider only
   // to be rejected. Keyed by provider so two schools on the same account share one budget.
   const budgets = new Map<number, { remaining: number }>();
+  /** Set when a provider says "rate limit" or refuses our key: everything left for it this run
+   *  waits this long, with the reason shown on the held message. */
+  const coolingDown = new Map<number, { wait: number; note: string | null }>();
   const paceCache = new Map<number, { providerId: number; budget: { remaining: number } } | null>();
   const paceFor = async (schoolId: number) => {
     if (paceCache.has(schoolId)) return paceCache.get(schoolId)!;
@@ -175,12 +181,13 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
       let budget = budgets.get(p.providerId);
       if (!budget) { budget = { remaining: p.remaining }; budgets.set(p.providerId, budget); }
       out = { providerId: p.providerId, budget };
+      // The provider refused our key moments ago (this run or another one): do not spend a
+      // request per message finding that out again. Hold everything for it until the pause ends.
+      if (p.holdSeconds > 0 && !coolingDown.has(p.providerId)) coolingDown.set(p.providerId, { wait: p.holdSeconds, note: KEY_REFUSED_NOTE });
     }
     paceCache.set(schoolId, out);
     return out;
   };
-  /** Set when a provider says "rate limit": everything left for it this run waits this long. */
-  const coolingDown = new Map<number, number>();
 
   for (const row of rows) {
     try {
@@ -218,7 +225,7 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
       const pace = await paceFor(row.school_id);
       const cooling = pace ? coolingDown.get(pace.providerId) : undefined;
       if (pace && (pace.budget.remaining <= 0 || cooling != null)) {
-        await release(row.id, cooling ?? PACING_DELAY_SECONDS, null);
+        await release(row.id, cooling?.wait ?? PACING_DELAY_SECONDS, cooling?.note ?? null);
         result.deferred++;
         continue;
       }
@@ -247,8 +254,20 @@ export async function drainNotificationOutbox(): Promise<DrainResult> {
       // refunded, wait as long as the provider asked, and hold the rest of the batch too.
       if (!sendResult.success && routed?.response.rateLimited) {
         const wait = Math.min(Math.max(routed.response.retryAfterSeconds ?? 20, 5), 120) + 5;
-        if (pace) { coolingDown.set(pace.providerId, wait); pace.budget.remaining = 0; }
+        if (pace) { coolingDown.set(pace.providerId, { wait, note: null }); pace.budget.remaining = 0; }
         await release(row.id, wait, 'Waiting for the SMS provider (rate limit) — will send automatically');
+        result.attempted--;
+        result.deferred++;
+        continue;
+      }
+
+      // The provider refused our KEY, not this message. UgaText has done this to a valid key
+      // for a while and then accepted it again with nothing changed on our side, so a refusal
+      // must not use up the message's attempts and turn into a permanent failure. Hold it (and
+      // the rest of the batch), try again after a pause, and let it send by itself on recovery.
+      if (!sendResult.success && routed?.response.authRejected) {
+        if (pace) { coolingDown.set(pace.providerId, { wait: KEY_REFUSED_PAUSE_SECONDS, note: KEY_REFUSED_NOTE }); pace.budget.remaining = 0; }
+        await release(row.id, KEY_REFUSED_PAUSE_SECONDS, KEY_REFUSED_NOTE);
         result.attempted--;
         result.deferred++;
         continue;
@@ -327,7 +346,12 @@ export function drainOutboxOpportunistically(): Promise<void> {
   if (drainInFlight || now - lastOpportunisticDrain < OPPORTUNISTIC_INTERVAL_MS) return Promise.resolve();
   lastOpportunisticDrain = now;
   drainInFlight = true;
-  return drainNotificationOutbox()
+  // Key health first (rate-limited in the database to one check per interval): if the provider
+  // is refusing our key, the drain that follows sees that and holds messages instead of
+  // spending their attempts. It also keeps the key in regular use through quiet hours.
+  return checkProviderKeys()
+    .catch(() => undefined)
+    .then(() => drainNotificationOutbox())
     .then((r) => {
       if (r.attempted > 0) {
         console.log(JSON.stringify({

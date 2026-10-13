@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T17:04:33.819Z",
-  "last_commit": "b8c5ee5b0b7a3f0199deb06d0863a69f5ee3dd8c",
+  "generated_at": "2026-10-13T08:14:58.534Z",
+  "last_commit": "f62b7c59cd64b9c97be3c417a165f27263b7b978",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9163,7 +9163,20 @@
         }
       ],
       "commit": "b8c5ee5b0b"
+    },
+    {
+      "version": "2.50.42",
+      "date": "2026-10-12",
+      "release_type": "patch",
+      "title": "Phase 1 translation foundation and Amiri as the Arabic typeface",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Phase 1 translation foundation and Amiri as the Arabic typeface"
+        }
+      ],
+      "commit": "f62b7c59cd"
     }
   ],
-  "app_version": "2.50.42"
+  "app_version": "2.50.43"
 }

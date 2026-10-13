@@ -150,6 +150,47 @@ function ugaTextAuthHeaders(config: SmsProviderConfig): Record<string, string> |
   return null;
 }
 
+/** The OTHER way to present the same credentials, when both are configured: the Client-ID +
+ *  Client-Secret pair if the Bearer key is the primary. Null when there is no second way.
+ *
+ *  Why it exists: UgaText has repeatedly answered 401 "Invalid or revoked API key" for a key
+ *  that was valid before and valid again later with no change on our side (2026-10-10, -11 and
+ *  -13; on the 13th sends recovered four minutes BEFORE the key was re-saved in Control Center).
+ *  Trying the second presentation costs one request, only ever after a 401/403. */
+function ugaTextAlternateAuthHeaders(config: SmsProviderConfig): Record<string, string> | null {
+  const clean = (field: string) => requireValue(config, field)?.replace(/^["']|["']$/g, '').trim() || null;
+  const clientId = clean('clientId');
+  const clientSecret = clean('clientSecret');
+  if (clean('apiKey') && clientId && clientSecret) return { 'Client-ID': clientId, 'Client-Secret': clientSecret };
+  return null;
+}
+
+const isAuthRejection = (status: number) => status === 401 || status === 403;
+
+export interface ProviderKeyCheck { ok: boolean; httpStatus: number | null; message: string | null; requestId: string | null; via: 'primary' | 'alternate' | null }
+
+/** Ask UgaText whether it currently accepts our key (GET /auth/verify — sends nothing, costs nothing). */
+export async function checkUgaTextKey(config: SmsProviderConfig): Promise<ProviderKeyCheck> {
+  const auth = ugaTextAuthHeaders(config);
+  if (!auth) return { ok: false, httpStatus: null, message: 'No UgaText credentials configured', requestId: null, via: null };
+  const ask = async (headers: Record<string, string>) => {
+    const response = await ugaTextFetch(config, '/auth/verify', { headers: { ...headers, Accept: 'application/json' } });
+    const body = (await response.json().catch(() => ({}))) as any;
+    return { response, body };
+  };
+  try {
+    let via: 'primary' | 'alternate' = 'primary';
+    let { response, body } = await ask(auth);
+    const alternate = ugaTextAlternateAuthHeaders(config);
+    if (isAuthRejection(response.status) && alternate) { via = 'alternate'; ({ response, body } = await ask(alternate)); }
+    const ok = response.ok && body?.authenticated !== false && body?.success !== false;
+    return { ok, httpStatus: response.status, message: ok ? null : String(body?.error?.message || body?.message || body?.error || `HTTP ${response.status}`).slice(0, 200), requestId: response.headers.get('x-request-id'), via };
+  } catch (error: any) {
+    // The gateway could not be reached at all: that is not a verdict on the key.
+    return { ok: false, httpStatus: null, message: `Unreachable: ${error?.message || 'network error'}`.slice(0, 200), requestId: null, via: null };
+  }
+}
+
 /** fetch against each candidate base URL, moving on ONLY when a host is unreachable
  *  (DNS/connection error). Any HTTP response — including 4xx — is final, so a send is
  *  never duplicated across hosts. */
@@ -169,7 +210,11 @@ function ugaTextErrorText(body: any): string {
 function ugaTextError(body: any, httpStatus: number): string {
   const message = body?.error?.message || body?.message || (typeof body?.error === 'string' ? body.error : null) || `Provider HTTP ${httpStatus}`;
   const code = body?.code || body?.error?.code;
-  const hint = httpStatus === 401 || httpStatus === 403 ? ' — update the UgaText API key in Control Center → SMS → Providers' : '';
+  // Not "update the key": UgaText has refused a key that was valid before and after, with no
+  // change on our side. Say what DRAIS does about it, and what to check if it does not clear.
+  const hint = httpStatus === 401 || httpStatus === 403
+    ? " — UgaText is refusing DRAIS's key. Messages are held and retried automatically. If this does not clear, check that the key is still Active in the UgaText dashboard"
+    : '';
   return `${message}${code ? ` [${code}]` : ''}${hint}`;
 }
 
@@ -191,10 +236,15 @@ const ugaText: SmsProviderAdapter = {
     // config.senderId by the router), else the provider's configured one, else
     // UgaText's account default.
     const requestedSender = requireValue(config, 'senderId') || UGATEXT_DEFAULT_SENDER_ID;
+    // A fresh Idempotency-Key per attempt, as before: a retry only ever follows a response that
+    // says the message was NOT accepted (key refused, sender refused), so there is nothing to
+    // de-duplicate, and reusing the key could make UgaText replay the earlier refusal.
+    let authUsed = auth;
+    let usedAlternateAuth = false;
     const post = async (senderId: string) => {
       const response = await ugaTextFetch(config, '/messages', {
         method: 'POST',
-        headers: { ...auth, 'Content-Type': 'application/json', Accept: 'application/json', 'Idempotency-Key': randomUUID() },
+        headers: { ...authUsed, 'Content-Type': 'application/json', Accept: 'application/json', 'Idempotency-Key': randomUUID() },
         body: JSON.stringify({ to: normalized.replace(/^\+/, ''), senderId, message }),
       });
       return { response, body: (await response.json().catch(() => ({}))) as any };
@@ -202,6 +252,12 @@ const ugaText: SmsProviderAdapter = {
     try {
       let senderUsed = requestedSender;
       let { response, body } = await post(senderUsed);
+      // Key refused: try the same credentials presented the other way before giving up.
+      const alternate = ugaTextAlternateAuthHeaders(config);
+      if (isAuthRejection(response.status) && alternate) {
+        authUsed = alternate; usedAlternateAuth = true;
+        ({ response, body } = await post(senderUsed));
+      }
       // A school's custom sender ID may be registered with another provider but not on
       // UgaText. A rejected send is not delivered, so retrying once with the account
       // default keeps the school's messages flowing instead of failing every send.
@@ -217,9 +273,15 @@ const ugaText: SmsProviderAdapter = {
         // and retry instead of treating it as a failed send.
         const limited = response.status === 429 || /rate.?limit/i.test(ugaTextErrorText(body));
         const hinted = Number(response.headers.get('retry-after')) || Number((ugaTextErrorText(body).match(/again in (\d+)\s*s/i) || [])[1]);
+        // A refused key is likewise not a verdict on this message. UgaText has refused a valid
+        // key for a while and then accepted it again, so the caller holds the message and
+        // retries later instead of failing it. The request id is kept as evidence for support.
+        const authRejected = isAuthRejection(response.status);
         return {
-          success: false, status: body?.status || `HTTP ${response.status}`, error: ugaTextError(body, response.status), details: body,
+          success: false, status: `HTTP ${response.status}`, error: ugaTextError(body, response.status), details: body,
+          requestId: response.headers.get('x-request-id') || undefined,
           ...(limited ? { rateLimited: true, retryAfterSeconds: Number.isFinite(hinted) && hinted > 0 ? hinted : undefined } : {}),
+          ...(authRejected ? { authRejected: true, triedAlternateAuth: usedAlternateAuth } : {}),
         };
       }
       const messageId = body?.message_id ?? body?.messageId ?? body?.id ?? body?.data?.message_id ?? body?.data?.id ?? null;
@@ -230,7 +292,7 @@ const ugaText: SmsProviderAdapter = {
         messageId: messageId == null ? undefined : String(messageId),
         cost: cost == null ? undefined : `${body?.currency || 'UGX'} ${cost}`,
         phone: normalized,
-        details: { ...body, sender_id_requested: requestedSender, sender_id_used: senderUsed },
+        details: { ...body, sender_id_requested: requestedSender, sender_id_used: senderUsed, auth_alternate_used: usedAlternateAuth },
       };
     } catch (error: any) {
       return { success: false, error: error?.message || 'UgaText request failed' };

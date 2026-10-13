@@ -42,6 +42,25 @@ describe('outbox drain: provider rate limits', () => {
   it('an accepted message no longer shows an earlier retry reason as a problem', () => {
     assert.match(core, /SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP, last_error = NULL/);
   });
+  it('a refused key holds the message with its attempt refunded, instead of failing it', () => {
+    assert.match(core, /routed\?\.response\.authRejected/);
+    const refused = core.slice(core.indexOf('routed?.response.authRejected'));
+    assert.ok(refused.indexOf('await release(row.id, KEY_REFUSED_PAUSE_SECONDS, KEY_REFUSED_NOTE)') < refused.indexOf('INSERT INTO notification_deliveries'), 'must release before recording a delivery attempt');
+    assert.ok(refused.indexOf('await release(') < refused.indexOf('await markFailed('), 'a key refusal must never reach markFailed');
+  });
+  it('while the provider is refusing the key, a run sends nothing to it until the pause ends', () => {
+    const routing = read('lib/sms/school-routing.ts');
+    assert.match(routing, /row\.status === 'authentication_failed' && since != null && since >= 0 && since < KEY_REFUSED_PAUSE_SECONDS/);
+    assert.match(routing, /remaining: holdSeconds > 0 \? 0 :/);
+    assert.match(core, /p\.holdSeconds > 0 && !coolingDown\.has\(p\.providerId\)/);
+  });
+  it('the key is checked before each opportunistic drain, and the check only asks', () => {
+    assert.match(drain, /return checkProviderKeys\(\)\s+\.catch\(\(\) => undefined\)\s+\.then\(\(\) => drainNotificationOutbox\(\)\)/);
+    const health = read('lib/sms/key-health.ts');
+    assert.match(health, /checkUgaTextKey\(config\)/);
+    assert.doesNotMatch(health, /encrypted_config\s*=|sendWithAdapter|\.send\(/, 'the health check must never send or rewrite the stored key');
+    assert.match(health, /operation = 'key_check' AND created_at > DATE_SUB\(NOW\(\), INTERVAL \? MINUTE\)/);
+  });
   it('pacing counts every send on the provider account in the last minute', () => {
     const routing = read('lib/sms/school-routing.ts');
     assert.match(routing, /operation = 'send' AND created_at > DATE_SUB\(NOW\(\), INTERVAL 60 SECOND\)/);

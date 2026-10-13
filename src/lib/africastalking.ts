@@ -18,6 +18,13 @@ export interface SMSResponse {
   rateLimited?: boolean;
   /** How long the provider asked us to wait, when it said. */
   retryAfterSeconds?: number;
+  /** The provider refused our credentials (401/403). Not a verdict on this message: providers
+   *  have refused a valid key for a while and accepted it again later, so callers hold and retry. */
+  authRejected?: boolean;
+  /** A second way of presenting the same credentials was also tried and also refused. */
+  triedAlternateAuth?: boolean;
+  /** The provider's own id for this request, kept so their support can trace a refusal. */
+  requestId?: string;
 }
 
 /**

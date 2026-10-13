@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encryptProviderConfig, decryptProviderConfig, fingerprintProviderConfig, SMS_PROVIDER_ADAPTERS, UGATEXT_API_BASE_URL, normalizeUgaTextBaseUrl } from '../providers.ts';
+import { encryptProviderConfig, decryptProviderConfig, fingerprintProviderConfig, SMS_PROVIDER_ADAPTERS, UGATEXT_API_BASE_URL, normalizeUgaTextBaseUrl, checkUgaTextKey } from '../providers.ts';
 
 describe('central SMS providers', () => {
   it('encrypts provider config without changing its usable values', () => {
@@ -117,13 +117,66 @@ describe('central SMS providers', () => {
     });
   });
 
-  it('does not retry non-sender failures, and points 401s at Control Center', async () => {
+  it('a refused key is flagged as a key problem, not a failed message, and never retried on the sender', async () => {
     let calls = 0;
-    await withFetch(async () => { calls++; return new Response(JSON.stringify({ success: false, error: 'Invalid or revoked API key.' }), { status: 401 }); }, async () => {
+    await withFetch(async () => { calls++; return new Response(JSON.stringify({ success: false, error: 'Invalid or revoked API key.' }), { status: 401, headers: { 'x-request-id': 'req_abc' } }); }, async () => {
       const result = await SMS_PROVIDER_ADAPTERS.ugatext.send('0741341483', 'hi', { apiKey: 'old', senderId: 'UNREG' });
       assert.equal(result.success, false);
-      assert.equal(calls, 1);
-      assert.match(result.error, /Control Center/);
+      assert.equal(calls, 1, 'only one way to present the credentials is configured, so one request');
+      assert.equal(result.authRejected, true);
+      assert.equal(result.triedAlternateAuth, false);
+      assert.equal(result.requestId, 'req_abc');
+      assert.equal(result.status, 'HTTP 401');
+      assert.match(result.error, /held and retried automatically/);
+      assert.doesNotMatch(result.error, /update the UgaText API key/);
+    });
+  });
+
+  it('when the Bearer key is refused, the same credentials are tried as Client-ID + Client-Secret', async () => {
+    const seen = [];
+    await withFetch(async (_url, options) => {
+      const bearer = !!options.headers.Authorization;
+      seen.push(bearer ? 'bearer' : 'client-pair');
+      return bearer
+        ? new Response(JSON.stringify({ success: false, error: 'Invalid or revoked API key.' }), { status: 401 })
+        : new Response(JSON.stringify({ success: true, message_id: 'msg_alt', status: 'queued' }), { status: 202 });
+    }, async () => {
+      const result = await SMS_PROVIDER_ADAPTERS.ugatext.send('0741341483', 'hi', { apiKey: 'k', clientId: 'uga_x', clientSecret: 'sk_y' });
+      assert.deepEqual(seen, ['bearer', 'client-pair']);
+      assert.equal(result.success, true);
+      assert.equal(result.messageId, 'msg_alt');
+      assert.equal(result.details.auth_alternate_used, true);
+    });
+  });
+
+  it('reports both presentations refused, after exactly two requests', async () => {
+    let calls = 0;
+    await withFetch(async () => { calls++; return new Response(JSON.stringify({ success: false, error: 'Invalid or revoked API key.' }), { status: 401 }); }, async () => {
+      const result = await SMS_PROVIDER_ADAPTERS.ugatext.send('0741341483', 'hi', { apiKey: 'k', clientId: 'uga_x', clientSecret: 'sk_y' });
+      assert.equal(calls, 2);
+      assert.equal(result.authRejected, true);
+      assert.equal(result.triedAlternateAuth, true);
+    });
+  });
+
+  it('the key check asks without sending, and an unreachable gateway is not a verdict on the key', async () => {
+    let asked;
+    await withFetch(async (url, options) => { asked = { url: String(url), method: options?.method ?? 'GET' }; return new Response(JSON.stringify({ success: true, authenticated: true }), { status: 200, headers: { 'x-request-id': 'req_ok' } }); }, async () => {
+      const r = await checkUgaTextKey({ apiKey: 'k' });
+      assert.equal(r.ok, true);
+      assert.equal(r.requestId, 'req_ok');
+      assert.match(asked.url, /\/auth\/verify$/);
+      assert.equal(asked.method, 'GET');
+    });
+    await withFetch(async () => new Response(JSON.stringify({ success: false, error: 'Invalid or revoked API key.' }), { status: 401 }), async () => {
+      const r = await checkUgaTextKey({ apiKey: 'k' });
+      assert.equal(r.ok, false);
+      assert.equal(r.httpStatus, 401);
+    });
+    await withFetch(async () => { throw new TypeError('fetch failed'); }, async () => {
+      const r = await checkUgaTextKey({ apiKey: 'k' });
+      assert.equal(r.ok, false);
+      assert.equal(r.httpStatus, null, 'no HTTP answer means no verdict');
     });
   });
 
