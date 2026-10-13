@@ -21,6 +21,7 @@ import {
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import Swal from 'sweetalert2';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface DupStudent {
@@ -53,8 +54,17 @@ interface DetectionResult {
   total_duplicates: number;
 }
 
+// The server names the reason in English; these are the phrases it sends.
+const REASON_KEYS: Record<string, string> = {
+  'Exact name match': 'exactName',
+  'Same name + same admission number': 'nameAndAdmNo',
+  'Same name + same class': 'nameAndClass',
+  'Same admission number': 'admNo',
+};
+
 // ─── Page ───────────────────────────────────────────────────────────
 export default function DuplicatesPage() {
+  const { t, formatDate } = useI18n();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DetectionResult | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
@@ -84,10 +94,11 @@ export default function DuplicatesPage() {
       }
       setSelectedPrimary(primaries);
     } catch (err: any) {
-      showToast('error', err.message || 'Failed to detect duplicates');
+      showToast('error', err.message || t('students.duplicates.detectFailed'));
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { fetchDuplicates(); }, [fetchDuplicates]);
@@ -109,7 +120,7 @@ export default function DuplicatesPage() {
   const mergeGroup = async (group: DuplicateGroup) => {
     const primaryId = selectedPrimary.get(group.group_id);
     if (!primaryId) {
-      showToast('error', 'Please select a primary record to keep');
+      showToast('error', t('students.duplicates.selectPrimary'));
       return;
     }
 
@@ -117,9 +128,9 @@ export default function DuplicatesPage() {
     const primary = group.students.find(s => s.id === primaryId)!;
 
     const confirmed = await confirmAction(
-      'Merge Duplicates',
-      `Keep "${primary.first_name} ${primary.last_name}" (#${primaryId}) and merge ${secondaryIds.length} duplicate(s) into it. All enrollment, attendance, and result records will be transferred. This cannot be undone.`,
-      'Merge Now'
+      t('students.duplicates.merge.title'),
+      t('students.duplicates.merge.body', { name: `${primary.first_name} ${primary.last_name}`, id: primaryId, count: secondaryIds.length }),
+      t('students.duplicates.merge.confirm')
     );
     if (!confirmed) return;
 
@@ -129,7 +140,7 @@ export default function DuplicatesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ primary_id: primaryId, secondary_ids: secondaryIds }),
-        successMessage: `Merged ${secondaryIds.length} duplicate(s) into #${primaryId}`,
+        successMessage: t('students.duplicates.merge.done', { count: secondaryIds.length, id: primaryId }),
       });
       // Refresh
       fetchDuplicates();
@@ -152,20 +163,20 @@ export default function DuplicatesPage() {
     const totalDups = data.total_duplicates - totalGroups; // Subtract primaries
 
     const result = await Swal.fire({
-      title: 'Merge All Duplicates',
+      title: t('students.duplicates.mergeAll.title'),
       html: `
-        <div class="text-left space-y-2">
-          <p>You are about to merge <strong>${totalDups}</strong> duplicate students across <strong>${totalGroups}</strong> groups.</p>
-          <p>For each group, the record with the most data will be kept. All enrollment, attendance, results, and fee records will be transferred.</p>
-          <p class="text-red-600 font-semibold">This action cannot be undone.</p>
+        <div class="text-start space-y-2">
+          <p>${t('students.duplicates.mergeAll.intro', { duplicates: totalDups, groups: totalGroups })}</p>
+          <p>${t('students.duplicates.mergeAll.explain')}</p>
+          <p class="text-red-600 font-semibold">${t('students.duplicates.cannotUndo')}</p>
         </div>
       `,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Merge All',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('students.duplicates.mergeAll.confirm'),
+      cancelButtonText: t('students.duplicates.cancel'),
     });
 
     if (!result.isConfirmed) return;
@@ -204,7 +215,7 @@ export default function DuplicatesPage() {
         setBulkProgress({ done: Math.min(i + CHUNK, groups.length), total: groups.length });
       }
       showToast(failed > 0 ? 'warning' : 'success',
-        `Merged ${merged} group(s)${failed > 0 ? `, ${failed} failed — re-run to retry` : ` (${totalDups} duplicates removed)`}`);
+        failed > 0 ? t('students.duplicates.mergeAll.partial', { merged, failed }) : t('students.duplicates.mergeAll.done', { merged, removed: totalDups }));
       fetchDuplicates();
     } finally {
       setBulkMerging(false);
@@ -228,39 +239,39 @@ export default function DuplicatesPage() {
 
       if (preview.ghosts_to_delete === 0 && preview.data_records_to_merge === 0) {
         await Swal.fire({
-          title: 'Nothing to Purge',
-          text: 'All duplicate groups have already been cleaned up.',
+          title: t('students.duplicates.purge.nothingTitle'),
+          text: t('students.duplicates.purge.nothingBody'),
           icon: 'info',
         });
         return;
       }
 
       const result = await Swal.fire({
-        title: 'Purge Duplicate Ghosts',
+        title: t('students.duplicates.purge.title'),
         html: `
-          <div class="text-left space-y-3">
-            <p>${preview.groups_found} duplicate group(s) found.</p>
+          <div class="text-start space-y-3">
+            <p>${t('students.duplicates.purge.groupsFound', { count: preview.groups_found })}</p>
             <div class="flex gap-4 mt-2">
               <div class="flex-1 p-3 bg-red-50 rounded-lg border border-red-200">
                 <p class="text-2xl font-bold text-red-700">${preview.ghosts_to_delete}</p>
-                <p class="text-sm text-red-600 font-medium">Ghost records</p>
-                <p class="text-xs text-red-500 mt-1">Zero data — will be <strong>permanently deleted</strong></p>
+                <p class="text-sm text-red-600 font-medium">${t('students.duplicates.purge.ghosts')}</p>
+                <p class="text-xs text-red-500 mt-1">${t('students.duplicates.purge.ghostsNote')}</p>
               </div>
               <div class="flex-1 p-3 bg-amber-50 rounded-lg border border-amber-200">
                 <p class="text-2xl font-bold text-amber-700">${preview.data_records_to_merge}</p>
-                <p class="text-sm text-amber-600 font-medium">Data records</p>
-                <p class="text-xs text-amber-500 mt-1">Have data — will be <strong>merged</strong> into primary</p>
+                <p class="text-sm text-amber-600 font-medium">${t('students.duplicates.purge.dataRecords')}</p>
+                <p class="text-xs text-amber-500 mt-1">${t('students.duplicates.purge.dataNote')}</p>
               </div>
             </div>
-            <p class="text-xs text-slate-500 mt-2">Ghost deletions are irreversible. Merges can be traced via audit log.</p>
+            <p class="text-xs text-slate-500 mt-2">${t('students.duplicates.purge.warning')}</p>
           </div>
         `,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Purge Now',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: t('students.duplicates.purge.confirm'),
+        cancelButtonText: t('students.duplicates.cancel'),
       });
 
       if (!result.isConfirmed) return;
@@ -269,11 +280,11 @@ export default function DuplicatesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dry_run: false }),
-        successMessage: `Purged: ${preview.ghosts_to_delete} deleted, ${preview.data_records_to_merge} merged`,
+        successMessage: t('students.duplicates.purge.done', { deleted: preview.ghosts_to_delete, merged: preview.data_records_to_merge }),
       });
 
       if (res.failed > 0) {
-        showToast('warning', `${res.deleted} deleted, ${res.merged} merged, ${res.failed} failed`);
+        showToast('warning', t('students.duplicates.purge.partial', { deleted: res.deleted, merged: res.merged, failed: res.failed }));
       }
 
       fetchDuplicates();
@@ -299,24 +310,24 @@ export default function DuplicatesPage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <Link href="/students/list" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
-            <ArrowLeft className="w-5 h-5 text-slate-500" />
+            <ArrowLeft className="w-5 h-5 text-slate-500 rtl-flip" />
           </Link>
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Duplicate Detection</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Find and merge duplicate student records</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('students.duplicates.title')}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('students.duplicates.subtitle')}</p>
           </div>
         </div>
 
         {/* Stats Bar */}
         {data && !loading && (
           <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Stat label="Total Students" value={data.total_students} icon={<Users className="w-5 h-5 text-blue-500" />} />
-            <Stat label="Duplicate Groups" value={data.total_groups} icon={<AlertTriangle className="w-5 h-5 text-amber-500" />} />
-            <Stat label="Total Duplicates" value={data.total_duplicates} icon={<Users className="w-5 h-5 text-red-500" />} />
-            <Stat label="Records to Merge" value={data.total_duplicates - data.total_groups} icon={<Merge className="w-5 h-5 text-emerald-500" />} />
+            <Stat label={t('students.duplicates.stat.totalStudents')} value={data.total_students} icon={<Users className="w-5 h-5 text-blue-500" />} />
+            <Stat label={t('students.duplicates.stat.groups')} value={data.total_groups} icon={<AlertTriangle className="w-5 h-5 text-amber-500" />} />
+            <Stat label={t('students.duplicates.stat.totalDuplicates')} value={data.total_duplicates} icon={<Users className="w-5 h-5 text-red-500" />} />
+            <Stat label={t('students.duplicates.stat.toMerge')} value={data.total_duplicates - data.total_groups} icon={<Merge className="w-5 h-5 text-emerald-500" />} />
           </div>
         )}
 
@@ -329,7 +340,7 @@ export default function DuplicatesPage() {
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('students.duplicates.refresh')}
             </button>
             <button
               onClick={mergeAll}
@@ -338,17 +349,17 @@ export default function DuplicatesPage() {
             >
               {bulkMerging ? <Loader className="w-4 h-4 animate-spin" /> : <Merge className="w-4 h-4" />}
               {bulkMerging && bulkProgress
-                ? `Merging ${bulkProgress.done}/${bulkProgress.total} groups…`
-                : `Merge All (${data.total_duplicates - data.total_groups} duplicates)`}
+                ? t('students.duplicates.mergeAll.progress', { done: bulkProgress.done, total: bulkProgress.total })
+                : t('students.duplicates.mergeAll.button', { count: data.total_duplicates - data.total_groups })}
             </button>
             <button
               onClick={purgeAll}
               disabled={purging || bulkMerging || loading}
-              title="Hard-delete zero-data ghosts, merge data-bearing secondaries"
+              title={t('students.duplicates.purge.tooltip')}
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-rose-700 to-red-700 text-white hover:from-rose-600 hover:to-red-600 transition-all disabled:opacity-50"
             >
               {purging ? <Loader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              Purge Ghosts
+              {t('students.duplicates.purge.button')}
             </button>
           </div>
         )}
@@ -357,7 +368,7 @@ export default function DuplicatesPage() {
         {loading && (
           <div className="mt-12 flex flex-col items-center justify-center gap-4">
             <Loader className="w-8 h-8 animate-spin text-blue-500" />
-            <p className="text-slate-500 dark:text-slate-400">Scanning for duplicates...</p>
+            <p className="text-slate-500 dark:text-slate-400">{t('students.duplicates.scanning')}</p>
           </div>
         )}
 
@@ -367,9 +378,9 @@ export default function DuplicatesPage() {
             <div className="p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
               <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">No Duplicates Found</h2>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('students.duplicates.noneTitle')}</h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-md text-center">
-              All {data.total_students} student records are unique. Great data hygiene!
+              {t('students.duplicates.noneBody', { count: data.total_students })}
             </p>
           </div>
         )}
@@ -390,12 +401,12 @@ export default function DuplicatesPage() {
                   {/* Group Header */}
                   <button
                     onClick={() => toggleGroup(group.group_id)}
-                    className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
+                    className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-start"
                   >
                     {isExpanded ? (
                       <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 rtl-flip" />
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -403,14 +414,14 @@ export default function DuplicatesPage() {
                           {group.students[0].first_name} {group.students[0].last_name}
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${confidenceColor(group.confidence)}`}>
-                          {group.confidence} confidence
+                          {t(`students.duplicates.confidence.${group.confidence}`)}
                         </span>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {group.students.length} records
+                          {t('students.duplicates.recordCount', { count: group.students.length })}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {group.match_reason}
+                        {REASON_KEYS[group.match_reason] ? t(`students.duplicates.reason.${REASON_KEYS[group.match_reason]}`) : group.match_reason}
                       </p>
                     </div>
                     <button
@@ -422,7 +433,7 @@ export default function DuplicatesPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white transition-colors disabled:opacity-50 flex-shrink-0"
                     >
                       {isMerging ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Merge className="w-3.5 h-3.5" />}
-                      Merge
+                      {t('students.duplicates.merge.button')}
                     </button>
                   </button>
 
@@ -433,21 +444,21 @@ export default function DuplicatesPage() {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="bg-slate-50 dark:bg-slate-800/50">
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Keep</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ID</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Adm #</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Class</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Created</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.keep')}</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.id')}</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.name')}</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.admNo')}</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.class')}</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.status')}</th>
+                              <th className="px-4 py-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('students.duplicates.col.created')}</th>
                               <th className="px-4 py-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                <span title="Enrollments"><BookOpen className="w-3.5 h-3.5 inline" /></span>
+                                <span title={t('students.duplicates.col.enrollments')}><BookOpen className="w-3.5 h-3.5 inline" /></span>
                               </th>
                               <th className="px-4 py-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                <span title="Attendance"><Calendar className="w-3.5 h-3.5 inline" /></span>
+                                <span title={t('students.duplicates.col.attendance')}><Calendar className="w-3.5 h-3.5 inline" /></span>
                               </th>
                               <th className="px-4 py-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                <span title="Results"><FileText className="w-3.5 h-3.5 inline" /></span>
+                                <span title={t('students.duplicates.col.results')}><FileText className="w-3.5 h-3.5 inline" /></span>
                               </th>
                             </tr>
                           </thead>
@@ -459,8 +470,8 @@ export default function DuplicatesPage() {
                                   key={student.id}
                                   className={`cursor-pointer transition-colors ${
                                     isPrimary
-                                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-4 border-emerald-500'
-                                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/30 border-l-4 border-transparent'
+                                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-s-4 border-emerald-500'
+                                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/30 border-s-4 border-transparent'
                                   }`}
                                   onClick={() => selectPrimary(group.group_id, student.id)}
                                 >
@@ -477,7 +488,7 @@ export default function DuplicatesPage() {
                                   <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                                     {student.first_name} {student.last_name}
                                     {isPrimary && (
-                                      <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">(Primary)</span>
+                                      <span className="ms-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">{t('students.duplicates.primary')}</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">
@@ -490,7 +501,7 @@ export default function DuplicatesPage() {
                                     <StatusBadge status={student.status} />
                                   </td>
                                   <td className="px-4 py-3 text-xs text-slate-500">
-                                    {student.created_at ? new Date(student.created_at).toLocaleDateString() : '—'}
+                                    {student.created_at ? formatDate(student.created_at) : '—'}
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     <DataCount count={student.enrollment_count} />
@@ -521,11 +532,12 @@ export default function DuplicatesPage() {
 
 // ─── Sub-components ─────────────────────────────────────────────────
 function Stat({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+  const { formatNumber } = useI18n();
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex items-center gap-4">
       <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">{icon}</div>
       <div>
-        <p className="text-2xl font-bold text-slate-900 dark:text-white">{value.toLocaleString()}</p>
+        <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatNumber(value)}</p>
         <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
@@ -539,9 +551,10 @@ function StatusBadge({ status }: { status: string }) {
     suspended: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
     inactive: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
   };
+  const { t } = useI18n();
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[status] || colors.inactive}`}>
-      {status}
+      {t(`students.duplicates.status.${status}`, String(status ?? ''))}
     </span>
   );
 }

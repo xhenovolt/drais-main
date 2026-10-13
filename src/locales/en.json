@@ -1341,6 +1341,94 @@
         "uploadFailed": "Failed to upload document",
         "uploadError": "An error occurred while uploading the document"
       }
+    },
+    "duplicates": {
+      "title": "Duplicate Detection",
+      "subtitle": "Find and merge duplicate student records",
+      "refresh": "Refresh",
+      "cancel": "Cancel",
+      "cannotUndo": "This action cannot be undone.",
+      "detectFailed": "Failed to detect duplicates",
+      "selectPrimary": "Please select a primary record to keep",
+      "scanning": "Scanning for duplicates…",
+      "noneTitle": "No duplicates found",
+      "noneBody": "All {{count}} student records are unique.",
+      "primary": "(Primary)",
+      "recordCount": {
+        "one": "{{count}} record",
+        "other": "{{count}} records"
+      },
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Medium confidence",
+        "low": "Low confidence"
+      },
+      "status": {
+        "active": "Active",
+        "admitted": "Admitted",
+        "suspended": "Suspended",
+        "inactive": "Inactive"
+      },
+      "stat": {
+        "totalStudents": "Total students",
+        "groups": "Duplicate groups",
+        "totalDuplicates": "Total duplicates",
+        "toMerge": "Records to merge"
+      },
+      "col": {
+        "keep": "Keep",
+        "id": "ID",
+        "name": "Name",
+        "admNo": "Admission no.",
+        "class": "Class",
+        "status": "Status",
+        "created": "Created",
+        "enrollments": "Enrollments",
+        "attendance": "Attendance",
+        "results": "Results"
+      },
+      "merge": {
+        "button": "Merge",
+        "title": "Merge duplicates",
+        "body": {
+          "one": "Keep \"{{name}}\" (#{{id}}) and merge {{count}} duplicate into it. All enrollment, attendance and result records will be transferred. This cannot be undone.",
+          "other": "Keep \"{{name}}\" (#{{id}}) and merge {{count}} duplicates into it. All enrollment, attendance and result records will be transferred. This cannot be undone."
+        },
+        "confirm": "Merge now",
+        "done": "Merged {{count}} duplicate record(s) into #{{id}}"
+      },
+      "mergeAll": {
+        "title": "Merge all duplicates",
+        "intro": "You are about to merge {{duplicates}} duplicate students across {{groups}} groups.",
+        "explain": "For each group, the record with the most data will be kept. All enrollment, attendance, results and fee records will be transferred.",
+        "confirm": "Merge all",
+        "button": "Merge all ({{count}} duplicates)",
+        "progress": "Merging {{done}}/{{total}} groups…",
+        "done": "Merged {{merged}} groups ({{removed}} duplicates removed)",
+        "partial": "Merged {{merged}} groups, {{failed}} failed — run it again to retry"
+      },
+      "purge": {
+        "button": "Purge empty duplicates",
+        "tooltip": "Permanently delete duplicates that hold no data, and merge the ones that do",
+        "nothingTitle": "Nothing to purge",
+        "nothingBody": "All duplicate groups have already been cleaned up.",
+        "title": "Purge empty duplicates",
+        "groupsFound": "Duplicate groups found: {{count}}",
+        "ghosts": "Empty records",
+        "ghostsNote": "No data — will be permanently deleted",
+        "dataRecords": "Records with data",
+        "dataNote": "Have data — will be merged into the primary record",
+        "warning": "Deletions cannot be reversed. Merges can be traced in the audit log.",
+        "confirm": "Purge now",
+        "done": "Purged: {{deleted}} deleted, {{merged}} merged",
+        "partial": "{{deleted}} deleted, {{merged}} merged, {{failed}} failed"
+      },
+      "reason": {
+        "exactName": "Exact name match",
+        "nameAndAdmNo": "Same name and same admission number",
+        "nameAndClass": "Same name and same class",
+        "admNo": "Same admission number"
+      }
     }
   },
   "common": {
