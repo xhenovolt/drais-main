@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:16:47.626Z",
-  "last_commit": "319c8de107b28a8ce2e2f816e77681ad032a0a7d",
+  "generated_at": "2026-10-13T10:19:53.462Z",
+  "last_commit": "30275e2184a9378e412b69c88bcb13241531769b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9293,7 +9293,20 @@
         }
       ],
       "commit": "319c8de107"
+    },
+    {
+      "version": "2.50.52",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Translate /admissions and /admissions/[id]; fingerprint tooltip on the students list",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /admissions and /admissions/[id]; fingerprint tooltip on the students list"
+        }
+      ],
+      "commit": "30275e2184"
     }
   ],
-  "app_version": "2.50.52"
+  "app_version": "2.50.53"
 }

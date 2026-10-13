@@ -1084,6 +1084,183 @@
         "dismiss": "Dismiss",
         "defaultField": "Name"
       }
+    },
+    "enroll": {
+      "title": "Enroll Student",
+      "subtitle": "Place a learner in a class with their full academic history in view",
+      "next": "Next",
+      "back": "Back",
+      "review": "Review",
+      "change": "Change",
+      "optional": "(optional)",
+      "default": "Default",
+      "previous": "Previous",
+      "notSelected": "Not selected",
+      "notAvailable": "Not available",
+      "noAdmNo": "No admission number",
+      "enterEsc": "Press Enter to save · Esc to cancel",
+      "searchPlaceholder": "Search student by name or admission number…",
+      "noneFound": "No students found.",
+      "admitNew": "Admit a new student",
+      "mode": {
+        "single": "Single Student",
+        "bulk": "Bulk Promotion"
+      },
+      "steps": {
+        "student": "Select Student",
+        "decision": "Decision & Class",
+        "mode": "Mode & Curriculum",
+        "program": "Program",
+        "confirm": "Confirm"
+      },
+      "decision": {
+        "promote": {
+          "label": "Promote",
+          "desc": "Move up to next class"
+        },
+        "continue": {
+          "label": "Continue",
+          "desc": "Same class, new term"
+        },
+        "demote": {
+          "label": "Demote",
+          "desc": "Repeat lower class"
+        },
+        "first_time": {
+          "label": "First Time",
+          "desc": "No previous enrollment"
+        }
+      },
+      "status": {
+        "active": "Active",
+        "completed": "Completed",
+        "withdrawn": "Withdrawn"
+      },
+      "field": {
+        "student": "Student",
+        "admNo": "Admission no.",
+        "decision": "Decision",
+        "class": "Class",
+        "stream": "Stream",
+        "academicYear": "Academic Year",
+        "term": "Term",
+        "studyMode": "Study Mode",
+        "curriculum": "Curriculum",
+        "program": "Program",
+        "programs": "Programs",
+        "status": "Status"
+      },
+      "select": {
+        "year": "Select year…",
+        "term": "Select term…",
+        "class": "Select class…",
+        "noStream": "No stream"
+      },
+      "prev": {
+        "none": "No previous enrollment — this will be the student's first placement.",
+        "title": "Previous Enrollment",
+        "subjectCount": {
+          "one": "{{count}} subject",
+          "other": "{{count}} subjects"
+        },
+        "avg": "Average: {{value}}",
+        "best": "Best: {{value}}",
+        "passed": "Passed: {{value}}"
+      },
+      "term": {
+        "current": "Current term: {{term}}",
+        "progress": "Day {{day}} of {{total}} · {{remaining}} days remaining",
+        "endingSoon": "ending soon",
+        "noneTitle": "No current term is configured",
+        "outside": "Today is outside every term's dates.",
+        "next": "Next: {{name}} (starts {{date}}).",
+        "last": "Last: {{name}}.",
+        "setCurrent": "Set a current term before enrolling, or pick a term manually below."
+      },
+      "step1": {
+        "hint": "Search for an admitted student. Their previous academic record will load automatically.",
+        "mustAdmit": "Student must be admitted first.",
+        "loadingContext": "Loading record…"
+      },
+      "step2": {
+        "title": "Enrollment Decision",
+        "decision": "Academic Decision",
+        "selectDecision": "Please select a decision to continue.",
+        "autoSelected": "Current term auto-selected:",
+        "hintPrevious": "(previous: {{name}})",
+        "hintNext": "(suggested: next level)",
+        "hintLower": "(suggested: lower level)"
+      },
+      "step3": {
+        "title": "Study Mode & Curriculum",
+        "bothRequired": "Both study mode and curriculum are required. Enrollment is blocked without them.",
+        "noStudyModeSelected": "No study mode selected — you must select one to proceed.",
+        "noStudyModes": "No study modes configured yet.",
+        "addStudyMode": "Add study mode",
+        "studyModePlaceholder": "e.g. Day, Boarding…",
+        "noCurriculums": "No curriculums configured yet.",
+        "addCurriculum": "Add curriculum",
+        "codePlaceholder": "Code (e.g. UNEB)",
+        "namePlaceholder": "Name (e.g. National Curriculum)"
+      },
+      "step4": {
+        "hint": "Select the academic program for this enrollment (e.g. Tahfiz, General Education, Theology).",
+        "none": "No programs configured yet.",
+        "quickAdd": "Quick add program",
+        "placeholder": "e.g. Secular Studies, Tahfiz…",
+        "addAnother": "Add another program"
+      },
+      "step5": {
+        "title": "Confirm Enrollment",
+        "avgScore": "Average score: {{value}}",
+        "newEnrollment": "New Enrollment",
+        "missing": "Required choices are missing — go back and select the study mode, curriculum and program before proceeding.",
+        "closeNote": "Any existing active enrollment for this student will be closed and marked as completed.",
+        "enrolling": "Enrolling…"
+      },
+      "done": {
+        "title": "Enrollment complete!",
+        "body": "{{name}} has been enrolled in {{className}} for {{term}}.",
+        "another": "Enroll another",
+        "viewList": "View student list"
+      },
+      "bulk": {
+        "title": "Bulk Class Promotion",
+        "hint": "Move all active students from one class to another. Previous enrollments will be closed.",
+        "currentTerm": "Current term",
+        "fromClass": "From class",
+        "toClass": "To class",
+        "warning": "All active students in {{from}} will be moved to {{to}}. This cannot be undone easily.",
+        "promoting": "Promoting…",
+        "promoteAll": "Promote all students"
+      },
+      "toast": {
+        "completeRequired": "Please complete all required fields",
+        "studyModeRequired": "Study mode is required — select one before enrolling",
+        "curriculumRequired": "Curriculum is required — select one before enrolling",
+        "programRequired": "Program is required — select one before enrolling",
+        "studyModeContinue": "Study mode is required — select one to continue",
+        "curriculumContinue": "Curriculum is required — select one to continue",
+        "programContinue": "Please select a program to continue",
+        "programAddOne": "Please add at least one program",
+        "enrollFailed": "Enrollment failed",
+        "enrolled": "{{name}} enrolled successfully!",
+        "bulkRequired": "Select the from class, the to class and the academic year",
+        "promoteFailed": "Promotion failed",
+        "promoted": {
+          "one": "{{count}} student promoted successfully!",
+          "other": "{{count}} students promoted successfully!"
+        },
+        "programNameRequired": "Program name is required",
+        "programCreateFailed": "Failed to create program",
+        "programCreated": "Program \"{{name}}\" created",
+        "codeNameRequired": "Code and name are required",
+        "curriculumCreateFailed": "Failed to create curriculum",
+        "curriculumCreated": "Curriculum \"{{name}}\" created",
+        "studyModeNameRequired": "Study mode name is required",
+        "studyModeCreateFailed": "Failed to create study mode",
+        "studyModeCreated": "Study mode \"{{name}}\" created"
+      }
     }
   },
   "common": {

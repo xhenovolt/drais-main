@@ -1,0 +1,5 @@
+{
+  "/api/terms/current": { "success": true, "data": { "effective": { "id": 3, "name": "Term III", "academic_year_name": "2026", "academic_year_id": 1 }, "progress": { "daysElapsed": 30, "totalDays": 90, "daysRemaining": 60, "percent": 33 } } },
+  "/api/classes": { "data": [ { "id": 1, "name": "Primary Five", "class_level": 5 }, { "id": 2, "name": "Primary Six", "class_level": 6 } ] },
+  "/api/terms": { "data": [ { "id": 3, "name": "Term III", "academic_year_id": 1, "academic_year_name": "2026" } ] }
+}
