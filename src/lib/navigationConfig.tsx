@@ -501,14 +501,14 @@ export function getNavigationItems(
       children: [
         { key: 'students-list',         label: t('nav.students.list', 'Student List'),         icon: <Users className="w-4 h-4" />,       href: '/students/list' },
         { key: 'students-admit',        label: t('nav.students.admit', 'Admit Student'),        icon: <UserPlus className="w-4 h-4" />,    href: '/students/admit' },
-        { key: 'admissions',            label: 'Admissions Pipeline',                            icon: <Workflow className="w-4 h-4" />,    href: '/admissions' },
+        { key: 'admissions',            label: t('nav.students.admissions', 'Admissions Pipeline'),                           icon: <Workflow className="w-4 h-4" />,    href: '/admissions' },
         { key: 'students-enroll',       label: t('nav.students.enroll', 'Enroll Student'),      icon: <GraduationCap className="w-4 h-4" />, href: '/students/enroll' },
         { key: 'students-requirements', label: t('nav.students.requirements', 'Requirements'),  icon: <CheckSquare className="w-4 h-4" />, href: '/students/requirements' },
         { key: 'students-contacts',     label: t('nav.students.contacts', 'Contacts'),          icon: <Phone className="w-4 h-4" />,       href: '/students/contacts' },
         { key: 'students-documents',    label: t('nav.students.documents', 'Documents'),        icon: <FileText className="w-4 h-4" />,    href: '/students/documents' },
         { key: 'students-duplicates',   label: t('nav.students.duplicates', 'Duplicates'),      icon: <AlertTriangle className="w-4 h-4" />, href: '/students/duplicates' },
         { key: 'students-history',      label: t('nav.students.history', 'History'),            icon: <Archive className="w-4 h-4" />,     href: '/students/history' },
-        { key: 'students-id-cards',     label: 'ID Cards',                                      icon: <CreditCard className="w-4 h-4" />,  href: '/students/id-cards' },
+        { key: 'students-id-cards',     label: t('nav.students.idCards', 'ID Cards'),                                    icon: <CreditCard className="w-4 h-4" />,  href: '/students/id-cards' },
       ],
     },
 

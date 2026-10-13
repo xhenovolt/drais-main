@@ -9,6 +9,7 @@ import {
   Loader2, AlertTriangle, ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = async (u: string) => {
   const r = await fetch(u, { credentials: 'same-origin' });
@@ -29,6 +30,8 @@ const TONE: Record<string, string> = {
 export default function AdmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { t, formatDate } = useI18n();
+  const statusLabel = (s: string) => t(`admissions.status.${s}`, String(s ?? ''));
   const { data, error, isLoading, mutate } = useSWR<any>(
     id && /^\d+$/.test(id) ? `/api/admissions/${id}` : null,
     fetcher,
@@ -44,36 +47,36 @@ export default function AdmissionDetailPage() {
         body: JSON.stringify({ status: target, reason }),
       });
       const j = await r.json();
-      if (!r.ok || !j.success) throw new Error(j.error || 'Failed');
-      toast.success(`Moved to ${target}`);
+      if (!r.ok || !j.success) throw new Error(j.error || t('admissions.common.failed'));
+      toast.success(t('admissions.detail.movedTo', { status: statusLabel(target) }));
       mutate();
-    } catch (e: any) { toast.error(e?.message); }
+    } catch (e: any) { toast.error(e?.message || t('admissions.common.failed')); }
     finally { setBusy(null); }
   }
 
   async function convert() {
-    if (!confirm('Convert this applicant to an enrolled student? This will create a student record + active enrollment.')) return;
+    if (!confirm(t('admissions.detail.convertConfirm'))) return;
     setBusy('convert');
     try {
       const r = await fetch(`/api/admissions/${id}/convert`, { method: 'POST' });
       const j = await r.json();
-      if (!r.ok || !j.success) throw new Error(j.error || 'Failed');
-      toast.success(`Enrolled as student #${j.student_id} (${j.admission_no})`);
+      if (!r.ok || !j.success) throw new Error(j.error || t('admissions.common.failed'));
+      toast.success(t('admissions.detail.enrolledAs', { id: j.student_id, number: j.admission_no }));
       mutate();
       // Jump to the new student record
       setTimeout(() => router.push(`/students/${j.student_id}`), 500);
-    } catch (e: any) { toast.error(e?.message); }
+    } catch (e: any) { toast.error(e?.message || t('admissions.common.failed')); }
     finally { setBusy(null); }
   }
 
   async function reject() {
-    const reason = prompt('Rejection reason?');
+    const reason = prompt(t('admissions.detail.rejectPrompt'));
     if (reason === null) return;
     await transition('rejected', reason || undefined);
   }
 
   if (!id || !/^\d+$/.test(id)) {
-    return <div className="p-6 text-sm text-slate-500">Invalid application id.</div>;
+    return <div className="p-6 text-sm text-slate-500">{t('admissions.detail.invalidId')}</div>;
   }
 
   if (error) {
@@ -89,7 +92,7 @@ export default function AdmissionDetailPage() {
   }
 
   if (isLoading) return <div className="p-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-500" /></div>;
-  if (!data?.success) return <div className="p-6 text-sm text-slate-500">Application not found.</div>;
+  if (!data?.success) return <div className="p-6 text-sm text-slate-500">{t('admissions.detail.notFound')}</div>;
 
   const a = data.data;
   const docs:  any[] = data.documents ?? [];
@@ -113,10 +116,10 @@ export default function AdmissionDetailPage() {
       <div className="flex items-center justify-between">
         <Link href="/admissions"
           className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to applications
+          <ArrowLeft className="w-3.5 h-3.5 rtl-flip" /> {t('admissions.detail.back')}
         </Link>
         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${TONE[a.status] ?? 'bg-slate-100'}`}>
-          {a.status}
+          {statusLabel(a.status)}
         </span>
       </div>
 
@@ -135,116 +138,116 @@ export default function AdmissionDetailPage() {
         {can('review') && (
           <button onClick={() => transition('review')} disabled={!!busy}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50">
-            <Clock className="w-3 h-3" /> Move to Review
+            <Clock className="w-3 h-3" /> {t('admissions.detail.moveToReview')}
           </button>
         )}
         {can('approved') && (
           <button onClick={() => transition('approved')} disabled={!!busy}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
-            <CheckCircle2 className="w-3 h-3" /> Approve
+            <CheckCircle2 className="w-3 h-3" /> {t('admissions.detail.approve')}
           </button>
         )}
         {can('rejected') && (
           <button onClick={reject} disabled={!!busy}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50">
-            <XCircle className="w-3 h-3" /> Reject
+            <XCircle className="w-3 h-3" /> {t('admissions.detail.reject')}
           </button>
         )}
         {a.status === 'approved' && (
           <button onClick={convert} disabled={!!busy}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
             {busy === 'convert' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRightCircle className="w-3 h-3" />}
-            Convert to Enrolled
+            {t('admissions.detail.convert')}
           </button>
         )}
         {can('archived') && (
           <button onClick={() => transition('archived')} disabled={!!busy}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">
-            Archive
+            {t('admissions.detail.archive')}
           </button>
         )}
         {can('applicant') && a.status !== 'applicant' && (
           <button onClick={() => transition('applicant')} disabled={!!busy}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">
-            <ArchiveRestore className="w-3 h-3" /> Reopen
+            <ArchiveRestore className="w-3 h-3" /> {t('admissions.detail.reopen')}
           </button>
         )}
         {a.enrolled_student_id && (
           <Link href={`/students/${a.enrolled_student_id}`}
-            className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
-            <GraduationCap className="w-3 h-3" /> View student record
+            className="ms-auto inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
+            <GraduationCap className="w-3 h-3" /> {t('admissions.detail.viewStudent')}
           </Link>
         )}
       </div>
 
       {a.rejection_reason && (
         <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/20 text-sm text-rose-700 dark:text-rose-300">
-          <p className="font-semibold">Rejection reason</p>
+          <p className="font-semibold">{t('admissions.detail.rejectionReason')}</p>
           <p className="text-xs mt-1">{a.rejection_reason}</p>
         </div>
       )}
 
       <div className="grid md:grid-cols-2 gap-5">
-        <Section title="Applicant" icon={User}>
-          <Field label="Gender"        value={a.gender} />
-          <Field label="Date of Birth" value={a.date_of_birth} />
-          <Field label="Phone"         value={a.applicant_phone} />
-          <Field label="Email"         value={a.applicant_email} />
-          <Field label="Previous School" value={a.previous_school} />
+        <Section title={t('admissions.section.applicant')} icon={User}>
+          <Field label={t('admissions.field.gender')} value={a.gender ? t(`admissions.gender.${String(a.gender).toLowerCase()}`, String(a.gender)) : null} />
+          <Field label={t('admissions.field.dateOfBirth')} value={a.date_of_birth ? formatDate(a.date_of_birth) : null} />
+          <Field label={t('admissions.field.phone')} value={a.applicant_phone} />
+          <Field label={t('admissions.field.email')} value={a.applicant_email} />
+          <Field label={t('admissions.field.previousSchool')} value={a.previous_school} />
         </Section>
 
-        <Section title="Guardian" icon={Phone}>
-          <Field label="Name"     value={a.guardian_name} />
-          <Field label="Phone"    value={a.guardian_phone} />
-          <Field label="Email"    value={a.guardian_email} />
-          <Field label="Relation" value={a.guardian_relation} />
+        <Section title={t('admissions.section.guardian')} icon={Phone}>
+          <Field label={t('admissions.field.name')} value={a.guardian_name} />
+          <Field label={t('admissions.field.phone')} value={a.guardian_phone} />
+          <Field label={t('admissions.field.email')} value={a.guardian_email} />
+          <Field label={t('admissions.field.relation')} value={a.guardian_relation} />
         </Section>
 
-        <Section title="Desired Placement" icon={GraduationCap}>
-          <Field label="Class"  value={a.desired_class_name} />
-          <Field label="Stream" value={a.desired_stream_name} />
-          <Field label="Term"   value={a.desired_term_name} />
-          <Field label="Year"   value={a.desired_year_name} />
+        <Section title={t('admissions.section.placement')} icon={GraduationCap}>
+          <Field label={t('admissions.field.class')} value={a.desired_class_name} />
+          <Field label={t('admissions.field.stream')} value={a.desired_stream_name} />
+          <Field label={t('admissions.field.term')} value={a.desired_term_name} />
+          <Field label={t('admissions.field.year')} value={a.desired_year_name} />
         </Section>
 
         {a.notes && (
-          <Section title="Notes" icon={FileText}>
+          <Section title={t('admissions.section.notes')} icon={FileText}>
             <p className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{a.notes}</p>
           </Section>
         )}
 
-        <Section title="Documents" icon={FileText}>
+        <Section title={t('admissions.section.documents')} icon={FileText}>
           {docs.length === 0 ? (
-            <p className="text-xs text-slate-400">No documents uploaded.</p>
+            <p className="text-xs text-slate-400">{t('admissions.detail.noDocuments')}</p>
           ) : (
             <ul className="space-y-2">
               {docs.map(d => (
                 <li key={d.id} className="flex items-center justify-between text-xs">
                   <div>
                     <p className="font-semibold">{d.document_type}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(d.uploaded_at).toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-400">{formatDate(d.uploaded_at, 'datetime')}</p>
                   </div>
-                  <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">View</a>
+                  <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">{t('admissions.detail.viewDocument')}</a>
                 </li>
               ))}
             </ul>
           )}
         </Section>
 
-        <Section title="Status History" icon={Clock}>
+        <Section title={t('admissions.section.history')} icon={Clock}>
           {audit.length === 0 ? (
-            <p className="text-xs text-slate-400">No history yet.</p>
+            <p className="text-xs text-slate-400">{t('admissions.detail.noHistory')}</p>
           ) : (
             <ul className="space-y-2.5">
               {audit.map(h => (
                 <li key={h.id} className="text-xs">
                   <div className="flex items-center gap-2">
-                    {h.from_status && <span className={`px-1.5 py-0.5 rounded ${TONE[h.from_status] ?? 'bg-slate-100'}`}>{h.from_status}</span>}
-                    {h.from_status && <span className="text-slate-300">→</span>}
-                    <span className={`px-1.5 py-0.5 rounded ${TONE[h.to_status] ?? 'bg-slate-100'}`}>{h.to_status}</span>
+                    {h.from_status && <span className={`px-1.5 py-0.5 rounded ${TONE[h.from_status] ?? 'bg-slate-100'}`}>{statusLabel(h.from_status)}</span>}
+                    {h.from_status && <span className="text-slate-300 rtl-flip inline-block">→</span>}
+                    <span className={`px-1.5 py-0.5 rounded ${TONE[h.to_status] ?? 'bg-slate-100'}`}>{statusLabel(h.to_status)}</span>
                   </div>
                   <p className="text-[10px] text-slate-400 mt-1">
-                    {new Date(h.created_at).toLocaleString()}
+                    {formatDate(h.created_at, 'datetime')}
                     {(h.actor_first || h.actor_last) && ` · ${[h.actor_first, h.actor_last].filter(Boolean).join(' ')}`}
                   </p>
                   {h.reason && <p className="text-[10px] text-slate-500 mt-0.5">{h.reason}</p>}

@@ -100,7 +100,9 @@
       "promotions": "Promotions",
       "admit": "Admit Student",
       "enroll": "Enroll Student",
-      "duplicates": "Duplicates"
+      "duplicates": "Duplicates",
+      "admissions": "Admissions Pipeline",
+      "idCards": "ID Cards"
     },
     "staff": {
       "_": "Staff",
@@ -1242,7 +1244,8 @@
       "previousPage": "Previous page",
       "nextPage": "Next page",
       "goToPage": "Go to page {{page}}"
-    }
+    },
+    "listSeparator": ", "
   },
   "localization": {
     "title": "Localization — Arabic Names",
@@ -3149,6 +3152,143 @@
       "none": "No reports have been published yet",
       "noneHint": "Reports appear here once the school publishes them.",
       "typeReport": "{{type}} report"
+    }
+  },
+  "biometric": {
+    "level": {
+      "none": "No fingerprint enrolled",
+      "pending": "Waiting for the finger to be scanned",
+      "problem": "Enrolment failed, expired or was revoked",
+      "unknown": "Enrolled on the device — number of fingers not known to DRAIS",
+      "one": "Only 1 finger enrolled — add another",
+      "two": "2 fingers enrolled",
+      "many": "3 or more fingers enrolled"
+    },
+    "finger": {
+      "leftLittle": "Left little finger",
+      "leftRing": "Left ring finger",
+      "leftMiddle": "Left middle finger",
+      "leftIndex": "Left index finger",
+      "leftThumb": "Left thumb",
+      "rightThumb": "Right thumb",
+      "rightIndex": "Right index finger",
+      "rightMiddle": "Right middle finger",
+      "rightRing": "Right ring finger",
+      "rightLittle": "Right little finger"
+    },
+    "pin": "PIN {{pin}}"
+  },
+  "admissions": {
+    "common": {
+      "failed": "Something went wrong. Please try again.",
+      "cancel": "Cancel",
+      "close": "Close",
+      "retry": "Retry",
+      "accessDenied": "Access denied",
+      "loadFailed": "Failed to load"
+    },
+    "mode": {
+      "flexible": "Flexible",
+      "structured": "Structured"
+    },
+    "status": {
+      "applicant": "Applicant",
+      "review": "In review",
+      "approved": "Approved",
+      "enrolled": "Enrolled",
+      "rejected": "Rejected",
+      "archived": "Archived"
+    },
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other"
+    },
+    "list": {
+      "title": "Admissions",
+      "subtitle": "Structured admission pipeline. Mode: {{mode}}",
+      "modeButton": "Mode",
+      "newApplication": "New Application",
+      "flexibleTitle": "This school is in Flexible mode.",
+      "flexibleBody": "The structured pipeline still works, but most schools use it only after switching mode. You can keep admitting learners directly, or switch to Structured mode.",
+      "admitDirectly": "Admit a student directly",
+      "modeSettings": "Mode settings",
+      "filter": {
+        "all": "All",
+        "applicant": "Applicants",
+        "review": "Review",
+        "approved": "Approved",
+        "enrolled": "Enrolled",
+        "rejected": "Rejected",
+        "archived": "Archived"
+      },
+      "searchPlaceholder": "Search name or application number…",
+      "none": "No applications yet.",
+      "noneWithStatus": "No applications with the status \"{{status}}\".",
+      "createFirst": "Create the first application",
+      "col": {
+        "appNo": "Application no.",
+        "applicant": "Applicant",
+        "desiredClass": "Desired class",
+        "guardian": "Guardian",
+        "status": "Status",
+        "submitted": "Submitted"
+      }
+    },
+    "section": {
+      "applicant": "Applicant",
+      "guardian": "Guardian",
+      "placement": "Desired placement",
+      "notes": "Notes",
+      "documents": "Documents",
+      "history": "Status history"
+    },
+    "field": {
+      "firstNameRequired": "First name *",
+      "lastNameRequired": "Last name *",
+      "otherName": "Other name",
+      "gender": "Gender",
+      "dateOfBirth": "Date of birth",
+      "applicantPhone": "Applicant phone",
+      "guardianName": "Guardian name",
+      "guardianPhone": "Guardian phone",
+      "guardianEmail": "Guardian email",
+      "relation": "Relation",
+      "class": "Class",
+      "stream": "Stream",
+      "term": "Term",
+      "year": "Year",
+      "previousSchool": "Previous school",
+      "notes": "Notes",
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email"
+    },
+    "form": {
+      "nameRequired": "First name and last name are required.",
+      "created": "Application created ({{number}})",
+      "relationPlaceholder": "parent / guardian",
+      "create": "Create"
+    },
+    "detail": {
+      "back": "Back to applications",
+      "movedTo": "Moved to: {{status}}",
+      "enrolledAs": "Enrolled as student #{{id}} ({{number}})",
+      "convertConfirm": "Convert this applicant to an enrolled student? This will create a student record and an active enrollment.",
+      "rejectPrompt": "Why is this application being rejected?",
+      "invalidId": "Invalid application number.",
+      "notFound": "Application not found.",
+      "moveToReview": "Move to review",
+      "approve": "Approve",
+      "reject": "Reject",
+      "convert": "Convert to enrolled",
+      "archive": "Archive",
+      "reopen": "Reopen",
+      "viewStudent": "View student record",
+      "rejectionReason": "Rejection reason",
+      "noDocuments": "No documents uploaded.",
+      "viewDocument": "View",
+      "noHistory": "No history yet."
     }
   }
 }

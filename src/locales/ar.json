@@ -100,7 +100,9 @@
       "promotions": "الترقيات",
       "admit": "قبول طالب",
       "enroll": "تسجيل طالب",
-      "duplicates": "التكرارات"
+      "duplicates": "التكرارات",
+      "admissions": "مسار القبول",
+      "idCards": "بطاقات الهوية"
     },
     "staff": {
       "_": "الموظفون",
@@ -800,7 +802,8 @@
       "previousPage": "الصفحة السابقة",
       "nextPage": "الصفحة التالية",
       "goToPage": "الانتقال إلى الصفحة {{page}}"
-    }
+    },
+    "listSeparator": "، "
   },
   "localization": {
     "title": "التعريب — الأسماء العربية",
@@ -3227,6 +3230,143 @@
       "none": "لم تُنشر أي تقارير بعد",
       "noneHint": "ستظهر التقارير هنا بعد أن تنشرها المدرسة.",
       "typeReport": "تقرير {{type}}"
+    }
+  },
+  "biometric": {
+    "level": {
+      "none": "لا توجد بصمة مسجلة",
+      "pending": "بانتظار مسح الإصبع",
+      "problem": "فشل التسجيل أو انتهت صلاحيته أو أُلغي",
+      "unknown": "مسجل على الجهاز — عدد الأصابع غير معروف لدى DRAIS",
+      "one": "إصبع واحد فقط مسجل — أضف إصبعًا آخر",
+      "two": "إصبعان مسجلان",
+      "many": "3 أصابع أو أكثر مسجلة"
+    },
+    "finger": {
+      "leftLittle": "خنصر اليد اليسرى",
+      "leftRing": "بنصر اليد اليسرى",
+      "leftMiddle": "وسطى اليد اليسرى",
+      "leftIndex": "سبابة اليد اليسرى",
+      "leftThumb": "إبهام اليد اليسرى",
+      "rightThumb": "إبهام اليد اليمنى",
+      "rightIndex": "سبابة اليد اليمنى",
+      "rightMiddle": "وسطى اليد اليمنى",
+      "rightRing": "بنصر اليد اليمنى",
+      "rightLittle": "خنصر اليد اليمنى"
+    },
+    "pin": "الرقم {{pin}}"
+  },
+  "admissions": {
+    "common": {
+      "failed": "حدث خطأ. حاول مرة أخرى.",
+      "cancel": "إلغاء",
+      "close": "إغلاق",
+      "retry": "إعادة المحاولة",
+      "accessDenied": "لا تملك صلاحية الوصول",
+      "loadFailed": "تعذر التحميل"
+    },
+    "mode": {
+      "flexible": "مرن",
+      "structured": "منظم"
+    },
+    "status": {
+      "applicant": "متقدم",
+      "review": "قيد المراجعة",
+      "approved": "مقبول",
+      "enrolled": "مسجل",
+      "rejected": "مرفوض",
+      "archived": "مؤرشف"
+    },
+    "gender": {
+      "male": "ذكر",
+      "female": "أنثى",
+      "other": "آخر"
+    },
+    "list": {
+      "title": "طلبات القبول",
+      "subtitle": "مسار القبول المنظم. الوضع: {{mode}}",
+      "modeButton": "الوضع",
+      "newApplication": "طلب جديد",
+      "flexibleTitle": "هذه المدرسة في الوضع المرن.",
+      "flexibleBody": "مسار القبول المنظم ما زال يعمل، لكن معظم المدارس تستخدمه بعد تغيير الوضع فقط. يمكنك الاستمرار في قبول المتعلمين مباشرة، أو التحويل إلى الوضع المنظم.",
+      "admitDirectly": "قبول طالب مباشرة",
+      "modeSettings": "إعدادات الوضع",
+      "filter": {
+        "all": "الكل",
+        "applicant": "المتقدمون",
+        "review": "قيد المراجعة",
+        "approved": "المقبولون",
+        "enrolled": "المسجلون",
+        "rejected": "المرفوضون",
+        "archived": "المؤرشفون"
+      },
+      "searchPlaceholder": "ابحث بالاسم أو برقم الطلب…",
+      "none": "لا توجد طلبات بعد.",
+      "noneWithStatus": "لا توجد طلبات بحالة «{{status}}».",
+      "createFirst": "أنشئ أول طلب",
+      "col": {
+        "appNo": "رقم الطلب",
+        "applicant": "المتقدم",
+        "desiredClass": "الصف المطلوب",
+        "guardian": "ولي الأمر",
+        "status": "الحالة",
+        "submitted": "تاريخ التقديم"
+      }
+    },
+    "section": {
+      "applicant": "المتقدم",
+      "guardian": "ولي الأمر",
+      "placement": "الصف المطلوب",
+      "notes": "ملاحظات",
+      "documents": "المستندات",
+      "history": "سجل الحالات"
+    },
+    "field": {
+      "firstNameRequired": "الاسم الأول *",
+      "lastNameRequired": "اسم العائلة *",
+      "otherName": "اسم آخر",
+      "gender": "الجنس",
+      "dateOfBirth": "تاريخ الميلاد",
+      "applicantPhone": "هاتف المتقدم",
+      "guardianName": "اسم ولي الأمر",
+      "guardianPhone": "هاتف ولي الأمر",
+      "guardianEmail": "بريد ولي الأمر الإلكتروني",
+      "relation": "صلة القرابة",
+      "class": "الصف",
+      "stream": "الشعبة",
+      "term": "الفصل الدراسي",
+      "year": "السنة",
+      "previousSchool": "المدرسة السابقة",
+      "notes": "ملاحظات",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني"
+    },
+    "form": {
+      "nameRequired": "الاسم الأول واسم العائلة مطلوبان.",
+      "created": "تم إنشاء الطلب ({{number}})",
+      "relationPlaceholder": "والد / ولي أمر",
+      "create": "إنشاء"
+    },
+    "detail": {
+      "back": "العودة إلى الطلبات",
+      "movedTo": "تم النقل إلى: {{status}}",
+      "enrolledAs": "تم التسجيل كطالب رقم {{id}} ({{number}})",
+      "convertConfirm": "هل تريد تحويل هذا المتقدم إلى طالب مسجل؟ سيتم إنشاء سجل طالب وتسجيل نشط.",
+      "rejectPrompt": "ما سبب رفض هذا الطلب؟",
+      "invalidId": "رقم الطلب غير صالح.",
+      "notFound": "الطلب غير موجود.",
+      "moveToReview": "نقل إلى المراجعة",
+      "approve": "قبول",
+      "reject": "رفض",
+      "convert": "تحويل إلى مسجل",
+      "archive": "أرشفة",
+      "reopen": "إعادة فتح",
+      "viewStudent": "عرض سجل الطالب",
+      "rejectionReason": "سبب الرفض",
+      "noDocuments": "لم تُرفع أي مستندات.",
+      "viewDocument": "عرض",
+      "noHistory": "لا يوجد سجل بعد."
     }
   }
 }

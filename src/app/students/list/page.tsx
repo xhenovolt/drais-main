@@ -55,7 +55,7 @@ import { showToast, confirmAction } from '@/lib/toast';
 import { toast } from 'react-hot-toast';
 import { apiFetch } from '@/lib/apiClient';
 import DeviceSelector, { getPreferredDevice } from '@/components/modals/DeviceSelector';
-import { fingerprintLevel, describeFingers } from '@/lib/biometric/fingers';
+import { fingerprintLevel, describeFingersT } from '@/lib/biometric/fingers';
 import SyncDeviceModal from '@/components/device/SyncDeviceModal';
 import { StudentsListLivePopup } from '@/components/students/StudentsListLivePopup';
 import {
@@ -1960,10 +1960,10 @@ export default function StudentsListPage() {
                           const fingerCount = fpStatus?.finger_count ?? (fingerprintEnrolledIds.has(student.id) ? 1 : 0);
                           const lvl = fingerprintLevel({ label: fpLabel, fingerCount, hasFace: fpStatus?.face_captured });
                           const fingerNote = fpStatus?.finger_indices?.length
-                            ? ` · ${describeFingers(fpStatus.finger_indices)}`
+                            ? ` · ${describeFingersT(fpStatus.finger_indices, t, t("common.listSeparator"))}`
                             : fingerCount > 0 ? ` · ${t('students.list.enroll.fingerCount', { count: fingerCount })}` : '';
                           const fpTitle = fpStatus
-                            ? `${lvl.text}${fingerNote}${fpStatus.pin ? ` · PIN ${fpStatus.pin}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''} — ${t('students.list.enroll.clickAnother')}`
+                            ? `${t(`biometric.level.${lvl.level}`)}${fingerNote}${fpStatus.pin ? ` · ${t('biometric.pin', { pin: fpStatus.pin })}` : ''}${fpStatus.device_name || fpStatus.device_sn ? ` · ${fpStatus.device_name || fpStatus.device_sn}` : ''} — ${t('students.list.enroll.clickAnother')}`
                             : t('students.list.enroll.enrollFingerprint');
                           return (
                             <button

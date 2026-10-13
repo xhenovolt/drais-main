@@ -34,6 +34,9 @@ const cssPath = flag('--css');
 const width = Number(flag('--width') || 1000);
 // --lang ar|en : only render that language (faster when iterating on layout).
 const onlyLang = flag('--lang');
+// --params '{"id":"5"}' : what useParams() returns, for pages under a [dynamic] folder.
+const paramsJson = flag('--params') || '{}';
+JSON.parse(paramsJson);
 JSON.parse(propsJson); // fail early on a typo
 // --mock file.json : { "<url substring>": <response body>, ... } — first matching substring wins.
 const mocks = mockPath ? JSON.parse(fs.readFileSync(mockPath, 'utf8')) : {};
@@ -68,7 +71,7 @@ createRoot(document.getElementById('root')!).render(
 // Next.js runtime pieces a page imports, replaced by inert stand-ins.
 const stubs = {
   'next/navigation': `export const useRouter = () => ({ push() {}, replace() {}, back() {}, refresh() {}, prefetch() {} });
-    export const usePathname = () => '/'; export const useSearchParams = () => new URLSearchParams(); export const useParams = () => ({}); export const redirect = () => {};`,
+    export const usePathname = () => '/'; export const useSearchParams = () => new URLSearchParams(); export const useParams = () => (${paramsJson}); export const redirect = () => {};`,
   'next/link': `import React from 'react'; export default function Link({ href, children, prefetch, ...rest }) { return React.createElement('a', { href: typeof href === 'string' ? href : '#', ...rest }, children); }`,
   'next/image': `import React from 'react'; export default function Image({ src, alt, fill, priority, ...rest }) { return React.createElement('img', { src: typeof src === 'string' ? src : '', alt, ...rest }); }`,
   'next/dynamic': `import React from 'react'; export default function dynamic() { return function Stub() { return null; }; }`,

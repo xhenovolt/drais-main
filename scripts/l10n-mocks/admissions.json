@@ -1,0 +1,11 @@
+{
+  "/api/admin/admission-mode": { "mode": "flexible" },
+  "/api/admissions/5": { "success": true,
+    "data": { "id": 5, "application_no": "APP-2026-0005", "first_name": "Amina", "last_name": "Nakato", "other_name": null, "status": "review", "gender": "female", "date_of_birth": "2014-03-09", "applicant_phone": "0700000001", "applicant_email": null, "previous_school": "Bright Future Primary", "guardian_name": "Hassan Kato", "guardian_phone": "0741341483", "guardian_email": null, "guardian_relation": "Father", "desired_class_name": "Primary Five", "desired_stream_name": null, "desired_term_name": "Term III", "desired_year_name": "2026", "notes": "Transfer from another district.", "rejection_reason": "Incomplete documents", "enrolled_student_id": 77 },
+    "documents": [ { "id": 1, "document_type": "Birth certificate", "uploaded_at": "2026-10-01T09:00:00", "file_url": "#" } ],
+    "audit": [ { "id": 2, "from_status": "applicant", "to_status": "review", "created_at": "2026-10-02T10:30:00", "actor_first": "Sarah", "actor_last": "Namu", "reason": null } ] },
+  "/api/admissions": { "success": true, "counts": [ { "status": "applicant", "n": 3 }, { "status": "review", "n": 1 } ],
+    "data": [ { "id": 5, "application_no": "APP-2026-0005", "first_name": "Amina", "last_name": "Nakato", "applicant_phone": "0700000001", "desired_class_name": "Primary Five", "guardian_name": "Hassan Kato", "guardian_phone": "0741341483", "status": "review", "created_at": "2026-10-01T09:00:00" } ] },
+  "/api/classes": { "data": [ { "id": 1, "name": "Primary Five" } ] },
+  "/api/terms": { "data": [ { "id": 1, "name": "Term III" } ] }
+}

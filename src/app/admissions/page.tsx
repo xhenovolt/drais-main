@@ -7,6 +7,7 @@ import {
   Workflow, X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = async (u: string) => {
   const r = await fetch(u, { credentials: 'same-origin' });
@@ -25,6 +26,7 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export default function AdmissionsPage() {
+  const { t, formatDate } = useI18n();
   const [filter, setFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,31 +52,32 @@ export default function AdmissionsPage() {
         <div className="flex items-center gap-3">
           <Users className="w-6 h-6 text-indigo-500" />
           <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Admissions</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('admissions.list.title')}</h1>
             <p className="text-xs text-slate-400">
-              Structured admission pipeline. Mode: <span className="font-mono">{mode}</span>
+              {t('admissions.list.subtitle', { mode: t(`admissions.mode.${mode}`) })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/admin/admission-mode"
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-            <Workflow className="w-3 h-3" /> Mode
+            <Workflow className="w-3 h-3" /> {t('admissions.list.modeButton')}
           </Link>
           <button onClick={() => setModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-            <Plus className="w-4 h-4" /> New Application
+            <Plus className="w-4 h-4" /> {t('admissions.list.newApplication')}
           </button>
         </div>
       </div>
 
       {mode === 'flexible' && (
         <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm">
-          <p className="font-semibold text-amber-700 dark:text-amber-300">This school is in Flexible mode.</p>
+          <p className="font-semibold text-amber-700 dark:text-amber-300">{t('admissions.list.flexibleTitle')}</p>
           <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-            The Structured pipeline still works, but most schools use it only after switching mode.
-            You can keep using <Link href="/students/admit" className="underline">/students/admit</Link> directly,
-            or switch to Structured mode in <Link href="/admin/admission-mode" className="underline">Mode settings</Link>.
+            {t('admissions.list.flexibleBody')}{' '}
+            <Link href="/students/admit" className="underline font-semibold">{t('admissions.list.admitDirectly')}</Link>
+            {' · '}
+            <Link href="/admin/admission-mode" className="underline font-semibold">{t('admissions.list.modeSettings')}</Link>
           </p>
         </div>
       )}
@@ -82,13 +85,13 @@ export default function AdmissionsPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         {[
-          { code: '',           label: 'All',        n: undefined },
-          { code: 'applicant',  label: 'Applicants', n: countOf('applicant') },
-          { code: 'review',     label: 'Review',     n: countOf('review') },
-          { code: 'approved',   label: 'Approved',   n: countOf('approved') },
-          { code: 'enrolled',   label: 'Enrolled',   n: countOf('enrolled') },
-          { code: 'rejected',   label: 'Rejected',   n: countOf('rejected') },
-          { code: 'archived',   label: 'Archived',   n: countOf('archived') },
+          { code: '',           label: t('admissions.list.filter.all'), n: undefined },
+          { code: 'applicant',  label: t('admissions.list.filter.applicant'), n: countOf('applicant') },
+          { code: 'review',     label: t('admissions.list.filter.review'), n: countOf('review') },
+          { code: 'approved',   label: t('admissions.list.filter.approved'), n: countOf('approved') },
+          { code: 'enrolled',   label: t('admissions.list.filter.enrolled'), n: countOf('enrolled') },
+          { code: 'rejected',   label: t('admissions.list.filter.rejected'), n: countOf('rejected') },
+          { code: 'archived',   label: t('admissions.list.filter.archived'), n: countOf('archived') },
         ].map(f => (
           <button key={f.code} onClick={() => setFilter(f.code)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${
@@ -99,11 +102,11 @@ export default function AdmissionsPage() {
             {f.label}{f.n !== undefined ? ` (${f.n})` : ''}
           </button>
         ))}
-        <div className="ml-auto relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+        <div className="ms-auto relative">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search name or app number…"
-            className="pl-9 pr-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" />
+            placeholder={t('admissions.list.searchPlaceholder')}
+            className="ps-9 pe-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" />
         </div>
       </div>
 
@@ -114,11 +117,11 @@ export default function AdmissionsPage() {
       ) : (data?.data ?? []).length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Users className="w-10 h-10 mb-2" />
-          <p className="text-sm">{filter ? `No ${filter} applicants.` : 'No applications yet.'}</p>
+          <p className="text-sm">{filter ? t('admissions.list.noneWithStatus', { status: t(`admissions.status.${filter}`) }) : t('admissions.list.none')}</p>
           {!filter && (
             <button onClick={() => setModalOpen(true)}
               className="mt-3 text-xs text-indigo-600 hover:underline">
-              Create the first application →
+              {t('admissions.list.createFirst')}
             </button>
           )}
         </div>
@@ -126,13 +129,13 @@ export default function AdmissionsPage() {
         <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800 text-[11px] uppercase tracking-wide text-slate-500">
-              <tr className="text-left">
-                <th className="px-4 py-3">App #</th>
-                <th className="px-4 py-3">Applicant</th>
-                <th className="px-4 py-3">Desired Class</th>
-                <th className="px-4 py-3">Guardian</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Submitted</th>
+              <tr>
+                <th className="px-4 py-3 text-start">{t('admissions.list.col.appNo')}</th>
+                <th className="px-4 py-3 text-start">{t('admissions.list.col.applicant')}</th>
+                <th className="px-4 py-3 text-start">{t('admissions.list.col.desiredClass')}</th>
+                <th className="px-4 py-3 text-start">{t('admissions.list.col.guardian')}</th>
+                <th className="px-4 py-3 text-start">{t('admissions.list.col.status')}</th>
+                <th className="px-4 py-3 text-start">{t('admissions.list.col.submitted')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -156,11 +159,11 @@ export default function AdmissionsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${STATUS_TONE[r.status] ?? 'bg-slate-100'}`}>
-                      {r.status}
+                      {t(`admissions.status.${r.status}`, String(r.status ?? ''))}
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
-                    {new Date(r.created_at).toLocaleDateString()}
+                    {formatDate(r.created_at)}
                   </td>
                 </tr>
               ))}
@@ -175,6 +178,7 @@ export default function AdmissionsPage() {
 }
 
 function NewApplicationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const { data: classesRes } = useSWR<any>('/api/classes', fetcher);
   const { data: termsRes }   = useSWR<any>('/api/terms', fetcher);
   const classes: any[] = (classesRes as any)?.data ?? classesRes ?? [];
@@ -190,7 +194,7 @@ function NewApplicationModal({ onClose, onCreated }: { onClose: () => void; onCr
   });
 
   async function submit() {
-    if (!form.first_name || !form.last_name) { toast.error('Name required'); return; }
+    if (!form.first_name || !form.last_name) { toast.error(t('admissions.form.nameRequired')); return; }
     setSaving(true);
     try {
       const payload: any = { ...form };
@@ -205,10 +209,10 @@ function NewApplicationModal({ onClose, onCreated }: { onClose: () => void; onCr
         body: JSON.stringify(payload),
       });
       const j = await r.json();
-      if (!r.ok || !j.success) throw new Error(j.error || 'Failed');
-      toast.success(`Application created (${j.application_no})`);
+      if (!r.ok || !j.success) throw new Error(j.error || t('admissions.common.failed'));
+      toast.success(t('admissions.form.created', { number: j.application_no }));
       onCreated();
-    } catch (e: any) { toast.error(e?.message); }
+    } catch (e: any) { toast.error(e?.message || t('admissions.common.failed')); }
     finally { setSaving(false); }
   }
 
@@ -217,64 +221,64 @@ function NewApplicationModal({ onClose, onCreated }: { onClose: () => void; onCr
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold">New Application</h3>
-          <button onClick={onClose} className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <h3 className="text-lg font-semibold">{t('admissions.list.newApplication')}</h3>
+          <button onClick={onClose} aria-label={t('admissions.common.close')} className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <section>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Applicant</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">{t('admissions.section.applicant')}</h4>
             <div className="grid sm:grid-cols-2 gap-3">
-              <F label="First Name *"><input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} className={inputCls} /></F>
-              <F label="Last Name *"> <input value={form.last_name}  onChange={e => setForm({ ...form, last_name: e.target.value })}  className={inputCls} /></F>
-              <F label="Other Name">  <input value={form.other_name} onChange={e => setForm({ ...form, other_name: e.target.value })} className={inputCls} /></F>
-              <F label="Gender">
+              <F label={t('admissions.field.firstNameRequired')}><input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} className={inputCls} /></F>
+              <F label={t('admissions.field.lastNameRequired')}> <input value={form.last_name}  onChange={e => setForm({ ...form, last_name: e.target.value })}  className={inputCls} /></F>
+              <F label={t('admissions.field.otherName')}>  <input value={form.other_name} onChange={e => setForm({ ...form, other_name: e.target.value })} className={inputCls} /></F>
+              <F label={t('admissions.field.gender')}>
                 <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className={inputCls}>
-                  <option value="">—</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
+                  <option value="">—</option><option value="male">{t('admissions.gender.male')}</option><option value="female">{t('admissions.gender.female')}</option><option value="other">{t('admissions.gender.other')}</option>
                 </select>
               </F>
-              <F label="Date of Birth"><input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} className={inputCls} /></F>
-              <F label="Applicant Phone"><input value={form.applicant_phone} onChange={e => setForm({ ...form, applicant_phone: e.target.value })} className={inputCls} /></F>
+              <F label={t('admissions.field.dateOfBirth')}><input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} className={inputCls} /></F>
+              <F label={t('admissions.field.applicantPhone')}><input value={form.applicant_phone} onChange={e => setForm({ ...form, applicant_phone: e.target.value })} className={inputCls} /></F>
             </div>
           </section>
 
           <section>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Guardian</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">{t('admissions.section.guardian')}</h4>
             <div className="grid sm:grid-cols-2 gap-3">
-              <F label="Guardian Name">    <input value={form.guardian_name}     onChange={e => setForm({ ...form, guardian_name: e.target.value })}     className={inputCls} /></F>
-              <F label="Guardian Phone">   <input value={form.guardian_phone}    onChange={e => setForm({ ...form, guardian_phone: e.target.value })}    className={inputCls} /></F>
-              <F label="Guardian Email">   <input value={form.guardian_email}    onChange={e => setForm({ ...form, guardian_email: e.target.value })}    className={inputCls} /></F>
-              <F label="Relation">         <input value={form.guardian_relation} onChange={e => setForm({ ...form, guardian_relation: e.target.value })} className={inputCls} placeholder="parent / guardian" /></F>
+              <F label={t('admissions.field.guardianName')}>    <input value={form.guardian_name}     onChange={e => setForm({ ...form, guardian_name: e.target.value })}     className={inputCls} /></F>
+              <F label={t('admissions.field.guardianPhone')}>   <input value={form.guardian_phone}    onChange={e => setForm({ ...form, guardian_phone: e.target.value })}    className={inputCls} /></F>
+              <F label={t('admissions.field.guardianEmail')}>   <input value={form.guardian_email}    onChange={e => setForm({ ...form, guardian_email: e.target.value })}    className={inputCls} /></F>
+              <F label={t('admissions.field.relation')}>         <input value={form.guardian_relation} onChange={e => setForm({ ...form, guardian_relation: e.target.value })} className={inputCls} placeholder={t('admissions.form.relationPlaceholder')} /></F>
             </div>
           </section>
 
           <section>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Desired Placement</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">{t('admissions.section.placement')}</h4>
             <div className="grid sm:grid-cols-2 gap-3">
-              <F label="Class">
+              <F label={t('admissions.field.class')}>
                 <select value={form.desired_class_id} onChange={e => setForm({ ...form, desired_class_id: e.target.value })} className={inputCls}>
                   <option value="">—</option>
                   {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </F>
-              <F label="Term">
+              <F label={t('admissions.field.term')}>
                 <select value={form.desired_term_id} onChange={e => setForm({ ...form, desired_term_id: e.target.value })} className={inputCls}>
                   <option value="">—</option>
-                  {terms.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {terms.map((term: any) => <option key={term.id} value={term.id}>{term.name}</option>)}
                 </select>
               </F>
-              <F label="Previous School"><input value={form.previous_school} onChange={e => setForm({ ...form, previous_school: e.target.value })} className={inputCls} /></F>
-              <F label="Notes"><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className={inputCls} /></F>
+              <F label={t('admissions.field.previousSchool')}><input value={form.previous_school} onChange={e => setForm({ ...form, previous_school: e.target.value })} className={inputCls} /></F>
+              <F label={t('admissions.field.notes')}><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className={inputCls} /></F>
             </div>
           </section>
         </div>
         <div className="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700">
-          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">{t('admissions.common.cancel')}</button>
           <button onClick={submit} disabled={saving}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Create
+            {t('admissions.form.create')}
           </button>
         </div>
       </div>
@@ -293,16 +297,17 @@ function F({ label, children }: { label: string; children: React.ReactNode }) {
 }
 
 function ErrorPanel({ error, retry }: { error: any; retry: () => void }) {
+  const { t } = useI18n();
   const isAuth = error?.status === 401 || error?.status === 403;
   return (
     <div className="rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-4 text-sm text-rose-700 flex items-start gap-3">
       {isAuth ? <ShieldAlert className="w-4 h-4 mt-0.5" /> : <AlertTriangle className="w-4 h-4 mt-0.5" />}
       <div className="flex-1">
-        <p className="font-semibold">{isAuth ? 'Access denied' : 'Failed to load'}</p>
+        <p className="font-semibold">{isAuth ? t('admissions.common.accessDenied') : t('admissions.common.loadFailed')}</p>
         <p className="text-xs opacity-90">{error?.message}</p>
         <button onClick={retry}
           className="mt-2 inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40">
-          <RotateCcw className="w-3 h-3" /> Retry
+          <RotateCcw className="w-3 h-3" /> {t('admissions.common.retry')}
         </button>
       </div>
     </div>

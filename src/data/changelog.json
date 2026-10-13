@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T10:02:35.352Z",
-  "last_commit": "0d5adb290962ea225c66e438f528b199aefbdead",
+  "generated_at": "2026-10-13T10:16:47.626Z",
+  "last_commit": "319c8de107b28a8ce2e2f816e77681ad032a0a7d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9280,7 +9280,20 @@
         }
       ],
       "commit": "0d5adb2909"
+    },
+    {
+      "version": "2.50.51",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "Redesign the parent portal for phones, in English and Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Redesign the parent portal for phones, in English and Arabic"
+        }
+      ],
+      "commit": "319c8de107"
     }
   ],
-  "app_version": "2.50.51"
+  "app_version": "2.50.52"
 }

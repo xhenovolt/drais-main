@@ -72,3 +72,12 @@ function levelForCount(n: number): FingerprintLevel {
 
 export const LEVEL_ORDER: FingerprintLevel[] = ['none', 'pending', 'problem', 'unknown', 'one', 'two', 'many'];
 export const levelStyle = (level: FingerprintLevel): LevelStyle => ({ level, ...STYLES[level] });
+
+/** Dictionary keys for the ten device slots, in slot order (see `biometric.finger.*`). */
+export const FINGER_KEYS = ['leftLittle', 'leftRing', 'leftMiddle', 'leftIndex', 'leftThumb', 'rightThumb', 'rightIndex', 'rightMiddle', 'rightRing', 'rightLittle'];
+
+/** describeFingers() in the interface language. Returns '' when there is nothing to name. */
+export function describeFingersT(indices: number[], t: (key: string) => string, separator = ', '): string {
+  const sorted = [...new Set(indices)].filter((i) => i >= 0 && i <= 9).sort((a, b) => a - b);
+  return sorted.map((i) => t(`biometric.finger.${FINGER_KEYS[i]}`)).join(separator);
+}
