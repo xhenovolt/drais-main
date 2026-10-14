@@ -102,6 +102,26 @@ export function analyzeSeries(days: DayPoint[]): PatternAlert[] {
   return alerts;
 }
 
+/**
+ * PURE: the same alert in Arabic, for a reader whose interface is Arabic. Built from the alert's key and
+ * the numbers in its English detail, so the detectors above stay the single source of truth.
+ */
+export function arabicPatternAlert(a: PatternAlert): PatternAlert {
+  const d = (s: string) => s.replace(/[0-9]/g, (c) => '٠١٢٣٤٥٦٧٨٩'[Number(c)]).replace(/%/g, '٪');
+  const n = a.detail.match(/\d+%?/g) ?? [];
+  if (a.key === 'attendance_decline') return { ...a, title: 'الحضور في تراجع', detail: d(`انخفضت نسبة الحضور ${n[0] ?? ''} خلال الفترة (الآن ${n[1] ?? ''}).`), recommendation: 'راجع الغياب الأخير وتابع مع أولياء الأمور قبل أن يترسخ.' };
+  if (a.key === 'mass_absence') return { ...a, title: 'غياب جماعي غير معتاد اليوم', detail: d(`${n[0] ?? ''} غائبون مقابل ${n[1] ?? ''} عادةً — ${n[2] ?? ''} من ${n[3] ?? ''}.`), recommendation: 'تحقق من وجود مناسبة محلية أو طقس أو مواصلات أو خلل في البيانات أو الأجهزة قبل اعتباره حقيقيًا.' };
+  if (a.key === 'lateness_spike') return { ...a, title: 'ارتفاع مفاجئ في التأخر اليوم', detail: d(`${n[0] ?? ''} وصلوا متأخرين مقابل ${n[1] ?? ''} عادةً.`), recommendation: 'إن كان غير متوقع، فتحقق من ساعة الجهاز («سلامة الوقت») قبل افتراض تغيّر حقيقي في السلوك.' };
+  if (a.key === 'chronic_lateness') return { ...a, title: 'التأخر يتزايد تدريجيًا', detail: d(`ارتفعت نسبة التأخر ${n[0] ?? ''} خلال الفترة (المتوسط ${n[1] ?? ''}).`), recommendation: 'راجع ما إذا كانت أوقات الوصول ما زالت مناسبة، أو عالج المتأخرين المتكررين.' };
+  if (a.key.startsWith('group_')) {
+    const isClass = a.key.startsWith('group_class_');
+    const name = a.title.replace(/: attendance below the school$/, '');
+    const nums = a.detail.match(/\d+%|\d+\/\d+/g) ?? [];
+    return { ...a, title: `${name}: الحضور أقل من مستوى المدرسة`, detail: d(`${nums[0] ?? ''} حاضرون مقابل ${nums[1] ?? ''} في المدرسة (${nums[2] ?? ''}).`), recommendation: isClass ? 'تحقق من هذا الصف تحديدًا — السبب على الأرجح محلي.' : 'تحقق من هذا القسم تحديدًا — السبب على الأرجح محلي.' };
+  }
+  return a;
+}
+
 /** Per-group (class/department) drift vs the school. Groups whose present rate
  *  is materially below the school average are flagged. */
 export interface GroupStat { name: string; present: number; late: number; absent: number; total: number; }

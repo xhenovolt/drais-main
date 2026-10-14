@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T16:38:18.540Z",
-  "last_commit": "4f85b33060f33aa2288636e8a44bdb857fdb81d6",
+  "generated_at": "2026-10-14T16:41:01.757Z",
+  "last_commit": "4ff62fa327f04c97776ae785b6e5484037ae3448",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9566,7 +9566,20 @@
         }
       ],
       "commit": "4f85b33060"
+    },
+    {
+      "version": "2.50.73",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "/attendance/health and /attendance/recovery fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/health and /attendance/recovery fully Arabic"
+        }
+      ],
+      "commit": "4ff62fa327"
     }
   ],
-  "app_version": "2.50.73"
+  "app_version": "2.50.74"
 }

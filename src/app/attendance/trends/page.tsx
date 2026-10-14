@@ -24,7 +24,7 @@ const LEVEL_STYLE: Record<string, { chip: string; icon: React.ReactNode }> = {
 };
 
 export default function AttendanceTrends() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [role, setRole] = useState<'student' | 'staff'>('student');
   const [days, setDays] = useState(30);
   const { data, isLoading } = useSWR<any>(`/api/attendance/patterns?role=${role}&days=${days}`, fetcher);
@@ -87,13 +87,13 @@ export default function AttendanceTrends() {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={series} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-gray-100 dark:stroke-gray-700" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" tickFormatter={(v) => digits(v)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => digits(v)} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} labelFormatter={(v) => digits(v)} formatter={(v: any) => digits(v)} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area type="monotone" dataKey="Present" stackId="1" stroke={HEX.present} fill={HEX.present} fillOpacity={0.7} />
-                <Area type="monotone" dataKey="Late" stackId="1" stroke={HEX.late} fill={HEX.late} fillOpacity={0.7} />
-                <Area type="monotone" dataKey="Absent" stackId="1" stroke={HEX.absent} fill={HEX.absent} fillOpacity={0.7} />
+                <Area type="monotone" dataKey="Present" name={t('attendancePages.trends.present')} stackId="1" stroke={HEX.present} fill={HEX.present} fillOpacity={0.7} />
+                <Area type="monotone" dataKey="Late" name={t('attendancePages.trends.late')} stackId="1" stroke={HEX.late} fill={HEX.late} fillOpacity={0.7} />
+                <Area type="monotone" dataKey="Absent" name={t('attendancePages.trends.absent')} stackId="1" stroke={HEX.absent} fill={HEX.absent} fillOpacity={0.7} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

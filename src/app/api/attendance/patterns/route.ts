@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { analyzeSeries, analyzeGroups, trend, type DayPoint } from '@/lib/attendance/pattern-analytics';
+import { analyzeSeries, analyzeGroups, trend, arabicPatternAlert, type DayPoint } from '@/lib/attendance/pattern-analytics';
+import { langFromRequest } from '@/lib/i18n/localize';
 
 export const runtime = 'nodejs';
 
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
       groupAlerts = analyzeGroups(dep.map(g => ({ name: g.name, present: Number(g.present), late: Number(g.late), absent: Number(g.absent), total: Number(g.total) })), 'department');
     }
 
-    const alerts = [...seriesAlerts, ...groupAlerts];
+    const alerts = [...seriesAlerts, ...groupAlerts].map((a) => (langFromRequest(req) === 'ar' ? arabicPatternAlert(a) : a));
     if (sp.get('banner')) {
       const worst = alerts.filter(a => a.level === 'alert')[0] || null;
       return NextResponse.json({ success: true, alert: worst, alerts: alerts.filter(a => a.level === 'alert').length });

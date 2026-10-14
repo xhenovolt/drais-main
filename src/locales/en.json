@@ -4987,6 +4987,11 @@
         "watch": "watch",
         "gap": "gap"
       }
+    },
+    "trends": {
+      "present": "Present",
+      "late": "Late",
+      "absent": "Absent"
     }
   }
 }

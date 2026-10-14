@@ -1,0 +1,3 @@
+{ "/api/attendance/patterns": { "success": true, "days": 30, "trend": { "direction": "declining", "deltaPct": -9 },
+    "daily": [ { "date": "2026-10-12", "present": 80, "late": 10, "absent": 10 }, { "date": "2026-10-13", "present": 70, "late": 12, "absent": 18 } ],
+    "alerts": [ { "key": "attendance_decline", "level": "watch", "title": "الحضور في تراجع", "detail": "انخفضت نسبة الحضور ٩٪", "recommendation": "راجع" } ] } }
