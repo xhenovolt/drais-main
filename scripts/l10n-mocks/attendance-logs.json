@@ -1,0 +1,151 @@
+{
+ "/api/attendance/history": {
+  "success": true,
+  "data": [
+   {
+    "id": 1,
+    "check_time": "2026-10-13T07:42:10",
+    "person_name": "Amina Nakato",
+    "device_user_id": "1042",
+    "person_type": "student",
+    "role_type": "student",
+    "matched": 1,
+    "is_provisional": 0,
+    "person_id": 7,
+    "derived_event": "ARRIVED_LATE",
+    "derived_detail": "12 min late",
+    "class_name": "Primary Five",
+    "residency_status": "day",
+    "sms_status": "failed",
+    "confidence": {
+     "overall": {
+      "score": 92,
+      "band": "high",
+      "reason": "ok"
+     },
+     "identity": {
+      "score": 95,
+      "reason": "pin"
+     },
+     "time": {
+      "score": 90,
+      "reason": "ok"
+     },
+     "device": {
+      "score": 88,
+      "reason": "ok"
+     },
+     "policy": {
+      "score": 95,
+      "reason": "ok"
+     }
+    },
+    "presentation": {
+     "date": "13 Oct 2026",
+     "time": "07:42:10 AM",
+     "name": "Amina Nakato",
+     "category": "Learner",
+     "className": "Primary Five",
+     "residence": "Day",
+     "deviceId": "1042",
+     "verificationMethod": "Fingerprint",
+     "attendanceStatus": "Late arrival",
+     "statusDetail": "12 min late",
+     "matchStatus": "Matched"
+    }
+   },
+   {
+    "id": 2,
+    "check_time": "2026-10-13T07:42:10",
+    "person_name": null,
+    "device_user_id": "1042",
+    "person_type": "unmatched",
+    "role_type": "student",
+    "matched": 0,
+    "is_provisional": 0,
+    "person_id": 7,
+    "derived_event": null,
+    "derived_detail": "12 min late",
+    "class_name": "Primary Five",
+    "residency_status": "day",
+    "sms_status": "failed",
+    "confidence": {
+     "overall": {
+      "score": 92,
+      "band": "high",
+      "reason": "ok"
+     },
+     "identity": {
+      "score": 95,
+      "reason": "pin"
+     },
+     "time": {
+      "score": 90,
+      "reason": "ok"
+     },
+     "device": {
+      "score": 88,
+      "reason": "ok"
+     },
+     "policy": {
+      "score": 95,
+      "reason": "ok"
+     }
+    },
+    "presentation": {
+     "time": "07:50:00 AM",
+     "name": null,
+     "category": "Unmatched",
+     "attendanceStatus": "Scan",
+     "statusDetail": "—",
+     "matchStatus": "Unmatched",
+     "className": "—",
+     "date": "13 Oct 2026"
+    }
+   }
+  ],
+  "clock_corrections": [
+   {
+    "device_sn": "CQUH233560091",
+    "date": "2026-10-12",
+    "drift_hours": 3,
+    "affected": 40
+   }
+  ],
+  "clock_needs_review": [
+   {
+    "device_sn": "X1",
+    "date": "2026-10-11",
+    "reason": "Times jump backwards."
+   }
+  ],
+  "tab_counts": {
+   "all": 1240,
+   "learners": 1100,
+   "staff": 100,
+   "unmatched": 40
+  },
+  "pagination": {
+   "page": 1,
+   "limit": 50,
+   "total": 1240,
+   "totalPages": 25
+  }
+ },
+ "/api/devices/list": {
+  "data": [
+   {
+    "sn": "CQUH233560091",
+    "device_name": "Main gate"
+   }
+  ]
+ },
+ "/api/classes": {
+  "data": [
+   {
+    "id": 1,
+    "name": "Primary Five"
+   }
+  ]
+ }
+}

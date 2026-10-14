@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T10:43:23.013Z",
-  "last_commit": "b04839c8a6d6e3ec11035919d55a9668dbcdcc2e",
+  "generated_at": "2026-10-14T11:12:54.298Z",
+  "last_commit": "84ef16607ddf7d5bb2f9a0fc414f399e212faad9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9501,7 +9501,20 @@
         }
       ],
       "commit": "b04839c8a6"
+    },
+    {
+      "version": "2.50.68",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "/attendance fully Arabic — the residence/gender breakdown panel, device and punch labels, all counts and times",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance fully Arabic — the residence/gender breakdown panel, device and punch labels, all counts and times"
+        }
+      ],
+      "commit": "84ef16607d"
     }
   ],
-  "app_version": "2.50.68"
+  "app_version": "2.50.69"
 }

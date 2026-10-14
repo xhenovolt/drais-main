@@ -84,8 +84,9 @@ export function classifyArrival(args: {
 export async function buildAllowanceReport(
   schoolId: number,
   date: string, // YYYY-MM-DD school-local
+  lang: 'en' | 'ar' = 'en', // arrival/departure times in the interface language
 ): Promise<AllowanceReport> {
-  const formatter = await AttendanceFormatter.forSchool(schoolId);
+  const formatter = await AttendanceFormatter.forSchool(schoolId, { lang });
   const dayStartUtc = formatter.toUtcBoundary(date, 'start');
   const dayEndUtc = formatter.toUtcBoundary(date, 'end');
   // Recover the school offset from the boundary itself (start boundary is

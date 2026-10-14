@@ -52,6 +52,7 @@ fs.writeFileSync(entry, `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '${rel('src/components/i18n/I18nProvider.tsx')}';
+import { SWRConfig } from 'swr';
 import { useThemeStore } from '${rel('src/hooks/useThemeStore.ts')}';
 import * as Mod from '${rel(target)}';
 const Component = (Mod as any).default ?? Object.values(Mod).find((v) => typeof v === 'function');
@@ -64,7 +65,7 @@ class Boundary extends React.Component<{ children: React.ReactNode }, { err: str
   render() { return this.state.err ? <pre id="__render_error">{this.state.err}</pre> : this.props.children; }
 }
 createRoot(document.getElementById('root')!).render(
-  <Boundary><I18nProvider loadSchoolDefault={false}><Component {...props} /></I18nProvider></Boundary>
+  <Boundary><SWRConfig value={{ fetcher: (u: string) => fetch(u).then((r) => r.json()) }}><I18nProvider loadSchoolDefault={false}><Component {...props} /></I18nProvider></SWRConfig></Boundary>
 );
 `);
 

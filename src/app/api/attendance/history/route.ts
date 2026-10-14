@@ -5,6 +5,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
 import { ensureAttendanceEngineSchema } from '@/lib/attendance/migrations/attendance-tables-schema';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { langFromRequest } from '@/lib/i18n/localize';
 import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
 import { scoreRecord } from '@/lib/attendance/confidence-scoring';
 import { logAudit, AuditAction } from '@/lib/audit';
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
 
   try {
     await ensureAttendanceEngineSchema();
-    const formatter = await AttendanceFormatter.forSchool(schoolId);
+    const formatter = await AttendanceFormatter.forSchool(schoolId, { lang: langFromRequest(req) });
 
     const conditions: string[] = ['ar.school_id = ?'];
     const params: any[] = [schoolId];

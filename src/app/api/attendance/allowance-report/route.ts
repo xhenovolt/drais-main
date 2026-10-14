@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { schoolLocalToday } from '@/lib/datetime/local-date';
 import { getSessionSchoolId } from '@/lib/auth';
 import { buildAllowanceReport } from '@/lib/attendance/allowance';
+import { langFromRequest } from '@/lib/i18n/localize';
 
 export const runtime = 'nodejs';
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'date must be YYYY-MM-DD' }, { status: 400 });
   }
 
-  const report = await buildAllowanceReport(session.schoolId, date);
+  const report = await buildAllowanceReport(session.schoolId, date, langFromRequest(req));
 
   if (url.searchParams.get('format') === 'csv') {
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;

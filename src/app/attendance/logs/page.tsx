@@ -15,6 +15,7 @@ import { apiFetch } from '@/lib/apiClient';
 import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import { AttendanceExportService } from '@/lib/attendance/export/AttendanceExportService';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // DERIVED attendance meaning (from the state engine), NOT the device's
 // raw IN/OUT field. This is what operators should trust.
@@ -45,6 +46,7 @@ const SMS_CLASS: Record<string, string> = {
 /** "Why?" — the Explanation Engine (Phase 9). Every verdict explains itself:
  *  arrival vs cutoff, grace, difference, deciding policy, plain reason. */
 function ExplainButton({ personId, date, roleType }: { personId?: number | null; date?: string | null; roleType?: string | null }) {
+  const { t, lang, digits } = useI18n();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -64,12 +66,12 @@ function ExplainButton({ personId, date, roleType }: { personId?: number | null;
 
   return (
     <span className="relative inline-block">
-      <button onClick={toggle} title="Explain this verdict" className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 font-medium">
-        Why?
+      <button onClick={toggle} title={t('attendancePages.logs.explain.title')} className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 font-medium">
+        {t('attendancePages.logs.explain.why')}
       </button>
       {open && (
-        <div className="absolute z-30 mt-1 right-0 w-72 p-3 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-xl text-left">
-          {loading && <p className="text-xs text-gray-400">Explaining…</p>}
+        <div className="absolute z-30 mt-1 end-0 w-72 p-3 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-xl text-start">
+          {loading && <p className="text-xs text-gray-400">{t('attendancePages.logs.explain.loading')}</p>}
           {!loading && data && (
             <div className="space-y-2">
               <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{data.headline}</p>
@@ -82,10 +84,10 @@ function ExplainButton({ personId, date, roleType }: { personId?: number | null;
                 ))}
               </div>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-1.5">{data.reason}</p>
-              <p className="text-[10px] text-indigo-500">Policy: {data.policy}</p>
+              <p className="text-[10px] text-indigo-500">{t('attendancePages.logs.explain.policy', { policy: data.policy })}</p>
             </div>
           )}
-          {!loading && !data && <p className="text-xs text-gray-400">No verdict to explain for this day.</p>}
+          {!loading && !data && <p className="text-xs text-gray-400">{t('attendancePages.logs.explain.none')}</p>}
         </div>
       )}
     </span>
@@ -95,6 +97,7 @@ function ExplainButton({ personId, date, roleType }: { personId?: number | null;
 /** Per-record confidence chip (Phase 3). Hover shows the five sub-scores so an
  *  operator knows WHY a row is or isn't trustworthy. */
 function ConfidenceBadge({ confidence }: { confidence?: any }) {
+  const { t, lang, digits } = useI18n();
   if (!confidence?.overall) return null;
   const { overall, identity, device, time, policy } = confidence;
   const cls = overall.band === 'high'
@@ -103,28 +106,30 @@ function ConfidenceBadge({ confidence }: { confidence?: any }) {
       ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
       : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
   const tip = [
-    `Overall ${overall.score}% — ${overall.reason}`,
-    `· Identity ${identity.score}% (${identity.reason})`,
-    `· Time ${time.score}% (${time.reason})`,
-    `· Device ${device.score}% (${device.reason})`,
-    `· Policy ${policy.score}% (${policy.reason})`,
+    t('attendancePages.logs.confidence.overall', { score: overall.score, reason: overall.reason }),
+    t('attendancePages.logs.confidence.identity', { score: identity.score, reason: identity.reason }),
+    t('attendancePages.logs.confidence.time', { score: time.score, reason: time.reason }),
+    t('attendancePages.logs.confidence.device', { score: device.score, reason: device.reason }),
+    t('attendancePages.logs.confidence.policy', { score: policy.score, reason: policy.reason }),
   ].join('\n');
   return (
     <span title={tip} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${overall.band === 'high' ? 'bg-emerald-500' : overall.band === 'medium' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-      {overall.score}%
+      {lang === 'ar' ? `${digits(overall.score)}٪` : `${overall.score}%`}
     </span>
   );
 }
 
 function ProvisionalBadge({ isProvisional }: { isProvisional?: boolean | null }) {
+  const { t } = useI18n();
   if (!isProvisional) return null;
-  return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">Provisional</span>;
+  return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">{t('attendancePages.logs.provisional')}</span>;
 }
 function SmsPill({ status, matched, isProvisional }: { status: string | null; matched: number | boolean; isProvisional?: boolean | null }) {
-  if (!matched || isProvisional) return <span className="text-[10px] text-gray-400">SMS: skipped</span>;
-  if (!status) return <span className="text-[10px] text-gray-400">SMS: none</span>;
-  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SMS_CLASS[status] ?? 'bg-gray-100 text-gray-500'}`}>{SMS_LABEL[status] ?? `SMS ${status}`}</span>;
+  const { t } = useI18n();
+  if (!matched || isProvisional) return <span className="text-[10px] text-gray-400">{t('attendancePages.logs.sms.skipped')}</span>;
+  if (!status) return <span className="text-[10px] text-gray-400">{t('attendancePages.logs.sms.none')}</span>;
+  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SMS_CLASS[status] ?? 'bg-gray-100 text-gray-500'}`}>{SMS_LABEL[status] ? t(`attendancePages.logs.sms.${status}`) : t('attendancePages.logs.sms.other', { status })}</span>;
 }
 
 /** Per-row redundancy for the SMS Outbox's own bulk "Resend failed" button
@@ -134,6 +139,7 @@ function SmsPill({ status, matched, isProvisional }: { status: string | null; ma
  *  'failed'/'expired' — a resend is meaningless for any other status, and
  *  the backend itself refuses to touch anything else regardless. */
 function ResendSmsButton({ status, studentId, date }: { status: string | null; studentId?: number | null; date?: string | null }) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   if (!studentId || !date || (status !== 'failed' && status !== 'expired')) return null;
 
@@ -143,7 +149,7 @@ function ResendSmsButton({ status, studentId, date }: { status: string | null; s
       await apiFetch<any>('/api/admin/notifications/outbox/resend', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_id: studentId, date_from: date, date_to: date }),
-        successMessage: 'Message re-queued for sending',
+        successMessage: t('attendancePages.logs.resend.done'),
       });
     } catch { /* apiFetch surfaces the error toast */ }
     finally { setBusy(false); }
@@ -153,10 +159,10 @@ function ResendSmsButton({ status, studentId, date }: { status: string | null; s
     <button
       onClick={resend}
       disabled={busy}
-      title="Resend this SMS"
+      title={t('attendancePages.logs.resend.title')}
       className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50 font-medium"
     >
-      {busy ? 'Resending…' : 'Resend'}
+      {busy ? t('attendancePages.logs.resend.busy') : t('attendancePages.logs.resend.button')}
     </button>
   );
 }
@@ -236,6 +242,7 @@ function QuickAssignModal({
   deviceUserId: string;
   onAssigned: () => void;
 }) {
+  const { t, digits } = useI18n();
   const [userType, setUserType] = useState<'student' | 'staff'>('student');
   const [personSearch, setPersonSearch] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -258,19 +265,19 @@ function QuickAssignModal({
       return (studentsData?.data || []).map((s: any) => ({
         id: s.id || s.student_id,
         name: [s.first_name, s.last_name].filter(Boolean).join(' '),
-        detail: s.class_name || s.admission_number || `ID: ${s.id || s.student_id}`,
+        detail: s.class_name || s.admission_number || t('attendancePages.logs.idLabel', { id: s.id || s.student_id }),
       }));
     }
     return (staffData?.data || []).map((s: any) => ({
       id: s.id || s.staff_id,
       name: [s.first_name, s.last_name].filter(Boolean).join(' '),
-      detail: s.role || s.designation || `ID: ${s.id || s.staff_id}`,
+      detail: s.role || s.designation || t('attendancePages.logs.idLabel', { id: s.id || s.staff_id }),
     }));
-  }, [userType, studentsData, staffData]);
+  }, [userType, studentsData, staffData, t]);
 
   const handleSave = async () => {
     if (!selectedId) {
-      showToast('error', 'Select a person first');
+      showToast('error', t('attendancePages.logs.assign.selectFirst'));
       return;
     }
     setSaving(true);
@@ -284,7 +291,7 @@ function QuickAssignModal({
           student_id: userType === 'student' ? selectedId : undefined,
           staff_id: userType === 'staff' ? selectedId : undefined,
         }),
-        successMessage: 'Identity mapped successfully',
+        successMessage: t('attendancePages.logs.assign.mapped'),
       });
       onAssigned();
       onClose();
@@ -301,7 +308,7 @@ function QuickAssignModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Assign Identity</h3>
+          <h3 className="text-lg font-semibold">{t('attendancePages.logs.assign.title')}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
             <X className="w-5 h-5" />
           </button>
@@ -309,38 +316,38 @@ function QuickAssignModal({
 
         <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            Device User ID: <span className="font-mono font-bold">{deviceUserId}</span>
+            {t('attendancePages.logs.assign.deviceUserId', { id: deviceUserId })}
           </p>
           <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-            All unmatched logs with this ID will be retroactively matched.
+            {t('attendancePages.logs.assign.retro')}
           </p>
         </div>
 
         {/* Type selector */}
         <div className="flex gap-2 mb-4">
-          {(['student', 'staff'] as const).map((t) => (
+          {(['student', 'staff'] as const).map((ut) => (
             <button
-              key={t}
-              onClick={() => { setUserType(t); setPersonSearch(''); setSelectedId(null); }}
+              key={ut}
+              onClick={() => { setUserType(ut); setPersonSearch(''); setSelectedId(null); }}
               className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors
-                ${userType === t
+                ${userType === ut
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
             >
-              {t === 'student' ? 'Learner' : 'Staff'}
+              {ut === 'student' ? t('attendancePages.logs.role.learner') : t('attendancePages.logs.role.staff')}
             </button>
           ))}
         </div>
 
         {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder={`Search ${userType === 'student' ? 'learner' : 'staff'} by name...`}
+            placeholder={userType === 'student' ? t('attendancePages.logs.assign.searchLearner') : t('attendancePages.logs.assign.searchStaff')}
             value={personSearch}
             onChange={(e) => { setPersonSearch(e.target.value); setSelectedId(null); }}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-sm"
+            className="w-full ps-10 pe-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-sm"
             autoFocus
           />
         </div>
@@ -348,16 +355,16 @@ function QuickAssignModal({
         {/* Results */}
         <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg mb-4">
           {results.length === 0 && personSearch.length > 1 && (
-            <p className="text-center text-gray-400 text-sm py-4">No results</p>
+            <p className="text-center text-gray-400 text-sm py-4">{t('attendancePages.logs.assign.noResults')}</p>
           )}
           {results.length === 0 && personSearch.length <= 1 && (
-            <p className="text-center text-gray-400 text-sm py-4">Type to search...</p>
+            <p className="text-center text-gray-400 text-sm py-4">{t('attendancePages.logs.assign.typeToSearch')}</p>
           )}
           {results.map((r) => (
             <button
               key={r.id}
               onClick={() => setSelectedId(r.id)}
-              className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-gray-50
+              className={`w-full text-start px-3 py-2 flex items-center justify-between hover:bg-gray-50
                 dark:hover:bg-slate-700 border-b border-gray-100 dark:border-gray-700 last:border-0
                 ${selectedId === r.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
             >
@@ -376,14 +383,14 @@ function QuickAssignModal({
             onClick={onClose}
             className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700"
           >
-            Cancel
+            {t('attendancePages.logs.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedId || saving}
             className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {saving ? 'Saving...' : <><UserPlus className="w-4 h-4" /> Assign</>}
+            {saving ? t('attendancePages.logs.saving') : <><UserPlus className="w-4 h-4" /> {t('attendancePages.logs.assign.button')}</>}
           </button>
         </div>
       </div>
@@ -398,6 +405,7 @@ function QuickAssignModal({
 function CorrectIdentityModal({
   open, deviceUserId, currentName, onClose, onCorrected,
 }: { open: boolean; deviceUserId: string; currentName: string | null; onClose: () => void; onCorrected: () => void }) {
+  const { t, rich } = useI18n();
   const [tab, setTab] = useState<'reassign' | 'create'>('reassign');
   const [role, setRole] = useState<'staff' | 'student'>('staff');
   const [q, setQ] = useState('');
@@ -416,7 +424,7 @@ function CorrectIdentityModal({
     if (tab !== 'reassign' || q.trim().length < 2) { setResults([]); setSearching(false); setSearchErr(null); return; }
     let cancelled = false;
     setSearching(true); setSearchErr(null);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const url = role === 'staff'
           ? `/api/staff?search=${encodeURIComponent(q.trim())}&limit=10`
@@ -430,14 +438,14 @@ function CorrectIdentityModal({
           name: (s.display_name || [s.first_name, s.other_name, s.last_name].filter(Boolean).join(' ')).trim() || `#${s.id ?? '?'}`,
           detail: s.position || s.class_name || s.admission_no || s.staff_no || '',
         })).filter((r: any) => r.id != null));
-        if (!res.ok) setSearchErr(`Search failed (${res.status})`);
+        if (!res.ok) setSearchErr(t('attendancePages.logs.correct.searchFailed', { status: res.status }));
       } catch (e: any) {
-        if (!cancelled) setSearchErr(e?.message || 'Search error');
+        if (!cancelled) setSearchErr(e?.message || t('attendancePages.logs.correct.searchError'));
       } finally {
         if (!cancelled) setSearching(false);
       }
     }, 250);
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [q, role, tab]);
 
   // Preview the impact once a target is picked (Phase A — confirm on facts).
@@ -466,11 +474,11 @@ function CorrectIdentityModal({
         : { device_user_id: deviceUserId, new_role: role, new_ref_id: picked?.id, reason: reason.trim() || 'identity correction' };
       const r = await apiFetch('/api/attendance/identity-correction', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-        successMessage: tab === 'create' ? 'Person created and mapped' : 'Identity corrected — events preserved',
+        successMessage: tab === 'create' ? t('attendancePages.logs.correct.created') : t('attendancePages.logs.correct.corrected'),
       });
       if (r) onCorrected();
     } catch { /* apiFetch toasts */ } finally { setBusy(false); }
-  }, [tab, deviceUserId, role, newName, picked, reason, onCorrected]);
+  }, [tab, deviceUserId, role, newName, picked, reason, onCorrected, t]);
 
   const undoLast = useCallback(async () => {
     setBusy(true);
@@ -478,35 +486,35 @@ function CorrectIdentityModal({
       const r = await apiFetch('/api/attendance/identity-correction', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'undo_correction', device_user_id: deviceUserId }),
-        successMessage: 'Last correction undone — events restored to the previous owner',
+        successMessage: t('attendancePages.logs.correct.undone'),
       });
       if (r) onCorrected();
     } catch { /* toast */ } finally { setBusy(false); }
-  }, [deviceUserId, onCorrected]);
+  }, [deviceUserId, onCorrected, t]);
 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold">Correct identity</h3>
+          <h3 className="text-base font-semibold">{t('attendancePages.logs.correct.title')}</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 flex items-start justify-between gap-2">
-          <span>PIN <span className="font-mono font-bold">{deviceUserId}</span> currently maps to <span className="font-semibold">{currentName || 'someone'}</span>. The attendance events stay; only who they belong to changes (audited).</span>
-          <button onClick={undoLast} disabled={busy} title="Revert the most recent correction on this PIN" className="flex-shrink-0 text-[11px] px-2 py-0.5 rounded bg-white/70 dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 hover:bg-white font-medium disabled:opacity-50">Undo last</button>
+          <span>{rich('attendancePages.logs.correct.intro', { pin: <span className="font-mono font-bold">{deviceUserId}</span>, name: <span className="font-semibold">{currentName || t('attendancePages.logs.correct.someone')}</span> })}</span>
+          <button onClick={undoLast} disabled={busy} title={t('attendancePages.logs.correct.undoTitle')} className="flex-shrink-0 text-[11px] px-2 py-0.5 rounded bg-white/70 dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 hover:bg-white font-medium disabled:opacity-50">{t('attendancePages.logs.correct.undo')}</button>
         </div>
         <div className="flex gap-2">
-          {(['reassign', 'create'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${tab === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300'}`}>
-              {t === 'reassign' ? 'Existing person' : 'Create new'}
+          {(['reassign', 'create'] as const).map(tb => (
+            <button key={tb} onClick={() => setTab(tb)} className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${tab === tb ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300'}`}>
+              {tb === 'reassign' ? t('attendancePages.logs.correct.existing') : t('attendancePages.logs.correct.createNew')}
             </button>
           ))}
         </div>
         <div className="flex gap-2">
           {(['staff', 'student'] as const).map(r => (
             <button key={r} onClick={() => { setRole(r); setPicked(null); }} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${role === r ? 'bg-slate-800 text-white dark:bg-slate-600' : 'bg-gray-100 dark:bg-slate-700 text-gray-500'}`}>
-              {r === 'staff' ? 'Staff' : 'Learner'}
+              {r === 'staff' ? t('attendancePages.logs.role.staff') : t('attendancePages.logs.role.learner')}
             </button>
           ))}
         </div>
@@ -515,39 +523,39 @@ function CorrectIdentityModal({
           <div>
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900">
               <Search className="w-4 h-4 text-gray-400" />
-              <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} placeholder={`Search the correct ${role === 'staff' ? 'staff member' : 'learner'}…`} className="flex-1 bg-transparent text-sm outline-none" />
+              <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} placeholder={role === 'staff' ? t('attendancePages.logs.correct.searchStaff') : t('attendancePages.logs.correct.searchLearner')} className="flex-1 bg-transparent text-sm outline-none" />
             </div>
             <div className="max-h-40 overflow-y-auto mt-1 divide-y divide-gray-100 dark:divide-gray-700 border border-gray-100 dark:border-gray-700 rounded-lg">
-              {searching && <p className="px-2 py-2 text-xs text-gray-400 flex items-center gap-1.5"><RefreshCw className="w-3 h-3 animate-spin" /> Searching {role === 'staff' ? 'staff' : 'learners'}…</p>}
+              {searching && <p className="px-2 py-2 text-xs text-gray-400 flex items-center gap-1.5"><RefreshCw className="w-3 h-3 animate-spin" /> {role === 'staff' ? t('attendancePages.logs.correct.searchingStaff') : t('attendancePages.logs.correct.searchingLearners')}</p>}
               {searchErr && <p className="px-2 py-2 text-xs text-rose-500">{searchErr}</p>}
               {!searching && !searchErr && q.trim().length >= 2 && results.length === 0 && (
-                <p className="px-2 py-2 text-xs text-gray-400">No {role === 'staff' ? 'staff' : 'learners'} match “{q.trim()}”. Try the other role tab, a different spelling, or “Create new”.</p>
+                <p className="px-2 py-2 text-xs text-gray-400">{role === 'staff' ? t('attendancePages.logs.correct.noStaff', { q: q.trim() }) : t('attendancePages.logs.correct.noLearners', { q: q.trim() })}</p>
               )}
-              {!searching && q.trim().length < 2 && <p className="px-2 py-2 text-xs text-gray-400">Type at least 2 letters to search.</p>}
+              {!searching && q.trim().length < 2 && <p className="px-2 py-2 text-xs text-gray-400">{t('attendancePages.logs.correct.minLetters')}</p>}
               {results.map((r: any) => (
-                <button key={r.id} onClick={() => setPicked(r)} className={`w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 ${picked?.id === r.id ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}>
+                <button key={r.id} onClick={() => setPicked(r)} className={`w-full text-start px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 ${picked?.id === r.id ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}>
                   {r.name} {r.detail && <span className="text-xs text-gray-400">· {r.detail}</span>}
                 </button>
               ))}
             </div>
-            {picked && !preview && <p className="mt-1 text-[11px] text-gray-400">Selected: {picked.name} — checking impact…</p>}
+            {picked && !preview && <p className="mt-1 text-[11px] text-gray-400">{t('attendancePages.logs.correct.checking', { name: picked.name })}</p>}
             {picked && preview && (
               <div className="mt-1.5 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-[11px] text-indigo-800 dark:text-indigo-200">
-                This moves <span className="font-semibold">{preview.events} attendance event{preview.events === 1 ? '' : 's'}</span>
-                {preview.firstDate ? ` (${preview.firstDate}${preview.lastDate && preview.lastDate !== preview.firstDate ? ` → ${preview.lastDate}` : ''})` : ''} from{' '}
-                <span className="font-semibold">{preview.fromName || 'current owner'}</span> → <span className="font-semibold">{preview.toName || picked.name}</span>. Verdicts for both re-evaluate. Reversible with “Undo last”.
+                {rich('attendancePages.logs.correct.preview', { events: <span className="font-semibold">{t('attendancePages.logs.correct.events', { count: preview.events })}</span>, from: <span className="font-semibold">{preview.fromName || t('attendancePages.logs.correct.currentOwner')}</span>, to: <span className="font-semibold">{preview.toName || picked.name}</span> }, {
+                range: preview.firstDate ? ` (${preview.firstDate}${preview.lastDate && preview.lastDate !== preview.firstDate ? ` → ${preview.lastDate}` : ''})` : '' })}
+                
               </div>
             )}
-            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, for the audit trail)" className="w-full mt-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('attendancePages.logs.correct.reason')} className="w-full mt-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
           </div>
         ) : (
-          <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`New ${role === 'staff' ? 'staff' : 'learner'} full name`} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
+          <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={role === 'staff' ? t('attendancePages.logs.correct.newStaff') : t('attendancePages.logs.correct.newLearner')} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm" />
         )}
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500">{t('attendancePages.logs.cancel')}</button>
           <button onClick={submit} disabled={busy || (tab === 'reassign' ? !picked : !newName.trim())} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
-            {busy && <RefreshCw className="w-4 h-4 animate-spin" />}{tab === 'create' ? 'Create & map' : 'Apply correction'}
+            {busy && <RefreshCw className="w-4 h-4 animate-spin" />}{tab === 'create' ? t('attendancePages.logs.correct.createMap') : t('attendancePages.logs.correct.apply')}
           </button>
         </div>
       </div>
@@ -585,6 +593,7 @@ function useLiveFeed() {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function UnifiedAttendancePage() {
+  const { t, rich, lang, digits, formatNumber } = useI18n();
   const [tab, setTab] = useState<TabKey>('all');
   const [page, setPage] = useState(1);
   const [dateFrom, setDateFrom] = useState('');
@@ -624,8 +633,8 @@ export default function UnifiedAttendancePage() {
   // Debounce the search box → the server query (and its SWR key) only changes
   // after the user pauses typing, so keystrokes no longer each round-trip.
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 350);
+    return () => clearTimeout(timer);
   }, [searchInput]);
 
   // Datatable-style column sorting (server-side, whitelisted keys).
@@ -660,6 +669,7 @@ export default function UnifiedAttendancePage() {
   const params = useMemo(() => {
     const p = new URLSearchParams();
     p.set('tab', tab);
+    p.set('lang', lang); // server-formatted labels/dates follow the interface language
     p.set('page', String(page));
     p.set('limit', rowsPerPage);
     if (derivedFilter) p.set('derived', derivedFilter);
@@ -680,7 +690,7 @@ export default function UnifiedAttendancePage() {
     }
     return p.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, residence, timeframe, customTimeFrom, customTimeTo, rowsPerPage, derivedFilter, sortBy, sortDir]);
+  }, [lang, tab, page, dateFrom, dateTo, deviceSn, search, classId, gender, residence, timeframe, customTimeFrom, customTimeTo, rowsPerPage, derivedFilter, sortBy, sortDir]);
 
   const { data, isLoading, mutate } = useSWR<any>(
     `/api/attendance/history?${params}`,
@@ -737,7 +747,7 @@ export default function UnifiedAttendancePage() {
       ? [deviceSn]
       : devices.map((d: any) => d.sn).filter(Boolean);
     if (targets.length === 0) {
-      showToast('error', 'No devices registered for this school');
+      showToast('error', t('attendancePages.logs.detect.noDevices'));
       return;
     }
     setDetecting(true);
@@ -751,7 +761,7 @@ export default function UnifiedAttendancePage() {
         });
         const runData = await runRes.json();
         if (!runRes.ok) {
-          showToast('error', `${sn}: ${runData.error || 'matching failed'}`);
+          showToast('error', t('attendancePages.logs.detect.failed', { sn, error: runData.error || t('attendancePages.logs.detect.matchingFailed') }));
           continue;
         }
         review += Number(runData.report?.review || 0);
@@ -767,23 +777,23 @@ export default function UnifiedAttendancePage() {
         }
       }
       if (mapped > 0) {
-        showToast('success', `Auto-mapped ${mapped} ${mapped === 1 ? 'person' : 'people'} — old logs claimed retroactively`);
+        showToast('success', t('attendancePages.logs.detect.mapped', { count: mapped }));
       }
       if (review > 0) {
-        showToast('success', `${review} likely ${review === 1 ? 'match needs' : 'matches need'} your confirmation — opening review…`);
+        showToast('success', t('attendancePages.logs.detect.review', { count: review }));
         window.location.href = '/attendance/identity-matching';
         return;
       }
       if (mapped === 0 && review === 0) {
         showToast('error', unmatchedLeft > 0
-          ? `No name matches found for ${unmatchedLeft} device user${unmatchedLeft === 1 ? '' : 's'} — assign them manually or create the missing people`
-          : 'Nothing to detect — every device user is already mapped');
+          ? t('attendancePages.logs.detect.noneFound', { count: unmatchedLeft })
+          : t('attendancePages.logs.detect.nothing'));
       }
       mutate();
     } finally {
       setDetecting(false);
     }
-  }, [deviceSn, devices, mutate]);
+  }, [deviceSn, devices, mutate, t]);
 
   const handleExport = useCallback(async (format: 'csv' | 'excel') => {
     setExportingFormat(format);
@@ -799,7 +809,7 @@ export default function UnifiedAttendancePage() {
       const j = await r.json();
       const allRows = (j?.data || []).map((log: any) => log.presentation).filter(Boolean);
       if (allRows.length === 0) {
-        showToast('error', 'No attendance rows to export for the current filters');
+        showToast('error', t('attendancePages.logs.export.none'));
         return;
       }
       const scope = tab === 'staff' ? 'Staff' : tab === 'learners' ? 'Learners' : tab === 'unmatched' ? 'Unmatched' : 'All';
@@ -818,14 +828,14 @@ export default function UnifiedAttendancePage() {
         rows: allRows,
         heading,
       });
-      showToast('success', `Exported ${allRows.length.toLocaleString()} ${format === 'excel' ? 'rows (Excel)' : 'rows (CSV)'}`);
+      showToast('success', t('attendancePages.logs.export.done', { count: lang === 'ar' ? formatNumber(allRows.length) : allRows.length.toLocaleString(), what: format === 'excel' ? t('attendancePages.logs.export.rowsExcel') : t('attendancePages.logs.export.rowsCsv') }));
     } catch (error) {
       console.error('[Attendance Logs] Export failed:', error);
-      showToast('error', 'Failed to export attendance logs');
+      showToast('error', t('attendancePages.logs.export.failed'));
     } finally {
       setExportingFormat(null);
     }
-  }, [params, pagination.total, dateFrom, dateTo, tab, search, deviceSn, school?.name]);
+  }, [params, pagination.total, dateFrom, dateTo, tab, search, deviceSn, school?.name, t, lang, formatNumber]);
 
   const handleClearLogs = async () => {
     setClearing(true);
@@ -889,14 +899,14 @@ export default function UnifiedAttendancePage() {
   const handleCorrectSelected = async (shiftMinutes: number, label: string) => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
-    if (!window.confirm(`Shift the time of ${ids.length} selected punch(es) by ${label}? Original device times are preserved and this is undoable from Time Health.`)) return;
+    if (!window.confirm(t('attendancePages.logs.shift.confirm', { count: ids.length, label }))) return;
     setTimeCorrecting(true);
     try {
       const res = await apiFetch<any>('/api/attendance/time-health', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'correct_selected', ids, shift_minutes: shiftMinutes }),
       });
-      showToast('success', `Corrected ${res?.affected ?? ids.length} punch(es) · ${res?.reEvaluated ?? 0} day-verdicts refreshed`);
+      showToast('success', t('attendancePages.logs.shift.done', { count: res?.affected ?? ids.length, refreshed: res?.reEvaluated ?? 0 }));
       setSelectedIds(new Set());
       mutate();
     } catch { /* apiFetch surfaces the error toast */ }
@@ -906,7 +916,7 @@ export default function UnifiedAttendancePage() {
   const handleDeleteSelected = async () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
-    if (!window.confirm(`Permanently delete ${ids.length} attendance log(s)? Derived attendance for the affected days is recomputed. This cannot be undone.`)) return;
+    if (!window.confirm(t('attendancePages.logs.delete.confirm', { count: ids.length }))) return;
     setDeleting(true);
     try {
       const res = await apiFetch<any>('/api/attendance/logs/delete', {
@@ -914,7 +924,7 @@ export default function UnifiedAttendancePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, confirm: true }),
       });
-      showToast('success', `Deleted ${res?.deleted ?? ids.length} log(s)`);
+      showToast('success', t('attendancePages.logs.delete.done', { count: res?.deleted ?? ids.length }));
       setSelectedIds(new Set());
       mutate();
     } catch {
@@ -930,8 +940,8 @@ export default function UnifiedAttendancePage() {
         {/* ── Header — compact, ERP-style ─────────────────────────────── */}
         <div className="mb-3 flex items-center gap-2">
           <Fingerprint className="w-5 h-5 text-indigo-600" />
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white">Attendance Logs</h1>
-          <span className="text-xs text-gray-400 hidden sm:inline">— persisted biometric history</span>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('attendancePages.logs.title')}</h1>
+          <span className="text-xs text-gray-400 hidden sm:inline">{t('attendancePages.logs.subtitle')}</span>
         </div>
 
         {/* ── Live Feed (collapsed by default — data first) ───────────── */}
@@ -942,14 +952,14 @@ export default function UnifiedAttendancePage() {
           >
             <div className="flex items-center gap-2">
               <Radio className={`w-4 h-4 ${sseConnected ? 'text-green-500 animate-pulse' : 'text-red-400'}`} />
-              <span className="text-sm font-medium">Live Feed</span>
+              <span className="text-sm font-medium">{t('attendancePages.logs.live.title')}</span>
               <span className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-400'}`} />
               <span className="text-xs text-gray-400">
-                {sseConnected ? 'Connected' : 'Reconnecting...'}
+                {sseConnected ? t('attendancePages.logs.live.connected') : t('attendancePages.logs.live.reconnecting')}
               </span>
               {liveEvents.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">
-                  {liveEvents.length} new
+                <span className="ms-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">
+                  {t('attendancePages.logs.live.new', { count: liveEvents.length })}
                 </span>
               )}
             </div>
@@ -958,11 +968,11 @@ export default function UnifiedAttendancePage() {
           {liveFeedOpen && (
             <div className="max-h-48 overflow-y-auto border-t border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
               <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-900/40">
-                Realtime only. Historical logs stay in the table below even if the device is offline.
+                {t('attendancePages.logs.live.note')}
               </div>
               {liveEvents.length === 0 && (
                 <p className="px-4 py-6 text-center text-sm text-gray-400">
-                  Waiting for new attendance events...
+                  {t('attendancePages.logs.live.waiting')}
                 </p>
               )}
               {liveEvents.map((ev, i) => (
@@ -974,16 +984,16 @@ export default function UnifiedAttendancePage() {
                   {ev.person_name ? (
                     <span className="font-medium">{ev.presentation?.name || ev.person_name}</span>
                   ) : (
-                    <span className="text-amber-600 font-mono text-xs">{ev.presentation?.name || `UID: ${ev.device_user_id}`}</span>
+                    <span className="text-amber-600 font-mono text-xs">{ev.presentation?.name || t('attendancePages.dash.uid', { uid: ev.device_user_id })}</span>
                   )}
                   <span className={`px-1.5 py-0.5 rounded text-xs
                     ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
                       : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                    {ev.presentation?.category || (ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched')}
+                    {ev.presentation?.category || (ev.person_type === 'student' ? t('attendancePages.logs.role.learner') : ev.person_type === 'staff' ? t('attendancePages.logs.role.staff') : t('attendancePages.logs.role.unmatched'))}
                   </span>
                   {ev.class_name && <span className="text-xs text-gray-400">{ev.presentation?.className || ev.class_name}</span>}
-                  {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
+                  {ev.device_name && <span className="text-xs text-gray-400 ms-auto">{ev.device_name}</span>}
                 </div>
               ))}
             </div>
@@ -992,7 +1002,7 @@ export default function UnifiedAttendancePage() {
 
         {/* ── Tab Bar ────────────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-2 mb-6">
-          {TABS.map(({ key, label, icon: Icon }) => {
+          {TABS.map(({ key, icon: Icon }) => {
             const count = tabCounts[key] ?? 0;
             const active = tab === key;
             return (
@@ -1005,15 +1015,15 @@ export default function UnifiedAttendancePage() {
                     : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-gray-700'}`}
               >
                 <Icon className="w-4 h-4" />
-                {label}
-                <span className={`ml-1 px-2 py-0.5 text-xs rounded-full
+                {t(`attendancePages.logs.tab.${key}`)}
+                <span className={`ms-1 px-2 py-0.5 text-xs rounded-full
                   ${active
                     ? 'bg-white/20 text-white'
                     : key === 'unmatched' && count > 0
                       ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
                       : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400'}`}
                 >
-                  {count.toLocaleString()}
+                  {lang === 'ar' ? formatNumber(count) : count.toLocaleString()}
                 </span>
               </button>
             );
@@ -1024,19 +1034,19 @@ export default function UnifiedAttendancePage() {
         <div className="mb-3">
           <FilterAccordion
             chips={[
-              timeframe !== 'all' ? { key: 'time', label: timeframe === 'custom' ? `Time ${customTimeFrom || '…'}–${customTimeTo || '…'}` : (TIMEFRAMES[timeframe]?.label ?? timeframe), onRemove: () => { setTimeframe('all'); setCustomTimeFrom(''); setCustomTimeTo(''); setPage(1); } } : null,
-              derivedFilter ? { key: 'derived', label: `Arrival: ${derivedFilter === 'ontime' ? 'on time / early' : derivedFilter}`, onRemove: () => { setDerivedFilter(''); setPage(1); } } : null,
-              deviceSn ? { key: 'device', label: `Device: ${devices.find((d: any) => d.sn === deviceSn)?.device_name || deviceSn}`, onRemove: () => { setDeviceSn(''); setPage(1); } } : null,
-              classId ? { key: 'class', label: `Class: ${classes.find((c: any) => String(c.id) === String(classId))?.name || classId}`, onRemove: () => { setClassId(''); setPage(1); } } : null,
-              gender ? { key: 'gender', label: `Gender: ${gender === 'male' ? 'Boys' : 'Girls'}`, onRemove: () => { setGender(''); setPage(1); } } : null,
-              residence ? { key: 'res', label: `Residence: ${residence === 'boarding' ? 'Boarding' : 'Day scholars'}`, onRemove: () => { setResidence(''); setPage(1); } } : null,
+              timeframe !== 'all' ? { key: 'time', label: timeframe === 'custom' ? t('attendancePages.logs.chip.time', { from: customTimeFrom || '…', to: customTimeTo || '…' }) : (TIMEFRAMES[timeframe] ? t(`attendancePages.logs.tf.${timeframe}`) : timeframe), onRemove: () => { setTimeframe('all'); setCustomTimeFrom(''); setCustomTimeTo(''); setPage(1); } } : null,
+              derivedFilter ? { key: 'derived', label: t('attendancePages.logs.chip.arrival', { value: derivedFilter === 'ontime' ? t('attendancePages.logs.chip.ontimeEarly') : t(`attendancePages.logs.chip.arrivalValue.${derivedFilter}`, derivedFilter) }), onRemove: () => { setDerivedFilter(''); setPage(1); } } : null,
+              deviceSn ? { key: 'device', label: t('attendancePages.logs.chip.device', { name: devices.find((d: any) => d.sn === deviceSn)?.device_name || deviceSn }), onRemove: () => { setDeviceSn(''); setPage(1); } } : null,
+              classId ? { key: 'class', label: t('attendancePages.logs.chip.class', { name: classes.find((c: any) => String(c.id) === String(classId))?.name || classId }), onRemove: () => { setClassId(''); setPage(1); } } : null,
+              gender ? { key: 'gender', label: gender === 'male' ? t('attendancePages.logs.chip.genderBoys') : t('attendancePages.logs.chip.genderGirls'), onRemove: () => { setGender(''); setPage(1); } } : null,
+              residence ? { key: 'res', label: residence === 'boarding' ? t('attendancePages.logs.chip.residenceBoarding') : t('attendancePages.logs.chip.residenceDay'), onRemove: () => { setResidence(''); setPage(1); } } : null,
             ].filter(Boolean) as FilterChip[]}
             onClear={() => {
               setTimeframe('all'); setCustomTimeFrom(''); setCustomTimeTo(''); setDerivedFilter(''); setDeviceSn('');
               setClassId(''); setGender(''); setResidence(''); setPage(1);
             }}
           >
-            <FilterField label="Time of day">
+            <FilterField label={t('attendancePages.logs.f.timeOfDay')}>
               <select
                 value={timeframe} className={filterInputCls}
                 onChange={(e) => {
@@ -1047,11 +1057,11 @@ export default function UnifiedAttendancePage() {
                   }
                 }}
               >
-                <option value="all">All day</option>
-                <option value="morning">Morning</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
-                <option value="custom">Custom time…</option>
+                <option value="all">{t('attendancePages.logs.f.allDay')}</option>
+                <option value="morning">{t('attendancePages.logs.tf.morning')}</option>
+                <option value="afternoon">{t('attendancePages.logs.tf.afternoon')}</option>
+                <option value="evening">{t('attendancePages.logs.tf.evening')}</option>
+                <option value="custom">{t('attendancePages.logs.f.customTime')}</option>
               </select>
               {timeframe === 'custom' && (
                 <div className="flex items-center gap-1 mt-1">
@@ -1061,43 +1071,43 @@ export default function UnifiedAttendancePage() {
                 </div>
               )}
             </FilterField>
-            <FilterField label="Arrival status">
+            <FilterField label={t('attendancePages.logs.f.arrival')}>
               <select value={derivedFilter} onChange={(e) => { setDerivedFilter(e.target.value as any); setPage(1); }} className={filterInputCls}>
-                <option value="">All</option>
-                <option value="late">Late only</option>
-                <option value="early">Early only</option>
-                <option value="ontime">On time / early</option>
+                <option value="">{t('attendancePages.logs.f.all')}</option>
+                <option value="late">{t('attendancePages.logs.f.lateOnly')}</option>
+                <option value="early">{t('attendancePages.logs.f.earlyOnly')}</option>
+                <option value="ontime">{t('attendancePages.logs.f.onTimeEarly')}</option>
               </select>
             </FilterField>
-            <FilterField label="Residence">
+            <FilterField label={t('attendancePages.logs.f.residence')}>
               <select value={residence} onChange={(e) => { setResidence(e.target.value as any); setPage(1); }} className={filterInputCls}>
-                <option value="">All learners</option>
-                <option value="day">Day scholars</option>
-                <option value="boarding">Boarding</option>
+                <option value="">{t('attendancePages.logs.f.allLearners')}</option>
+                <option value="day">{t('attendancePages.logs.f.dayScholars')}</option>
+                <option value="boarding">{t('attendancePages.logs.f.boarding')}</option>
               </select>
             </FilterField>
-            <FilterField label="Gender">
+            <FilterField label={t('attendancePages.logs.f.gender')}>
               <select value={gender} onChange={(e) => { setGender(e.target.value); setPage(1); }} className={filterInputCls}>
-                <option value="">All</option>
-                <option value="male">Boys</option>
-                <option value="female">Girls</option>
+                <option value="">{t('attendancePages.logs.f.all')}</option>
+                <option value="male">{t('attendancePages.logs.f.boys')}</option>
+                <option value="female">{t('attendancePages.logs.f.girls')}</option>
               </select>
             </FilterField>
-            <FilterField label="Class">
+            <FilterField label={t('attendancePages.logs.f.class')}>
               <select value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1); }} className={filterInputCls}>
-                <option value="">All classes</option>
+                <option value="">{t('attendancePages.logs.f.allClasses')}</option>
                 {classes.map((c: any) => (<option key={c.id} value={c.id}>{c.name}</option>))}
               </select>
             </FilterField>
-            <FilterField label="Device">
+            <FilterField label={t('attendancePages.logs.f.device')}>
               <select value={deviceSn} onChange={(e) => { setDeviceSn(e.target.value); setPage(1); }} className={filterInputCls}>
-                <option value="">All devices</option>
+                <option value="">{t('attendancePages.logs.f.allDevices')}</option>
                 {devices.map((d: any) => (<option key={d.sn || d.id} value={d.sn}>{d.device_name || d.sn}</option>))}
               </select>
             </FilterField>
-            <FilterField label="Rows per page">
+            <FilterField label={t('attendancePages.logs.f.rowsPerPage')}>
               <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(e.target.value); setPage(1); }} className={filterInputCls}>
-                {['10', '20', '50', '100', '250', 'all'].map(n => (<option key={n} value={n}>{n === 'all' ? 'All rows' : `${n} rows`}</option>))}
+                {['10', '20', '50', '100', '250', 'all'].map(n => (<option key={n} value={n}>{n === 'all' ? t('attendancePages.logs.f.allRows') : t('attendancePages.logs.f.nRows', { n })}</option>))}
               </select>
             </FilterField>
           </FilterAccordion>
@@ -1113,11 +1123,11 @@ export default function UnifiedAttendancePage() {
               else if (v !== 'customdate') { const r = quickRange(v); setDateFrom(r.from); setDateTo(r.to); }
             }}
             className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
-            title="Date"
+            title={t('attendancePages.logs.bar.date')}
           >
-            <option value="all">All time</option>
-            {QUICK_DATES.map(q => <option key={q.key} value={q.key}>{q.label}</option>)}
-            <option value="customdate">Custom range…</option>
+            <option value="all">{t('attendancePages.logs.bar.allTime')}</option>
+            {QUICK_DATES.map(q => <option key={q.key} value={q.key}>{t(`attendancePages.logs.quick.${q.key}`)}</option>)}
+            <option value="customdate">{t('attendancePages.logs.bar.customRange')}</option>
           </select>
           {datePreset === 'customdate' && (
             <>
@@ -1131,11 +1141,11 @@ export default function UnifiedAttendancePage() {
 
 
           <div className="relative flex-1 min-w-36 max-w-56">
-            <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
+            <Search className="absolute start-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
             <input
-              type="text" placeholder="Name or User ID…" value={searchInput}
+              type="text" placeholder={t('attendancePages.logs.bar.search')} value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
+              className="w-full ps-8 pe-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
             />
           </div>
 
@@ -1146,7 +1156,7 @@ export default function UnifiedAttendancePage() {
               : 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
           >
             <Briefcase className="w-3.5 h-3.5" />
-            Allowance
+            {t('attendancePages.logs.bar.allowance')}
           </button>
 
           <div className="relative">
@@ -1154,31 +1164,31 @@ export default function UnifiedAttendancePage() {
               onClick={() => setShowActions(v => !v)}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700"
             >
-              Actions <ChevronDown className="w-3.5 h-3.5" />
+              {t('attendancePages.logs.bar.actions')} <ChevronDown className="w-3.5 h-3.5" />
             </button>
             {showActions && (
-              <div className="absolute right-0 z-30 mt-1 w-52 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-lg py-1 text-sm"
+              <div className="absolute end-0 z-30 mt-1 w-52 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-lg py-1 text-sm"
                 onMouseLeave={() => setShowActions(false)}>
                 <button onClick={() => { setShowActions(false); mutate(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-left">
-                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-start">
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> {t('attendancePages.logs.bar.refresh')}
                 </button>
                 <button onClick={() => { setShowActions(false); handleExport('excel'); }} disabled={exportingFormat !== null}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-left disabled:opacity-50">
-                  <Download className="w-4 h-4" /> Export visible (Excel)
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-start disabled:opacity-50">
+                  <Download className="w-4 h-4" /> {t('attendancePages.logs.bar.exportExcel')}
                 </button>
                 <button onClick={() => { setShowActions(false); handleExport('csv'); }} disabled={exportingFormat !== null}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-left disabled:opacity-50">
-                  <Download className="w-4 h-4" /> Export visible (CSV)
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-start disabled:opacity-50">
+                  <Download className="w-4 h-4" /> {t('attendancePages.logs.bar.exportCsv')}
                 </button>
                 <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
                 <button onClick={() => { setShowActions(false); setClearConfirmText(''); setShowClearModal(true); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left">
-                  <Trash2 className="w-4 h-4" /> Clear all logs…
+                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-start">
+                  <Trash2 className="w-4 h-4" /> {t('attendancePages.logs.bar.clearAll')}
                 </button>
                 <button onClick={() => { setShowActions(false); setResetConfirmText(''); setShowResetModal(true); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left">
-                  <Fingerprint className="w-4 h-4" /> Reset biometrics…
+                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-start">
+                  <Fingerprint className="w-4 h-4" /> {t('attendancePages.logs.bar.resetBio')}
                 </button>
               </div>
             )}
@@ -1186,23 +1196,23 @@ export default function UnifiedAttendancePage() {
 
           {selectedIds.size > 0 && (
             <div className="w-full flex items-center gap-2 pt-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400">{selectedIds.size} selected</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t('attendancePages.logs.sel.count', { count: selectedIds.size })}</span>
               {/* Selective time correction — fix only these punches' times */}
-              <span className="text-xs text-gray-400 hidden sm:inline">Correct time:</span>
-              <button onClick={() => handleCorrectSelected(12 * 60, '+12h (AM→PM)')} disabled={timeCorrecting}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50" title="Shift selected punches forward 12 hours (AM read as PM)">
-                {timeCorrecting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />} +12h
+              <span className="text-xs text-gray-400 hidden sm:inline">{t('attendancePages.logs.sel.correctTime')}</span>
+              <button onClick={() => handleCorrectSelected(12 * 60, t('attendancePages.logs.sel.plus12Label'))} disabled={timeCorrecting}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50" title={t('attendancePages.logs.sel.plus12Title')}>
+                {timeCorrecting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />} {t('attendancePages.logs.sel.plus12')}
               </button>
-              <button onClick={() => handleCorrectSelected(-12 * 60, '−12h (PM→AM)')} disabled={timeCorrecting}
-                className="px-2.5 py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50" title="Shift selected punches back 12 hours">−12h</button>
+              <button onClick={() => handleCorrectSelected(-12 * 60, t('attendancePages.logs.sel.minus12Label'))} disabled={timeCorrecting}
+                className="px-2.5 py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50" title={t('attendancePages.logs.sel.minus12Title')}>{t('attendancePages.logs.sel.minus12')}</button>
               <button onClick={() => {
-                const h = window.prompt('Shift the selected punches by how many hours? (e.g. 5, -3, 1.5)');
+                const h = window.prompt(t('attendancePages.logs.sel.prompt'));
                 if (h == null) return;
                 const mins = Math.round(parseFloat(h) * 60);
-                if (!Number.isFinite(mins) || mins === 0) { showToast('error', 'Enter a non-zero number of hours'); return; }
-                handleCorrectSelected(mins, `${mins > 0 ? '+' : ''}${mins / 60}h`);
+                if (!Number.isFinite(mins) || mins === 0) { showToast('error', t('attendancePages.logs.sel.nonZero')); return; }
+                handleCorrectSelected(mins, t('attendancePages.logs.sel.hoursLabel', { sign: mins > 0 ? '+' : '', hours: mins / 60 }));
               }} disabled={timeCorrecting}
-                className="px-2.5 py-1.5 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-300 text-xs font-medium disabled:opacity-50">Shift…</button>
+                className="px-2.5 py-1.5 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-300 text-xs font-medium disabled:opacity-50">{t('attendancePages.logs.sel.shift')}</button>
               <span className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5" />
               <button
                 onClick={handleDeleteSelected}
@@ -1210,11 +1220,11 @@ export default function UnifiedAttendancePage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium disabled:opacity-50"
               >
                 {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                Delete selected
+                {t('attendancePages.logs.sel.delete')}
               </button>
               <button onClick={() => setSelectedIds(new Set())}
                 className="px-2 py-1.5 rounded-lg text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-                Clear
+                {t('attendancePages.logs.sel.clear')}
               </button>
             </div>
           )}
@@ -1224,45 +1234,45 @@ export default function UnifiedAttendancePage() {
           <div className="card bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-6 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="font-semibold text-gray-900 dark:text-white">
-                Allowance Eligibility — {allowanceDate}
+                {t('attendancePages.logs.allow.title', { date: digits(allowanceDate) })}
               </h2>
               {allowanceData?.summary && (
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-semibold">{allowanceData.summary.eligible} eligible</span>
-                  <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-semibold">{allowanceData.summary.late} late</span>
-                  <span className="px-2 py-1 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{allowanceData.summary.absent} absent</span>
-                  <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{allowanceData.summary.checkoutMissing} missing checkout</span>
+                  <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-semibold">{t('attendancePages.logs.allow.eligible', { count: allowanceData.summary.eligible })}</span>
+                  <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-semibold">{t('attendancePages.logs.allow.late', { count: allowanceData.summary.late })}</span>
+                  <span className="px-2 py-1 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{t('attendancePages.logs.allow.absent', { count: allowanceData.summary.absent })}</span>
+                  <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('attendancePages.logs.allow.missingCheckout', { count: allowanceData.summary.checkoutMissing })}</span>
                 </div>
               )}
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ms-auto flex items-center gap-2">
                 <select
                   value={allowanceFilter}
                   onChange={(e) => setAllowanceFilter(e.target.value as any)}
                   className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-xs"
                 >
-                  <option value="all">Everyone</option>
-                  <option value="eligible">Allowance: eligible only</option>
-                  <option value="rejected">Allowance: rejected only</option>
+                  <option value="all">{t('attendancePages.logs.allow.everyone')}</option>
+                  <option value="eligible">{t('attendancePages.logs.allow.eligibleOnly')}</option>
+                  <option value="rejected">{t('attendancePages.logs.allow.rejectedOnly')}</option>
                 </select>
                 <a
                   href={`/api/attendance/allowance-report?date=${allowanceDate}&format=csv`}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
                 >
-                  <Download className="w-3.5 h-3.5" /> Export CSV
+                  <Download className="w-3.5 h-3.5" /> {t('attendancePages.logs.allow.exportCsv')}
                 </a>
               </div>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Decided from the school&apos;s own attendance rules: arrival before the reporting cutoff = eligible;
-              crossing the late threshold or absence = not eligible. Uses the day selected above — pick a quick
-              date chip (e.g. Today, Last Friday) to change it.
+              {t('attendancePages.logs.allow.explain')}
+              
+              
             </p>
             <div className="overflow-x-auto max-h-[28rem] overflow-y-auto border border-gray-100 dark:border-gray-700 rounded-lg">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-gray-50 dark:bg-slate-900 z-10">
                   <tr>
                     {['Employee', 'Designation', 'Department', 'Arrival', 'Departure', 'Status', 'Allowance'].map(h => (
-                      <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                      <th key={h} className="px-3 py-2 text-start text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{t(`attendancePages.logs.allow.col.${h}`)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1279,20 +1289,20 @@ export default function UnifiedAttendancePage() {
                         <td className="px-3 py-2 font-medium text-gray-900 dark:text-white whitespace-nowrap">{r.name}</td>
                         <td className="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">{r.designation || '—'}</td>
                         <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{r.department || '—'}</td>
-                        <td className="px-3 py-2 font-mono text-gray-900 dark:text-white whitespace-nowrap">{r.arrival || '—'}</td>
+                        <td className="px-3 py-2 font-mono text-gray-900 dark:text-white whitespace-nowrap">{r.arrival ? digits(r.arrival) : '—'}</td>
                         <td className="px-3 py-2 font-mono text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                          {r.departure || (r.checkoutMissing && r.arrivalStatus !== 'ABSENT'
-                            ? <span className="text-amber-600 dark:text-amber-400 text-xs font-sans">MISSING CHECKOUT</span> : '—')}
+                          {(r.departure && digits(r.departure)) || (r.checkoutMissing && r.arrivalStatus !== 'ABSENT'
+                            ? <span className="text-amber-600 dark:text-amber-400 text-xs font-sans">{t('attendancePages.logs.allow.missing')}</span> : '—')}
                         </td>
                         <td className="px-3 py-2">
                           <span className={`px-2 py-0.5 rounded text-xs font-semibold ${ARRIVAL_BADGE[r.arrivalStatus] || ''}`}>
-                            {r.arrivalStatus.replace('_', ' ')}{r.arrivalStatus === 'LATE' && r.lateMinutes ? ` +${r.lateMinutes}m` : ''}
+                            {t(`attendancePages.logs.allow.status.${r.arrivalStatus}`, r.arrivalStatus.replace('_', ' '))}{r.arrivalStatus === 'LATE' && r.lateMinutes ? t('attendancePages.logs.allow.lateMinutes', { n: r.lateMinutes }) : ''}
                           </span>
                         </td>
                         <td className="px-3 py-2">
                           {r.allowance
-                            ? <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold text-xs"><Check className="w-3.5 h-3.5" /> YES</span>
-                            : <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-bold text-xs"><X className="w-3.5 h-3.5" /> NO</span>}
+                            ? <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold text-xs"><Check className="w-3.5 h-3.5" /> {t('attendancePages.logs.allow.yes')}</span>
+                            : <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-bold text-xs"><X className="w-3.5 h-3.5" /> {t('attendancePages.logs.allow.no')}</span>}
                         </td>
                       </tr>
                     ))}
@@ -1312,10 +1322,10 @@ export default function UnifiedAttendancePage() {
           <div className="mb-2 px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-xs">
             {data.clock_corrections.map((c: any) => (
               <div key={`${c.device_sn}-${c.date}`} className="text-emerald-900 dark:text-emerald-200">
-                <span className="font-semibold">Times corrected automatically.</span>{' '}
-                {c.device_sn} was {Math.abs(c.drift_hours)}h {c.drift_hours >= 0 ? 'fast' : 'slow'} on {c.date} —{' '}
-                {c.affected} punch{c.affected === 1 ? '' : 'es'} adjusted before this list was drawn.{' '}
-                <a href="/attendance/time-health" className="underline font-medium">review or undo</a>
+                <span className="font-semibold">{t('attendancePages.logs.clock.corrected')}</span>{' '}
+                {t('attendancePages.logs.clock.correctedBody', { device: c.device_sn, hours: Math.abs(c.drift_hours), dir: c.drift_hours >= 0 ? t('attendancePages.logs.clock.fast') : t('attendancePages.logs.clock.slow'), date: c.date, punches: t('attendancePages.logs.clock.punches', { count: c.affected }) })}{' '}
+                
+                <a href="/attendance/time-health" className="underline font-medium">{t('attendancePages.logs.clock.reviewUndo')}</a>
               </div>
             ))}
           </div>
@@ -1324,9 +1334,9 @@ export default function UnifiedAttendancePage() {
           <div className="mb-2 px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-xs">
             {data.clock_needs_review.map((c: any) => (
               <div key={`${c.device_sn}-${c.date}`} className="text-amber-900 dark:text-amber-200">
-                <span className="font-semibold">These times look wrong, but DRAIS would not guess.</span>{' '}
+                <span className="font-semibold">{t('attendancePages.logs.clock.noGuess')}</span>{' '}
                 {c.reason}{' '}
-                <a href="/attendance/time-health" className="underline font-medium">check before printing</a>
+                <a href="/attendance/time-health" className="underline font-medium">{t('attendancePages.logs.clock.checkBefore')}</a>
               </div>
             ))}
           </div>
@@ -1339,15 +1349,15 @@ export default function UnifiedAttendancePage() {
             <AlertTriangle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
             {timeAnomaly && (
               <span className="text-rose-800 dark:text-rose-200">
-                Clock drift on {timeAnomaly.device_sn} ({timeAnomaly.driftConfidence}%) —{' '}
-                <a href="/attendance/time-health" className="underline font-medium">fix time</a>
+                {t('attendancePages.logs.clock.drift', { device: timeAnomaly.device_sn, pct: timeAnomaly.driftConfidence })}{' '}
+                <a href="/attendance/time-health" className="underline font-medium">{t('attendancePages.logs.clock.fixTime')}</a>
               </span>
             )}
             {timeAnomaly && recoveryGap && <span className="text-rose-300">·</span>}
             {recoveryGap && (
               <span className="text-rose-800 dark:text-rose-200">
-                Gap on {recoveryGap.device_name || recoveryGap.device_sn} —{' '}
-                <a href="/attendance/recovery" className="underline font-medium">recover</a>
+                {t('attendancePages.logs.gap.on', { device: recoveryGap.device_name || recoveryGap.device_sn })}{' '}
+                <a href="/attendance/recovery" className="underline font-medium">{t('attendancePages.logs.gap.recover')}</a>
               </span>
             )}
           </div>
@@ -1357,10 +1367,10 @@ export default function UnifiedAttendancePage() {
         <div className="mb-1.5"><ClockHealthBadges /></div>
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-sm text-gray-500">
-            {pagination.total.toLocaleString()} records
+            {t('attendancePages.logs.records', { count: lang === 'ar' ? formatNumber(pagination.total) : pagination.total.toLocaleString() })}
             {tab === 'unmatched' && pagination.total > 0 && (
-              <span className="ml-2 text-red-600 font-medium">
-                — requires identity assignment
+              <span className="ms-2 text-red-600 font-medium">
+                {t('attendancePages.logs.needsIdentity')}
               </span>
             )}
           </p>
@@ -1371,17 +1381,17 @@ export default function UnifiedAttendancePage() {
                   onClick={handleDetectAndMap}
                   disabled={detecting}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
-                  title="Match device user names against DRAIS staff/learners automatically"
+                  title={t('attendancePages.logs.detect.title')}
                 >
                   {detecting
-                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Detecting…</>
-                    : <><Wand2 className="w-3.5 h-3.5" /> Detect &amp; map</>}
+                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('attendancePages.logs.detect.running')}</>
+                    : <><Wand2 className="w-3.5 h-3.5" /> {t('attendancePages.logs.detect.button')}</>}
                 </button>
                 <a
                   href="/attendance/identity-matching"
                   className="text-xs text-violet-600 dark:text-violet-400 hover:underline whitespace-nowrap"
                 >
-                  Review queue
+                  {t('attendancePages.logs.reviewQueue')}
                 </a>
               </>
             )}
@@ -1394,11 +1404,11 @@ export default function UnifiedAttendancePage() {
           {isLoading && logs.length === 0 && (
             <div className="text-center py-8 text-gray-400">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-              Loading...
+              {t('attendancePages.logs.loading')}
             </div>
           )}
           {!isLoading && logs.length === 0 && (
-            <div className="text-center py-8 text-gray-400 text-sm">No records found.</div>
+            <div className="text-center py-8 text-gray-400 text-sm">{t('attendancePages.logs.noRecords')}</div>
           )}
           {logs.map((log: any) => {
             const presentation = log.presentation;
@@ -1422,7 +1432,7 @@ export default function UnifiedAttendancePage() {
                     {log.person_name ? (
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{presentation?.name || log.person_name}</p>
                     ) : (
-                      <p className="text-xs font-mono text-amber-600 dark:text-amber-400">{presentation?.name || `UID: ${log.device_user_id}`}</p>
+                      <p className="text-xs font-mono text-amber-600 dark:text-amber-400">{presentation?.name || t('attendancePages.dash.uid', { uid: log.device_user_id })}</p>
                     )}
                     {log.staff_position && (
                       <p className="text-xs text-indigo-500 dark:text-indigo-400 truncate">{log.staff_position}{log.staff_department ? ` · ${log.staff_department}` : ''}</p>
@@ -1439,13 +1449,13 @@ export default function UnifiedAttendancePage() {
                   {/* DERIVED meaning from the state engine (falls back to
                       "Scan" when a day hasn't been evaluated yet) — never
                       the device's raw IN/OUT field. */}
-                  {presentation?.attendanceStatus && presentation.attendanceStatus !== 'Scan' ? (
+                  {presentation?.attendanceStatus && !!log.derived_event ? (
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}
-                          title={log.derived_detail || ''}>
+                          title={presentation?.statusDetail && presentation.statusDetail !== '—' ? presentation.statusDetail : ''}>
                       {presentation.attendanceStatus}
                     </span>
                   ) : (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500" title="Awaiting evaluation">Scan</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500" title={t('attendancePages.logs.awaiting')}>{t('attendancePages.logs.scan')}</span>
                   )}
                   {presentation?.statusDetail && presentation.statusDetail !== '—' && (
                     <span className="text-[10px] text-gray-400 whitespace-nowrap">{presentation.statusDetail}</span>
@@ -1460,16 +1470,16 @@ export default function UnifiedAttendancePage() {
                       ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                       : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
                 }`}>
-                  {presentation?.category || (log.person_type === 'student' ? 'Learner' : log.person_type === 'staff' ? 'Staff' : 'Unmatched')}
+                  {presentation?.category || (log.person_type === 'student' ? t('attendancePages.logs.role.learner') : log.person_type === 'staff' ? t('attendancePages.logs.role.staff') : t('attendancePages.logs.role.unmatched'))}
                 </span>
                 <div className="flex items-center gap-1.5">
                   {log.matched && !log.is_provisional ? (
                     <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium">
-                      <UserCheck className="w-3 h-3" /> {presentation?.matchStatus || 'Matched'}
+                      <UserCheck className="w-3 h-3" /> {presentation?.matchStatus || t('attendancePages.logs.matched')}
                     </span>
                   ) : (
                     <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium">
-                      <AlertTriangle className="w-3 h-3" /> {log.is_provisional ? 'Provisional' : (presentation?.matchStatus || 'Unmatched')}
+                      <AlertTriangle className="w-3 h-3" /> {log.is_provisional ? t('attendancePages.logs.provisional') : (presentation?.matchStatus || t('attendancePages.logs.role.unmatched'))}
                     </span>
                   )}
                   <ProvisionalBadge isProvisional={log.is_provisional} />
@@ -1478,9 +1488,9 @@ export default function UnifiedAttendancePage() {
                 {tab === 'unmatched' && (
                   <button
                     onClick={() => setAssignTarget(log.device_user_id)}
-                    className="ml-auto flex items-center gap-1 px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                    className="ms-auto flex items-center gap-1 px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                   >
-                    <UserPlus className="w-3 h-3" /> Assign
+                    <UserPlus className="w-3 h-3" /> {t('attendancePages.logs.assign.button')}
                   </button>
                 )}
               </div>
@@ -1505,38 +1515,38 @@ export default function UnifiedAttendancePage() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-900/50">
                 <tr>
-                  <th className="pl-4 pr-1 py-3 w-8">
+                  <th className="ps-4 pe-1 py-3 w-8">
                     <input
                       type="checkbox"
                       checked={allVisibleSelected}
                       onChange={toggleAllVisible}
                       className="rounded border-gray-300 dark:border-gray-600"
-                      title="Select all on this page"
+                      title={t('attendancePages.logs.selectAllPage')}
                     />
                   </th>
                   {([
-                    { key: 'time', label: 'Time', cls: '' },
-                    { key: 'name', label: 'Name', cls: '' },
-                    { key: 'type', label: 'Category', cls: '' },
-                    { key: null, label: 'Class', cls: ' hidden md:table-cell' },
-                    { key: null, label: 'Section', cls: ' hidden md:table-cell' },
-                    { key: 'pin', label: 'Device ID', cls: ' hidden lg:table-cell' },
-                    { key: null, label: 'Verification Method', cls: ' hidden lg:table-cell' },
-                    { key: 'status', label: 'Attendance Status', cls: '' },
-                    { key: null, label: 'Match Status', cls: '' },
+                    { key: 'time', label: t('attendancePages.logs.col.time'), cls: '' },
+                    { key: 'name', label: t('attendancePages.logs.col.name'), cls: '' },
+                    { key: 'type', label: t('attendancePages.logs.col.category'), cls: '' },
+                    { key: null, label: t('attendancePages.logs.col.class'), cls: ' hidden md:table-cell' },
+                    { key: null, label: t('attendancePages.logs.col.section'), cls: ' hidden md:table-cell' },
+                    { key: 'pin', label: t('attendancePages.logs.col.deviceId'), cls: ' hidden lg:table-cell' },
+                    { key: null, label: t('attendancePages.logs.col.verification'), cls: ' hidden lg:table-cell' },
+                    { key: 'status', label: t('attendancePages.logs.col.status'), cls: '' },
+                    { key: null, label: t('attendancePages.logs.col.match'), cls: '' },
                   ] as Array<{ key: string | null; label: string; cls: string }>).map((col) => (
                     <th
                       key={col.label}
                       onClick={col.key ? () => toggleSort(col.key!) : undefined}
-                      className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase${col.cls} ${
+                      className={`px-4 py-3 text-start text-xs font-semibold text-gray-500 uppercase${col.cls} ${
                         col.key ? 'cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-300' : ''
                       }`}
-                      title={col.key ? 'Sort by ' + col.label.toLowerCase() : undefined}
+                      title={col.key ? t('attendancePages.logs.sortBy', { col: lang === 'ar' ? col.label : col.label.toLowerCase() }) : undefined}
                     >
                       <span className="inline-flex items-center gap-0.5">
                         {col.label}
                         {col.key && (
-                          <span className="flex flex-col -space-y-1.5 ml-0.5">
+                          <span className="flex flex-col -space-y-1.5 ms-0.5">
                             <ChevronUp className={`w-3 h-3 ${sortBy === col.key && sortDir === 'asc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-300 dark:text-gray-600'}`} />
                             <ChevronDown className={`w-3 h-3 ${sortBy === col.key && sortDir === 'desc' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-300 dark:text-gray-600'}`} />
                           </span>
@@ -1545,7 +1555,7 @@ export default function UnifiedAttendancePage() {
                     </th>
                   ))}
                   {tab === 'unmatched' && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
+                    <th className="px-4 py-3 text-start text-xs font-semibold text-gray-500 uppercase">{t('attendancePages.logs.col.action')}</th>
                   )}
                 </tr>
               </thead>
@@ -1554,15 +1564,15 @@ export default function UnifiedAttendancePage() {
                   <tr>
                     <td colSpan={tab === 'unmatched' ? 11 : 10} className="px-4 py-12 text-center text-gray-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-                      Loading...
+                      {t('attendancePages.logs.loading')}
                     </td>
                   </tr>
                 )}
                 {!isLoading && logs.length === 0 && (
                   <tr>
                     <td colSpan={tab === 'unmatched' ? 11 : 10} className="px-4 py-12 text-center text-gray-400">
-                      No records found for this filter.
-                      Try to see this live view here <br></br>
+                      {t('attendancePages.logs.noRecordsFilter')}
+                      {t('attendancePages.logs.tryLive')} <br></br>
                       {liveEvents.map((ev, i) => (
                         <div key={`${ev.id}-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
                           <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -1572,16 +1582,16 @@ export default function UnifiedAttendancePage() {
                           {ev.person_name ? (
                             <span className="font-medium">{ev.presentation?.name || ev.person_name}</span>
                           ) : (
-                            <span className="text-amber-600 font-mono text-xs">{ev.presentation?.name || `UID: ${ev.device_user_id}`}</span>
+                            <span className="text-amber-600 font-mono text-xs">{ev.presentation?.name || t('attendancePages.dash.uid', { uid: ev.device_user_id })}</span>
                           )}
                           <span className={`px-1.5 py-0.5 rounded text-xs
                             ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
                               : ev.person_type === 'staff' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                            {ev.presentation?.category || (ev.person_type === 'student' ? 'Learner' : ev.person_type === 'staff' ? 'Staff' : 'Unmatched')}
+                            {ev.presentation?.category || (ev.person_type === 'student' ? t('attendancePages.logs.role.learner') : ev.person_type === 'staff' ? t('attendancePages.logs.role.staff') : t('attendancePages.logs.role.unmatched'))}
                           </span>
                           {ev.class_name && <span className="text-xs text-gray-400">{ev.presentation?.className || ev.class_name}</span>}
-                          {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
+                          {ev.device_name && <span className="text-xs text-gray-400 ms-auto">{ev.device_name}</span>}
                         </div>
                       ))}
                     </td>
@@ -1592,7 +1602,7 @@ export default function UnifiedAttendancePage() {
 
                   return (
                   <tr key={log.id} className={`hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors ${selectedIds.has(log.id) ? 'bg-red-50/60 dark:bg-red-900/10' : ''}`}>
-                    <td className="pl-4 pr-1 py-3 w-8">
+                    <td className="ps-4 pe-1 py-3 w-8">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(log.id)}
@@ -1606,7 +1616,7 @@ export default function UnifiedAttendancePage() {
                         {presentation?.time || '—'}
                         <a
                           href={`/attendance/trace?event=${log.id}`}
-                          title="Trace this punch through every pipeline stage"
+                          title={t('attendancePages.logs.trace')}
                           className="text-gray-300 dark:text-gray-600 hover:text-indigo-500 dark:hover:text-indigo-400"
                         >
                           <GitBranch className="w-3 h-3" />
@@ -1641,8 +1651,8 @@ export default function UnifiedAttendancePage() {
                         </div>
                       ) : (
                         <span className="text-sm text-amber-600 dark:text-amber-400 font-mono">
-                          {presentation?.name || `UID: ${log.device_user_id}`}
-                          <span className="text-xs ml-1 text-gray-400">(Unassigned)</span>
+                          {presentation?.name || t('attendancePages.dash.uid', { uid: log.device_user_id })}
+                          <span className="text-xs ms-1 text-gray-400">{t('attendancePages.logs.unassigned')}</span>
                         </span>
                       )}
                     </td>
@@ -1653,9 +1663,9 @@ export default function UnifiedAttendancePage() {
                           : log.person_type === 'staff'
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                             : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                        {presentation?.category || (log.person_type === 'student' ? 'Learner'
-                          : log.person_type === 'staff' ? 'Staff'
-                            : 'Unmatched')}
+                        {presentation?.category || (log.person_type === 'student' ? t('attendancePages.logs.role.learner')
+                          : log.person_type === 'staff' ? t('attendancePages.logs.role.staff')
+                            : t('attendancePages.logs.role.unmatched'))}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
@@ -1670,21 +1680,21 @@ export default function UnifiedAttendancePage() {
                               ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
                               : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                         }`}>
-                          {presentation?.residence || 'Not set'}
+                          {presentation?.residence || t('attendancePages.logs.notSet')}
                         </span>
                       ) : (
                         <span className="text-gray-400 text-xs">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-gray-500 hidden lg:table-cell">
-                      {presentation?.deviceId || log.device_user_id}
+                      {digits(presentation?.deviceId || log.device_user_id)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hidden lg:table-cell">
                       {presentation?.verificationMethod || '—'}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {/* DERIVED attendance meaning from the state engine */}
-                      {presentation?.attendanceStatus && presentation.attendanceStatus !== 'Scan' ? (
+                      {presentation?.attendanceStatus && !!log.derived_event ? (
                         <div className="flex flex-col gap-0.5">
                           <span className="flex items-center gap-1.5">
                             <span className={`inline-block w-fit px-2 py-0.5 rounded text-xs font-medium ${DERIVED_CLASS[log.derived_event] ?? 'bg-slate-100 text-slate-600'}`}>
@@ -1703,18 +1713,18 @@ export default function UnifiedAttendancePage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500" title="Awaiting day evaluation">Scan</span>
+                        <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500" title={t('attendancePages.logs.awaitingDay')}>{t('attendancePages.logs.scan')}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {log.matched && !log.is_provisional ? (
                           <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
-                            <UserCheck className="w-3.5 h-3.5" /> {presentation?.matchStatus || 'Matched'}
+                            <UserCheck className="w-3.5 h-3.5" /> {presentation?.matchStatus || t('attendancePages.logs.matched')}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-red-500 text-xs font-medium">
-                            <AlertTriangle className="w-3.5 h-3.5" /> {log.is_provisional ? 'Provisional' : (presentation?.matchStatus || 'Unmatched')}
+                            <AlertTriangle className="w-3.5 h-3.5" /> {log.is_provisional ? t('attendancePages.logs.provisional') : (presentation?.matchStatus || t('attendancePages.logs.role.unmatched'))}
                           </span>
                         )}
                         <ProvisionalBadge isProvisional={log.is_provisional} />
@@ -1722,9 +1732,9 @@ export default function UnifiedAttendancePage() {
                         {log.matched && log.person_id && (
                           <button
                             onClick={() => setCorrectTarget({ deviceUserId: log.device_user_id, name: log.person_name })}
-                            title="Wrong person? Correct this identity — the event is kept, only the identity is fixed"
+                            title={t('attendancePages.logs.correctTitle')}
                             className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-600"
-                          >Correct</button>
+                          >{t('attendancePages.logs.correctButton')}</button>
                         )}
                       </div>
                     </td>
@@ -1735,7 +1745,7 @@ export default function UnifiedAttendancePage() {
                           className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
-                          Assign
+                          {t('attendancePages.logs.assign.button')}
                         </button>
                       </td>
                     )}
@@ -1749,11 +1759,11 @@ export default function UnifiedAttendancePage() {
           {pagination.total > 0 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900/30">
               <p className="text-sm text-gray-500">
-                Showing {(pagination.page - 1) * (pagination.limit || logs.length) + 1}
-                {' – '}
-                {Math.min(pagination.page * (pagination.limit || logs.length), pagination.total)}
-                {' of '}{Number(pagination.total).toLocaleString()} records
-                {pagination.totalPages > 1 && <> · Page {pagination.page} of {pagination.totalPages}</>}
+                {t('attendancePages.logs.showing', { from: (pagination.page - 1) * (pagination.limit || logs.length) + 1, to: Math.min(pagination.page * (pagination.limit || logs.length), pagination.total), total: lang === 'ar' ? formatNumber(pagination.total) : Number(pagination.total).toLocaleString() })}
+                
+                
+                
+                {pagination.totalPages > 1 && <>{t('attendancePages.logs.pageOf', { page: pagination.page, pages: pagination.totalPages })}</>}
               </p>
               <div className="flex gap-2">
                 <button
@@ -1761,14 +1771,14 @@ export default function UnifiedAttendancePage() {
                   disabled={page <= 1}
                   className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4 rtl-flip" />
                 </button>
                 <button
                   onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
                   disabled={page >= pagination.totalPages}
                   className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 rtl-flip" />
                 </button>
               </div>
             </div>
@@ -1802,27 +1812,27 @@ export default function UnifiedAttendancePage() {
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Clear all attendance logs?</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('attendancePages.logs.clear.title')}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  This affects this school only.
+                  {t('attendancePages.logs.schoolOnly')}
                 </p>
               </div>
             </div>
 
             <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <p className="text-sm text-red-800 dark:text-red-200 font-medium">
-                This permanently deletes every attendance punch, the derived
-                daily records and dashboard totals. It cannot be undone.
+                {t('attendancePages.logs.clear.warning')}
+                
               </p>
               <ul className="mt-2 text-xs text-red-700 dark:text-red-300 list-disc list-inside space-y-0.5">
-                <li>Your devices, shifts, rules and holidays are kept.</li>
-                <li>Export a CSV first if you need a copy.</li>
-                <li>{pagination.total.toLocaleString()} log{pagination.total === 1 ? '' : 's'} currently match your view.</li>
+                <li>{t('attendancePages.logs.clear.kept')}</li>
+                <li>{t('attendancePages.logs.clear.exportFirst')}</li>
+                <li>{t('attendancePages.logs.clear.matching', { count: pagination.total })}</li>
               </ul>
             </div>
 
             <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
-              Type <span className="font-mono font-bold">CLEAR</span> to confirm
+              {rich('attendancePages.logs.typeToConfirm', { word: <span className="font-mono font-bold">CLEAR</span> })}
             </label>
             <input
               type="text"
@@ -1839,7 +1849,7 @@ export default function UnifiedAttendancePage() {
                 disabled={clearing}
                 className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
               >
-                Cancel
+                {t('attendancePages.logs.cancel')}
               </button>
               <button
                 onClick={handleClearLogs}
@@ -1847,9 +1857,9 @@ export default function UnifiedAttendancePage() {
                 className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {clearing ? (
-                  <><RefreshCw className="w-4 h-4 animate-spin" /> Clearing…</>
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> {t('attendancePages.logs.clear.busy')}</>
                 ) : (
-                  <><Trash2 className="w-4 h-4" /> Clear all logs</>
+                  <><Trash2 className="w-4 h-4" /> {t('attendancePages.logs.clear.button')}</>
                 )}
               </button>
             </div>
@@ -1866,28 +1876,28 @@ export default function UnifiedAttendancePage() {
                 <Fingerprint className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Reset biometric enrollments?</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('attendancePages.logs.reset.title')}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  This affects this school only.
+                  {t('attendancePages.logs.schoolOnly')}
                 </p>
               </div>
             </div>
 
             <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <p className="text-sm text-red-800 dark:text-red-200 font-medium">
-                This unmaps every device PIN — DRAIS forgets who each
-                fingerprint belongs to. It cannot be undone.
+                {t('attendancePages.logs.reset.warning')}
+                
               </p>
               <ul className="mt-2 text-xs text-red-700 dark:text-red-300 list-disc list-inside space-y-0.5">
-                <li>Clears biometric enrollments + device mappings.</li>
-                <li>Students, staff, devices and attendance history are kept.</li>
-                <li>The physical device keeps its users until you re-sync.</li>
-                <li>You'll need to re-map or re-enroll each person afterwards.</li>
+                <li>{t('attendancePages.logs.reset.l1')}</li>
+                <li>{t('attendancePages.logs.reset.l2')}</li>
+                <li>{t('attendancePages.logs.reset.l3')}</li>
+                <li>{t('attendancePages.logs.reset.l4')}</li>
               </ul>
             </div>
 
             <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
-              Type <span className="font-mono font-bold">RESET</span> to confirm
+              {rich('attendancePages.logs.typeToConfirm', { word: <span className="font-mono font-bold">RESET</span> })}
             </label>
             <input
               type="text"
@@ -1904,7 +1914,7 @@ export default function UnifiedAttendancePage() {
                 disabled={resetting}
                 className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
               >
-                Cancel
+                {t('attendancePages.logs.cancel')}
               </button>
               <button
                 onClick={handleResetBiometrics}
@@ -1912,9 +1922,9 @@ export default function UnifiedAttendancePage() {
                 className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {resetting ? (
-                  <><RefreshCw className="w-4 h-4 animate-spin" /> Resetting…</>
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> {t('attendancePages.logs.reset.busy')}</>
                 ) : (
-                  <><Fingerprint className="w-4 h-4" /> Reset biometrics</>
+                  <><Fingerprint className="w-4 h-4" /> {t('attendancePages.logs.reset.button')}</>
                 )}
               </button>
             </div>

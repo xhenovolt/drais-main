@@ -4,6 +4,7 @@ import { executeQuery } from '@/utils/database';
 import { getSessionSchoolId } from '@/lib/auth';
 import { checkModule } from '@/lib/auth/requireModule';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { langFromRequest } from '@/lib/i18n/localize';
 import { logAudit, AuditAction } from '@/lib/audit';
 
 /**
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
 
-    const formatter = await AttendanceFormatter.forSchool(schoolId);
+    const formatter = await AttendanceFormatter.forSchool(schoolId, { lang: langFromRequest(request) });
 
     // Get attendance data for export
     const query = `

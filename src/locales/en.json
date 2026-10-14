@@ -2348,7 +2348,15 @@
       "nextPage": "Next page",
       "goToPage": "Go to page {{page}}"
     },
-    "listSeparator": ", "
+    "listSeparator": ", ",
+    "filters": {
+      "title": "Filters",
+      "active": "{{count}} active",
+      "none": "none",
+      "remove": "Remove filter {{label}}",
+      "clear": "Clear",
+      "apply": "Apply filters"
+    }
   },
   "localization": {
     "title": "Localization — Arabic Names",
@@ -4482,6 +4490,343 @@
         "online": "online",
         "offline": "offline",
         "unknown": "unknown"
+      }
+    },
+    "logs": {
+      "derived": {
+        "ARRIVED": "Arrived",
+        "ARRIVED_LATE": "Late arrival",
+        "ARRIVED_EARLY": "Arrived early",
+        "TEMP_EXIT": "Stepped out",
+        "RETURNED": "Returned",
+        "CHECKED_OUT": "Checked out",
+        "EARLY_DEPARTURE": "Left early",
+        "OVERTIME_EXIT": "Overtime exit",
+        "DUPLICATE": "Duplicate"
+      },
+      "sms": {
+        "queued": "SMS queued",
+        "sending": "SMS sending",
+        "delivered": "SMS sent",
+        "failed": "SMS failed",
+        "expired": "SMS expired",
+        "other": "SMS {{status}}",
+        "skipped": "SMS: skipped",
+        "none": "SMS: none"
+      },
+      "explain": {
+        "title": "Explain this verdict",
+        "why": "Why?",
+        "loading": "Explaining…",
+        "policy": "Policy: {{policy}}",
+        "none": "No verdict to explain for this day."
+      },
+      "confidence": {
+        "overall": "Overall {{score}}% — {{reason}}",
+        "identity": "· Identity {{score}}% ({{reason}})",
+        "time": "· Time {{score}}% ({{reason}})",
+        "device": "· Device {{score}}% ({{reason}})",
+        "policy": "· Policy {{score}}% ({{reason}})"
+      },
+      "provisional": "Provisional",
+      "resend": {
+        "done": "Message re-queued for sending",
+        "title": "Resend this SMS",
+        "busy": "Resending…",
+        "button": "Resend"
+      },
+      "quick": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last_friday": "Last Friday",
+        "this_week": "This Week",
+        "last_week": "Last Week",
+        "this_month": "This Month",
+        "last_month": "Last Month"
+      },
+      "tab": {
+        "all": "All Logs",
+        "learners": "Learners",
+        "staff": "Staff",
+        "unmatched": "Unmatched"
+      },
+      "assign": {
+        "selectFirst": "Select a person first",
+        "mapped": "Identity mapped successfully",
+        "title": "Assign Identity",
+        "deviceUserId": "Device User ID: {{id}}",
+        "retro": "All unmatched logs with this ID will be retroactively matched.",
+        "searchLearner": "Search learner by name...",
+        "searchStaff": "Search staff by name...",
+        "noResults": "No results",
+        "typeToSearch": "Type to search...",
+        "button": "Assign"
+      },
+      "role": {
+        "learner": "Learner",
+        "staff": "Staff",
+        "unmatched": "Unmatched"
+      },
+      "idLabel": "ID: {{id}}",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "correct": {
+        "searchFailed": "Search failed ({{status}})",
+        "searchError": "Search error",
+        "created": "Person created and mapped",
+        "corrected": "Identity corrected — events preserved",
+        "undone": "Last correction undone — events restored to the previous owner",
+        "title": "Correct identity",
+        "intro": "PIN {{pin}} currently maps to {{name}}. The attendance events stay; only who they belong to changes (audited).",
+        "someone": "someone",
+        "undoTitle": "Revert the most recent correction on this PIN",
+        "undo": "Undo last",
+        "existing": "Existing person",
+        "createNew": "Create new",
+        "searchStaff": "Search the correct staff member…",
+        "searchLearner": "Search the correct learner…",
+        "searchingStaff": "Searching staff…",
+        "searchingLearners": "Searching learners…",
+        "noStaff": "No staff match “{{q}}”. Try the other role tab, a different spelling, or “Create new”.",
+        "noLearners": "No learners match “{{q}}”. Try the other role tab, a different spelling, or “Create new”.",
+        "minLetters": "Type at least 2 letters to search.",
+        "checking": "Selected: {{name}} — checking impact…",
+        "preview": "This moves {{events}}{{range}} from {{from}} → {{to}}. Verdicts for both re-evaluate. Reversible with “Undo last”.",
+        "events": {
+          "one": "{{count}} attendance event",
+          "other": "{{count}} attendance events"
+        },
+        "currentOwner": "current owner",
+        "reason": "Reason (optional, for the audit trail)",
+        "newStaff": "New staff full name",
+        "newLearner": "New learner full name",
+        "createMap": "Create & map",
+        "apply": "Apply correction"
+      },
+      "tf": {
+        "morning": "Morning",
+        "afternoon": "Afternoon",
+        "evening": "Evening"
+      },
+      "detect": {
+        "noDevices": "No devices registered for this school",
+        "failed": "{{sn}}: {{error}}",
+        "matchingFailed": "matching failed",
+        "mapped": {
+          "one": "Auto-mapped {{count}} person — old logs claimed retroactively",
+          "other": "Auto-mapped {{count}} people — old logs claimed retroactively"
+        },
+        "review": {
+          "one": "{{count}} likely match needs your confirmation — opening review…",
+          "other": "{{count}} likely matches need your confirmation — opening review…"
+        },
+        "noneFound": {
+          "one": "No name matches found for {{count}} device user — assign them manually or create the missing people",
+          "other": "No name matches found for {{count}} device users — assign them manually or create the missing people"
+        },
+        "nothing": "Nothing to detect — every device user is already mapped",
+        "title": "Match device user names against DRAIS staff/learners automatically",
+        "running": "Detecting…",
+        "button": "Detect & map"
+      },
+      "export": {
+        "none": "No attendance rows to export for the current filters",
+        "done": "Exported {{count}} {{what}}",
+        "rowsExcel": "rows (Excel)",
+        "rowsCsv": "rows (CSV)",
+        "failed": "Failed to export attendance logs"
+      },
+      "shift": {
+        "confirm": "Shift the time of {{count}} selected punch(es) by {{label}}? Original device times are preserved and this is undoable from Time Health.",
+        "done": "Corrected {{count}} punch(es) · {{refreshed}} day-verdicts refreshed"
+      },
+      "delete": {
+        "confirm": "Permanently delete {{count}} attendance log(s)? Derived attendance for the affected days is recomputed. This cannot be undone.",
+        "done": "Deleted {{count}} log(s)"
+      },
+      "title": "Attendance Logs",
+      "subtitle": "— persisted biometric history",
+      "live": {
+        "title": "Live Feed",
+        "connected": "Connected",
+        "reconnecting": "Reconnecting...",
+        "new": "{{count}} new",
+        "note": "Realtime only. Historical logs stay in the table below even if the device is offline.",
+        "waiting": "Waiting for new attendance events..."
+      },
+      "chip": {
+        "time": "Time {{from}}–{{to}}",
+        "arrival": "Arrival: {{value}}",
+        "ontimeEarly": "on time / early",
+        "arrivalValue": {
+          "late": "late",
+          "early": "early"
+        },
+        "device": "Device: {{name}}",
+        "class": "Class: {{name}}",
+        "genderBoys": "Gender: Boys",
+        "genderGirls": "Gender: Girls",
+        "residenceBoarding": "Residence: Boarding",
+        "residenceDay": "Residence: Day scholars"
+      },
+      "f": {
+        "timeOfDay": "Time of day",
+        "allDay": "All day",
+        "customTime": "Custom time…",
+        "arrival": "Arrival status",
+        "all": "All",
+        "lateOnly": "Late only",
+        "earlyOnly": "Early only",
+        "onTimeEarly": "On time / early",
+        "residence": "Residence",
+        "allLearners": "All learners",
+        "dayScholars": "Day scholars",
+        "boarding": "Boarding",
+        "gender": "Gender",
+        "boys": "Boys",
+        "girls": "Girls",
+        "class": "Class",
+        "allClasses": "All classes",
+        "device": "Device",
+        "allDevices": "All devices",
+        "rowsPerPage": "Rows per page",
+        "allRows": "All rows",
+        "nRows": "{{n}} rows"
+      },
+      "bar": {
+        "date": "Date",
+        "allTime": "All time",
+        "customRange": "Custom range…",
+        "search": "Name or User ID…",
+        "allowance": "Allowance",
+        "actions": "Actions",
+        "refresh": "Refresh",
+        "exportExcel": "Export visible (Excel)",
+        "exportCsv": "Export visible (CSV)",
+        "clearAll": "Clear all logs…",
+        "resetBio": "Reset biometrics…"
+      },
+      "sel": {
+        "count": "{{count}} selected",
+        "correctTime": "Correct time:",
+        "plus12Title": "Shift selected punches forward 12 hours (AM read as PM)",
+        "minus12Title": "Shift selected punches back 12 hours",
+        "plus12Label": "+12h (AM→PM)",
+        "minus12Label": "−12h (PM→AM)",
+        "plus12": "+12h",
+        "minus12": "−12h",
+        "prompt": "Shift the selected punches by how many hours? (e.g. 5, -3, 1.5)",
+        "nonZero": "Enter a non-zero number of hours",
+        "hoursLabel": "{{sign}}{{hours}}h",
+        "shift": "Shift…",
+        "delete": "Delete selected",
+        "clear": "Clear"
+      },
+      "allow": {
+        "title": "Allowance Eligibility — {{date}}",
+        "eligible": "{{count}} eligible",
+        "late": "{{count}} late",
+        "absent": "{{count}} absent",
+        "missingCheckout": "{{count}} missing checkout",
+        "everyone": "Everyone",
+        "eligibleOnly": "Allowance: eligible only",
+        "rejectedOnly": "Allowance: rejected only",
+        "exportCsv": "Export CSV",
+        "explain": "Decided from the school's own attendance rules: arrival before the reporting cutoff = eligible; crossing the late threshold or absence = not eligible. Uses the day selected above — pick a quick date chip (e.g. Today, Last Friday) to change it.",
+        "col": {
+          "Employee": "Employee",
+          "Designation": "Designation",
+          "Department": "Department",
+          "Arrival": "Arrival",
+          "Departure": "Departure",
+          "Status": "Status",
+          "Allowance": "Allowance"
+        },
+        "missing": "MISSING CHECKOUT",
+        "status": {
+          "EARLY": "EARLY",
+          "ON_TIME": "ON TIME",
+          "LATE": "LATE",
+          "ABSENT": "ABSENT"
+        },
+        "lateMinutes": " +{{n}}m",
+        "yes": "YES",
+        "no": "NO"
+      },
+      "clock": {
+        "corrected": "Times corrected automatically.",
+        "correctedBody": "{{device}} was {{hours}}h {{dir}} on {{date}} — {{punches}} adjusted before this list was drawn.",
+        "fast": "fast",
+        "slow": "slow",
+        "punches": {
+          "one": "{{count}} punch",
+          "other": "{{count}} punches"
+        },
+        "reviewUndo": "review or undo",
+        "noGuess": "These times look wrong, but DRAIS would not guess.",
+        "checkBefore": "check before printing",
+        "drift": "Clock drift on {{device}} ({{pct}}%) —",
+        "fixTime": "fix time"
+      },
+      "gap": {
+        "on": "Gap on {{device}} —",
+        "recover": "recover"
+      },
+      "records": "{{count}} records",
+      "needsIdentity": "— requires identity assignment",
+      "reviewQueue": "Review queue",
+      "loading": "Loading...",
+      "noRecords": "No records found.",
+      "awaiting": "Awaiting evaluation",
+      "awaitingDay": "Awaiting day evaluation",
+      "scan": "Scan",
+      "matched": "Matched",
+      "selectAllPage": "Select all on this page",
+      "col": {
+        "time": "Time",
+        "name": "Name",
+        "category": "Category",
+        "class": "Class",
+        "section": "Section",
+        "deviceId": "Device ID",
+        "verification": "Verification Method",
+        "status": "Attendance Status",
+        "match": "Match Status",
+        "action": "Action"
+      },
+      "sortBy": "Sort by {{col}}",
+      "noRecordsFilter": "No records found for this filter.",
+      "tryLive": "Try to see this live view here",
+      "trace": "Trace this punch through every pipeline stage",
+      "unassigned": "(Unassigned)",
+      "notSet": "Not set",
+      "correctTitle": "Wrong person? Correct this identity — the event is kept, only the identity is fixed",
+      "correctButton": "Correct",
+      "showing": "Showing {{from}} – {{to}} of {{total}} records",
+      "pageOf": " · Page {{page}} of {{pages}}",
+      "clear": {
+        "title": "Clear all attendance logs?",
+        "warning": "This permanently deletes every attendance punch, the derived daily records and dashboard totals. It cannot be undone.",
+        "kept": "Your devices, shifts, rules and holidays are kept.",
+        "exportFirst": "Export a CSV first if you need a copy.",
+        "matching": {
+          "one": "{{count}} log currently match your view.",
+          "other": "{{count}} logs currently match your view."
+        },
+        "busy": "Clearing…",
+        "button": "Clear all logs"
+      },
+      "schoolOnly": "This affects this school only.",
+      "typeToConfirm": "Type {{word}} to confirm",
+      "reset": {
+        "title": "Reset biometric enrollments?",
+        "warning": "This unmaps every device PIN — DRAIS forgets who each fingerprint belongs to. It cannot be undone.",
+        "l1": "Clears biometric enrollments + device mappings.",
+        "l2": "Students, staff, devices and attendance history are kept.",
+        "l3": "The physical device keeps its users until you re-sync.",
+        "l4": "You'll need to re-map or re-enroll each person afterwards.",
+        "busy": "Resetting…",
+        "button": "Reset biometrics"
       }
     }
   }

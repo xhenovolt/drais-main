@@ -3,6 +3,7 @@ import { getSessionSchoolId } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { getEventBus } from '@/lib/events/eventbus';
 import { AttendanceFormatter } from '@/lib/attendance/export/AttendanceFormatter';
+import { langFromRequest } from '@/lib/i18n/localize';
 import { AttendancePresentationModel } from '@/lib/attendance/export/AttendancePresentationModel';
 
 export const runtime = 'nodejs';
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
   if (!session) return new Response('Unauthorized', { status: 401 });
   const schoolId = session.schoolId;
-  const formatter = await AttendanceFormatter.forSchool(schoolId);
+  const formatter = await AttendanceFormatter.forSchool(schoolId, { lang: langFromRequest(req) });
 
   const encoder = new TextEncoder();
   let closed = false;

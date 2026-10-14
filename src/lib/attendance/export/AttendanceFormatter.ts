@@ -13,6 +13,8 @@ export interface AttendanceFormatterConfig {
   emptyValue: string;
   yesLabel: string;
   noLabel: string;
+  /** Interface language. 'ar' gives Arabic labels and Arabic-Indic digits; 'en' is the original output. */
+  lang: 'en' | 'ar';
 }
 
 export type AttendanceFormatterOverrides = Partial<AttendanceFormatterConfig>;
@@ -33,7 +35,41 @@ const DEFAULT_CONFIG: AttendanceFormatterConfig = {
   emptyValue: '—',
   yesLabel: 'Yes',
   noLabel: 'No',
+  lang: 'en',
 };
+
+// Arabic forms of every label below. English output is unchanged.
+const AR_VERIFY: Record<number, string> = { 0: 'كلمة مرور', 1: 'بصمة إصبع', 2: 'بطاقة', 15: 'الوجه' };
+const AR_ROLE: Record<string, string> = { student: 'متعلم', staff: 'موظف', unmatched: 'غير مطابق' };
+const AR_DERIVED: Record<string, string> = {
+  ARRIVED: 'وصل', ARRIVED_LATE: 'وصول متأخر', ARRIVED_EARLY: 'وصل مبكرًا', TEMP_EXIT: 'خرج مؤقتًا', RETURNED: 'عاد',
+  CHECKED_OUT: 'انصرف', EARLY_DEPARTURE: 'انصرف مبكرًا', OVERTIME_EXIT: 'انصراف بعد الدوام', DUPLICATE: 'مكرر',
+};
+const AR_LOCALE = 'ar-u-nu-arab-ca-gregory';
+const toArabicDigits = (s: string) => s.replace(/[0-9]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
+
+/** "1h 20m" / "12m" (rule-evaluator's fmtDur) → "١ س ٢٠ د" / "١٢ د". */
+const arDuration = (s: string) => toArabicDigits(s.replace(/(\d+)h/g, '$1 س').replace(/(\d+)m/g, '$1 د'));
+
+/**
+ * The per-punch detail the attendance engine stores (rule-evaluator.deriveEvents) is English text in a
+ * fixed set of shapes. Shown in Arabic, each shape is rewritten; anything unrecognised is returned with
+ * its digits converted. The stored value is never changed.
+ */
+export function arabicPunchDetail(detail: string): string {
+  const d = detail.trim();
+  const fixed: Record<string, string> = {
+    'Duplicate scan (ignored)': 'بصمة مكررة (تم تجاهلها)', 'Arrived before opening': 'وصل قبل موعد الفتح',
+    'On time': 'في الوقت', 'Returned': 'عاد', 'Stepped out': 'خرج مؤقتًا', 'Left early': 'انصرف مبكرًا',
+  };
+  if (fixed[d]) return fixed[d];
+  let m: RegExpMatchArray | null;
+  if ((m = d.match(/^Late by (.+)$/))) return `متأخر بمقدار ${arDuration(m[1])}`;
+  if ((m = d.match(/^Overtime — (.+) on site$/))) return `عمل إضافي — ${arDuration(m[1])} في المدرسة`;
+  if ((m = d.match(/^Checked out — (.+) on site$/))) return `انصرف — ${arDuration(m[1])} في المدرسة`;
+  if ((m = d.match(/^Left early by (.+)$/))) return `انصرف مبكرًا بمقدار ${arDuration(m[1])}`;
+  return toArabicDigits(d);
+}
 
 const VERIFY_LABELS: Record<number, string> = {
   0: 'Password',
@@ -88,6 +124,7 @@ export class AttendanceFormatter {
     ]);
 
     return new AttendanceFormatter({
+      ...(overrides.lang === 'ar' ? { yesLabel: 'نعم', noLabel: 'لا' } : {}),
       timezone: policy.timezone || DEFAULT_CONFIG.timezone,
       offsetMinutes: Number.isFinite(policy.offsetMinutes) ? policy.offsetMinutes : DEFAULT_CONFIG.offsetMinutes,
       schoolName: school.name || DEFAULT_CONFIG.schoolName,
@@ -103,12 +140,29 @@ export class AttendanceFormatter {
     return this.config.schoolName;
   }
 
+  get isArabic(): boolean {
+    return this.config.lang === 'ar';
+  }
+
+  /** "Boarding" / "Day" / "Not set" for a learner's residence, in the interface language. */
+  formatResidence(value: string | null | undefined): string {
+    if (value === 'boarding') return this.isArabic ? 'داخلي' : 'Boarding';
+    if (value === 'day') return this.isArabic ? 'نهاري' : 'Day';
+    return this.isArabic ? 'غير محدد' : 'Not set';
+  }
+
   get emptyValue(): string {
     return this.config.emptyValue;
   }
 
   formatBoolean(value: boolean | null | undefined): string {
     return value ? this.config.yesLabel : this.config.noLabel;
+  }
+
+  /** The engine's per-punch detail, in the interface language. */
+  formatPunchDetail(value: string | null | undefined): string {
+    if (value === null || value === undefined || value === '') return this.config.emptyValue;
+    return this.isArabic ? arabicPunchDetail(String(value)) : String(value);
   }
 
   formatNullable(value: unknown): string {
@@ -122,28 +176,33 @@ export class AttendanceFormatter {
     if (value === null || value === undefined) {
       return this.config.emptyValue;
     }
+    if (this.isArabic) return AR_VERIFY[value] ?? `النوع ${toArabicDigits(String(value))}`;
     return VERIFY_LABELS[value] ?? `Type ${value}`;
   }
 
   formatCategory(value: string | null | undefined): string {
     if (!value) {
-      return ROLE_LABELS.unmatched;
+      return this.isArabic ? AR_ROLE.unmatched : ROLE_LABELS.unmatched;
     }
+    if (this.isArabic) return AR_ROLE[value] ?? value;
     return ROLE_LABELS[value] ?? this.toTitleCase(value);
   }
 
   formatAttendanceStatus(value: string | null | undefined): string {
     if (!value) {
-      return 'Scan';
+      return this.isArabic ? 'بصمة' : 'Scan';
     }
+    if (this.isArabic) return AR_DERIVED[value] ?? value.replace(/_/g, ' ');
     return DERIVED_LABELS[value] ?? this.toTitleCase(value.replace(/_/g, ' '));
   }
 
   formatMatchStatus(matched: boolean | number | null | undefined): string {
+    if (this.isArabic) return matched ? 'مطابق' : 'غير مطابق';
     return matched ? 'Matched' : 'Unmatched';
   }
 
   formatProvisionalStatus(isProvisional: boolean | null | undefined): string {
+    if (this.isArabic) return isProvisional ? 'مؤقت' : 'مؤكد';
     return isProvisional ? 'Provisional' : 'Verified';
   }
 
@@ -154,14 +213,15 @@ export class AttendanceFormatter {
     }
 
     if (this.config.dateFormat === 'day-slash-month-slash-year') {
-      return [
+      const out = [
         pad(this.getDatePart(date, 'day')),
         pad(this.getDatePart(date, 'month')),
         this.getDatePart(date, 'year'),
       ].join('/');
+      return this.isArabic ? toArabicDigits(out) : out;
     }
 
-    return new Intl.DateTimeFormat(this.config.dateLocale, {
+    return new Intl.DateTimeFormat(this.isArabic ? AR_LOCALE : this.config.dateLocale, {
       timeZone: this.config.timezone,
       day: '2-digit',
       month: 'short',
@@ -175,7 +235,7 @@ export class AttendanceFormatter {
       return this.config.emptyValue;
     }
 
-    return new Intl.DateTimeFormat(this.config.timeLocale, {
+    return new Intl.DateTimeFormat(this.isArabic ? AR_LOCALE : this.config.timeLocale, {
       timeZone: this.config.timezone,
       hour: '2-digit',
       minute: '2-digit',

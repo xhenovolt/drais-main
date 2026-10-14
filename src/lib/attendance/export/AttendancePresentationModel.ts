@@ -72,7 +72,7 @@ export class AttendancePresentationModel {
     row: AttendanceHistoryBaseRow,
     formatter: AttendanceFormatter,
   ): AttendancePresentationRow {
-    const name = row.person_name || `UID: ${row.device_user_id}`;
+    const name = row.person_name || (formatter.isArabic ? `المعرّف: ${row.device_user_id}` : `UID: ${row.device_user_id}`);
 
     return {
       date: formatter.formatDate(row.check_time),
@@ -84,14 +84,12 @@ export class AttendancePresentationModel {
       category: formatter.formatCategory(row.role_type || 'unmatched'),
       className: formatter.formatNullable(row.class_name),
       residence: row.role_type !== 'student' ? formatter.emptyValue
-        : row.residency_status === 'boarding' ? 'Boarding'
-        : row.residency_status === 'day' ? 'Day'
-        : 'Not set',
+        : formatter.formatResidence(row.residency_status),
       deviceId: formatter.formatNullable(row.device_user_id),
       school: formatter.formatNullable(formatter.schoolName),
       verificationMethod: formatter.formatVerificationMethod(row.verify_type),
       attendanceStatus: formatter.formatAttendanceStatus(row.derived_event),
-      statusDetail: formatter.formatNullable(row.derived_detail),
+      statusDetail: formatter.formatPunchDetail(row.derived_detail),
       matchStatus: formatter.formatMatchStatus(row.matched),
       verified: formatter.formatBoolean(Boolean(row.matched)),
     };
