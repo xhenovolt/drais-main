@@ -1,0 +1,106 @@
+{
+ "/api/attendance/trace?event_id": {
+  "success": true,
+  "event": {
+   "id": 55,
+   "name": "Amina Nakato",
+   "device_user_id": "1042",
+   "punch_at": "2026-10-13T04:42:10Z",
+   "device_sn": "CQUH1"
+  },
+  "stages": [
+   {
+    "key": "capture",
+    "label": "البصمة / الالتقاط",
+    "status": "ok",
+    "at": "2026-10-13T04:42:10.000Z",
+    "detail": "تم التحقق من الرقم ١٠٤٢ على الجهاز (الطريقة ١)."
+   },
+   {
+    "key": "device",
+    "label": "الجهاز",
+    "status": "ok",
+    "at": null,
+    "detail": "سجّله الجهاز CQUH1."
+   },
+   {
+    "key": "device_time",
+    "label": "توقيت الجهاز",
+    "status": "ok",
+    "at": "2026-10-13T04:42:10.000Z",
+    "detail": "وقت الجهاز ٢٠٢٦-١٠-١٣ ٠٧:٤٢:١٠."
+   },
+   {
+    "key": "receive",
+    "label": "الاستلام في الخادم",
+    "status": "ok",
+    "at": "2026-10-13T05:42:10.000Z",
+    "detail": "استُلم عبر adms · رُفع بعد ٦٠ دقيقة من البصمة (تخزين ثم إرسال)."
+   },
+   {
+    "key": "correction",
+    "label": "تصحيح الوقت",
+    "status": "ok",
+    "at": null,
+    "detail": "لا حاجة إلى تصحيح — وقت البصمة موثوق (الجهاز)."
+   },
+   {
+    "key": "identity",
+    "label": "تحديد الهوية",
+    "status": "ok",
+    "at": null,
+    "detail": "Amina Nakato (متعلم) عبر التسجيل."
+   },
+   {
+    "key": "verdict",
+    "label": "سجل الحضور",
+    "status": "ok",
+    "at": "2026-10-13T05:00:00.000Z",
+    "detail": "حكم اليوم: متأخر (متأخر ١٢ دقيقة) · القاعدة رقم ٣ · هذه البصمة: وصول متأخر."
+   },
+   {
+    "key": "popup",
+    "label": "النافذة المباشرة",
+    "status": "info",
+    "at": null,
+    "detail": "لم تظهر مباشرة (رفع دفعة دون اتصال، أو وصلت قبل تتبّع النوافذ)."
+   },
+   {
+    "key": "sms",
+    "label": "رسالة ولي الأمر",
+    "status": "ok",
+    "at": "2026-10-13T05:00:00.000Z",
+    "detail": "١ رسالة: سُلِّمت."
+   },
+   {
+    "key": "audit",
+    "label": "التدقيق",
+    "status": "ok",
+    "at": null,
+    "detail": "الحدث الأصلي رقم ٥٥ دليل غير قابل للتعديل: وقت الجهاز كما ورد ووقت الاستلام وسجل التصحيح محفوظة كلها."
+   }
+  ],
+  "summary": {
+   "status": "ok",
+   "failedStage": null
+  }
+ },
+ "/api/attendance/trace": {
+  "rows": [
+   {
+    "id": 55,
+    "display_name": "Amina Nakato",
+    "device_user_id": "1042",
+    "punch_at": "2026-10-13T04:42:10Z",
+    "device_sn": "CQUH1",
+    "source": "adms",
+    "derived_event": "ARRIVED_LATE",
+    "flags": {
+     "identity": "ok",
+     "verdict": "ok",
+     "popup": "info"
+    }
+   }
+  ]
+ }
+}

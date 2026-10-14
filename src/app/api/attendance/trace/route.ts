@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { buildPunchTrace, searchTraceEvents } from '@/lib/attendance/trace';
+import { langFromRequest } from '@/lib/i18n/localize';
 
 export const runtime = 'nodejs';
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   const sp = new URL(req.url).searchParams;
   try {
     if (sp.get('event_id')) {
-      const trace = await buildPunchTrace(session.schoolId, Number(sp.get('event_id')));
+      const trace = await buildPunchTrace(session.schoolId, Number(sp.get('event_id')), langFromRequest(req));
       if (!trace) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
       return NextResponse.json({ success: true, ...trace });
     }

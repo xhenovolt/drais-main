@@ -12,7 +12,7 @@
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
-import { toArabicDigits } from '@/lib/i18n/format';
+import { localizeDigitsInText } from '@/lib/i18n/format';
 
 /** Check names in Arabic, by key. */
 const AR_LABEL: Record<string, string> = {
@@ -64,7 +64,7 @@ const unknown = (key: string, label: string, weight: number, why: string): Healt
 export async function runHealthChecks(schoolId: number, lang: 'en' | 'ar' = 'en'): Promise<HealthReport> {
   const checks: HealthCheck[] = [];
   /** The English text, or the Arabic one (with Arabic-Indic digits) when the reader's interface is Arabic. */
-  const L = (en: string, ar: string) => (lang === 'ar' ? toArabicDigits(ar) : en);
+  const L = (en: string, ar: string) => (lang === 'ar' ? localizeDigitsInText(ar, 'ar') : en);
   const guard = async (fn: () => Promise<HealthCheck>, key: string, label: string, weight: number) => {
     try { checks.push(await fn()); }
     catch (e) { checks.push(unknown(key, label, weight, L(`Check failed: ${(e as Error).message}`, `تعذر الفحص: ${(e as Error).message}`))); }

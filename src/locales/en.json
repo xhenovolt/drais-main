@@ -5135,6 +5135,17 @@
       "mismatch": "{{n}} learner(s) are actively enrolled but marked inactive — their attendance isn't tracked.",
       "fixing": "Fixing…",
       "activateN": "Activate {{n}} learner(s)"
+    },
+    "trace": {
+      "title": "Event Explorer",
+      "subtitle": "Every punch is a traceable event — open one to see exactly where it succeeded or failed.",
+      "search": "Name or PIN…",
+      "searchButton": "Search",
+      "none": "No events found.",
+      "pin": "PIN {{pin}}",
+      "flags": "identity / verdict / popup",
+      "select": "Select an event to see its full lifecycle.",
+      "complete": "Complete"
     }
   }
 }
