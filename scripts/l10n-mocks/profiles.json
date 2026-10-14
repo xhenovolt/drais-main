@@ -1,0 +1,4 @@
+{ "/api/attendance/person-profiles": { "success": true, "summary": { "frequently_absent": 2, "declining": 1, "chronically_late": 3 },
+  "watchlist": [ { "person_id": 7, "name": "Amina Nakato", "behaviour": "frequently_absent", "label": "Frequently absent", "note": "Absent 30% of tracked days (6/20), currently on a 3-day absence streak — well above normal.", "absentRate": 0.3, "lateRate": 0.1, "presentRate": 0.7, "trackedDays": 20, "currentAbsentStreak": 3, "priorAbsentRate": 0.2, "recentAbsentRate": 0.4 } ],
+  "roster_review": [ { "person_id": 9, "name": "Old Teacher", "trackedDays": 12 } ], "all": [] },
+  "/api/attendance/roster-hygiene": { "enrollment_mismatch": 4 } }

@@ -5078,6 +5078,63 @@
           "surface": "Control Center"
         }
       }
+    },
+    "profiles": {
+      "b": {
+        "insufficient_data": "Not enough data",
+        "never_present": "Never present",
+        "frequently_absent": "Frequently absent",
+        "declining": "Declining — unusual for them",
+        "chronically_late": "Chronically late",
+        "improving": "Improving",
+        "occasionally_late": "Occasionally late",
+        "reliable": "Reliable"
+      },
+      "n": {
+        "insufficient_data": "Only {{n}} tracked day(s) — need more history to profile.",
+        "never_present": "No check-in on any of {{n}} tracked days — likely a former member or not enrolled on the device. Review the roster / enrollment rather than treat as attendance behaviour.",
+        "frequently_absent": "Absent {{rate}} of tracked days ({{count}}/{{n}}){{streak}} — well above normal.",
+        "streak": ", currently on a {{n}}-day absence streak",
+        "declining": "Absence rose from {{from}} to {{to}} recently — a change from their own pattern. Worth a conversation.",
+        "chronically_late": "Late {{rate}} of tracked days ({{count}}/{{n}}) — a persistent pattern.",
+        "improving": "Absence fell from {{from}} to {{to}} — trending the right way.",
+        "occasionally_late": "Late {{rate}} of days; otherwise reliable.",
+        "reliable": "Present {{rate}} of tracked days with little lateness."
+      },
+      "absent": "{{pct}} absent",
+      "lateDays": "{{pct}} late · {{n}}d",
+      "title": "Attendance Profiles",
+      "subtitle": "Who needs attention — DRAIS reads each person's own pattern, not just the totals.",
+      "staff": "Staff",
+      "learners": "Learners",
+      "days": "{{n}} days",
+      "s": {
+        "frequently_absent": "Frequently absent",
+        "declining": "Declining",
+        "chronically_late": "Chronically late"
+      },
+      "watchList": "Watch-list",
+      "noneWatch": "No one needs attention in this window — attendance behaviour is healthy.",
+      "showAll": "Show all {{n}} profiles",
+      "hideAll": "Hide all {{n}} profiles",
+      "confirmDeactivate": "Mark {{n}} {{who}}(s) inactive? This is reversible.",
+      "who": {
+        "staff": "staff",
+        "learner": "learner"
+      },
+      "failed": "Failed",
+      "roster": "Roster review",
+      "rosterNote": "({{n}} never checked in — likely former or not enrolled)",
+      "markInactive": "Mark {{n}} inactive",
+      "reactivate": "Reactivate",
+      "rosterHelp": "Kept OUT of the behaviour watch-list. Select and mark inactive so attendance reflects real people — fully reversible and audited.",
+      "selectAll": "Select all",
+      "trackedNever": "{{n}}d tracked · never present",
+      "mismatchConfirm": "{{n}} learner(s) have an active enrollment but are marked inactive. Activate them so their attendance is tracked?",
+      "activated": "Activated {{n}} learner(s).",
+      "mismatch": "{{n}} learner(s) are actively enrolled but marked inactive — their attendance isn't tracked.",
+      "fixing": "Fixing…",
+      "activateN": "Activate {{n}} learner(s)"
     }
   }
 }

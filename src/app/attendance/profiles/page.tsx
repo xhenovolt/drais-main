@@ -9,6 +9,7 @@
 import React, { useState, useCallback } from 'react';
 import useSWR from 'swr';
 import { Users, AlertTriangle, TrendingDown, Clock, UserCheck, Loader2, Eye, UserX, Wrench } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
@@ -25,24 +26,38 @@ const pct = (r: number) => `${Math.round((r || 0) * 100)}%`;
 
 function Row({ p }: { p: any }) {
   const st = BEHAVIOUR_STYLE[p.behaviour] || BEHAVIOUR_STYLE.reliable;
+  const { t, rich, lang, digits } = useI18n();
+  const P = (r: number) => (lang === 'ar' ? `${digits(Math.round((r || 0) * 100))}٪` : pct(r));
+  // In Arabic the label and note are composed from the profile's own numbers (the server sends English).
+  const label = lang === 'ar' ? t(`attendancePages.profiles.b.${p.behaviour}`, p.label) : p.label;
+  const note = lang !== 'ar' ? p.note : (() => {
+    const n = p.trackedDays;
+    const v: Record<string, any> = { n, rate: '', count: '', streak: '', from: P(p.priorAbsentRate), to: P(p.recentAbsentRate) };
+    if (p.behaviour === 'frequently_absent') { v.rate = P(p.absentRate); v.count = Math.round(p.absentRate * n); v.streak = p.currentAbsentStreak >= 2 ? t('attendancePages.profiles.n.streak', { n: p.currentAbsentStreak }) : ''; }
+    if (p.behaviour === 'chronically_late') { v.rate = P(p.lateRate); v.count = Math.round(p.lateRate * n); }
+    if (p.behaviour === 'occasionally_late') v.rate = P(p.lateRate);
+    if (p.behaviour === 'reliable') v.rate = P(p.presentRate);
+    return t(`attendancePages.profiles.n.${p.behaviour}`, v, p.note);
+  })();
   return (
     <div className="flex items-start justify-between gap-3 py-2.5 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{p.name || `#${p.person_id}`}</span>
-          <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-semibold ${st.chip}`}>{st.icon} {p.label}</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{p.name || `#${digits(p.person_id)}`}</span>
+          <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-semibold ${st.chip}`}>{st.icon} {label}</span>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{p.note}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{note}</p>
       </div>
-      <div className="text-right flex-shrink-0 text-[11px] text-gray-400">
-        <div><span className="text-rose-500 font-semibold">{pct(p.absentRate)}</span> absent</div>
-        <div><span className="text-amber-500 font-semibold">{pct(p.lateRate)}</span> late · {p.trackedDays}d</div>
+      <div className="text-end flex-shrink-0 text-[11px] text-gray-400">
+        <div>{rich('attendancePages.profiles.absent', { pct: <span className="text-rose-500 font-semibold">{P(p.absentRate)}</span> })}</div>
+        <div>{rich('attendancePages.profiles.lateDays', { pct: <span className="text-amber-500 font-semibold">{P(p.lateRate)}</span> }, { n: p.trackedDays })}</div>
       </div>
     </div>
   );
 }
 
 export default function AttendanceProfiles() {
+  const { t, digits } = useI18n();
   const [role, setRole] = useState<'staff' | 'student'>('staff');
   const [days, setDays] = useState(30);
   const [showAll, setShowAll] = useState(false);
@@ -58,18 +73,18 @@ export default function AttendanceProfiles() {
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Attendance Profiles</h1>
-            <p className="text-sm text-gray-500">Who needs attention — DRAIS reads each person's own pattern, not just the totals.</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('attendancePages.profiles.title')}</h1>
+            <p className="text-sm text-gray-500">{t('attendancePages.profiles.subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
             {(['staff', 'student'] as const).map(r => (
-              <button key={r} onClick={() => setRole(r)} className={`px-3 py-1.5 ${role === r ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>{r === 'staff' ? 'Staff' : 'Learners'}</button>
+              <button key={r} onClick={() => setRole(r)} className={`px-3 py-1.5 ${role === r ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>{r === 'staff' ? t('attendancePages.profiles.staff') : t('attendancePages.profiles.learners')}</button>
             ))}
           </div>
           <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="text-sm px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200">
-            <option value={30}>30 days</option><option value={60}>60 days</option><option value={90}>90 days</option>
+            <option value={30}>{t('attendancePages.profiles.days', { n: 30 })}</option><option value={60}>{t('attendancePages.profiles.days', { n: 60 })}</option><option value={90}>{t('attendancePages.profiles.days', { n: 90 })}</option>
           </select>
         </div>
       </div>
@@ -79,12 +94,12 @@ export default function AttendanceProfiles() {
       {data?.summary && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            ['Frequently absent', data.summary.frequently_absent, 'text-rose-600 dark:text-rose-400'],
-            ['Declining', data.summary.declining, 'text-orange-600 dark:text-orange-400'],
-            ['Chronically late', data.summary.chronically_late, 'text-amber-600 dark:text-amber-400'],
+            [t('attendancePages.profiles.s.frequently_absent'), data.summary.frequently_absent, 'text-rose-600 dark:text-rose-400'],
+            [t('attendancePages.profiles.s.declining'), data.summary.declining, 'text-orange-600 dark:text-orange-400'],
+            [t('attendancePages.profiles.s.chronically_late'), data.summary.chronically_late, 'text-amber-600 dark:text-amber-400'],
           ].map(([label, n, c]) => (
             <div key={label as string} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-center">
-              <div className={`text-2xl font-bold ${c}`}>{n ?? 0}</div>
+              <div className={`text-2xl font-bold ${c}`}>{digits(n ?? 0)}</div>
               <div className="text-[11px] text-gray-500">{label}</div>
             </div>
           ))}
@@ -93,9 +108,9 @@ export default function AttendanceProfiles() {
 
       {/* Watch-list */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1 flex items-center gap-1.5"><Eye className="w-4 h-4 text-rose-500" /> Watch-list</p>
+        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1 flex items-center gap-1.5"><Eye className="w-4 h-4 text-rose-500" /> {t('attendancePages.profiles.watchList')}</p>
         {watchlist.length === 0
-          ? <p className="text-sm text-gray-400 py-3">No one needs attention in this window — attendance behaviour is healthy.</p>
+          ? <p className="text-sm text-gray-400 py-3">{t('attendancePages.profiles.noneWatch')}</p>
           : watchlist.map((p: any) => <Row key={p.person_id} p={p} />)}
       </div>
 
@@ -111,7 +126,7 @@ export default function AttendanceProfiles() {
       {all.length > watchlist.length && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <button onClick={() => setShowAll(v => !v)} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-            {showAll ? 'Hide' : 'Show'} all {all.length} profiles
+            {showAll ? t('attendancePages.profiles.hideAll', { n: all.length }) : t('attendancePages.profiles.showAll', { n: all.length })}
           </button>
           {showAll && <div className="mt-2">{all.map((p: any) => <Row key={p.person_id} p={p} />)}</div>}
         </div>
@@ -122,49 +137,50 @@ export default function AttendanceProfiles() {
 
 /** Roster review with reversible bulk deactivate (Phase C). */
 function RosterReview({ list, role, onChanged }: { list: any[]; role: 'staff' | 'student'; onChanged: () => void }) {
+  const { t, digits } = useI18n();
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const toggle = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allSelected = list.length > 0 && sel.size === list.length;
   const act = useCallback(async (action: 'deactivate' | 'reactivate') => {
     if (sel.size === 0) return;
-    if (action === 'deactivate' && !confirm(`Mark ${sel.size} ${role === 'staff' ? 'staff' : 'learner'}(s) inactive? This is reversible.`)) return;
+    if (action === 'deactivate' && !confirm(t('attendancePages.profiles.confirmDeactivate', { n: sel.size, who: t(`attendancePages.profiles.who.${role === 'staff' ? 'staff' : 'learner'}`) }))) return;
     setBusy(true);
     try {
       const r = await fetch('/api/attendance/roster-hygiene', { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action, role, person_ids: [...sel] }) });
       const j = await r.json();
       if (j.success) { setSel(new Set()); onChanged(); }
-      else alert(j.error || 'Failed');
+      else alert(j.error || t('attendancePages.profiles.failed'));
     } finally { setBusy(false); }
-  }, [sel, role, onChanged]);
+  }, [sel, role, onChanged, t]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
-          <UserX className="w-4 h-4 text-slate-500" /> Roster review
-          <span className="text-[11px] font-normal text-gray-400">({list.length} never checked in — likely former or not enrolled)</span>
+          <UserX className="w-4 h-4 text-slate-500" /> {t('attendancePages.profiles.roster')}
+          <span className="text-[11px] font-normal text-gray-400">{t('attendancePages.profiles.rosterNote', { n: list.length })}</span>
         </p>
         {sel.size > 0 && (
           <div className="flex items-center gap-2">
-            <button onClick={() => act('deactivate')} disabled={busy} className="text-[11px] px-2.5 py-1 rounded-lg bg-rose-600 text-white font-medium disabled:opacity-50">Mark {sel.size} inactive</button>
-            <button onClick={() => act('reactivate')} disabled={busy} className="text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium disabled:opacity-50">Reactivate</button>
+            <button onClick={() => act('deactivate')} disabled={busy} className="text-[11px] px-2.5 py-1 rounded-lg bg-rose-600 text-white font-medium disabled:opacity-50">{t('attendancePages.profiles.markInactive', { n: sel.size })}</button>
+            <button onClick={() => act('reactivate')} disabled={busy} className="text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium disabled:opacity-50">{t('attendancePages.profiles.reactivate')}</button>
           </div>
         )}
       </div>
-      <p className="text-[11px] text-gray-400 mb-2">Kept OUT of the behaviour watch-list. Select and mark inactive so attendance reflects real people — fully reversible and audited.</p>
+      <p className="text-[11px] text-gray-400 mb-2">{t('attendancePages.profiles.rosterHelp')}</p>
       <label className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-1 cursor-pointer">
-        <input type="checkbox" checked={allSelected} onChange={() => setSel(allSelected ? new Set() : new Set(list.map((p: any) => p.person_id)))} /> Select all
+        <input type="checkbox" checked={allSelected} onChange={() => setSel(allSelected ? new Set() : new Set(list.map((p: any) => p.person_id)))} /> {t('attendancePages.profiles.selectAll')}
       </label>
       <div className="max-h-56 overflow-y-auto">
         {list.map((p: any) => (
           <label key={p.person_id} className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 last:border-0 cursor-pointer">
             <span className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={sel.has(p.person_id)} onChange={() => toggle(p.person_id)} />
-              <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{p.name || `#${p.person_id}`}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{p.name || `#${digits(p.person_id)}`}</span>
             </span>
-            <span className="text-[11px] text-gray-400 flex-shrink-0">{p.trackedDays}d tracked · never present</span>
+            <span className="text-[11px] text-gray-400 flex-shrink-0">{t('attendancePages.profiles.trackedNever', { n: p.trackedDays })}</span>
           </label>
         ))}
       </div>
@@ -174,27 +190,28 @@ function RosterReview({ list, role, onChanged }: { list: any[]; role: 'staff' | 
 
 /** One-click fix for students actively enrolled but marked non-active (Phase C). */
 function EnrollmentMismatchFixer() {
+  const { t } = useI18n();
   const { data, mutate } = useSWR<any>('/api/attendance/roster-hygiene', fetcher);
   const [busy, setBusy] = useState(false);
   const n = data?.enrollment_mismatch ?? 0;
   if (!n) return null;
   const fix = async () => {
-    if (!confirm(`${n} learner(s) have an active enrollment but are marked inactive. Activate them so their attendance is tracked?`)) return;
+    if (!confirm(t('attendancePages.profiles.mismatchConfirm', { n }))) return;
     setBusy(true);
     try {
       const r = await fetch('/api/attendance/roster-hygiene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'fix_enrollment_mismatch' }) });
       const j = await r.json();
-      if (j.success) { alert(`Activated ${j.activated} learner(s).`); mutate(); }
-      else alert(j.error || 'Failed');
+      if (j.success) { alert(t('attendancePages.profiles.activated', { n: j.activated })); mutate(); }
+      else alert(j.error || t('attendancePages.profiles.failed'));
     } finally { setBusy(false); }
   };
   return (
     <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 p-4 flex items-center justify-between flex-wrap gap-2">
       <p className="text-sm text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
-        <Wrench className="w-4 h-4" /> {n} learner(s) are actively enrolled but marked inactive — their attendance isn't tracked.
+        <Wrench className="w-4 h-4" /> {t('attendancePages.profiles.mismatch', { n })}
       </p>
       <button onClick={fix} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white font-medium disabled:opacity-50">
-        {busy ? 'Fixing…' : `Activate ${n} learner(s)`}
+        {busy ? t('attendancePages.profiles.fixing') : t('attendancePages.profiles.activateN', { n })}
       </button>
     </div>
   );
