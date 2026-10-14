@@ -12,6 +12,7 @@ import {
   CalendarDays, Plus, Trash2, Loader2, Globe2, School, Save, X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -37,6 +38,7 @@ const todayIso = (): string => {
 };
 
 export default function HolidaysPage() {
+  const { t, lang, digits, formatDate } = useI18n();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const { data, mutate, isLoading } = useSWR<{ holidays: Holiday[] }>(
     `/api/admin/holidays?year=${year}`,
@@ -65,7 +67,7 @@ export default function HolidaysPage() {
   const submitNew = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) {
-      toast.error('Name is required');
+      toast.error(t('attendancePages.holidays.nameRequired'));
       return;
     }
     setSaving(true);
@@ -80,28 +82,28 @@ export default function HolidaysPage() {
         }),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Failed to create');
-      toast.success('Holiday added');
+      if (!r.ok) throw new Error(j.error || t('attendancePages.holidays.createFailed'));
+      toast.success(t('attendancePages.holidays.added'));
       setForm({ holiday_date: todayIso(), name: '', scope: 'school' });
       setCreating(false);
       await mutate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create');
+      toast.error(err instanceof Error ? err.message : t('attendancePages.holidays.createFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (h: Holiday) => {
-    if (!confirm(`Remove "${h.name}" on ${h.holiday_date}?`)) return;
+    if (!confirm(t('attendancePages.holidays.confirmRemove', { name: h.name, date: h.holiday_date }))) return;
     try {
       const r = await fetch(`/api/admin/holidays/${h.id}`, { method: 'DELETE' });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Delete failed');
-      toast.success('Holiday removed');
+      if (!r.ok) throw new Error(j.error || t('attendancePages.holidays.deleteFailed'));
+      toast.success(t('attendancePages.holidays.removed'));
       await mutate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Delete failed');
+      toast.error(err instanceof Error ? err.message : t('attendancePages.holidays.deleteFailed'));
     }
   };
 
@@ -111,13 +113,13 @@ export default function HolidaysPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <CalendarDays className="w-6 h-6 text-indigo-600" />
-            Holidays
+            {t('attendancePages.holidays.title')}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Days listed here are skipped by the attendance engine — no
-            late/absent verdict fires for learners or staff. National
-            entries (school-wide) come from the Ministry of Education
-            calendar.
+            {t('attendancePages.holidays.intro')}
+            
+            
+            
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -127,7 +129,7 @@ export default function HolidaysPage() {
             className="px-2 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
           >
             {[year - 1, year, year + 1].map(y => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y}>{digits(y)}</option>
             ))}
           </select>
           <button
@@ -135,7 +137,7 @@ export default function HolidaysPage() {
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             {creating ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {creating ? 'Cancel' : 'Add holiday'}
+            {creating ? t('attendancePages.holidays.cancel') : t('attendancePages.holidays.add')}
           </button>
         </div>
       </div>
@@ -145,7 +147,7 @@ export default function HolidaysPage() {
           onSubmit={submitNew}
           className="mb-6 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end"
         >
-          <Field label="Date">
+          <Field label={t('attendancePages.holidays.date')}>
             <input
               type="date"
               value={form.holiday_date}
@@ -154,23 +156,23 @@ export default function HolidaysPage() {
               className={inputCls}
             />
           </Field>
-          <Field label="Name">
+          <Field label={t('attendancePages.holidays.name')}>
             <input
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Independence Day"
+              placeholder={t('attendancePages.holidays.namePlaceholder')}
               required
               className={inputCls}
             />
           </Field>
-          <Field label="Scope">
+          <Field label={t('attendancePages.holidays.scope')}>
             <select
               value={form.scope}
               onChange={e => setForm(f => ({ ...f, scope: e.target.value as FormState['scope'] }))}
               className={inputCls}
             >
-              <option value="school">This school</option>
-              <option value="class">Specific class(es)</option>
+              <option value="school">{t('attendancePages.holidays.thisSchool')}</option>
+              <option value="class">{t('attendancePages.holidays.classes')}</option>
             </select>
           </Field>
           <div className="sm:col-span-3 flex justify-end gap-2">
@@ -179,7 +181,7 @@ export default function HolidaysPage() {
               onClick={() => setCreating(false)}
               className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600"
             >
-              Cancel
+              {t('attendancePages.holidays.cancel')}
             </button>
             <button
               type="submit"
@@ -187,7 +189,7 @@ export default function HolidaysPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save
+              {t('attendancePages.holidays.save')}
             </button>
           </div>
         </form>
@@ -195,13 +197,13 @@ export default function HolidaysPage() {
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t('attendancePages.holidays.loading')}
         </div>
       ) : holidays.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
           <CalendarDays className="w-10 h-10 mx-auto text-gray-400 mb-2" />
           <p className="text-sm text-gray-600">
-            No holidays for {year}. Add one to skip the attendance verdict on that day.
+            {t('attendancePages.holidays.none', { year })}
           </p>
         </div>
       ) : (
@@ -212,17 +214,17 @@ export default function HolidaysPage() {
               className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
             >
               <header className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-200 dark:border-gray-700">
-                {new Date(`${month}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                {lang === 'ar' ? formatDate(`${month}-01`, { month: 'long', year: 'numeric' }) : new Date(`${month}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })}
               </header>
               <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                 {entries.map(h => (
                   <li key={h.id} className="px-4 py-2.5 flex items-center gap-3">
                     <div className="w-14 text-center">
                       <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                        {parseInt(h.holiday_date.slice(8, 10), 10)}
+                        {digits(parseInt(h.holiday_date.slice(8, 10), 10))}
                       </div>
                       <div className="text-[10px] uppercase tracking-wider text-gray-500">
-                        {new Date(h.holiday_date).toLocaleDateString('default', { weekday: 'short' })}
+                        {lang === 'ar' ? formatDate(h.holiday_date, { weekday: 'short' }) : new Date(h.holiday_date).toLocaleDateString('default', { weekday: 'short' })}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -231,14 +233,14 @@ export default function HolidaysPage() {
                       </div>
                       <div className="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
                         {h.school_id === null
-                          ? <><Globe2 className="w-3 h-3" /> National</>
-                          : <><School className="w-3 h-3" /> {h.scope === 'class' ? `Classes: ${h.applies_to_classes ?? '—'}` : 'School-wide'}</>}
+                          ? <><Globe2 className="w-3 h-3" /> {t('attendancePages.holidays.national')}</>
+                          : <><School className="w-3 h-3" /> {h.scope === 'class' ? t('attendancePages.holidays.classesList', { list: h.applies_to_classes ?? '—' }) : t('attendancePages.holidays.schoolWide')}</>}
                       </div>
                     </div>
                     <button
                       onClick={() => remove(h)}
                       className="text-gray-400 hover:text-red-600"
-                      title="Remove"
+                      title={t('attendancePages.holidays.remove')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

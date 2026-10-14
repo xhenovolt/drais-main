@@ -4947,6 +4947,31 @@
       "overnightShift": "overnight shift",
       "pickToPreview": "Pick a shift to preview classification.",
       "codePlaceholder": "AM"
+    },
+    "holidays": {
+      "nameRequired": "Name is required",
+      "createFailed": "Failed to create",
+      "added": "Holiday added",
+      "confirmRemove": "Remove \"{{name}}\" on {{date}}?",
+      "deleteFailed": "Delete failed",
+      "removed": "Holiday removed",
+      "title": "Holidays",
+      "intro": "Days listed here are skipped by the attendance engine — no late/absent verdict fires for learners or staff. National entries (school-wide) come from the Ministry of Education calendar.",
+      "cancel": "Cancel",
+      "add": "Add holiday",
+      "date": "Date",
+      "name": "Name",
+      "namePlaceholder": "Independence Day",
+      "scope": "Scope",
+      "thisSchool": "This school",
+      "classes": "Specific class(es)",
+      "save": "Save",
+      "loading": "Loading…",
+      "none": "No holidays for {{year}}. Add one to skip the attendance verdict on that day.",
+      "national": "National",
+      "classesList": "Classes: {{list}}",
+      "schoolWide": "School-wide",
+      "remove": "Remove"
     }
   }
 }

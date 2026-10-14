@@ -1,0 +1,1 @@
+{ "/api/admin/holidays": { "holidays": [ { "id": 1, "holiday_date": "2026-10-09", "name": "Independence Day", "school_id": null, "scope": "school", "applies_to_classes": null } ] } }
