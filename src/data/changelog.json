@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T16:58:46.628Z",
-  "last_commit": "2a72c0de06025674d8bf5aa7040e26f1561592b8",
+  "generated_at": "2026-10-14T17:08:55.345Z",
+  "last_commit": "b744961301d15e78120f314ba9bf755936820c95",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9657,7 +9657,20 @@
         }
       ],
       "commit": "2a72c0de06"
+    },
+    {
+      "version": "2.50.80",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "Translate attendance settings panels — SMS quiet hours, logs display, lesson attendance",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate attendance settings panels — SMS quiet hours, logs display, lesson attendance"
+        }
+      ],
+      "commit": "b744961301"
     }
   ],
-  "app_version": "2.50.80"
+  "app_version": "2.50.81"
 }

@@ -11,9 +11,13 @@
  * Idempotent: people who already have a record for the date are skipped, so
  * it is safe to run repeatedly (opportunistic sweep + end-of-day).
  *
- * Only finalises a past date, or today AFTER school hours — never a future
- * date, and never today before the day is effectively over (so we don't mark
- * people absent who simply haven't arrived yet).
+ * Only finalises a past date, or today once the school's absence cutoff has
+ * passed — never a future date, and never today before that cutoff (so we
+ * don't mark people absent who simply haven't arrived yet). The cutoff is the
+ * one the school configured on its attendance rules (absence_cutoff_time),
+ * per role; 17:00 only when no rule sets one. It used to be a hardcoded
+ * 17:00 for everyone, which is why Nakifuma's "absent" SMS — configured for
+ * 10:00 — went out in the evening.
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
@@ -26,18 +30,53 @@ function localToday(offsetMin: number): string {
 
 export interface FinalizeResult { date: string; staff: number; students: number; skipped: boolean; }
 
+/** Fallback cutoff (minutes after school-local midnight) when no rule sets absence_cutoff_time. */
+const DEFAULT_CUTOFF_MIN = 17 * 60;
+
+const toMinutes = (t: unknown): number | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t ?? ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/**
+ * Today's absence cutoff per role, from the school's active attendance rules.
+ * The LATEST cutoff among the rules that can apply to a role wins, so nobody
+ * covered by a later-cutoff rule is marked absent early.
+ */
+export async function absenceCutoffs(schoolId: number): Promise<{ student: number; staff: number }> {
+  const rows = (await query(
+    `SELECT applies_to, absence_cutoff_time FROM attendance_rules
+      WHERE school_id = ? AND is_active = 1 AND absence_cutoff_time IS NOT NULL`,
+    [schoolId],
+  ).catch(() => [])) as Array<{ applies_to: string; absence_cutoff_time: string }>;
+  const pick = (role: string) => {
+    const mins = rows.filter((r) => r.applies_to === 'all' || r.applies_to === role)
+      .map((r) => toMinutes(r.absence_cutoff_time)).filter((m): m is number => m != null);
+    return mins.length ? Math.max(...mins) : DEFAULT_CUTOFF_MIN;
+  };
+  return { student: pick('students'), staff: pick('staff') };
+}
+
 export async function finalizeDay(schoolId: number, dateStr?: string, opts: { minHour?: number } = {}): Promise<FinalizeResult> {
   const off = (await resolveTimePolicy(schoolId).catch(() => ({ offsetMinutes: 180 }))).offsetMinutes;
   const localNow = new Date(Date.now() + off * 60_000);
   const today = localToday(off);
   const date = dateStr || today;
 
-  // Guard: never finalise the future; for today, wait until the day is
-  // effectively over (default 17:00 school-local) so we don't mark
-  // not-yet-arrived people absent.
+  // Guard: never finalise the future; for today, wait until the role's
+  // absence cutoff (school-local) so we don't mark not-yet-arrived people
+  // absent. opts.minHour overrides the configured cutoff for both roles.
   if (date > today) return { date, staff: 0, students: 0, skipped: true };
-  if (date === today && localNow.getUTCHours() < (opts.minHour ?? 17)) {
-    return { date, staff: 0, students: 0, skipped: true };
+  let staffDue = true;
+  let studentsDue = true;
+  if (date === today) {
+    const nowMin = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
+    const cut = opts.minHour != null
+      ? { student: opts.minHour * 60, staff: opts.minHour * 60 }
+      : await absenceCutoffs(schoolId);
+    studentsDue = nowMin >= cut.student;
+    staffDue = nowMin >= cut.staff;
+    if (!studentsDue && !staffDue) return { date, staff: 0, students: 0, skipped: true };
   }
 
   const holiday = ((await query(
@@ -74,6 +113,7 @@ export async function finalizeDay(schoolId: number, dateStr?: string, opts: { mi
              AND r.person_id = st.person_id AND r.attendance_date = ?)`,
     [schoolId, date],
   ).catch(() => [])) as Array<{ person_id: number }>;
+  if (!staffDue) staffRows.length = 0;
 
   let staff = 0;
   for (const s of staffRows) {
@@ -102,6 +142,7 @@ export async function finalizeDay(schoolId: number, dateStr?: string, opts: { mi
              AND r.person_id = s.person_id AND r.attendance_date = ?)`,
     [schoolId, date],
   ).catch(() => [])) as Array<{ person_id: number }>;
+  if (!studentsDue) studentRows.length = 0;
 
   let students = 0;
   for (const s of studentRows) {
@@ -120,4 +161,38 @@ export async function finalizeRecentDays(schoolId: number, days = 1): Promise<Fi
     out.push(await finalizeDay(schoolId, d));
   }
   return out;
+}
+
+// ── Heartbeat-driven "finalize today at the cutoff" ──
+// The only scheduled job runs once a day (06:00 UTC), before most schools'
+// cutoffs, so without this today's absences were only materialised when
+// someone happened to open an intelligence page — often in the evening.
+// Device heartbeats arrive every ~30-60s, so they serve as the clock:
+// checked at most every 5 minutes per school per process, and once today
+// has been finalised for a school it is not repeated in this process.
+const FINALIZE_CHECK_MS = 5 * 60 * 1000;
+const lastFinalizeCheck = new Map<number, number>();
+const finalizedOn = new Map<number, string>();
+
+export async function finalizeTodayWhenDue(schoolId: number): Promise<void> {
+  const now = Date.now();
+  if (now - (lastFinalizeCheck.get(schoolId) || 0) < FINALIZE_CHECK_MS) return;
+  lastFinalizeCheck.set(schoolId, now);
+  const off = (await resolveTimePolicy(schoolId).catch(() => ({ offsetMinutes: 180 }))).offsetMinutes;
+  const today = localToday(off);
+  if (finalizedOn.get(schoolId) === today) return;
+  const localNow = new Date(now + off * 60_000);
+  const nowMin = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
+  const cut = await absenceCutoffs(schoolId);
+  if (nowMin < Math.min(cut.student, cut.staff)) return;
+  const r = await finalizeDay(schoolId, today);
+  // Done for the day only once every role's cutoff has passed and the day
+  // was actually finalised (an outage-guarded skip retries on a later beat).
+  if (!r.skipped && nowMin >= Math.max(cut.student, cut.staff)) finalizedOn.set(schoolId, today);
+  if (r.students + r.staff > 0) {
+    // The absent verdicts just queued their parent SMS — send them now
+    // rather than waiting for the next heartbeat drain.
+    const { drainNotificationOutbox } = await import('@/lib/notifications/drain');
+    await drainNotificationOutbox().catch(() => undefined);
+  }
 }

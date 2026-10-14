@@ -1195,6 +1195,16 @@ async function handleGET(req: NextRequest) {
 
     const schoolId = await getDeviceSchoolId(sn);
 
+    // Materialise today's absences (and send their parent SMS) shortly after
+    // the school's configured absence cutoff — the heartbeat is the clock.
+    // Throttled to one check per school per 5 minutes inside the helper.
+    if (schoolId) {
+      after(async () => {
+        const { finalizeTodayWhenDue } = await import('@/lib/attendance/finalize-day');
+        await finalizeTodayWhenDue(schoolId).catch((err) => console.warn('[zk-handler] finalize-today failed:', err));
+      });
+    }
+
     // Fire-and-forget: log raw traffic + upsert device + system log + observability + sync state
     const rawLogPromise = saveRawLog(sn, 'GET', qs, null, null, ip, ua, null, '/iclock/cdata', schoolId).catch(() => {});
     const upsertPromise = upsertDevice(sn, ip, options, pushVer, schoolId);
