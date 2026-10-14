@@ -5278,6 +5278,77 @@
       "savingDots": "Saving...",
       "update": "Update {{scope}} Window",
       "save": "Save {{scope}} Window"
+    },
+    "settingsPanels": {
+      "saveFailed": "Save failed",
+      "saving": "Saving…",
+      "quiet": {
+        "loadFailed": "Could not load quiet hours",
+        "loading": "Loading quiet hours…",
+        "saved": "Quiet hours saved",
+        "failed": "Failed to save quiet hours",
+        "title": "SMS Quiet Hours",
+        "help": "A punch that happens inside this window never texts a parent — for example, boarding learners known to trigger the device overnight (e.g. around 1 AM). The punch, the attendance record, and biometric evidence are unaffected; only the SMS is held back.",
+        "enable": "Enable quiet hours",
+        "starts": "Starts",
+        "ends": "Ends",
+        "midnight": "A window that crosses midnight (e.g. 23:00 → 05:00) is handled correctly.",
+        "save": "Save Quiet Hours"
+      },
+      "display": {
+        "compact": "Compact",
+        "compactHint": "Smallest rows — fit the most records on screen",
+        "comfortable": "Comfortable",
+        "comfortableHint": "Default spacing",
+        "spacious": "Spacious",
+        "spaciousHint": "Largest rows — easiest to read on a big screen",
+        "loadFailed": "Could not load display settings",
+        "loading": "Loading display settings…",
+        "saved": "Display setting saved",
+        "failed": "Failed to save display setting",
+        "title": "Attendance Logs table",
+        "help": "Controls row height and spacing on the Attendance Logs table for every admin at this school."
+      },
+      "lesson": {
+        "scopeHelp": {
+          "gate": "School entry only — its punches never count for lessons",
+          "lesson": "Lessons only (a dedicated classroom device)",
+          "shared": "Both: entry attendance and, inside a lesson window, lesson attendance"
+        },
+        "saved": "Lesson attendance settings saved",
+        "deviceFailed": "Could not update device",
+        "title": "Lesson attendance (timetable-aware)",
+        "intro": "Turns biometric punches into per-lesson attendance using your timetable. A school-entry punch never counts as proof of attending every lesson. Learners who are not on the biometric system are shown as “not accounted for”, never auto-marked absent.",
+        "enable": "Enable lesson attendance",
+        "checkin": "Check-in opens (min before start)",
+        "checkinHelp": "Punches earlier than this don’t count for the lesson.",
+        "grace": "Grace period (min after start)",
+        "graceHelp": "Arriving within this is still “present”.",
+        "lateUntil": "Late until (min after start)",
+        "lateUntilHelp": "Between grace and this = “late”. Later punches don’t count.",
+        "minPresence": "Minimum presence (min)",
+        "minPresenceHelp": "0 = one check-in is enough. Otherwise a first and a later punch this far apart are needed; one alone stays “pending”.",
+        "absentAfter": "Mark absent after lesson ends (min)",
+        "absentAfterHelp": "Until then a missing punch shows as “pending”.",
+        "unmapped": "Devices with no scope set",
+        "opt": {
+          "shared": "Shared (entry + lessons)",
+          "gate": "Gate only (entry)",
+          "lesson": "Lessons only"
+        },
+        "overrideHelp": "Set a scope per device below to override.",
+        "autoRoster": "Build lesson rosters automatically when a lesson is opened",
+        "save": "Save lesson settings",
+        "devicesTitle": "What each device is for",
+        "noDevices": "No devices registered.",
+        "default": "Default ({{scope}})",
+        "dev": {
+          "gate": "Gate (entry only)",
+          "lesson": "Dedicated lesson device",
+          "shared": "Shared (entry + lessons)"
+        },
+        "room": "Room (optional)"
+      }
     }
   }
 }

@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { Rows3, Save, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { LogsDensity } from '@/app/api/attendance/settings/logs-display/route';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const OPTIONS: { v: LogsDensity; label: string; hint: string }[] = [
   { v: 'compact', label: 'Compact', hint: 'Smallest rows — fit the most records on screen' },
@@ -18,6 +19,7 @@ const OPTIONS: { v: LogsDensity; label: string; hint: string }[] = [
 ];
 
 export default function LogsDisplaySettings() {
+  const { t } = useI18n();
   const [density, setDensity] = useState<LogsDensity | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -26,13 +28,13 @@ export default function LogsDisplaySettings() {
     fetch('/api/attendance/settings/logs-display')
       .then((r) => r.json())
       .then((d) => { if (d?.success) setDensity(d.density); })
-      .catch(() => setToast({ type: 'error', msg: 'Could not load display settings' }));
+      .catch(() => setToast({ type: 'error', msg: 'attendancePages.settingsPanels.display.loadFailed' }));
   }, []);
 
   if (!density) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-2 text-sm text-gray-500">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading display settings…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('attendancePages.settingsPanels.display.loading')}
       </div>
     );
   }
@@ -45,19 +47,19 @@ export default function LogsDisplaySettings() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ density: next }),
       });
       if (!res.ok) throw new Error('Save failed');
-      setToast({ type: 'success', msg: 'Display setting saved' });
+      setToast({ type: 'success', msg: 'attendancePages.settingsPanels.display.saved' });
     } catch {
-      setToast({ type: 'error', msg: 'Failed to save display setting' });
+      setToast({ type: 'error', msg: 'attendancePages.settingsPanels.display.failed' });
     } finally { setSaving(false); }
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
       <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-        <Rows3 className="w-4 h-4 text-indigo-500" /> Attendance Logs table
+        <Rows3 className="w-4 h-4 text-indigo-500" /> {t('attendancePages.settingsPanels.display.title')}
       </h2>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Controls row height and spacing on the Attendance Logs table for every admin at this school.
+        {t('attendancePages.settingsPanels.display.help')}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-xl">
@@ -66,22 +68,22 @@ export default function LogsDisplaySettings() {
             key={o.v}
             type="button"
             onClick={() => save(o.v)}
-            title={o.hint}
+            title={t(`attendancePages.settingsPanels.display.${o.v}Hint`)}
             disabled={saving}
-            className={`px-3 py-2 rounded-lg text-sm font-medium border text-left transition-colors disabled:opacity-50 ${density === o.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'}`}
+            className={`px-3 py-2 rounded-lg text-sm font-medium border text-start transition-colors disabled:opacity-50 ${density === o.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'}`}
           >
-            {o.label}
+            {t(`attendancePages.settingsPanels.display.${o.v}`)}
           </button>
         ))}
       </div>
-      <p className="text-xs text-gray-500">{OPTIONS.find((o) => o.v === density)?.hint}</p>
+      <p className="text-xs text-gray-500">{t(`attendancePages.settingsPanels.display.${density}Hint`)}</p>
 
       {toast && (
         <div className={`flex items-center gap-2 p-2.5 rounded-lg text-sm font-medium ${toast.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}{toast.msg}
+          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}{toast.msg.startsWith('attendancePages.settingsPanels.') ? t(toast.msg) : toast.msg}
         </div>
       )}
-      {saving && <div className="flex items-center gap-1.5 text-xs text-gray-400"><Save className="w-3.5 h-3.5" /> Saving…</div>}
+      {saving && <div className="flex items-center gap-1.5 text-xs text-gray-400"><Save className="w-3.5 h-3.5" /> {t('attendancePages.settingsPanels.saving')}</div>}
     </div>
   );
 }

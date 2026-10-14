@@ -11,10 +11,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { BellOff, Save, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface QuietHours { enabled: boolean; start: string; end: string }
 
 export default function SmsQuietHoursSettings() {
+  const { t } = useI18n();
   const [s, setS] = useState<QuietHours | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -23,13 +25,13 @@ export default function SmsQuietHoursSettings() {
     fetch('/api/attendance/settings/quiet-hours')
       .then((r) => r.json())
       .then((d) => { if (d?.success) setS({ enabled: d.enabled, start: d.start, end: d.end }); })
-      .catch(() => setToast({ type: 'error', msg: 'Could not load quiet hours' }));
+      .catch(() => setToast({ type: 'error', msg: 'attendancePages.settingsPanels.quiet.loadFailed' }));
   }, []);
 
   if (!s) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-2 text-sm text-gray-500">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading quiet hours…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('attendancePages.settingsPanels.quiet.loading')}
       </div>
     );
   }
@@ -41,22 +43,22 @@ export default function SmsQuietHoursSettings() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error || 'Save failed');
-      setToast({ type: 'success', msg: 'Quiet hours saved' });
+      if (!res.ok) throw new Error(body?.error || 'attendancePages.settingsPanels.saveFailed');
+      setToast({ type: 'success', msg: 'attendancePages.settingsPanels.quiet.saved' });
     } catch (e: any) {
-      setToast({ type: 'error', msg: e?.message || 'Failed to save quiet hours' });
+      setToast({ type: 'error', msg: e?.message || 'attendancePages.settingsPanels.quiet.failed' });
     } finally { setSaving(false); }
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
       <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-        <BellOff className="w-4 h-4 text-indigo-500" /> SMS Quiet Hours
+        <BellOff className="w-4 h-4 text-indigo-500" /> {t('attendancePages.settingsPanels.quiet.title')}
       </h2>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        A punch that happens inside this window never texts a parent — for example, boarding
-        learners known to trigger the device overnight (e.g. around 1 AM). The punch, the
-        attendance record, and biometric evidence are unaffected; only the SMS is held back.
+        {t('attendancePages.settingsPanels.quiet.help')}
+        
+        
       </p>
 
       <label className="flex items-center gap-3 cursor-pointer">
@@ -67,13 +69,13 @@ export default function SmsQuietHoursSettings() {
         >
           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform mt-0.5 ${s.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
         </button>
-        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Enable quiet hours</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{t('attendancePages.settingsPanels.quiet.enable')}</span>
       </label>
 
       {s.enabled && (
         <div className="grid grid-cols-2 gap-4 max-w-sm border-t border-gray-100 dark:border-gray-700 pt-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Starts</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('attendancePages.settingsPanels.quiet.starts')}</label>
             <input
               type="time"
               value={s.start}
@@ -82,7 +84,7 @@ export default function SmsQuietHoursSettings() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ends</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('attendancePages.settingsPanels.quiet.ends')}</label>
             <input
               type="time"
               value={s.end}
@@ -91,20 +93,20 @@ export default function SmsQuietHoursSettings() {
             />
           </div>
           <p className="col-span-2 text-xs text-gray-400">
-            A window that crosses midnight (e.g. 23:00 → 05:00) is handled correctly.
+            {t('attendancePages.settingsPanels.quiet.midnight')}
           </p>
         </div>
       )}
 
       {toast && (
         <div className={`flex items-center gap-2 p-2.5 rounded-lg text-sm font-medium ${toast.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}{toast.msg}
+          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}{toast.msg.startsWith('attendancePages.settingsPanels.') ? t(toast.msg) : toast.msg}
         </div>
       )}
 
       <div className="flex justify-end">
         <button onClick={save} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm disabled:opacity-50">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{saving ? 'Saving…' : 'Save Quiet Hours'}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{saving ? t('attendancePages.settingsPanels.saving') : t('attendancePages.settingsPanels.quiet.save')}
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T16:56:23.087Z",
-  "last_commit": "644383dfa0380eb697aa68e0d45c75a4a1d832b4",
+  "generated_at": "2026-10-14T16:58:46.628Z",
+  "last_commit": "2a72c0de06025674d8bf5aa7040e26f1561592b8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9644,7 +9644,20 @@
         }
       ],
       "commit": "644383dfa0"
+    },
+    {
+      "version": "2.50.79",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "Translate the /attendance/settings page shell (tabs, schedule and boarding sections)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate the /attendance/settings page shell (tabs, schedule and boarding sections)"
+        }
+      ],
+      "commit": "2a72c0de06"
     }
   ],
-  "app_version": "2.50.79"
+  "app_version": "2.50.80"
 }

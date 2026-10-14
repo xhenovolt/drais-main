@@ -1,0 +1,4 @@
+{ "/api/attendance/settings/quiet-hours": { "success": true, "enabled": true, "start": "23:00", "end": "05:00" },
+  "/api/attendance/settings/logs-display": { "success": true, "density": "comfortable" },
+  "/api/attendance/lessons/settings?devices=1": { "success": true, "devices": [ { "sn": "CQUH1", "deviceName": "Main gate", "location": "Gate", "roleLabel": null, "scope": "lesson", "classId": null, "room": "R1" } ] },
+  "/api/attendance/lessons/settings": { "success": true, "policy": { "enabled": true, "checkinBeforeMinutes": 10, "graceMinutes": 5, "lateUntilMinutes": 20, "minPresenceMinutes": 0, "absentFinalizeDelayMinutes": 30, "unmappedDeviceScope": "shared", "autoRoster": true } } }
