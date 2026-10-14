@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Settings, Clock, Save, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import LivePopupSettings from '@/components/attendance/LivePopupSettings';
 import AttendanceSmsPolicies from '@/components/attendance/AttendanceSmsPolicies';
 import SmsQuietHoursSettings from '@/components/attendance/SmsQuietHoursSettings';
@@ -155,6 +156,9 @@ const SETTINGS_TABS: Array<{ key: SettingsTab; label: string }> = [
 ];
 
 export default function AttendanceSettingsPage() {
+  const { t, rich, digits } = useI18n();
+  const scopeL = (s: AppliesTo) => t(`attendancePages.settings.scope.${s}`);
+  const boardL = (b: BoardingScope) => t(`attendancePages.settings.board.${b}`);
   const [scope, setScope] = useState<AppliesTo>('students');
   // Boarding population sub-selector — only meaningful (and shown) for the
   // 'students' scope. A day/boarding-scoped rule is a DIFFERENT rule row
@@ -257,7 +261,7 @@ export default function AttendanceSettingsPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (!res.ok) throw new Error(data.error || t('attendancePages.settings.saveFailed'));
       setExistingId(data.rule_id);
       const savedKey = ruleKey(scope, boardingScope);
       setRulesByKey((prev) => ({
@@ -274,9 +278,9 @@ export default function AttendanceSettingsPage() {
         }));
       }
       setDayOvByKey((prev) => ({ ...prev, [savedKey]: dayOv }));
-      setToast({ type: 'success', msg: `${SCOPE_LABEL[scope]}${boardingScope !== 'all' ? ` — ${BOARDING_SCOPE_LABEL[boardingScope]}` : ''} window saved` });
+      setToast({ type: 'success', msg: boardingScope !== 'all' ? t('attendancePages.settings.savedBoard', { scope: scopeL(scope), board: boardL(boardingScope) }) : t('attendancePages.settings.saved', { scope: scopeL(scope) }) });
     } catch (err: any) {
-      setToast({ type: 'error', msg: err.message || 'Failed to save' });
+      setToast({ type: 'error', msg: err.message || t('attendancePages.settings.failedToSave') });
     } finally {
       setSaving(false);
     }
@@ -300,9 +304,9 @@ export default function AttendanceSettingsPage() {
           <Settings className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Attendance Settings</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('attendancePages.settings.title')}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Configure arrival times, late thresholds, and attendance policies
+            {t('attendancePages.settings.subtitle')}
           </p>
         </div>
       </div>
@@ -322,18 +326,18 @@ export default function AttendanceSettingsPage() {
       )}
 
       {/* Section tabs. Every panel stays MOUNTED (just hidden) so unsaved edits survive switching tabs. */}
-      <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Attendance settings sections">
-        {SETTINGS_TABS.map((t) => (
+      <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label={t('attendancePages.settings.sections')}>
+        {SETTINGS_TABS.map((tb) => (
           <button
-            key={t.key} role="tab" aria-selected={tab === t.key} id={`tab-${t.key}`} aria-controls={`panel-${t.key}`}
-            onClick={() => selectTab(t.key)}
+            key={tb.key} role="tab" aria-selected={tab === tb.key} id={`tab-${tb.key}`} aria-controls={`panel-${tb.key}`}
+            onClick={() => selectTab(tb.key)}
             className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
-              tab === t.key
+              tab === tb.key
                 ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
                 : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
             }`}
           >
-            {t.label}
+            {t(`attendancePages.settings.tab.${tb.key}`)}
           </button>
         ))}
       </nav>
@@ -341,10 +345,10 @@ export default function AttendanceSettingsPage() {
       <div hidden={tab !== 'schedule'} role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" className="space-y-6">
       {/* Scope selector — configure each person group separately */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Who are you configuring?</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendancePages.settings.who')}</h2>
         <p className="text-xs text-gray-500">
-          Each group has its own arrival/presence window. Configure <strong>Learners</strong> and <strong>Staff</strong> separately,
-          or set an <strong>Everyone</strong> default. A group-specific window always overrides the Everyone default.
+          {rich('attendancePages.settings.whoHelp', { learners: <strong>{scopeL('students')}</strong>, staff: <strong>{scopeL('teachers')}</strong>, everyone: <strong>{scopeL('all')}</strong> })}
+          
         </p>
         <div className="flex flex-wrap gap-3">
           {(['students', 'teachers', 'all'] as const).map((opt) => {
@@ -360,7 +364,7 @@ export default function AttendanceSettingsPage() {
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
                 }`}
               >
-                {SCOPE_LABEL[opt]}
+                {scopeL(opt)}
                 {configured && (
                   <CheckCircle className={`w-3.5 h-3.5 ${active ? 'text-white' : 'text-green-500'}`} />
                 )}
@@ -370,8 +374,8 @@ export default function AttendanceSettingsPage() {
         </div>
         <p className="text-xs text-gray-500">
           {rulesByScope[scope]
-            ? `Editing the saved ${SCOPE_LABEL[scope]} window.`
-            : `No ${SCOPE_LABEL[scope]} window yet — fill the fields below and save to create one.`}
+            ? t('attendancePages.settings.editing', { scope: scopeL(scope) })
+            : t('attendancePages.settings.noWindow', { scope: scopeL(scope) })}
         </p>
       </div>
 
@@ -386,12 +390,12 @@ export default function AttendanceSettingsPage() {
           Everyone default for the same role, not a variant of it. */}
       {scope === 'students' && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Day scholars vs. boarding students</h2>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendancePages.settings.dayVsBoarding')}</h2>
           <p className="text-xs text-gray-500">
-            Leave this on <strong>Everyone</strong> if your day and boarding populations share one policy. To give
-            boarding students a different window (or the continuous-presence policy below), switch here and save a
-            separate rule — it only applies to students classified as boarding on the{' '}
-            <a href="/students/list" className="underline">student list</a>.
+            {rich('attendancePages.settings.dayVsBoardingHelp', { everyone: <strong>{scopeL('all')}</strong>, list: <a href="/students/list" className="underline">{t('attendancePages.settings.studentList')}</a> })}
+            
+            
+            
           </p>
           <div className="flex flex-wrap gap-3">
             {(['all', 'boarding', 'day'] as const).map((opt) => {
@@ -407,7 +411,7 @@ export default function AttendanceSettingsPage() {
                       : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
                   }`}
                 >
-                  {BOARDING_SCOPE_LABEL[opt]}
+                  {boardL(opt)}
                   {configured && <CheckCircle className={`w-3.5 h-3.5 ${active ? 'text-white' : 'text-green-500'}`} />}
                 </button>
               );
@@ -420,13 +424,13 @@ export default function AttendanceSettingsPage() {
           boarding-only rule; meaningless anywhere else. */}
       {scope === 'students' && boardingScope === 'boarding' && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Boarding presence policy</h2>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendancePages.settings.presencePolicy')}</h2>
           <p className="text-xs text-gray-500">
-            Boarding students generally reside at school. <strong>Daily</strong> (default) means a boarding student
-            still needs a biometric punch like anyone else. <strong>Continuous presence</strong> means a boarding
-            student who is checked in stays policy-recognized present on days with no new punch, until checked out
-            or put on leave — check a student in or record leave from their profile. This never overrides an actual
-            punch; it only fills in when there is none.
+            {rich('attendancePages.settings.presenceHelp', { daily: <strong>{t('attendancePages.settings.mode.daily')}</strong>, continuous: <strong>{t('attendancePages.settings.mode.continuous')}</strong> })}
+            
+            
+            
+            
           </p>
           <div className="flex flex-wrap gap-3">
             {(['daily', 'continuous'] as const).map((opt) => (
@@ -439,26 +443,26 @@ export default function AttendanceSettingsPage() {
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
                 }`}
               >
-                {opt}
+                {t(`attendancePages.settings.modeBtn.${opt}`)}
               </button>
             ))}
           </div>
           {form.boarding_presence_mode === 'continuous' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Presence validity window (days)
+                {t('attendancePages.settings.validity')}
               </label>
               <input
                 type="number"
                 min={1}
-                placeholder="Indefinite — until explicit leave/checkout"
+                placeholder={t('attendancePages.settings.validityPlaceholder')}
                 value={form.boarding_presence_validity_days}
                 onChange={(e) => set('boarding_presence_validity_days', e.target.value)}
                 className="w-full sm:w-72 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Leave blank for indefinite (a check-in stays valid until someone explicitly checks the student out or
-                records leave). Set a number of days to require fresh evidence periodically instead.
+                {t('attendancePages.settings.validityHelp')}
+                
               </p>
             </div>
           )}
@@ -467,9 +471,9 @@ export default function AttendanceSettingsPage() {
 
       {scope === 'students' && (
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-gray-500">The choices above (population and manual check-in presence) are part of the attendance rule and are saved with it.</p>
+          <p className="text-xs text-gray-500">{t('attendancePages.settings.savedWithRule')}</p>
           <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-            {saving ? 'Saving…' : 'Save rule'}
+            {saving ? t('attendancePages.settings.saving') : t('attendancePages.settings.saveRule')}
           </button>
         </div>
       )}
@@ -480,13 +484,13 @@ export default function AttendanceSettingsPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Clock className="w-4 h-4 text-indigo-500" />
-          Time Configuration — {SCOPE_LABEL[scope]}
+          {t('attendancePages.settings.timeConfig', { scope: scopeL(scope) })}
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Arrival Start Time
+              {t('attendancePages.settings.arrivalStart')}
             </label>
             <input
               type="time"
@@ -494,12 +498,12 @@ export default function AttendanceSettingsPage() {
               onChange={(e) => set('arrival_start_time', e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">When attendance tracking begins each day</p>
+            <p className="text-xs text-gray-500 mt-1">{t('attendancePages.settings.arrivalStartHelp')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Arrival End Time (On-time cutoff)
+              {t('attendancePages.settings.arrivalEnd')}
             </label>
             <input
               type="time"
@@ -507,12 +511,12 @@ export default function AttendanceSettingsPage() {
               onChange={(e) => set('arrival_end_time', e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">After this time, learners are marked late</p>
+            <p className="text-xs text-gray-500 mt-1">{t('attendancePages.settings.arrivalEndHelp')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Late Threshold (minutes)
+              {t('attendancePages.settings.lateThreshold')}
             </label>
             <input
               type="number"
@@ -523,13 +527,13 @@ export default function AttendanceSettingsPage() {
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Grace period after arrival end time before marking &quot;late&quot;
+              {t('attendancePages.settings.lateThresholdHelp')}
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Absence Cutoff Time
+              {t('attendancePages.settings.absenceCutoff')}
             </label>
             <input
               type="time"
@@ -538,13 +542,13 @@ export default function AttendanceSettingsPage() {
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <p className="text-xs text-gray-500 mt-1">
-              After this time, anyone who hasn&apos;t checked in is marked absent
+              {t('attendancePages.settings.absenceCutoffHelp')}
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              School Closing Time
+              {t('attendancePages.settings.closing')}
             </label>
             <input
               type="time"
@@ -552,12 +556,12 @@ export default function AttendanceSettingsPage() {
               onChange={(e) => set('closing_time', e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">End of school day — departure scans expected around this time</p>
+            <p className="text-xs text-gray-500 mt-1">{t('attendancePages.settings.closingHelp')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Duplicate Scan Window (minutes)
+              {t('attendancePages.settings.duplicate')}
             </label>
             <input
               type="number"
@@ -567,15 +571,15 @@ export default function AttendanceSettingsPage() {
               onChange={(e) => set('ignore_duplicate_scans_within_minutes', parseInt(e.target.value) || 0)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">Ignore repeated scans from the same person within this window</p>
+            <p className="text-xs text-gray-500 mt-1">{t('attendancePages.settings.duplicateHelp')}</p>
           </div>
         </div>
       </div>
 
       {/* School days */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">School Days</h2>
-        <p className="text-xs text-gray-500">Days the school operates. Punches on non-school days are recorded as &quot;weekend/closed&quot; and don&apos;t count as present/late or trigger parent SMS. Schools that teach on Saturday/Sunday should enable those days.</p>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendancePages.settings.schoolDays')}</h2>
+        <p className="text-xs text-gray-500">{t('attendancePages.settings.schoolDaysHelp')}</p>
         <div className="flex flex-wrap gap-2">
           {[
             { label: 'Mon', bit: 1 }, { label: 'Tue', bit: 2 }, { label: 'Wed', bit: 4 },
@@ -593,33 +597,33 @@ export default function AttendanceSettingsPage() {
                     : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'
                 }`}
               >
-                {d.label}
+                {t(`attendancePages.settings.dshort.${d.bit}`)}
               </button>
             );
           })}
         </div>
-        {form.weekday_mask === 0 && <p className="text-xs text-red-600">Select at least one school day.</p>}
+        {form.weekday_mask === 0 && <p className="text-xs text-red-600">{t('attendancePages.settings.oneDay')}</p>}
       </div>
 
       {/* Per-weekday arrival overrides */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Clock className="w-4 h-4 text-indigo-500" />
-          Day-Specific Arrival Times — {SCOPE_LABEL[scope]}
+          {t('attendancePages.settings.daySpecific', { scope: scopeL(scope) })}
         </h2>
         <p className="text-xs text-gray-500">
-          Some days differ — e.g. &quot;Saturday arrival ends at 10:00&quot;. Set an on-time cutoff (and optional
-          grace minutes) for a specific day; leave a day blank to use the standard times above. Overrides apply
-          to lateness verdicts, the dashboard, and the allowance report.
+          {t('attendancePages.settings.daySpecificHelp')}
+          
+          
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
-                <th className="py-1.5 pr-3 font-medium">Day</th>
-                <th className="py-1.5 pr-3 font-medium">Arrival End (on-time cutoff)</th>
-                <th className="py-1.5 pr-3 font-medium">Grace (min)</th>
-                <th className="py-1.5 font-medium">Effective</th>
+              <tr className="text-start text-xs text-gray-500 dark:text-gray-400">
+                <th className="py-1.5 pr-3 font-medium">{t('attendancePages.settings.col.day')}</th>
+                <th className="py-1.5 pr-3 font-medium">{t('attendancePages.settings.col.arrivalEnd')}</th>
+                <th className="py-1.5 pr-3 font-medium">{t('attendancePages.settings.col.grace')}</th>
+                <th className="py-1.5 font-medium">{t('attendancePages.settings.col.effective')}</th>
               </tr>
             </thead>
             <tbody>
@@ -631,8 +635,8 @@ export default function AttendanceSettingsPage() {
                 return (
                   <tr key={w.day} className="border-t border-gray-100 dark:border-gray-700">
                     <td className="py-2 pr-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                      {w.label}
-                      {overridden && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300">override</span>}
+                      {t(`attendancePages.settings.day.${w.day}`)}
+                      {overridden && <span className="ms-2 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300">{t('attendancePages.settings.override')}</span>}
                     </td>
                     <td className="py-2 pr-3">
                       <input
@@ -654,14 +658,14 @@ export default function AttendanceSettingsPage() {
                       />
                     </td>
                     <td className="py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      late after {effEnd}{effGrace !== '0' ? ` +${effGrace}m` : ''}
+                      {t('attendancePages.settings.lateAfter', { time: digits(effEnd), grace: effGrace !== '0' ? t('attendancePages.settings.graceMin', { n: effGrace }) : '' })}
                       {overridden && (
                         <button
                           type="button"
                           onClick={() => setDayOv((prev) => ({ ...prev, [w.day]: { arrival_end_time: '', late_threshold_minutes: '' } }))}
-                          className="ml-2 text-red-500 hover:text-red-600 underline"
+                          className="ms-2 text-red-500 hover:text-red-600 underline"
                         >
-                          clear
+                          {t('attendancePages.settings.clear')}
                         </button>
                       )}
                     </td>
@@ -671,35 +675,35 @@ export default function AttendanceSettingsPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500">Saved together with the {SCOPE_LABEL[scope]} window using the button below.</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">{t('attendancePages.settings.savedTogether', { scope: scopeL(scope) })}</p>
       </div>
 
       {/* Rule label (this scope) */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{SCOPE_LABEL[scope]} Rule Details</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('attendancePages.settings.ruleDetails', { scope: scopeL(scope) })}</h2>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Rule Name
+            {t('attendancePages.settings.ruleName')}
           </label>
           <input
             type="text"
             value={form.rule_name}
             onChange={(e) => set('rule_name', e.target.value)}
-            placeholder="e.g. Term 1 2026 Schedule"
+            placeholder={t('attendancePages.settings.ruleNamePlaceholder')}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Description (optional)
+            {t('attendancePages.settings.description')}
           </label>
           <textarea
             value={form.rule_description}
             onChange={(e) => set('rule_description', e.target.value)}
             rows={2}
-            placeholder="Brief note about this rule set..."
+            placeholder={t('attendancePages.settings.descriptionPlaceholder')}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
         </div>
@@ -713,7 +717,7 @@ export default function AttendanceSettingsPage() {
           className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm disabled:opacity-50 transition-colors"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? 'Saving...' : existingId ? `Update ${SCOPE_LABEL[scope]} Window` : `Save ${SCOPE_LABEL[scope]} Window`}
+          {saving ? t('attendancePages.settings.savingDots') : existingId ? t('attendancePages.settings.update', { scope: scopeL(scope) }) : t('attendancePages.settings.save', { scope: scopeL(scope) })}
         </button>
       </div>
 

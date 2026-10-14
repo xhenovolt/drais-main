@@ -5173,6 +5173,111 @@
         "trusted_by_policy": "Trusted per policy (uncorrected by design).",
         "manual_review_flagged": "Flagged for manual review."
       }
+    },
+    "settings": {
+      "scope": {
+        "students": "Learners",
+        "teachers": "Staff",
+        "all": "Everyone"
+      },
+      "board": {
+        "all": "Everyone (day + boarding)",
+        "boarding": "Boarding students only",
+        "day": "Day scholars only"
+      },
+      "day": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "dshort": {
+        "1": "Mon",
+        "2": "Tue",
+        "4": "Wed",
+        "8": "Thu",
+        "16": "Fri",
+        "32": "Sat",
+        "64": "Sun"
+      },
+      "tab": {
+        "schedule": "Schedules & late rules",
+        "boarding": "Day & boarding",
+        "sms": "SMS notifications",
+        "devices": "Devices & clock",
+        "lessons": "Lessons",
+        "display": "Logs display"
+      },
+      "saveFailed": "Save failed",
+      "failedToSave": "Failed to save",
+      "saved": "{{scope}} window saved",
+      "savedBoard": "{{scope}} — {{board}} window saved",
+      "title": "Attendance Settings",
+      "subtitle": "Configure arrival times, late thresholds, and attendance policies",
+      "sections": "Attendance settings sections",
+      "who": "Who are you configuring?",
+      "whoHelp": "Each group has its own arrival/presence window. Configure {{learners}} and {{staff}} separately, or set an {{everyone}} default. A group-specific window always overrides the Everyone default.",
+      "editing": "Editing the saved {{scope}} window.",
+      "noWindow": "No {{scope}} window yet — fill the fields below and save to create one.",
+      "dayVsBoarding": "Day scholars vs. boarding students",
+      "dayVsBoardingHelp": "Leave this on {{everyone}} if your day and boarding populations share one policy. To give boarding students a different window (or the continuous-presence policy below), switch here and save a separate rule — it only applies to students classified as boarding on the {{list}}.",
+      "studentList": "student list",
+      "presencePolicy": "Boarding presence policy",
+      "presenceHelp": "Boarding students generally reside at school. {{daily}} (default) means a boarding student still needs a biometric punch like anyone else. {{continuous}} means a boarding student who is checked in stays policy-recognized present on days with no new punch, until checked out or put on leave — check a student in or record leave from their profile. This never overrides an actual punch; it only fills in when there is none.",
+      "mode": {
+        "daily": "Daily",
+        "continuous": "Continuous presence"
+      },
+      "modeBtn": {
+        "daily": "daily",
+        "continuous": "continuous"
+      },
+      "validity": "Presence validity window (days)",
+      "validityPlaceholder": "Indefinite — until explicit leave/checkout",
+      "validityHelp": "Leave blank for indefinite (a check-in stays valid until someone explicitly checks the student out or records leave). Set a number of days to require fresh evidence periodically instead.",
+      "savedWithRule": "The choices above (population and manual check-in presence) are part of the attendance rule and are saved with it.",
+      "saving": "Saving…",
+      "saveRule": "Save rule",
+      "timeConfig": "Time Configuration — {{scope}}",
+      "arrivalStart": "Arrival Start Time",
+      "arrivalStartHelp": "When attendance tracking begins each day",
+      "arrivalEnd": "Arrival End Time (On-time cutoff)",
+      "arrivalEndHelp": "After this time, learners are marked late",
+      "lateThreshold": "Late Threshold (minutes)",
+      "lateThresholdHelp": "Grace period after arrival end time before marking \"late\"",
+      "absenceCutoff": "Absence Cutoff Time",
+      "absenceCutoffHelp": "After this time, anyone who hasn't checked in is marked absent",
+      "closing": "School Closing Time",
+      "closingHelp": "End of school day — departure scans expected around this time",
+      "duplicate": "Duplicate Scan Window (minutes)",
+      "duplicateHelp": "Ignore repeated scans from the same person within this window",
+      "schoolDays": "School Days",
+      "schoolDaysHelp": "Days the school operates. Punches on non-school days are recorded as \"weekend/closed\" and don't count as present/late or trigger parent SMS. Schools that teach on Saturday/Sunday should enable those days.",
+      "oneDay": "Select at least one school day.",
+      "daySpecific": "Day-Specific Arrival Times — {{scope}}",
+      "daySpecificHelp": "Some days differ — e.g. \"Saturday arrival ends at 10:00\". Set an on-time cutoff (and optional grace minutes) for a specific day; leave a day blank to use the standard times above. Overrides apply to lateness verdicts, the dashboard, and the allowance report.",
+      "col": {
+        "day": "Day",
+        "arrivalEnd": "Arrival End (on-time cutoff)",
+        "grace": "Grace (min)",
+        "effective": "Effective"
+      },
+      "override": "override",
+      "lateAfter": "late after {{time}}{{grace}}",
+      "graceMin": " +{{n}}m",
+      "clear": "clear",
+      "savedTogether": "Saved together with the {{scope}} window using the button below.",
+      "ruleDetails": "{{scope}} Rule Details",
+      "ruleName": "Rule Name",
+      "ruleNamePlaceholder": "e.g. Term 1 2026 Schedule",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "Brief note about this rule set...",
+      "savingDots": "Saving...",
+      "update": "Update {{scope}} Window",
+      "save": "Save {{scope}} Window"
     }
   }
 }

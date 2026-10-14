@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T16:54:14.894Z",
-  "last_commit": "bb22e9e05baf3033095a53d185a65c997bc2fa42",
+  "generated_at": "2026-10-14T16:56:23.087Z",
+  "last_commit": "644383dfa0380eb697aa68e0d45c75a4a1d832b4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9631,7 +9631,20 @@
         }
       ],
       "commit": "bb22e9e05b"
+    },
+    {
+      "version": "2.50.78",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "/attendance/time-health fully Arabic — numbers, durations, per-cause explanations and first-arrival advice",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/time-health fully Arabic — numbers, durations, per-cause explanations and first-arrival advice"
+        }
+      ],
+      "commit": "644383dfa0"
     }
   ],
-  "app_version": "2.50.78"
+  "app_version": "2.50.79"
 }
