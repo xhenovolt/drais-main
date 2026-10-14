@@ -1,0 +1,2 @@
+{ "/attendance/shifts": { "rows": [ { "id": 1, "name": "Morning Shift", "code": "AM", "applies_to": "staff", "start_time": "07:00:00", "end_time": "13:00:00", "arrival_window_minutes": 30, "late_threshold_minutes": 15, "early_leave_threshold_minutes": 30, "overtime_after_minutes": null, "weekday_mask": 31, "crosses_midnight": 0, "status": "active", "assignment_count": 12 } ] },
+  "/departments": { "data": [ { "id": 1, "name": "Teaching" } ] } }

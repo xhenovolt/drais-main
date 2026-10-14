@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T11:16:30.495Z",
-  "last_commit": "1a30b32a0102fc38317726c3055bdb883d30f43c",
+  "generated_at": "2026-10-14T11:19:10.117Z",
+  "last_commit": "07f465174b59511525b61a5131ef408cfa52fb9a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9527,7 +9527,20 @@
         }
       ],
       "commit": "1a30b32a01"
+    },
+    {
+      "version": "2.50.70",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "Translate /attendance/lessons",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Translate /attendance/lessons"
+        }
+      ],
+      "commit": "07f465174b"
     }
   ],
-  "app_version": "2.50.70"
+  "app_version": "2.50.71"
 }
