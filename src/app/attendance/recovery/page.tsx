@@ -19,8 +19,35 @@ const STATUS_STYLE: Record<string, { chip: string; icon: React.ReactNode }> = {
   gap: { chip: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300', icon: <AlertTriangle className="w-4 h-4 text-rose-500" /> },
 };
 
+/** The server's recovery reason / action label in the interface language (shapes from recommendMethod). */
+function arRecovery(text: string, digits: (v: any) => string): string {
+  const fixed: Record<string, string> = {
+    'A device pull is staged but never committed.': 'هناك عملية سحب من الجهاز مجهّزة لكنها لم تُعتمد.',
+    'Before school hours — nothing expected yet.': 'قبل بداية الدوام — لا يُتوقع شيء بعد.',
+    'Punch volume below normal and no LAN route.': 'عدد البصمات أقل من المعتاد ولا يوجد اتصال بالشبكة المحلية.',
+    'Attendance flowing normally.': 'الحضور يتدفق بشكل طبيعي.',
+    'Open Device Control to review & commit': 'افتح «التحكم بالأجهزة» للمراجعة والاعتماد',
+    'Pull today from the device over LAN': 'اسحب بيانات اليوم من الجهاز عبر الشبكة المحلية',
+    'Inspect the device on site': 'افحص الجهاز في الموقع',
+    'Retry the notification queue': 'أعد محاولة طابور الإشعارات',
+    'Pull today to backfill': 'اسحب بيانات اليوم لاستكمال الناقص',
+    'Check the device': 'تحقق من الجهاز',
+  };
+  if (fixed[text]) return fixed[text];
+  let m: RegExpMatchArray | null;
+  if ((m = text.match(/^Only (\d+) of ~(\d+) expected punches, and none in over 3h — the device likely stored without uploading\.$/)))
+    return `وصلت ${digits(m[1])} فقط من نحو ${digits(m[2])} بصمة متوقعة، ولا شيء منذ أكثر من ٣ ساعات — على الأرجح خزّن الجهاز البيانات دون رفعها.`;
+  if ((m = text.match(/^Only (\d+) of ~(\d+) expected punches and no LAN route — check power\/network at the school\.$/)))
+    return `وصلت ${digits(m[1])} فقط من نحو ${digits(m[2])} بصمة متوقعة ولا يوجد اتصال بالشبكة المحلية — تحقق من الكهرباء أو الشبكة في المدرسة.`;
+  if ((m = text.match(/^(\d+) parent SMS stuck in the queue\.$/))) return `${digits(m[1])} رسالة لأولياء الأمور عالقة في الطابور.`;
+  if ((m = text.match(/^Punch volume is below normal \((\d+)\/~(\d+)\) — a LAN pull will backfill anything stored offline\.$/)))
+    return `عدد البصمات أقل من المعتاد (${digits(m[1])}/~${digits(m[2])}) — السحب عبر الشبكة المحلية يستكمل ما خُزِّن دون اتصال.`;
+  return digits(text);
+}
+
 export default function RecoveryCenter() {
-  const { t } = useI18n();
+  const { t, lang, digits } = useI18n();
+  const say = (s: string) => (lang === 'ar' && s ? arRecovery(s, digits) : s);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
@@ -49,10 +76,10 @@ export default function RecoveryCenter() {
 
   const actionFor = (v: any) => {
     switch (v.method) {
-      case 'lan_pull': return <a href="/attendance/device-control" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">{v.actionLabel} <ArrowRight className="w-3 h-3" /></a>;
-      case 'resume_acquisition': return <a href="/attendance/device-control" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">{v.actionLabel} <ArrowRight className="w-3 h-3" /></a>;
+      case 'lan_pull': return <a href="/attendance/device-control" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">{say(v.actionLabel)} <ArrowRight className="w-3 h-3 rtl-flip" /></a>;
+      case 'resume_acquisition': return <a href="/attendance/device-control" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">{say(v.actionLabel)} <ArrowRight className="w-3 h-3 rtl-flip" /></a>;
       case 'retry_queue': return <button onClick={retryQueue} disabled={retrying} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">{retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListRestart className="w-3 h-3" />} {v.actionLabel}</button>;
-      case 'check_device': return <span className="text-xs text-gray-400">{v.actionLabel}</span>;
+      case 'check_device': return <span className="text-xs text-gray-400">{say(v.actionLabel)}</span>;
       default: return null;
     }
   };
@@ -107,12 +134,12 @@ export default function RecoveryCenter() {
                 <div className="flex items-center gap-2">
                   {st.icon}
                   <span className="font-mono text-sm font-semibold text-gray-800 dark:text-gray-100">{d.device_name || d.device_sn}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${st.chip}`}>{d.verdict.status}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${st.chip}`}>{t(`attendancePages.recovery.status.${d.verdict.status}`, String(d.verdict.status))}</span>
                   {!d.is_online && <span className="text-[10px] text-gray-400">{t('attendanceIntel.recovery.offline', 'offline')}</span>}
                 </div>
                 <span className="text-xs text-gray-400">{t('attendanceIntel.recovery.today', { n: d.got_today }, '{{n}} today')}{d.expected_by_now > 0 ? ` / ${t('attendanceIntel.recovery.expected', { n: d.expected_by_now }, '~{{n}} expected')}` : ''}</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{d.verdict.reason}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{say(d.verdict.reason)}</p>
               {d.verdict.method !== 'none' && <div className="mt-2">{actionFor(d.verdict)}</div>}
             </div>
           );

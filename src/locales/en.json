@@ -4972,6 +4972,21 @@
       "classesList": "Classes: {{list}}",
       "schoolWide": "School-wide",
       "remove": "Remove"
+    },
+    "health": {
+      "status": {
+        "healthy": "healthy",
+        "degraded": "degraded",
+        "critical": "critical",
+        "unknown": "unknown"
+      }
+    },
+    "recovery": {
+      "status": {
+        "ok": "ok",
+        "watch": "watch",
+        "gap": "gap"
+      }
     }
   }
 }

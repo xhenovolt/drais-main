@@ -1,0 +1,3 @@
+{ "/api/attendance/recovery": { "success": true, "summary": { "gaps": 1, "watch": 1 }, "queue": { "stuck": 0 }, "staging": { "uncommitted": 0 },
+  "devices": [ { "device_sn": "CQUH233560091", "device_name": "Main gate", "is_online": 0, "got_today": 3, "expected_by_now": 120, "verdict": { "status": "gap", "method": "lan_pull", "reason": "Only 3 of ~120 expected punches, and none in over 3h — the device likely stored without uploading.", "actionLabel": "Pull today from the device over LAN" } },
+               { "device_sn": "X2", "device_name": "Staff room", "is_online": 1, "got_today": 40, "expected_by_now": 80, "verdict": { "status": "watch", "method": "check_device", "reason": "Punch volume below normal and no LAN route.", "actionLabel": "Check the device" } } ] } }

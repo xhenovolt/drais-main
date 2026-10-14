@@ -12,6 +12,13 @@
  */
 import { query } from '@/lib/db';
 import { resolveTimePolicy } from '@/lib/attendance/device-clock';
+import { toArabicDigits } from '@/lib/i18n/format';
+
+/** Check names in Arabic, by key. */
+const AR_LABEL: Record<string, string> = {
+  devices: 'اتصال الأجهزة', heartbeat: 'نبض الأجهزة', flow: 'تدفق الحضور', time: 'مزامنة الوقت', sms: 'سلامة الرسائل النصية',
+  identity: 'ربط الهويات', queue: 'طابور الإشعارات', jobs: 'المهام الخلفية', db: 'قاعدة البيانات', device_rep: 'سمعة ساعات الأجهزة',
+};
 
 export interface HealthCheck {
   key: string;
@@ -54,11 +61,13 @@ const check = (
 const unknown = (key: string, label: string, weight: number, why: string): HealthCheck =>
   ({ key, label, weight, score: 0, status: 'unknown', detail: why, recommendation: null });
 
-export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
+export async function runHealthChecks(schoolId: number, lang: 'en' | 'ar' = 'en'): Promise<HealthReport> {
   const checks: HealthCheck[] = [];
+  /** The English text, or the Arabic one (with Arabic-Indic digits) when the reader's interface is Arabic. */
+  const L = (en: string, ar: string) => (lang === 'ar' ? toArabicDigits(ar) : en);
   const guard = async (fn: () => Promise<HealthCheck>, key: string, label: string, weight: number) => {
     try { checks.push(await fn()); }
-    catch (e) { checks.push(unknown(key, label, weight, `Check failed: ${(e as Error).message}`)); }
+    catch (e) { checks.push(unknown(key, label, weight, L(`Check failed: ${(e as Error).message}`, `تعذر الفحص: ${(e as Error).message}`))); }
   };
 
   const policy = await resolveTimePolicy(schoolId).catch(() => ({ offsetMinutes: 180 } as any));
@@ -74,11 +83,11 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
       [schoolId],
     )) as any[];
     const total = Number(rows[0]?.total || 0), online = Number(rows[0]?.online || 0);
-    if (!total) return check('devices', 'Device connectivity', 1.5, 100, 'No devices registered — nothing to monitor.');
+    if (!total) return check('devices', 'Device connectivity', 1.5, 100, L('No devices registered — nothing to monitor.', 'لا توجد أجهزة مسجلة — لا شيء للمراقبة.'));
     const score = (online / total) * 100;
     return check('devices', 'Device connectivity', 1.5, score,
-      `${online}/${total} devices online.`,
-      online < total ? `${total - online} device(s) offline — check power/network at the school.` : null);
+      L(`${online}/${total} devices online.`, `${online}/${total} من الأجهزة متصلة.`),
+      online < total ? L(`${total - online} device(s) offline — check power/network at the school.`, `${total - online} جهاز غير متصل — تحقق من الكهرباء أو الشبكة في المدرسة.`) : null);
   }, 'devices', 'Device connectivity', 1.5);
 
   // 2 · Heartbeats (freshness of last_seen)
@@ -88,13 +97,13 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
          FROM devices WHERE school_id = ? AND last_seen IS NOT NULL ORDER BY age_min DESC`,
       [schoolId],
     )) as any[];
-    if (!rows.length) return check('heartbeat', 'Device heartbeats', 1, 100, 'No heartbeat history yet.');
+    if (!rows.length) return check('heartbeat', 'Device heartbeats', 1, 100, L('No heartbeat history yet.', 'لا يوجد سجل نبض بعد.'));
     const worst = rows[0];
     const age = Number(worst.age_min ?? 0);
     const score = age <= 15 ? 100 : age <= 60 ? 85 : age <= 24 * 60 ? 55 : 20;
     return check('heartbeat', 'Device heartbeats', 1, score,
-      `Stalest heartbeat: ${worst.device_name || worst.sn} — ${age < 60 ? `${age} min` : `${Math.round(age / 60)}h`} ago.`,
-      score < 90 ? 'A device has not reported recently — verify its internet/ADMS settings.' : null);
+      L(`Stalest heartbeat: ${worst.device_name || worst.sn} — ${age < 60 ? `${age} min` : `${Math.round(age / 60)}h`} ago.`, `أقدم نبض: ${worst.device_name || worst.sn} — قبل ${age < 60 ? `${age} دقيقة` : `${Math.round(age / 60)} ساعة`}.`),
+      score < 90 ? L('A device has not reported recently — verify its internet/ADMS settings.', 'لم يُرسل أحد الأجهزة بيانات مؤخرًا — تحقق من اتصاله بالإنترنت وإعدادات ADMS.') : null);
   }, 'heartbeat', 'Device heartbeats', 1);
 
   // 3 · Attendance flow (today vs learned volume)
@@ -106,13 +115,13 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
     const today = Number(todayRows[0]?.n || 0);
     const expected = Number(blRows[0]?.expected || 0);
     const hour = localNow.getUTCHours();
-    if (!expected) return check('flow', 'Attendance flow', 1.5, today > 0 ? 100 : 70, `${today} punches today (no learned volume yet).`);
-    if (hour < 8) return check('flow', 'Attendance flow', 1.5, 100, `${today} punches so far — too early to judge volume.`);
+    if (!expected) return check('flow', 'Attendance flow', 1.5, today > 0 ? 100 : 70, L(`${today} punches today (no learned volume yet).`, `${today} بصمة اليوم (لم يُتعلَّم الحجم المعتاد بعد).`));
+    if (hour < 8) return check('flow', 'Attendance flow', 1.5, 100, L(`${today} punches so far — too early to judge volume.`, `${today} بصمة حتى الآن — من المبكر الحكم على الحجم.`));
     const frac = Math.min(1, today / (expected * Math.min(1, hour / 17)));
     const score = frac >= 0.6 ? 100 : frac >= 0.3 ? 70 : 25;
     return check('flow', 'Attendance flow', 1.5, score,
-      `${today} punches today vs ~${expected} on a normal day.`,
-      score < 90 ? 'Punch volume is far below normal — device may be offline or storing without uploading. Open the Recovery/device pages.' : null);
+      L(`${today} punches today vs ~${expected} on a normal day.`, `${today} بصمة اليوم مقابل نحو ${expected} في اليوم العادي.`),
+      score < 90 ? L('Punch volume is far below normal — device may be offline or storing without uploading. Open the Recovery/device pages.', 'عدد البصمات أقل بكثير من المعتاد — قد يكون الجهاز غير متصل أو يخزن دون رفع. افتح صفحات الاسترجاع أو الأجهزة.') : null);
   }, 'flow', 'Attendance flow', 1.5);
 
   // 4 · Time synchronization (today's clock confidence)
@@ -122,11 +131,11 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
         WHERE school_id = ? AND local_date = ? ORDER BY confidence ASC`,
       [schoolId, localDate],
     )) as any[];
-    if (!rows.length) return check('time', 'Time synchronization', 1.5, 95, 'No batches assessed yet today.');
+    if (!rows.length) return check('time', 'Time synchronization', 1.5, 95, L('No batches assessed yet today.', 'لم تُقيَّم أي دفعة اليوم بعد.'));
     const worst = rows[0];
     return check('time', 'Time synchronization', 1.5, Number(worst.confidence),
-      `Lowest device time confidence today: ${worst.device_sn} at ${worst.confidence}% (${worst.likely_cause}).`,
-      Number(worst.confidence) < 80 ? 'Open Time Health to review and correct the batch, and fix the device clock.' : null);
+      L(`Lowest device time confidence today: ${worst.device_sn} at ${worst.confidence}% (${worst.likely_cause}).`, `أدنى ثقة في توقيت الأجهزة اليوم: ${worst.device_sn} بنسبة ${worst.confidence}٪ (${worst.likely_cause}).`),
+      Number(worst.confidence) < 80 ? L('Open Time Health to review and correct the batch, and fix the device clock.', 'افتح «سلامة الوقت» لمراجعة الدفعة وتصحيحها، وأصلح ساعة الجهاز.') : null);
   }, 'time', 'Time synchronization', 1.5);
 
   // 5 · SMS health (last 48h)
@@ -141,10 +150,10 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
     const sent = (by.delivered || 0) + (by.sent || 0);
     const failed = by.failed || 0;
     const total = sent + failed;
-    if (!total) return check('sms', 'SMS health', 1, 100, 'No SMS attempted in the last 48h.');
+    if (!total) return check('sms', 'SMS health', 1, 100, L('No SMS attempted in the last 48h.', 'لم تُرسل أي رسالة نصية خلال آخر ٤٨ ساعة.'));
     const score = (sent / total) * 100;
-    return check('sms', 'SMS health', 1, score, `${sent}/${total} SMS delivered in 48h (${failed} failed).`,
-      failed > 0 ? 'SMS failures present — check provider balance/credentials in notification settings.' : null);
+    return check('sms', 'SMS health', 1, score, L(`${sent}/${total} SMS delivered in 48h (${failed} failed).`, `${sent}/${total} رسالة نصية سُلِّمت خلال ٤٨ ساعة (فشل ${failed}).`),
+      failed > 0 ? L('SMS failures present — check provider balance/credentials in notification settings.', 'توجد رسائل فاشلة — تحقق من رصيد المزوّد وبيانات الدخول في إعدادات الإشعارات.') : null);
   }, 'sms', 'SMS health', 1);
 
   // 6 · Identity mapping (7-day matched ratio)
@@ -155,11 +164,11 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
       [schoolId],
     )) as any[];
     const total = Number(rows[0]?.total || 0), matched = Number(rows[0]?.matched || 0);
-    if (!total) return check('identity', 'Identity mapping', 1.5, 100, 'No punches in the last 7 days.');
+    if (!total) return check('identity', 'Identity mapping', 1.5, 100, L('No punches in the last 7 days.', 'لا بصمات خلال آخر ٧ أيام.'));
     const score = (matched / total) * 100;
     return check('identity', 'Identity mapping', 1.5, score,
-      `${matched}/${total} punches matched to people (7 days).`,
-      score < 95 ? `${total - matched} unmatched punches — use "Detect & map" on the Unmatched tab.` : null);
+      L(`${matched}/${total} punches matched to people (7 days).`, `${matched}/${total} بصمة مرتبطة بأشخاص (٧ أيام).`),
+      score < 95 ? L(`${total - matched} unmatched punches — use "Detect & map" on the Unmatched tab.`, `${total - matched} بصمة غير مطابقة — استخدم «كشف وربط» في تبويب غير المطابق.`) : null);
   }, 'identity', 'Identity mapping', 1.5);
 
   // 7 · Queue health (stuck outbox items)
@@ -172,8 +181,8 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
     const stuck = Number(rows[0]?.n || 0);
     const score = stuck === 0 ? 100 : stuck < 10 ? 70 : 30;
     return check('queue', 'Notification queue', 0.5, score,
-      stuck ? `${stuck} messages stuck in queue > 15 min.` : 'Queue is draining normally.',
-      stuck ? 'Outbox drainer may be idle — any page load nudges it; persistent backlog means provider errors.' : null);
+      stuck ? L(`${stuck} messages stuck in queue > 15 min.`, `${stuck} رسالة عالقة في الطابور لأكثر من ١٥ دقيقة.`) : L('Queue is draining normally.', 'الطابور يُفرَّغ بشكل طبيعي.'),
+      stuck ? L('Outbox drainer may be idle — any page load nudges it; persistent backlog means provider errors.', 'قد يكون مُفرِّغ الصادر متوقفًا — أي تحميل للصفحة يحرّكه؛ واستمرار التراكم يعني أخطاء لدى المزوّد.') : null);
   }, 'queue', 'Notification queue', 0.5);
 
   // 8 · Background jobs (stuck acquisitions)
@@ -186,8 +195,8 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
     ).catch(() => [{ n: 0 }])) as any[];
     const stuck = Number(rows[0]?.n || 0);
     return check('jobs', 'Background jobs', 0.5, stuck ? 60 : 100,
-      stuck ? `${stuck} device pull(s) stuck mid-flight > 2h.` : 'No stuck pulls or jobs.',
-      stuck ? 'Open Device Control and discard or re-run the stalled acquisition.' : null);
+      stuck ? L(`${stuck} device pull(s) stuck mid-flight > 2h.`, `${stuck} عملية سحب من الأجهزة عالقة لأكثر من ساعتين.`) : L('No stuck pulls or jobs.', 'لا توجد عمليات سحب أو مهام عالقة.'),
+      stuck ? L('Open Device Control and discard or re-run the stalled acquisition.', 'افتح «التحكم بالأجهزة» وألغِ عملية السحب المتوقفة أو أعد تشغيلها.') : null);
   }, 'jobs', 'Background jobs', 0.5);
 
   // 9 · Database health (latency probe)
@@ -196,8 +205,8 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
     await query('SELECT 1', []);
     const ms = Date.now() - t0;
     const score = ms < 250 ? 100 : ms < 1000 ? 80 : 40;
-    return check('db', 'Database', 0.5, score, `Query round-trip ${ms} ms.`,
-      score < 90 ? 'Database latency is elevated — TiDB region or network issue.' : null);
+    return check('db', 'Database', 0.5, score, L(`Query round-trip ${ms} ms.`, `زمن الاستعلام ${ms} مللي ثانية.`),
+      score < 90 ? L('Database latency is elevated — TiDB region or network issue.', 'زمن استجابة قاعدة البيانات مرتفع — مشكلة في منطقة TiDB أو الشبكة.') : null);
   }, 'db', 'Database', 0.5);
 
   // 10 · Device clock reputation (30 days)
@@ -208,13 +217,14 @@ export async function runHealthChecks(schoolId: number): Promise<HealthReport> {
       [schoolId],
     )) as any[];
     const days = Number(rows[0]?.days || 0), bad = Number(rows[0]?.bad || 0);
-    if (!days) return check('device_rep', 'Device clock reputation', 1, 95, 'No clock history yet.');
+    if (!days) return check('device_rep', 'Device clock reputation', 1, 95, L('No clock history yet.', 'لا يوجد سجل للساعة بعد.'));
     const score = 100 - (bad / days) * 100;
     return check('device_rep', 'Device clock reputation', 1, score,
-      `${bad}/${days} tracked device-days had clock anomalies (30d).`,
-      bad > 2 ? 'A device drifts repeatedly — its RTC coin-cell battery likely needs replacement.' : null);
+      L(`${bad}/${days} tracked device-days had clock anomalies (30d).`, `${bad}/${days} من أيام الأجهزة المتابَعة شهدت خللًا في الساعة (٣٠ يومًا).`),
+      bad > 2 ? L('A device drifts repeatedly — its RTC coin-cell battery likely needs replacement.', 'أحد الأجهزة ينحرف توقيته مرارًا — على الأرجح تحتاج بطارية ساعته الداخلية إلى استبدال.') : null);
   }, 'device_rep', 'Device clock reputation', 1);
 
+  if (lang === 'ar') for (const c of checks) c.label = AR_LABEL[c.key] ?? c.label;
   const rollup = computeOverallHealth(checks);
   return { ...rollup, generated_at: new Date().toISOString() };
 }

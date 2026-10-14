@@ -134,3 +134,4 @@ backups/
 /tmp/*.txt
 /tmp/*_out*.txt
 /tmp/inspect_masterah.js
+.l10n-work/

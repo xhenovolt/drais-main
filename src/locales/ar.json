@@ -5139,6 +5139,21 @@
       "classesList": "الصفوف: {{list}}",
       "schoolWide": "على مستوى المدرسة",
       "remove": "إزالة"
+    },
+    "health": {
+      "status": {
+        "healthy": "سليم",
+        "degraded": "متراجع",
+        "critical": "حرج",
+        "unknown": "غير معروف"
+      }
+    },
+    "recovery": {
+      "status": {
+        "ok": "سليم",
+        "watch": "مراقبة",
+        "gap": "فجوة"
+      }
     }
   }
 }

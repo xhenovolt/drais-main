@@ -1,0 +1,4 @@
+{ "/api/attendance/health": { "success": true, "score": 86, "status": "degraded", "generated_at": "2026-10-13T08:00:00Z",
+    "recommendations": ["جهاز غير متصل — تحقق من الكهرباء أو الشبكة في المدرسة."],
+    "checks": [ { "key": "devices", "label": "اتصال الأجهزة", "score": 50, "status": "critical", "detail": "١/٢ من الأجهزة متصلة.", "recommendation": "جهاز غير متصل", "weight": 1.5 } ] },
+  "/api/attendance/digest": { "mode": "issues_only", "preview": null } }

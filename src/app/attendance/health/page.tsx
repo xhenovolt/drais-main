@@ -29,7 +29,8 @@ const STATUS_STYLE: Record<string, { badge: string; icon: React.ReactNode }> = {
 };
 
 export default function AttendanceHealthPage() {
-  const { t } = useI18n();
+  const { t, lang, digits, formatDate } = useI18n();
+  const pct = (n: number) => (lang === 'ar' ? `${digits(n)}٪` : `${n}%`);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(true);
@@ -83,7 +84,7 @@ export default function AttendanceHealthPage() {
       {/* Overall score */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 flex items-center gap-6 flex-wrap">
         <div className="text-center">
-          <div className={`text-6xl font-extrabold tabular-nums ${scoreColor}`}>{score ?? '—'}<span className="text-2xl font-bold">%</span></div>
+          <div className={`text-6xl font-extrabold tabular-nums ${scoreColor}`}>{score == null ? '—' : digits(score)}<span className="text-2xl font-bold">{lang === 'ar' ? '٪' : '%'}</span></div>
           <div className={`mt-1 inline-block text-xs px-2.5 py-1 rounded-full font-semibold uppercase ${STATUS_STYLE[overall || 'unknown']?.badge}`}>
             {overall === 'healthy' ? t('attendanceIntel.health.healthy', 'Healthy') : overall === 'degraded' ? t('attendanceIntel.health.degraded', 'Degraded') : overall === 'critical' ? t('attendanceIntel.health.attention', 'Needs attention') : t('attendanceIntel.health.pending', '…')}
           </div>
@@ -106,7 +107,7 @@ export default function AttendanceHealthPage() {
             </p>
           )}
           {data?.generated_at && (
-            <p className="text-[11px] text-gray-400 mt-2">{t('attendanceIntel.health.checkedAt', { time: new Date(data.generated_at).toLocaleTimeString() }, 'Checked {{time}}')}</p>
+            <p className="text-[11px] text-gray-400 mt-2">{t('attendanceIntel.health.checkedAt', { time: lang === 'ar' ? formatDate(data.generated_at, 'time') : new Date(data.generated_at).toLocaleTimeString() }, 'Checked {{time}}')}</p>
           )}
         </div>
       </div>
@@ -126,9 +127,9 @@ export default function AttendanceHealthPage() {
               </div>
               <div className="flex items-end gap-2 mb-1">
                 <span className={`text-2xl font-bold tabular-nums ${c.score >= 90 ? 'text-emerald-600 dark:text-emerald-400' : c.score >= 70 ? 'text-amber-600 dark:text-amber-400' : c.status === 'unknown' ? 'text-gray-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {c.status === 'unknown' ? '—' : `${c.score}%`}
+                  {c.status === 'unknown' ? '—' : pct(c.score)}
                 </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase mb-1 ${st.badge}`}>{c.status}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase mb-1 ${st.badge}`}>{t(`attendancePages.health.status.${c.status}`, String(c.status))}</span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">{c.detail}</p>
               {c.recommendation && c.status !== 'healthy' && (
