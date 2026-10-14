@@ -15,20 +15,29 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { localizeDigitsInText } from '@/lib/i18n/format';
 
 type TFn = (k: string, v?: any, f?: string) => string;
 
+// The page sets this on every render so the module-level formatters below can follow the interface
+// language: Arabic-Indic digits and Arabic units in Arabic, the original English output otherwise.
+let VIEW_LANG = 'en';
+/** Numbers inside display text, in the interface language ("85%" → "٨٥٪"). */
+const num = (v: unknown): string => (VIEW_LANG === 'ar' && v != null ? localizeDigitsInText(String(v), 'ar').replace(/%/g, '٪') : String(v ?? ''));
 const fmtMin = (m: number | null | undefined) => {
   if (m == null) return '—';
   const mm = ((Math.round(m) % 1440) + 1440) % 1440;
-  return `${String(Math.floor(mm / 60)).padStart(2, '0')}:${String(mm % 60).padStart(2, '0')}`;
+  return num(`${String(Math.floor(mm / 60)).padStart(2, '0')}:${String(mm % 60).padStart(2, '0')}`);
 };
 const fmtDuration = (absMin: number) => {
   const h = Math.floor(absMin / 60);
   const m = Math.round(absMin % 60);
+  if (VIEW_LANG === 'ar') return num(h <= 0 ? `${m} د` : m > 0 ? `${h} س ${m} د` : `${h} س`);
   if (h <= 0) return `${m}m`;
   return m > 0 ? `${h}h${m}m` : `${h}h`;
 };
+/** "+1.5h" style signed hours in the interface language. */
+const fmtHours = (min: number) => { const v = `${min > 0 ? '+' : ''}${Math.round(min / 60 * 10) / 10}`; return VIEW_LANG === 'ar' ? `${num(v)} س` : `${v}h`; };
 const CAUSE_LABEL: Record<string, string> = {
   normal: 'Clock normal',
   clock_drift_hours: 'Clock off by whole hours',
@@ -62,7 +71,8 @@ const POLICY_LABEL: Record<string, { key: string; en: string }> = {
 };
 
 export default function TimeHealthPage() {
-  const { t } = useI18n();
+  const { t, lang, formatDate } = useI18n();
+  VIEW_LANG = lang;
   const causeLabel = (c: string) => { const k = CAUSE_KEY[c]; return k ? t(`attendanceIntel.timeHealth.${k}`, CAUSE_LABEL[c] || c) : (CAUSE_LABEL[c] || c); };
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -131,20 +141,24 @@ export default function TimeHealthPage() {
                 </span>
               </div>
               <div className="text-right">
-                <div className={`text-2xl font-bold ${fah.confidence >= 80 ? 'text-emerald-600' : fah.confidence >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>{fah.confidence}%</div>
+                <div className={`text-2xl font-bold ${fah.confidence >= 80 ? 'text-emerald-600' : fah.confidence >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>{num(`${fah.confidence}%`)}</div>
                 <div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.timeConfidence', 'time confidence')}</div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
-              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.historicalExpectation', 'Historical expectation')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(fah.anchorCohort?.[0] ? Math.round(fah.anchorCohort.reduce((s: number, a: any) => s + a.median_arrival_minute, 0) / fah.anchorCohort.length) : null)} <span className="text-[11px] font-normal text-gray-400">({fah.evidence.cohortSize} {t('attendanceIntel.timeHealth.anchors', 'anchors')})</span></div></div>
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.historicalExpectation', 'Historical expectation')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(fah.anchorCohort?.[0] ? Math.round(fah.anchorCohort.reduce((s: number, a: any) => s + a.median_arrival_minute, 0) / fah.anchorCohort.length) : null)} <span className="text-[11px] font-normal text-gray-400">({num(fah.evidence.cohortSize)} {t('attendanceIntel.timeHealth.anchors', 'anchors')})</span></div></div>
               <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.observedPattern', "Today's observed pattern")}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(fah.observedFirstArrivalMinute)}</div></div>
-              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.anchorsPresent', 'Usual arrivers present')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fah.evidence.cohortSize - fah.evidence.missingCount}/{fah.evidence.cohortSize} <span className="text-[11px] font-normal text-gray-400">({fah.evidence.matchPct}%)</span></div></div>
-              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.deviceClockStatus', 'Device clock status')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{(fah.evidence.deviceClockStatus || []).filter((d: any) => d.status === 'anomaly').length > 0 ? `${(fah.evidence.deviceClockStatus || []).filter((d: any) => d.status === 'anomaly').length} anomaly` : 'healthy'}</div></div>
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.anchorsPresent', 'Usual arrivers present')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{num(`${fah.evidence.cohortSize - fah.evidence.missingCount}/${fah.evidence.cohortSize}`)} <span className="text-[11px] font-normal text-gray-400">({num(`${fah.evidence.matchPct}%`)})</span></div></div>
+              <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.deviceClockStatus', 'Device clock status')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{(fah.evidence.deviceClockStatus || []).filter((d: any) => d.status === 'anomaly').length > 0 ? t('attendancePages.timeHealth.anomalyCount', { n: (fah.evidence.deviceClockStatus || []).filter((d: any) => d.status === 'anomaly').length }) : t('attendancePages.timeHealth.healthy')}</div></div>
             </div>
 
-            <p className="text-xs text-gray-500 mt-2">{fah.recommendation}</p>
-            <p className="text-[11px] text-gray-400 mt-1">{t('attendanceIntel.timeHealth.evidenceLine', { days: fah.evidence.daysAnalyzed, sync: fah.evidence.lastSyncAt ? new Date(fah.evidence.lastSyncAt).toLocaleTimeString() : '—' }, '{{days}} days of history analyzed · last sync {{sync}}')}</p>
+            <p className="text-xs text-gray-500 mt-2">{lang !== 'ar' ? fah.recommendation : !fah.anchorCohort?.length ? t('attendancePages.timeHealth.rec.noBaseline')
+              : sim && sim.recommendation === 'investigate_shift' ? t('attendancePages.timeHealth.rec.stragglers', { time: fmtMin(fah.observedFirstArrivalMinute), shifted: sim.confidenceShifted, current: sim.confidenceCurrent })
+              : fah.observedFirstArrivalMinute == null ? t('attendancePages.timeHealth.rec.noPunches')
+              : fah.evidence.matchPct < 50 ? t('attendancePages.timeHealth.rec.fewAnchors', { present: fah.evidence.cohortSize - fah.evidence.missingCount, expected: fah.evidence.cohortSize, pct: fah.evidence.matchPct })
+              : t('attendancePages.timeHealth.rec.consistent', { time: fmtMin(fah.observedFirstArrivalMinute), present: fah.evidence.cohortSize - fah.evidence.missingCount, expected: fah.evidence.cohortSize, pct: fah.evidence.matchPct })}</p>
+            <p className="text-[11px] text-gray-400 mt-1">{t('attendanceIntel.timeHealth.evidenceLine', { days: fah.evidence.daysAnalyzed, sync: fah.evidence.lastSyncAt ? (lang === 'ar' ? formatDate(fah.evidence.lastSyncAt, 'time') : new Date(fah.evidence.lastSyncAt).toLocaleTimeString()) : '—' }, '{{days}} days of history analyzed · last sync {{sync}}')}</p>
 
             {/* Concrete evidence, always shown — the ACTUAL raw first-arrival
                 records behind the verdict above, never just a bare score.
@@ -157,7 +171,7 @@ export default function TimeHealthPage() {
                 <ul className="divide-y divide-gray-100 dark:divide-gray-700/50 text-xs">
                   {fah.todaysEarliestPunches.map((p: any) => (
                     <li key={p.id} className="py-1 flex items-center justify-between">
-                      <span className="text-gray-700 dark:text-gray-300">{p.display_name || (p.person_id ? `#${p.person_id}` : t('attendanceIntel.timeHealth.unknownPerson', 'Unknown'))}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{p.display_name || (p.person_id ? `#${num(p.person_id)}` : t('attendanceIntel.timeHealth.unknownPerson', 'Unknown'))}</span>
                       <span className="font-mono text-gray-400">{fmtMin(p.minute)} <span className="text-gray-300 dark:text-gray-600">· {p.device_sn || '—'}</span></span>
                     </li>
                   ))}
@@ -192,7 +206,7 @@ export default function TimeHealthPage() {
                   <ul className="mt-2 divide-y divide-gray-100 dark:divide-gray-700/50 text-xs">
                     {fah.anchorsToday.map((a: any) => (
                       <li key={a.person_id} className="py-1.5 flex items-center justify-between">
-                        <span className="text-gray-700 dark:text-gray-300">{a.display_name || `#${a.person_id}`}</span>
+                        <span className="text-gray-700 dark:text-gray-300">{a.display_name || `#${num(a.person_id)}`}</span>
                         <span className="text-gray-400">{t('attendanceIntel.timeHealth.usualVsToday', { usual: fmtMin(a.expectedMinute), today: a.present ? fmtMin(a.observedMinute) : '—' }, 'usual {{usual}} · today {{today}}')}</span>
                       </li>
                     ))}
@@ -233,7 +247,7 @@ export default function TimeHealthPage() {
                     </span>
                   </div>
                   <div className="text-right">
-                    <div className={`text-2xl font-bold ${d.confidence >= 80 ? 'text-emerald-600' : d.confidence >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>{d.confidence}%</div>
+                    <div className={`text-2xl font-bold ${d.confidence >= 80 ? 'text-emerald-600' : d.confidence >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>{num(`${d.confidence}%`)}</div>
                     <div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.timeConfidence', 'time confidence')}</div>
                   </div>
                 </div>
@@ -242,13 +256,13 @@ export default function TimeHealthPage() {
                   <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.usualFirst', 'Usual first arrival')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(bl?.median_first_minute)} <span className="text-[11px] font-normal text-gray-400">({t('attendanceIntel.timeHealth.samplesD', { n: bl?.sample_days ?? 0 }, '{{n}}d')})</span></div></div>
                   <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.todayFirst', "Today's first arrival")}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{fmtMin(d.first_arrival_minute ?? null)}</div></div>
                   {/* Raw device-clock drift — what the CLOCK did, independent of the policy. */}
-                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.rawDrift', 'Device clock drift')}</div><div className={`font-semibold ${d.rawDriftMin ? (resolved ? 'text-emerald-600' : 'text-amber-600') : 'text-gray-800 dark:text-gray-100'}`}>{d.rawDriftMin ? `${d.rawDriftMin > 0 ? '+' : ''}${Math.round(d.rawDriftMin / 60 * 10) / 10}h` : t('attendanceIntel.timeHealth.none', 'none')}</div></div>
+                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.rawDrift', 'Device clock drift')}</div><div className={`font-semibold ${d.rawDriftMin ? (resolved ? 'text-emerald-600' : 'text-amber-600') : 'text-gray-800 dark:text-gray-100'}`}>{d.rawDriftMin ? fmtHours(d.rawDriftMin) : t('attendanceIntel.timeHealth.none', 'none')}</div></div>
                   {/* Residual — what remains in the stored punches after the policy. */}
-                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.estimatedOffset', 'Estimated offset')}</div><div className={`font-semibold ${d.offsetEstimateMin ? 'text-rose-600' : 'text-gray-800 dark:text-gray-100'}`}>{d.offsetEstimateMin ? `${d.offsetEstimateMin > 0 ? '+' : ''}${Math.round(d.offsetEstimateMin / 60 * 10) / 10}h` : t('attendanceIntel.timeHealth.none', 'none')}</div></div>
-                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.drift30', '30-day drift (avg/max)')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{hist ? `${hist.avg_drift_min}m / ${hist.max_drift_min}m` : '—'}</div></div>
+                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.estimatedOffset', 'Estimated offset')}</div><div className={`font-semibold ${d.offsetEstimateMin ? 'text-rose-600' : 'text-gray-800 dark:text-gray-100'}`}>{d.offsetEstimateMin ? fmtHours(d.offsetEstimateMin) : t('attendanceIntel.timeHealth.none', 'none')}</div></div>
+                  <div><div className="text-[11px] text-gray-400">{t('attendanceIntel.timeHealth.drift30', '30-day drift (avg/max)')}</div><div className="font-semibold text-gray-800 dark:text-gray-100">{hist ? (lang === 'ar' ? num(`${hist.avg_drift_min} د / ${hist.max_drift_min} د`) : `${hist.avg_drift_min}m / ${hist.max_drift_min}m`) : '—'}</div></div>
                 </div>
 
-                <p className="text-xs text-gray-500 mt-2">{causeLabel(d.likelyCause)}: {d.detail}</p>
+                <p className="text-xs text-gray-500 mt-2">{causeLabel(d.likelyCause)}: {lang === 'ar' ? t(`attendancePages.timeHealth.causeDetail.${d.likelyCause}`, num(d.detail)) : d.detail}</p>
 
                 {/* Evidence, not just a verdict — the actual device-reported
                     time next to DRAIS's stored time for the first/last
@@ -329,7 +343,7 @@ export default function TimeHealthPage() {
             {data.corrections.map((c: any) => (
               <div key={c.id} className="flex items-center justify-between text-xs">
                 <span className="text-gray-600 dark:text-gray-300">
-                  <span className="font-mono">{c.device_sn}</span> · {String(c.local_date).slice(0, 10)} · {t('attendanceIntel.timeHealth.histLine', { shift: `${c.shift_minutes > 0 ? '+' : ''}${c.shift_minutes}`, rows: c.affected_rows }, 'shifted {{shift}} min · {{rows}} punches')}
+                  <span className="font-mono">{c.device_sn}</span> · {num(String(c.local_date).slice(0, 10))} · {t('attendanceIntel.timeHealth.histLine', { shift: `${c.shift_minutes > 0 ? '+' : ''}${c.shift_minutes}`, rows: c.affected_rows }, 'shifted {{shift}} min · {{rows}} punches')}
                   {c.applied_by_name ? ` · ${t('attendanceIntel.timeHealth.byName', { name: c.applied_by_name }, 'by {{name}}')}` : ''}
                   {c.undone_at ? <span className="text-gray-400"> · {t('attendanceIntel.timeHealth.undone', 'undone')}</span> : ''}
                 </span>
@@ -382,10 +396,10 @@ function DeviceTimeEvidence({ deviceSn, date, t }: { deviceSn: string; date: str
         {rows.map((r) => (
           <div key={r.id} className="grid grid-cols-4 gap-2 text-[11px] items-center">
             <span className="truncate text-gray-600 dark:text-gray-300">{r.name || '—'}</span>
-            <span className="font-mono text-gray-800 dark:text-gray-100" title="What the device itself reported">{r.device_time}</span>
-            <span className="font-mono text-gray-500" title="What DRAIS stored (may be policy-corrected)">{r.drais_time}</span>
+            <span className="font-mono text-gray-800 dark:text-gray-100" title="What the device itself reported">{num(r.device_time)}</span>
+            <span className="font-mono text-gray-500" title="What DRAIS stored (may be policy-corrected)">{num(r.drais_time)}</span>
             <span className={`font-mono ${r.skew_seconds && Math.abs(r.skew_seconds) > 300 ? 'text-rose-500' : 'text-gray-400'}`}>
-              {r.skew_seconds != null ? `${r.skew_seconds > 0 ? '+' : ''}${Math.round(r.skew_seconds / 60)}m` : '—'}
+              {r.skew_seconds != null ? (VIEW_LANG === 'ar' ? `${num(`${r.skew_seconds > 0 ? '+' : ''}${Math.round(r.skew_seconds / 60)}`)} د` : `${r.skew_seconds > 0 ? '+' : ''}${Math.round(r.skew_seconds / 60)}m`) : '—'}
             </span>
           </div>
         ))}
@@ -467,7 +481,7 @@ function HistoryAnalysisModal({ deviceSn, onClose, onDone, t }: { deviceSn: stri
         <div className="flex items-center gap-2 mt-3 flex-shrink-0">
           <span className="text-xs text-gray-500">{t('attendanceIntel.timeHealth.windowLabel', 'Window')}:</span>
           {[14, 30, 60, 90].map((n) => (
-            <button key={n} onClick={() => setDays(n)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${days === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>{n}d</button>
+            <button key={n} onClick={() => setDays(n)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${days === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>{VIEW_LANG === 'ar' ? `${num(n)} يوم` : `${n}d`}</button>
           ))}
           <button onClick={run} disabled={loading} className="ml-auto flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50">
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} {t('attendanceIntel.timeHealth.rerun', 'Re-run')}
@@ -494,7 +508,7 @@ function HistoryAnalysisModal({ deviceSn, onClose, onDone, t }: { deviceSn: stri
                     <div className="flex flex-wrap gap-1.5 text-[11px]">
                       {d.bands.map((b: any, i: number) => (
                         <span key={i} className="px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
-                          {b.skewSeconds > 0 ? '+' : ''}{Math.round(b.skewSeconds / 3600 * 10) / 10}h × {b.count}
+                          {fmtHours(b.skewSeconds / 60)} × {num(b.count)}
                         </span>
                       ))}
                     </div>
@@ -646,7 +660,7 @@ function BatchCorrectionPanel({ fix, onClose, onDone, t }: { fix: any; onClose: 
         <input type="time" aria-label={t('attendanceIntel.timeHealth.whatTime', 'What time did the first arrivals actually begin today?')} value={actualFirst} onChange={(e) => { setActualFirst(e.target.value); setPreview(null); }}
           className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
       </label>
-      <p className="text-xs text-gray-500">{t('attendanceIntel.timeHealth.correctionShift', { desc: `${shiftMinutes > 0 ? '+' : ''}${Math.floor(Math.abs(shiftMinutes) / 60)}h ${Math.abs(shiftMinutes) % 60}m ${shiftMinutes < 0 ? t('attendanceIntel.timeHealth.shiftBack', 'back') : t('attendanceIntel.timeHealth.shiftForward', 'forward')}` }, 'Correction: shift the entire batch {{desc}}.')}</p>
+      <p className="text-xs text-gray-500">{t('attendanceIntel.timeHealth.correctionShift', { desc: `${VIEW_LANG === 'ar' ? num(`${Math.floor(Math.abs(shiftMinutes) / 60)} س ${Math.abs(shiftMinutes) % 60} د`) : `${shiftMinutes > 0 ? '+' : ''}${Math.floor(Math.abs(shiftMinutes) / 60)}h ${Math.abs(shiftMinutes) % 60}m`} ${shiftMinutes < 0 ? t('attendanceIntel.timeHealth.shiftBack', 'back') : t('attendanceIntel.timeHealth.shiftForward', 'forward')}` }, 'Correction: shift the entire batch {{desc}}.')}</p>
 
       {preview && (
         <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
@@ -656,8 +670,8 @@ function BatchCorrectionPanel({ fix, onClose, onDone, t }: { fix: any; onClose: 
               {preview.sample.map((r: any) => (
                 <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700/50">
                   <td className="px-2 py-1 truncate max-w-[160px]">{r.name || `#${r.id}`}</td>
-                  <td className="px-2 py-1 text-center text-rose-500 line-through">{r.before}</td>
-                  <td className="px-2 py-1 text-center font-semibold text-emerald-600">{r.after}</td>
+                  <td className="px-2 py-1 text-center text-rose-500 line-through">{num(r.before)}</td>
+                  <td className="px-2 py-1 text-center font-semibold text-emerald-600">{num(r.after)}</td>
                 </tr>
               ))}
             </tbody>
@@ -707,7 +721,7 @@ function PunchRow({ p, selected, shiftMinutes, onToggle, t }: {
         <span className="truncate">{p.name || `#${p.id}`}</span>
       </span>
       <span className="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs">
-        <span className={after ? 'text-rose-500 line-through' : 'text-gray-600 dark:text-gray-300'}>{p.time}</span>
+        <span className={after ? 'text-rose-500 line-through' : 'text-gray-600 dark:text-gray-300'}>{num(p.time)}</span>
         {after && (
           <span className="text-emerald-600 font-semibold">
             {after.time}

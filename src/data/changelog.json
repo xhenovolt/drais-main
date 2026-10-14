@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T16:50:57.530Z",
-  "last_commit": "35f87152779345355b4524317426cf65e9edd316",
+  "generated_at": "2026-10-14T16:54:14.894Z",
+  "last_commit": "bb22e9e05baf3033095a53d185a65c997bc2fa42",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9618,7 +9618,20 @@
         }
       ],
       "commit": "35f8715277"
+    },
+    {
+      "version": "2.50.77",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "/attendance/trace fully Arabic — pipeline stages composed in the request language",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/trace fully Arabic — pipeline stages composed in the request language"
+        }
+      ],
+      "commit": "bb22e9e05b"
     }
   ],
-  "app_version": "2.50.77"
+  "app_version": "2.50.78"
 }

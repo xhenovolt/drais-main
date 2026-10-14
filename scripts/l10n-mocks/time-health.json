@@ -1,0 +1,8 @@
+{ "/api/attendance/time-health": { "success": true, "policy": "CORRECT_BY_DRIFT",
+  "today": [ { "device_sn": "CQUH233560091", "local_date": "2026-10-13", "status": "anomaly", "confidence": 35, "likelyCause": "clock_drift_hours", "detail": "Punches sit about 3h off the school's usual first arrival.", "rawDriftMin": 180, "offsetEstimateMin": 180, "recommendedShiftMin": -180, "driftConfidence": 92, "first_arrival_minute": 640, "resolvedByPolicy": false } ],
+  "baselines": [ { "device_sn": "CQUH233560091", "median_first_minute": 455 } ],
+  "history": [ { "device_sn": "CQUH233560091", "avg_drift_min": 40, "max_drift_min": 180 } ],
+  "corrections": [ { "id": 3, "device_sn": "CQUH233560091", "local_date": "2026-10-12", "shift_minutes": -180, "affected_rows": 40, "applied_by_name": "Admin" } ],
+  "firstArrivalHealth": { "status": "review", "confidence": 45, "observedFirstArrivalMinute": 640, "anchorCohort": [ { "median_arrival_minute": 455 } ], "recommendation": "Only 4/9 usual early arrivers (44%) have punched in so far vs their typical 07:35 arrival — worth a look if this persists.",
+    "evidence": { "cohortSize": 9, "missingCount": 5, "matchPct": 44, "deviceClockStatus": [ { "status": "anomaly" } ], "daysAnalyzed": 30, "lastSyncAt": "2026-10-13T05:00:00Z" },
+    "todaysEarliestPunches": [ { "id": 1, "display_name": "Amina Nakato", "minute": 640, "device_sn": "CQUH233560091" } ], "anchorsToday": [] } } }

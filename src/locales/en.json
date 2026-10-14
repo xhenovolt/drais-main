@@ -5146,6 +5146,33 @@
       "flags": "identity / verdict / popup",
       "select": "Select an event to see its full lifecycle.",
       "complete": "Complete"
+    },
+    "timeHealth": {
+      "anomalyCount": "{{n}} anomaly",
+      "healthy": "healthy",
+      "rec": {
+        "noBaseline": "Not enough attendance history yet to establish a first-arrival baseline for this school — check back after a few weeks of data.",
+        "stragglers": "Today's earliest records ({{time}}) look like previous-day stragglers, not genuine arrivals — interpreting them as belonging to the prior day restores the expected pattern (confidence {{shifted}}% vs {{current}}% as currently dated). Review before approving today's attendance.",
+        "noPunches": "No punches yet today — nothing to assess.",
+        "fewAnchors": "Only {{present}}/{{expected}} usual early arrivers ({{pct}}%) have punched in so far — worth a look if this persists.",
+        "consistent": "Today's first arrival ({{time}}) and {{present}}/{{expected}} usual early arrivers ({{pct}}%) look consistent with this school's learned pattern."
+      },
+      "causeDetail": {
+        "normal": "Clock normal.",
+        "clock_drift_hours": "Clock off by whole hours.",
+        "timezone_mismatch_or_drift": "Timezone / clock drift.",
+        "clock_running_fast": "Clock running fast.",
+        "clock_running_slow": "Clock running slow.",
+        "future_timestamps": "Future timestamps (clock fast).",
+        "midnight_rollover": "Midnight rollover / clock reset.",
+        "rtc_failure": "Device clock failure.",
+        "insufficient_history": "Still learning this school.",
+        "no_punches": "No punches yet today.",
+        "auto_resolved": "Drift auto-corrected by policy.",
+        "auto_correct_incomplete": "Auto-correction incomplete.",
+        "trusted_by_policy": "Trusted per policy (uncorrected by design).",
+        "manual_review_flagged": "Flagged for manual review."
+      }
     }
   }
 }
