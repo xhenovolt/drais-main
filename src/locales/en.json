@@ -4828,6 +4828,60 @@
         "busy": "Resetting…",
         "button": "Reset biometrics"
       }
+    },
+    "lessons": {
+      "status": {
+        "present": "Present",
+        "late": "Late",
+        "absent": "Absent",
+        "excused": "Excused",
+        "pending": "Not yet accounted for"
+      },
+      "count": {
+        "present": "present",
+        "late": "late",
+        "absent": "absent",
+        "excused": "excused",
+        "pending": "open"
+      },
+      "exc": {
+        "not_biometrically_enrolled": "Not on the biometric system — needs manual attendance",
+        "insufficient_presence_evidence": "Single check-in only — needs review"
+      },
+      "loadFailed": "Could not load lessons",
+      "openFailed": "Could not open lesson",
+      "saveFailed": "Could not save",
+      "updated": "Attendance updated",
+      "title": "Lesson attendance",
+      "mine": "Your lessons",
+      "all": "All lessons",
+      "loading": "Loading…",
+      "disabled": "Lesson attendance is not turned on for this school. An administrator can enable it in Attendance → Settings.",
+      "none": "No lessons scheduled for this date. Lessons come from the timetable (Academics → Timetable).",
+      "subject": "Subject",
+      "building": "Building roster…",
+      "expected": "{{count}} expected",
+      "unaccounted": "{{count}} not yet accounted for",
+      "exceptions": "{{count}} exception(s)",
+      "showEveryone": "Show everyone",
+      "showFollow": "Show follow-up only",
+      "col": {
+        "learner": "Learner",
+        "status": "Status",
+        "firstPunch": "First punch",
+        "notes": "Notes"
+      },
+      "minutesLate": " ({{n}}m)",
+      "corrected": " · corrected",
+      "correct": "Correct",
+      "allAccounted": "Everyone is accounted for.",
+      "editTitle": "Correct attendance — {{name}}",
+      "statusLabel": "Status",
+      "undo": "Undo correction (back to automatic)",
+      "reason": "Reason (required)",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save correction"
     }
   }
 }

@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 type Status = 'present' | 'late' | 'absent' | 'excused' | 'pending';
 interface Lesson {
@@ -35,6 +36,8 @@ const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-d
 const todayISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
 export default function LessonAttendancePage() {
+  const { t, lang, digits, formatDate } = useI18n();
+  const tm = (ms: number) => (lang === 'ar' ? formatDate(ms, { hour: '2-digit', minute: '2-digit' }) : fmtTime(ms));
   const [date, setDate] = useState(todayISO());
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [enabled, setEnabled] = useState(true);
@@ -55,7 +58,7 @@ export default function LessonAttendancePage() {
     try {
       const j = await (await fetch(`/api/attendance/lessons?date=${date}`)).json();
       setEnabled(j.enabled !== false); setLessons(j.lessons ?? []); setScope(j.scope ?? 'mine'); setNote(j.note ?? j.error ?? '');
-    } catch { setNote('Could not load lessons'); }
+    } catch { setNote(t('attendancePages.lessons.loadFailed')); }
     setLoading(false);
   }, [date]);
   useEffect(() => { loadLessons(); setOpenId(null); setRoster(null); }, [loadLessons]);
@@ -64,8 +67,8 @@ export default function LessonAttendancePage() {
     setOpenId(id); setRoster(null); setRosterLoading(true);
     try {
       const j = await (await fetch(`/api/attendance/lessons/${id}`)).json();
-      if (j.success) setRoster(j); else showToast('error', j.error || 'Could not open lesson');
-    } catch { showToast('error', 'Could not open lesson'); }
+      if (j.success) setRoster(j); else showToast('error', j.error || t('attendancePages.lessons.openFailed'));
+    } catch { showToast('error', t('attendancePages.lessons.openFailed')); }
     setRosterLoading(false);
   };
 
@@ -78,10 +81,10 @@ export default function LessonAttendancePage() {
         body: JSON.stringify({ personId: editing.personId, status: newStatus, reason }),
       });
       const j = await r.json();
-      if (!r.ok) { showToast('error', j.error || 'Could not save'); return; }
-      showToast('success', 'Attendance updated'); setEditing(null); setReason('');
+      if (!r.ok) { showToast('error', j.error || t('attendancePages.lessons.saveFailed')); return; }
+      showToast('success', t('attendancePages.lessons.updated')); setEditing(null); setReason('');
       await openLesson(openId); loadLessons();
-    } catch { showToast('error', 'Could not save'); }
+    } catch { showToast('error', t('attendancePages.lessons.saveFailed')); }
     finally { setBusy(false); }
   };
 
@@ -96,28 +99,28 @@ export default function LessonAttendancePage() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 16 }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Lesson attendance</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{t('attendancePages.lessons.title')}</h1>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...btn, padding: '5px 8px' }} />
-        <span style={{ fontSize: 12, color: '#64748b' }}>{scope === 'mine' ? 'Your lessons' : 'All lessons'}</span>
+        <span style={{ fontSize: 12, color: '#64748b' }}>{scope === 'mine' ? t('attendancePages.lessons.mine') : t('attendancePages.lessons.all')}</span>
       </div>
 
-      {loading && <p>Loading…</p>}
+      {loading && <p>{t('attendancePages.lessons.loading')}</p>}
       {!loading && !enabled && (
-        <div style={{ ...card, background: '#fffbeb' }}>Lesson attendance is not turned on for this school. An administrator can enable it in Attendance → Settings.</div>
+        <div style={{ ...card, background: '#fffbeb' }}>{t('attendancePages.lessons.disabled')}</div>
       )}
       {!loading && enabled && lessons.length === 0 && (
-        <div style={card}>{note || 'No lessons scheduled for this date. Lessons come from the timetable (Academics → Timetable).'}</div>
+        <div style={card}>{note || t('attendancePages.lessons.none')}</div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 10, marginBottom: 16 }}>
         {lessons.map((l) => (
           <button key={l.id} onClick={() => openLesson(l.id)}
-            style={{ ...card, textAlign: 'left', cursor: 'pointer', outline: openId === l.id ? '2px solid #2563eb' : 'none' }}>
-            <div style={{ fontWeight: 600 }}>{l.subjectName ?? 'Subject'} · {l.className}{l.streamName ? ` ${l.streamName}` : ''}</div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>{fmtTime(l.startMs)}–{fmtTime(l.endMs)}{l.room ? ` · ${l.room}` : ''}{scope === 'all' && l.teacherName ? ` · ${l.teacherName}` : ''}</div>
+            style={{ ...card, textAlign: 'start', cursor: 'pointer', outline: openId === l.id ? '2px solid #2563eb' : 'none' }}>
+            <div style={{ fontWeight: 600 }}>{l.subjectName ?? t('attendancePages.lessons.subject')} · {l.className}{l.streamName ? ` ${l.streamName}` : ''}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{tm(l.startMs)}–{tm(l.endMs)}{l.room ? ` · ${l.room}` : ''}{scope === 'all' && l.teacherName ? ` · ${l.teacherName}` : ''}</div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', fontSize: 11 }}>
               {(['present', 'late', 'absent', 'excused', 'pending'] as Status[]).map((s) => (
-                <span key={s} style={{ background: COLORS[s].bg, color: COLORS[s].fg, borderRadius: 10, padding: '1px 8px' }}>{l.counts[s]} {s === 'pending' ? 'open' : s}</span>
+                <span key={s} style={{ background: COLORS[s].bg, color: COLORS[s].fg, borderRadius: 10, padding: '1px 8px' }}>{digits(l.counts[s])} {t(`attendancePages.lessons.count.${s}`)}</span>
               ))}
             </div>
           </button>
@@ -126,34 +129,34 @@ export default function LessonAttendancePage() {
 
       {openId && (
         <div style={card}>
-          {rosterLoading && <p>Building roster…</p>}
+          {rosterLoading && <p>{t('attendancePages.lessons.building')}</p>}
           {roster && (
             <>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
-                <strong>{roster.summary.expected} expected</strong>
+                <strong>{t('attendancePages.lessons.expected', { count: roster.summary.expected })}</strong>
                 {(['present', 'late', 'absent', 'excused'] as Status[]).map((s) => (
-                  <span key={s} style={{ background: COLORS[s].bg, color: COLORS[s].fg, borderRadius: 10, padding: '1px 10px', fontSize: 12 }}>{roster.summary[s]} {COLORS[s].label.toLowerCase()}</span>
+                  <span key={s} style={{ background: COLORS[s].bg, color: COLORS[s].fg, borderRadius: 10, padding: '1px 10px', fontSize: 12 }}>{digits(roster.summary[s])} {t(`attendancePages.lessons.count.${s}`)}</span>
                 ))}
-                <span style={{ background: COLORS.pending.bg, color: COLORS.pending.fg, borderRadius: 10, padding: '1px 10px', fontSize: 12 }}>{roster.summary.unaccounted} not yet accounted for</span>
-                {roster.summary.exceptions > 0 && <span style={{ color: '#b45309', fontSize: 12 }}>{roster.summary.exceptions} exception(s)</span>}
+                <span style={{ background: COLORS.pending.bg, color: COLORS.pending.fg, borderRadius: 10, padding: '1px 10px', fontSize: 12 }}>{t('attendancePages.lessons.unaccounted', { count: roster.summary.unaccounted })}</span>
+                {roster.summary.exceptions > 0 && <span style={{ color: '#b45309', fontSize: 12 }}>{t('attendancePages.lessons.exceptions', { count: roster.summary.exceptions })}</span>}
                 <span style={{ flex: 1 }} />
-                <button style={btn} onClick={() => setFilter(filter === 'follow' ? 'all' : 'follow')}>{filter === 'follow' ? 'Show everyone' : 'Show follow-up only'}</button>
+                <button style={btn} onClick={() => setFilter(filter === 'follow' ? 'all' : 'follow')}>{filter === 'follow' ? t('attendancePages.lessons.showEveryone') : t('attendancePages.lessons.showFollow')}</button>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
-                  <thead><tr style={{ textAlign: 'left', color: '#64748b' }}><th style={{ padding: 6 }}>Learner</th><th>Status</th><th>First punch</th><th>Notes</th><th /></tr></thead>
+                  <thead><tr style={{ textAlign: 'start', color: '#64748b' }}><th style={{ padding: 6 }}>{t('attendancePages.lessons.col.learner')}</th><th>{t('attendancePages.lessons.col.status')}</th><th>{t('attendancePages.lessons.col.firstPunch')}</th><th>{t('attendancePages.lessons.col.notes')}</th><th /></tr></thead>
                   <tbody>
                     {shown.map((r) => (
                       <tr key={r.personId} style={{ borderTop: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: 6 }}>{r.name}<div style={{ fontSize: 11, color: '#64748b' }}>{r.admissionNo}</div></td>
-                        <td><span style={{ background: COLORS[r.status].bg, color: COLORS[r.status].fg, borderRadius: 10, padding: '1px 8px', fontSize: 12 }}>{COLORS[r.status].label}{r.status === 'late' ? ` (${r.minutesLate}m)` : ''}</span>
-                          {r.source === 'manual' && <span style={{ fontSize: 11, color: '#64748b' }}> · corrected</span>}</td>
-                        <td>{r.firstPunchAt ? new Date(r.firstPunchAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                        <td style={{ fontSize: 12, color: r.exception ? '#b45309' : '#64748b' }}>{r.exception ? EXC[r.exception] ?? r.exception : r.reason ?? ''}</td>
-                        <td><button style={btn} onClick={() => { setEditing(r); setNewStatus(r.status === 'pending' ? 'present' : r.status); setReason(''); }}>Correct</button></td>
+                        <td style={{ padding: 6 }}>{r.name}<div style={{ fontSize: 11, color: '#64748b' }}>{digits(r.admissionNo)}</div></td>
+                        <td><span style={{ background: COLORS[r.status].bg, color: COLORS[r.status].fg, borderRadius: 10, padding: '1px 8px', fontSize: 12 }}>{t(`attendancePages.lessons.status.${r.status}`)}{r.status === 'late' ? t('attendancePages.lessons.minutesLate', { n: r.minutesLate }) : ''}</span>
+                          {r.source === 'manual' && <span style={{ fontSize: 11, color: '#64748b' }}>{t('attendancePages.lessons.corrected')}</span>}</td>
+                        <td>{r.firstPunchAt ? (lang === 'ar' ? formatDate(r.firstPunchAt, { hour: '2-digit', minute: '2-digit' }) : new Date(r.firstPunchAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '—'}</td>
+                        <td style={{ fontSize: 12, color: r.exception ? '#b45309' : '#64748b' }}>{r.exception ? (EXC[r.exception] ? t(`attendancePages.lessons.exc.${r.exception}`) : r.exception) : r.reason ?? ''}</td>
+                        <td><button style={btn} onClick={() => { setEditing(r); setNewStatus(r.status === 'pending' ? 'present' : r.status); setReason(''); }}>{t('attendancePages.lessons.correct')}</button></td>
                       </tr>
                     ))}
-                    {shown.length === 0 && <tr><td colSpan={5} style={{ padding: 12, color: '#64748b' }}>Everyone is accounted for.</td></tr>}
+                    {shown.length === 0 && <tr><td colSpan={5} style={{ padding: 12, color: '#64748b' }}>{t('attendancePages.lessons.allAccounted')}</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -165,18 +168,18 @@ export default function LessonAttendancePage() {
       {editing && (
         <div role="dialog" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ ...card, width: 380 }}>
-            <h3 style={{ margin: '0 0 8px' }}>Correct attendance — {editing.name}</h3>
-            <label style={{ fontSize: 13 }}>Status{' '}
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as Status | 'auto')} style={{ ...btn, marginLeft: 6 }}>
-                <option value="present">Present</option><option value="late">Late</option><option value="absent">Absent</option><option value="excused">Excused</option>
-                {editing.source === 'manual' && <option value="auto">Undo correction (back to automatic)</option>}
+            <h3 style={{ margin: '0 0 8px' }}>{t('attendancePages.lessons.editTitle', { name: editing.name })}</h3>
+            <label style={{ fontSize: 13 }}>{t('attendancePages.lessons.statusLabel')}{' '}
+              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as Status | 'auto')} style={{ ...btn, marginInlineStart: 6 }}>
+                <option value="present">{t('attendancePages.lessons.status.present')}</option><option value="late">{t('attendancePages.lessons.status.late')}</option><option value="absent">{t('attendancePages.lessons.status.absent')}</option><option value="excused">{t('attendancePages.lessons.status.excused')}</option>
+                {editing.source === 'manual' && <option value="auto">{t('attendancePages.lessons.undo')}</option>}
               </select>
             </label>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="Reason (required)"
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder={t('attendancePages.lessons.reason')}
               style={{ width: '100%', marginTop: 10, border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, background: '#fff', color: '#0f172a' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
-              <button style={btn} onClick={() => setEditing(null)}>Cancel</button>
-              <button style={{ ...btn, background: '#1d4ed8', color: '#fff', borderColor: '#1d4ed8' }} disabled={busy || reason.trim().length < 3} onClick={submit}>{busy ? 'Saving…' : 'Save correction'}</button>
+              <button style={btn} onClick={() => setEditing(null)}>{t('attendancePages.lessons.cancel')}</button>
+              <button style={{ ...btn, background: '#1d4ed8', color: '#fff', borderColor: '#1d4ed8' }} disabled={busy || reason.trim().length < 3} onClick={submit}>{busy ? t('attendancePages.lessons.saving') : t('attendancePages.lessons.save')}</button>
             </div>
           </div>
         </div>

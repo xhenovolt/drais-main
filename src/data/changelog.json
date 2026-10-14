@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T11:12:54.298Z",
-  "last_commit": "84ef16607ddf7d5bb2f9a0fc414f399e212faad9",
+  "generated_at": "2026-10-14T11:16:30.495Z",
+  "last_commit": "1a30b32a0102fc38317726c3055bdb883d30f43c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9514,7 +9514,20 @@
         }
       ],
       "commit": "84ef16607d"
+    },
+    {
+      "version": "2.50.69",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "/attendance/logs fully Arabic — page, dialogs, filters, and the server-formatted rows",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/logs fully Arabic — page, dialogs, filters, and the server-formatted rows"
+        }
+      ],
+      "commit": "1a30b32a01"
     }
   ],
-  "app_version": "2.50.69"
+  "app_version": "2.50.70"
 }
