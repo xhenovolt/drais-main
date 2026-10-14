@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-13T14:32:51.673Z",
-  "last_commit": "0ce68a34dadcb2ef34dfbed8eb68754a6b3d3fab",
+  "generated_at": "2026-10-14T10:43:23.013Z",
+  "last_commit": "b04839c8a6d6e3ec11035919d55a9668dbcdcc2e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9488,7 +9488,20 @@
         }
       ],
       "commit": "0ce68a34da"
+    },
+    {
+      "version": "2.50.67",
+      "date": "2026-10-13",
+      "release_type": "patch",
+      "title": "/dashboard fully Arabic in Arabic mode — Attendance Intelligence strip, device-time badges, all numbers",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/dashboard fully Arabic in Arabic mode — Attendance Intelligence strip, device-time badges, all numbers"
+        }
+      ],
+      "commit": "b04839c8a6"
     }
   ],
-  "app_version": "2.50.67"
+  "app_version": "2.50.68"
 }

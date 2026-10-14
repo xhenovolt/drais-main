@@ -4431,6 +4431,58 @@
       "offsetHours": "{{sign}}{{hours}}h",
       "tooltip": "{{device}}: {{cause}} — {{confidence}}% time confidence ({{batch}} punches). Click to review.",
       "fix": "fix"
+    },
+    "breakdown": {
+      "learners": "{{count}} learners",
+      "aria": "Attendance by residence and gender",
+      "title": "Who is at school — Day scholars and Boarding",
+      "summary": "{{count}} learners · {{pct}} present",
+      "policyReportedOnce": " · Boarding policy: Reported once ({{period}})",
+      "policyDaily": " · Boarding policy: Daily punch",
+      "reconcile": "Numbers reconcile",
+      "mismatch": {
+        "one": "{{count}} mismatch",
+        "other": "{{count}} mismatches"
+      },
+      "noBoarders": "No learner is marked as Boarding yet, so everyone is counted as a day scholar. Mark boarders in Learners → set “Residence” to Boarding.",
+      "dayScholars": "Day scholars",
+      "boarding": "Boarding",
+      "girls": "Girls",
+      "boys": "Boys",
+      "notRecorded": "Not recorded",
+      "reportedToSchool": "Reported to school",
+      "notReportedYet": "Not reported yet",
+      "punchedToday": "Punched today",
+      "present": "Present",
+      "ofWhomLate": "  of whom late",
+      "absent": "Absent",
+      "notYetRecorded": "Not yet recorded",
+      "other": "Other (leave, holiday…)",
+      "reported": "Reported",
+      "notReported": "Not reported"
+    },
+    "dash": {
+      "uid": "UID: {{uid}}",
+      "registeredDevices": "Registered Devices",
+      "verify": {
+        "0": "Password",
+        "1": "Fingerprint",
+        "2": "Card",
+        "15": "Face"
+      },
+      "verifyType": "Type {{n}}",
+      "io": {
+        "0": "Check-in",
+        "1": "Check-out",
+        "2": "Break Out",
+        "3": "Break In"
+      },
+      "ioMode": "Mode {{n}}",
+      "status": {
+        "online": "online",
+        "offline": "offline",
+        "unknown": "unknown"
+      }
     }
   }
 }

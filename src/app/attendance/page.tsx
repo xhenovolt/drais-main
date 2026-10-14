@@ -10,6 +10,10 @@ import {
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { localizeDigitsInText } from '@/lib/i18n/format';
+
+/** Numbers inside a display string, in Arabic-Indic digits (and ٪) when the interface is Arabic. */
+const arText = (v: unknown, lang: string) => (lang === 'ar' && v != null ? localizeDigitsInText(String(v), 'ar').replace(/%/g, '٪') : v);
 import IntelligenceStrip from '@/components/attendance/IntelligenceStrip';
 import AttendanceBreakdown from '@/components/attendance/AttendanceBreakdown';
 
@@ -61,7 +65,9 @@ function useLiveFeed() {
 
 // ── Dashboard Page ─────────────────────────────────────────────────────────
 export default function AttendanceDashboard() {
-  const { t } = useI18n();
+  const { t, lang, formatDate } = useI18n();
+  const A = (v: unknown) => arText(v, lang) as any;
+  const clock = (iso: string) => (lang === 'ar' ? formatDate(iso, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   const today = toLocalDateStr();
   const [date, setDate] = useState(today);
   const [liveFeedOpen, setLiveFeedOpen] = useState(true);
@@ -194,21 +200,21 @@ export default function AttendanceDashboard() {
               <div className="flex items-center gap-2">
                 <Wifi className="w-4 h-4 text-green-500" />
                 <span className="text-lg font-bold text-green-600">
-                  {Number(deviceStats.online_devices || 0)}
+                  {A(Number(deviceStats.online_devices || 0))}
                 </span>
                 <span className="text-xs text-gray-400">{t('attendanceDash.online', 'Online')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <WifiOff className="w-4 h-4 text-red-400" />
                 <span className="text-lg font-bold text-red-500">
-                  {Number(deviceStats.offline_devices || 0)}
+                  {A(Number(deviceStats.offline_devices || 0))}
                 </span>
                 <span className="text-xs text-gray-400">{t('attendanceDash.offline', 'Offline')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Server className="w-4 h-4 text-gray-400" />
                 <span className="text-lg font-bold text-gray-600 dark:text-gray-300">
-                  {Number(deviceStats.total_devices || 0)}
+                  {A(Number(deviceStats.total_devices || 0))}
                 </span>
                 <span className="text-xs text-gray-400">{t('attendanceDash.total', 'Total')}</span>
               </div>
@@ -227,15 +233,15 @@ export default function AttendanceDashboard() {
             <div className="flex items-center gap-6">
               <div>
                 <span className="text-lg font-bold text-yellow-600">
-                  {Number(commandStats.total_pending || 0)}
+                  {A(Number(commandStats.total_pending || 0))}
                 </span>
-                <span className="text-xs text-gray-400 ml-1">{t('attendanceDash.pending', 'Pending')}</span>
+                <span className="text-xs text-gray-400 ms-1">{t('attendanceDash.pending', 'Pending')}</span>
               </div>
               <div>
                 <span className="text-lg font-bold text-red-500">
-                  {Number(commandStats.failed || 0)}
+                  {A(Number(commandStats.failed || 0))}
                 </span>
-                <span className="text-xs text-gray-400 ml-1">{t('attendanceDash.failed', 'Failed')}</span>
+                <span className="text-xs text-gray-400 ms-1">{t('attendanceDash.failed', 'Failed')}</span>
               </div>
             </div>
           </div>
@@ -278,7 +284,7 @@ export default function AttendanceDashboard() {
                 return (
                   <div key={h} className="flex-1 flex flex-col items-center gap-1">
                     {punches > 0 && (
-                      <span className="text-[9px] text-gray-400">{punches}</span>
+                      <span className="text-[9px] text-gray-400">{A(punches)}</span>
                     )}
                     <div
                       className={`w-full rounded-t transition-all ${
@@ -287,7 +293,7 @@ export default function AttendanceDashboard() {
                       style={{ height: `${height}%`, minHeight: punches > 0 ? '4px' : '2px' }}
                     />
                     {h % 3 === 0 && (
-                      <span className="text-[9px] text-gray-400">{h}:00</span>
+                      <span className="text-[9px] text-gray-400">{A(`${h}:00`)}</span>
                     )}
                   </div>
                 );
@@ -324,12 +330,12 @@ export default function AttendanceDashboard() {
                 <div key={`${ev.id}-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
                   <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <span className="text-gray-500 text-xs whitespace-nowrap">
-                    {ev.check_time ? new Date(ev.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                    {ev.check_time ? clock(ev.check_time) : '—'}
                   </span>
                   {ev.person_name ? (
                     <span className="font-medium">{ev.person_name}</span>
                   ) : (
-                    <span className="text-amber-600 font-mono text-xs">UID: {ev.device_user_id}</span>
+                    <span className="text-amber-600 font-mono text-xs">{t('attendancePages.dash.uid', { uid: ev.device_user_id })}</span>
                   )}
                   <span className={`px-1.5 py-0.5 rounded text-xs
                     ${ev.person_type === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
@@ -337,7 +343,7 @@ export default function AttendanceDashboard() {
                         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
                     {ev.person_type === 'student' ? t('attendanceDash.learner', 'Learner') : ev.person_type === 'staff' ? t('attendanceDash.staff', 'Staff') : t('attendanceDash.unmatched', 'Unmatched')}
                   </span>
-                  {ev.device_name && <span className="text-xs text-gray-400 ml-auto">{ev.device_name}</span>}
+                  {ev.device_name && <span className="text-xs text-gray-400 ms-auto">{ev.device_name}</span>}
                 </div>
               ))}
             </div>
@@ -360,12 +366,12 @@ export default function AttendanceDashboard() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-900/50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colTime', 'Time')}</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colPerson', 'Person')}</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colDeviceUid', 'Device UID')}</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colVerify', 'Verify')}</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colIo', 'IO')}</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colStatus', 'Status')}</th>
+                  <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colTime', 'Time')}</th>
+                  <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colPerson', 'Person')}</th>
+                  <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colDeviceUid', 'Device UID')}</th>
+                  <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colVerify', 'Verify')}</th>
+                  <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colIo', 'IO')}</th>
+                  <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('attendanceDash.colStatus', 'Status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -386,17 +392,17 @@ export default function AttendanceDashboard() {
                   return (
                     <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
                       <td className="px-4 py-2 text-sm whitespace-nowrap">
-                        {p.check_time ? new Date(p.check_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                        {p.check_time ? clock(p.check_time) : '—'}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         {name ? (
                           <span className="font-medium">{name}</span>
                         ) : (
-                          <span className="text-amber-600 font-mono text-xs">UID: {p.device_user_id}</span>
+                          <span className="text-amber-600 font-mono text-xs">{t('attendancePages.dash.uid', { uid: p.device_user_id })}</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-sm font-mono text-gray-500">{p.device_user_id}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{verifyLabel(p.verify_type)}</td>
+                      <td className="px-4 py-2 text-sm font-mono text-gray-500">{A(p.device_user_id)}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500">{p.verify_type != null ? t(`attendancePages.dash.verify.${p.verify_type}`, t('attendancePages.dash.verifyType', { n: p.verify_type })) : '—'}</td>
                       <td className="px-4 py-2 text-sm">
                         {/* DERIVED meaning from the state engine, not the
                             device IN/OUT field. NULL right after a scan
@@ -435,7 +441,7 @@ export default function AttendanceDashboard() {
             dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Registered Devices
+                {t('attendancePages.dash.registeredDevices')}
               </h3>
               <Link href="/attendance/devices" className="text-xs text-blue-600 hover:underline">
                 Manage &rarr;
@@ -463,7 +469,7 @@ export default function AttendanceDashboard() {
                   <span className={`shrink-0 text-xs font-medium ${
                     d.connection_status === 'online' ? 'text-green-600' : 'text-red-500'
                   }`}>
-                    {d.connection_status}
+                    {t(`attendancePages.dash.status.${d.connection_status}`, String(d.connection_status ?? ''))}
                   </span>
                 </div>
               ))}
@@ -486,6 +492,7 @@ function MetricCard({
   color: string;
   alert?: boolean;
 }) {
+  const { lang } = useI18n();
   const bgMap: Record<string, string> = {
     blue: 'bg-blue-50 dark:bg-blue-900/20',
     green: 'bg-green-50 dark:bg-green-900/20',
@@ -506,11 +513,11 @@ function MetricCard({
         </div>
       </div>
       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-        {value}
+        {arText(value, lang) as any}
       </p>
       {sub && (
         <p className={`text-xs mt-0.5 ${alert ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-400'}`}>
-          {sub}
+          {arText(sub, lang) as any}
         </p>
       )}
     </div>

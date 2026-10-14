@@ -1,0 +1,258 @@
+{
+ "/api/attendance/zk/dashboard": {
+  "success": true,
+  "data": {
+   "devices": {
+    "total_devices": 2,
+    "online_devices": 1,
+    "offline_devices": 1
+   },
+   "students": {
+    "present": 80,
+    "late": 5,
+    "absent": 10,
+    "total": 100,
+    "rate": 85
+   },
+   "staff": {
+    "present": 20,
+    "rate": 90
+   },
+   "punches": {
+    "total_punches": 140,
+    "matched_punches": 130,
+    "unmatched_punches": 10
+   },
+   "hourly": [
+    {
+     "hour": 7,
+     "punches": 40
+    },
+    {
+     "hour": 8,
+     "punches": 30
+    }
+   ],
+   "recent": [
+    {
+     "id": 1,
+     "check_time": "2026-10-13T07:42:10",
+     "student_first_name": "Amina",
+     "student_last_name": "Nakato",
+     "device_user_id": "1042",
+     "verify_type": 1,
+     "io_mode": 0,
+     "derived_event": "ARRIVED_LATE",
+     "device_name": "Main gate"
+    }
+   ],
+   "device": [
+    {
+     "id": 1,
+     "device_name": "Main gate",
+     "serial_number": "CQUH233560091",
+     "status": "online",
+     "last_seen": "2026-10-13T08:00:00"
+    }
+   ]
+  }
+ },
+ "/api/attendance/breakdown": {
+  "success": true,
+  "date": "2026-10-13",
+  "boardingMode": "REPORTED_ONCE",
+  "reportingPeriod": "Term III",
+  "overall": {
+   "total": 100,
+   "present": 80,
+   "late": 5,
+   "absent": 10,
+   "awaiting": 10,
+   "reportedNotRequired": 0,
+   "notReported": 5,
+   "policyPresent": 0,
+   "policyOther": 0,
+   "other": 0,
+   "reported": 95,
+   "presentToday": 80
+  },
+  "residence": {
+   "day": {
+    "total": 60,
+    "present": 80,
+    "late": 5,
+    "absent": 10,
+    "awaiting": 10,
+    "reportedNotRequired": 0,
+    "notReported": 5,
+    "policyPresent": 0,
+    "policyOther": 0,
+    "other": 0,
+    "reported": 95,
+    "presentToday": 80
+   },
+   "boarding": {
+    "total": 40,
+    "present": 80,
+    "late": 5,
+    "absent": 10,
+    "awaiting": 10,
+    "reportedNotRequired": 0,
+    "notReported": 5,
+    "policyPresent": 0,
+    "policyOther": 0,
+    "other": 0,
+    "reported": 95,
+    "presentToday": 80
+   }
+  },
+  "gender": {
+   "female": {
+    "total": 50,
+    "present": 80,
+    "late": 5,
+    "absent": 10,
+    "awaiting": 10,
+    "reportedNotRequired": 0,
+    "notReported": 5,
+    "policyPresent": 0,
+    "policyOther": 0,
+    "other": 0,
+    "reported": 95,
+    "presentToday": 80
+   },
+   "male": {
+    "total": 50,
+    "present": 80,
+    "late": 5,
+    "absent": 10,
+    "awaiting": 10,
+    "reportedNotRequired": 0,
+    "notReported": 5,
+    "policyPresent": 0,
+    "policyOther": 0,
+    "other": 0,
+    "reported": 95,
+    "presentToday": 80
+   },
+   "unknown": {
+    "total": 0,
+    "present": 80,
+    "late": 5,
+    "absent": 10,
+    "awaiting": 10,
+    "reportedNotRequired": 0,
+    "notReported": 5,
+    "policyPresent": 0,
+    "policyOther": 0,
+    "other": 0,
+    "reported": 95,
+    "presentToday": 80
+   }
+  },
+  "cells": {
+   "female": {
+    "day": {
+     "total": 100,
+     "present": 80,
+     "late": 5,
+     "absent": 10,
+     "awaiting": 10,
+     "reportedNotRequired": 0,
+     "notReported": 5,
+     "policyPresent": 0,
+     "policyOther": 0,
+     "other": 0,
+     "reported": 95,
+     "presentToday": 80
+    },
+    "boarding": {
+     "total": 100,
+     "present": 80,
+     "late": 5,
+     "absent": 10,
+     "awaiting": 10,
+     "reportedNotRequired": 0,
+     "notReported": 5,
+     "policyPresent": 0,
+     "policyOther": 0,
+     "other": 0,
+     "reported": 95,
+     "presentToday": 80
+    }
+   },
+   "male": {
+    "day": {
+     "total": 100,
+     "present": 80,
+     "late": 5,
+     "absent": 10,
+     "awaiting": 10,
+     "reportedNotRequired": 0,
+     "notReported": 5,
+     "policyPresent": 0,
+     "policyOther": 0,
+     "other": 0,
+     "reported": 95,
+     "presentToday": 80
+    },
+    "boarding": {
+     "total": 100,
+     "present": 80,
+     "late": 5,
+     "absent": 10,
+     "awaiting": 10,
+     "reportedNotRequired": 0,
+     "notReported": 5,
+     "policyPresent": 0,
+     "policyOther": 0,
+     "other": 0,
+     "reported": 95,
+     "presentToday": 80
+    }
+   },
+   "unknown": {
+    "day": {
+     "total": 100,
+     "present": 80,
+     "late": 5,
+     "absent": 10,
+     "awaiting": 10,
+     "reportedNotRequired": 0,
+     "notReported": 5,
+     "policyPresent": 0,
+     "policyOther": 0,
+     "other": 0,
+     "reported": 95,
+     "presentToday": 80
+    },
+    "boarding": {
+     "total": 100,
+     "present": 80,
+     "late": 5,
+     "absent": 10,
+     "awaiting": 10,
+     "reportedNotRequired": 0,
+     "notReported": 5,
+     "policyPresent": 0,
+     "policyOther": 0,
+     "other": 0,
+     "reported": 95,
+     "presentToday": 80
+    }
+   }
+  },
+  "reconciliation": {
+   "ok": false,
+   "issues": [
+    "x"
+   ]
+  }
+ },
+ "/api/attendance/intelligence-summary": {
+  "health": {
+   "score": 92,
+   "status": "healthy"
+  }
+ }
+}
