@@ -4992,6 +4992,92 @@
       "present": "Present",
       "late": "Late",
       "absent": "Absent"
+    },
+    "founder": {
+      "autonomy": {
+        "founder": "Founder",
+        "manual": "Manual",
+        "assisted": "Assisted",
+        "automated": "Automated"
+      },
+      "title": "Founder Independence",
+      "subtitle": "Every attendance workflow that once needed the founder — and what runs it now.",
+      "baseline": "Baseline",
+      "now": "Now",
+      "delta": "+{{n}} points of operational independence",
+      "weighted": "Weighted across {{n}} attendance workflows. A trained administrator can now diagnose, explain and repair attendance from inside DRAIS, with minimal reliance on the founder.",
+      "col": {
+        "workflow": "Workflow",
+        "before": "Before",
+        "now": "Now",
+        "handledBy": "Handled by"
+      },
+      "phase": "Phase {{n}}",
+      "preProgram": "pre-program",
+      "live": {
+        "clock": "{{n}} drift day(s) auto-detected in 30; baseline {{state}}",
+        "learned": "learned",
+        "pending": "pending",
+        "unmatched": "{{n}} unmatched punch(es) flagged (7d)"
+      },
+      "wf": {
+        "clock_drift": {
+          "workflow": "Detect & correct device clock drift",
+          "surface": "Time Intelligence + self-feeding sweep"
+        },
+        "attendance_stopped": {
+          "workflow": "Notice attendance stopped & recover it",
+          "surface": "Recovery Center (gap detection + routed recovery)"
+        },
+        "identity_mapping": {
+          "workflow": "Map device users to people",
+          "surface": "Identity Matching + Detect & map"
+        },
+        "identity_health": {
+          "workflow": "Find duplicate / unknown / stale mappings",
+          "surface": "Identity Intelligence"
+        },
+        "sms_diagnosis": {
+          "workflow": "Diagnose SMS failures",
+          "surface": "Health Center + queue retry"
+        },
+        "why_late": {
+          "workflow": "Explain why a verdict is late/absent",
+          "surface": "Explanation Engine (\"Why?\" on every row)"
+        },
+        "trust_a_record": {
+          "workflow": "Judge whether a single record is trustworthy",
+          "surface": "Per-record confidence chips"
+        },
+        "where_broke": {
+          "workflow": "Trace where a punch failed in the pipeline",
+          "surface": "Digital Twin / Event Explorer"
+        },
+        "device_maintenance": {
+          "workflow": "Decide which device needs maintenance",
+          "surface": "Device Intelligence (reputation + advice)"
+        },
+        "attendance_trends": {
+          "workflow": "Spot lateness / absence trends",
+          "surface": "Attendance Trends (pattern analytics)"
+        },
+        "is_it_healthy": {
+          "workflow": "Answer \"is attendance OK right now?\"",
+          "surface": "Health Center (overall score + checks)"
+        },
+        "bulk_recovery": {
+          "workflow": "Backfill missed days from the device",
+          "surface": "Device Control wizard (routed from Recovery)"
+        },
+        "version_history": {
+          "workflow": "Know what version runs & what changed",
+          "surface": "About / System Information"
+        },
+        "platform_ops": {
+          "workflow": "Operate schools without their credentials",
+          "surface": "Control Center"
+        }
+      }
     }
   }
 }

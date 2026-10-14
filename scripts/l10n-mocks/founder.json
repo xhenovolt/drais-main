@@ -1,0 +1,126 @@
+{
+ "/api/attendance/founder-independence": {
+  "success": true,
+  "score": {
+   "before": 3,
+   "after": 91,
+   "delta": 88
+  },
+  "rows": [
+   {
+    "key": "clock_drift",
+    "workflow": "Detect & correct device clock drift",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Time Intelligence + self-feeding sweep",
+    "phase": "Phase 4 / 1.89.1",
+    "live": "2 drift day(s) auto-detected in 30; baseline learned"
+   },
+   {
+    "key": "attendance_stopped",
+    "workflow": "Notice attendance stopped & recover it",
+    "before": "founder",
+    "after": "assisted",
+    "surface": "Recovery Center (gap detection + routed recovery)",
+    "phase": "Phase 5"
+   },
+   {
+    "key": "identity_mapping",
+    "workflow": "Map device users to people",
+    "before": "manual",
+    "after": "assisted",
+    "surface": "Identity Matching + Detect & map",
+    "phase": "pre-program"
+   },
+   {
+    "key": "identity_health",
+    "workflow": "Find duplicate / unknown / stale mappings",
+    "before": "founder",
+    "after": "assisted",
+    "surface": "Identity Intelligence",
+    "phase": "Phase 8",
+    "live": "5 unmatched punch(es) flagged (7d)"
+   },
+   {
+    "key": "sms_diagnosis",
+    "workflow": "Diagnose SMS failures",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Health Center + queue retry",
+    "phase": "Phase 1"
+   },
+   {
+    "key": "why_late",
+    "workflow": "Explain why a verdict is late/absent",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Explanation Engine (\"Why?\" on every row)",
+    "phase": "Phase 9"
+   },
+   {
+    "key": "trust_a_record",
+    "workflow": "Judge whether a single record is trustworthy",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Per-record confidence chips",
+    "phase": "Phase 3"
+   },
+   {
+    "key": "where_broke",
+    "workflow": "Trace where a punch failed in the pipeline",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Digital Twin / Event Explorer",
+    "phase": "Phase 2"
+   },
+   {
+    "key": "device_maintenance",
+    "workflow": "Decide which device needs maintenance",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Device Intelligence (reputation + advice)",
+    "phase": "Phase 7"
+   },
+   {
+    "key": "attendance_trends",
+    "workflow": "Spot lateness / absence trends",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Attendance Trends (pattern analytics)",
+    "phase": "Phase 6"
+   },
+   {
+    "key": "is_it_healthy",
+    "workflow": "Answer \"is attendance OK right now?\"",
+    "before": "founder",
+    "after": "automated",
+    "surface": "Health Center (overall score + checks)",
+    "phase": "Phase 1"
+   },
+   {
+    "key": "bulk_recovery",
+    "workflow": "Backfill missed days from the device",
+    "before": "founder",
+    "after": "assisted",
+    "surface": "Device Control wizard (routed from Recovery)",
+    "phase": "pre-program"
+   },
+   {
+    "key": "version_history",
+    "workflow": "Know what version runs & what changed",
+    "before": "founder",
+    "after": "automated",
+    "surface": "About / System Information",
+    "phase": "v1.83"
+   },
+   {
+    "key": "platform_ops",
+    "workflow": "Operate schools without their credentials",
+    "before": "founder",
+    "after": "assisted",
+    "surface": "Control Center",
+    "phase": "v1.84"
+   }
+  ]
+ }
+}

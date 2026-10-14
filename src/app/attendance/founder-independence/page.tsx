@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const AUTONOMY_STYLE: Record<string, string> = {
   founder: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
@@ -17,6 +18,17 @@ const AUTONOMY_STYLE: Record<string, string> = {
 const LABEL: Record<string, string> = { founder: 'Founder', manual: 'Manual', assisted: 'Assisted', automated: 'Automated' };
 
 export default function FounderIndependence() {
+  const { t, lang, digits } = useI18n();
+  // Live notes come from the server in two fixed shapes (lib/attendance/founder-independence.ts).
+  const liveText = (s: string) => {
+    if (lang !== 'ar') return s;
+    let m = s.match(/^(\d+) drift day\(s\) auto-detected in 30; baseline (learned|pending)$/);
+    if (m) return t('attendancePages.founder.live.clock', { n: m[1], state: t(`attendancePages.founder.live.${m[2]}`) });
+    m = s.match(/^(\d+) unmatched punch\(es\) flagged \(7d\)$/);
+    if (m) return t('attendancePages.founder.live.unmatched', { n: m[1] });
+    return digits(s);
+  };
+  const phaseText = (s: string) => (lang !== 'ar' ? s : s === 'pre-program' ? t('attendancePages.founder.preProgram') : digits(s.replace(/^Phase (\d+)/, (_m, n) => t('attendancePages.founder.phase', { n }))));
   const [data, setData] = useState<any>(null);
   useEffect(() => { fetch('/api/attendance/founder-independence', { cache: 'no-store' }).then(r => r.json()).then(setData).catch(() => {}); }, []);
 
@@ -25,8 +37,8 @@ export default function FounderIndependence() {
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><ShieldCheck className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Founder Independence</h1>
-          <p className="text-sm text-gray-500">Every attendance workflow that once needed the founder — and what runs it now.</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('attendancePages.founder.title')}</h1>
+          <p className="text-sm text-gray-500">{t('attendancePages.founder.subtitle')}</p>
         </div>
       </div>
 
@@ -36,18 +48,18 @@ export default function FounderIndependence() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="text-center">
-              <div className="text-3xl font-bold text-rose-500 tabular-nums">{data.score.before}%</div>
-              <div className="text-[10px] text-gray-400 uppercase">Baseline</div>
+              <div className="text-3xl font-bold text-rose-500 tabular-nums">{lang === 'ar' ? `${digits(data.score.before)}٪` : `${data.score.before}%`}</div>
+              <div className="text-[10px] text-gray-400 uppercase">{t('attendancePages.founder.baseline')}</div>
             </div>
             <ArrowRight className="w-6 h-6 text-gray-300" />
             <div className="text-center">
-              <div className="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{data.score.after}%</div>
-              <div className="text-[10px] text-gray-400 uppercase">Now</div>
+              <div className="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{lang === 'ar' ? `${digits(data.score.after)}٪` : `${data.score.after}%`}</div>
+              <div className="text-[10px] text-gray-400 uppercase">{t('attendancePages.founder.now')}</div>
             </div>
           </div>
           <div className="flex-1 min-w-[200px]">
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">+{data.score.delta} points of operational independence</p>
-            <p className="text-xs text-gray-500 mt-0.5">Weighted across {data.rows.length} attendance workflows. A trained administrator can now diagnose, explain and repair attendance from inside DRAIS, with minimal reliance on the founder.</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('attendancePages.founder.delta', { n: data.score.delta })}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t('attendancePages.founder.weighted', { n: data.rows.length })}</p>
           </div>
         </div>
       )}
@@ -57,24 +69,24 @@ export default function FounderIndependence() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-500 text-xs">
               <tr>
-                <th className="px-3 py-2 text-left">Workflow</th>
-                <th className="px-3 py-2 text-center">Before</th>
-                <th className="px-3 py-2 text-center">Now</th>
-                <th className="px-3 py-2 text-left">Handled by</th>
+                <th className="px-3 py-2 text-start">{t('attendancePages.founder.col.workflow')}</th>
+                <th className="px-3 py-2 text-center">{t('attendancePages.founder.col.before')}</th>
+                <th className="px-3 py-2 text-center">{t('attendancePages.founder.col.now')}</th>
+                <th className="px-3 py-2 text-start">{t('attendancePages.founder.col.handledBy')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
               {data.rows.map((r: any) => (
                 <tr key={r.key}>
                   <td className="px-3 py-2.5">
-                    <div className="text-gray-800 dark:text-gray-100">{r.workflow}</div>
-                    {r.live && <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">● {r.live}</div>}
+                    <div className="text-gray-800 dark:text-gray-100">{t(`attendancePages.founder.wf.${r.key}.workflow`, r.workflow)}</div>
+                    {r.live && <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">● {liveText(r.live)}</div>}
                   </td>
-                  <td className="px-3 py-2.5 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${AUTONOMY_STYLE[r.before]}`}>{LABEL[r.before]}</span></td>
-                  <td className="px-3 py-2.5 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${AUTONOMY_STYLE[r.after]}`}>{LABEL[r.after]}</span></td>
+                  <td className="px-3 py-2.5 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${AUTONOMY_STYLE[r.before]}`}>{t(`attendancePages.founder.autonomy.${r.before}`, LABEL[r.before])}</span></td>
+                  <td className="px-3 py-2.5 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${AUTONOMY_STYLE[r.after]}`}>{t(`attendancePages.founder.autonomy.${r.after}`, LABEL[r.after])}</span></td>
                   <td className="px-3 py-2.5">
-                    <div className="text-xs text-gray-600 dark:text-gray-300">{r.surface}</div>
-                    <div className="text-[10px] text-gray-400">{r.phase}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">{t(`attendancePages.founder.wf.${r.key}.surface`, r.surface)}</div>
+                    <div className="text-[10px] text-gray-400">{phaseText(r.phase)}</div>
                   </td>
                 </tr>
               ))}

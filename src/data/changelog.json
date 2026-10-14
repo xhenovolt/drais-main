@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T16:41:01.757Z",
-  "last_commit": "4ff62fa327f04c97776ae785b6e5484037ae3448",
+  "generated_at": "2026-10-14T16:43:10.601Z",
+  "last_commit": "66c3d95d533d3a3f3a07a76518dfa2ea321a8df4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9579,7 +9579,20 @@
         }
       ],
       "commit": "4ff62fa327"
+    },
+    {
+      "version": "2.50.74",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "/attendance/trends fully Arabic — pattern alerts in the request language, chart legend and axes",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/trends fully Arabic — pattern alerts in the request language, chart legend and axes"
+        }
+      ],
+      "commit": "66c3d95d53"
     }
   ],
-  "app_version": "2.50.74"
+  "app_version": "2.50.75"
 }
