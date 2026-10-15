@@ -8,6 +8,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { getAlertPhone, setAlertPhone, alertingEnabled, SENTINEL_ALERT_ENABLED_KEY } from '@/lib/sentinel/alert';
 import { setSetting } from '@/lib/control/platform-settings';
 
@@ -16,6 +18,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'sentinel.view')) return denied('sentinel.view');
   const [phone, enabled] = await Promise.all([getAlertPhone(), alertingEnabled()]);
   return NextResponse.json({ success: true, phoneMasked: phone ? phone.replace(/\d(?=\d{3})/g, '•') : null, configured: !!phone, enabled });
 }
@@ -23,8 +26,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (user.role !== 'XHENVOLT_SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Only a Super Admin may configure the Sentinel alert number' }, { status: 403 });
+  if (!controlCan(user, 'sentinel.configure')) {
+    return denied('sentinel.configure');
   }
 
   const body = await req.json().catch(() => null);

@@ -4,7 +4,9 @@
  * The operator-controlled backup / DR extract / data-portability artefact.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getControlSession, canManage, controlAudit, clientIp } from '@/lib/control/auth';
+import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied, schoolInScope, outOfScope } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { exportSchoolData } from '@/lib/control/data-export';
 
 export const runtime = 'nodejs';
@@ -13,8 +15,9 @@ export const maxDuration = 300;
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user, 'schools.export')) return denied('schools.export');
   const { id } = await ctx.params;
+  if (!schoolInScope(user, Number(id))) return outOfScope();
   const schoolId = Number(id);
 
   const res = await exportSchoolData(schoolId);

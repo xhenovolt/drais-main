@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/control/db';
 import { getControlSession } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { parsePageParams, totalPages } from '@/lib/control/pagination';
 
 export const runtime = 'nodejs';
@@ -11,6 +13,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'audit.view')) return denied('audit.view');
 
   const sp = new URL(req.url).searchParams;
   const { page, limit, offset } = parsePageParams(sp.get('page'), sp.get('limit'), { defaultLimit: 50, maxLimit: 200 });

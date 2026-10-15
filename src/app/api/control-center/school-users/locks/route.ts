@@ -29,6 +29,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/control/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { schoolInScope } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { setAccountLock, ensureLockoutColumn, LOCKOUT_WINDOW_MIN } from '@/lib/auth/login-lockout';
 
@@ -37,7 +38,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const operator = await getControlSession(req);
   if (!operator) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(operator.role, 'platform.view')) {
+  if (!controlCan(operator, 'accounts.view')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     windowMinutes: LOCKOUT_WINDOW_MIN,
-    rows: rows.map((r) => ({
+    rows: rows.filter((r) => schoolInScope(operator, r.school_id)).map((r) => ({
       ...r,
       is_locked: Number(r.is_locked) === 1,
       failed_attempts: Number(r.failed_attempts || 0),
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const operator = await getControlSession(req);
   if (!operator) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(operator.role, 'schools.manage')) {
+  if (!controlCan(operator, 'accounts.edit')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
     `SELECT id, email, school_id FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
     [userId],
   ).catch(() => [])) as any[];
-  if (!found.length) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!found.length || !schoolInScope(operator, found[0].school_id)) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   let until: Date | null = null;
   if (action === 'lock') {

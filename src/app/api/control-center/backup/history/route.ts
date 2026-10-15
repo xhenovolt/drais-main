@@ -3,7 +3,9 @@
  * super-admin only. ?school_id= narrows to one school.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getControlSession, canManage } from '@/lib/control/auth';
+import { getControlSession } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { listBackups } from '@/lib/backup/orchestrator';
 
 export const runtime = 'nodejs';
@@ -11,7 +13,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user, 'backup.view')) return denied('backup.view');
 
   const { searchParams } = new URL(req.url);
   const schoolIdParam = searchParams.get('school_id');

@@ -8,6 +8,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, clientIp } from '@/lib/control/auth';
+import { denied, schoolInScope, outOfScope } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { schoolBilling, generateInvoice, recordPayment, voidInvoice } from '@/lib/control/billing';
 
@@ -16,15 +17,18 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'billing.view')) return denied('billing.view');
   const { id } = await ctx.params;
+  if (!schoolInScope(user, Number(id))) return outOfScope();
   return NextResponse.json({ success: true, ...(await schoolBilling(Number(id))) });
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'billing.manage')) return NextResponse.json({ error: 'You do not have permission to manage billing' }, { status: 403 });
+  if (!controlCan(user, 'billing.manage')) return NextResponse.json({ error: 'You do not have permission to manage billing' }, { status: 403 });
   const { id } = await ctx.params;
+  if (!schoolInScope(user, Number(id))) return outOfScope();
   const schoolId = Number(id);
   const b = await req.json().catch(() => null);
   const ip = clientIp(req);

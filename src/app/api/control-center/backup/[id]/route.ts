@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getControlSession, canManage, controlAudit, clientIp } from '@/lib/control/auth';
+import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { getBackup, getBackupParts, deleteBackup } from '@/lib/backup/orchestrator';
 
 export const runtime = 'nodejs';
@@ -7,7 +9,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user, 'backup.view')) return denied('backup.view');
   const { id } = await ctx.params;
   const backupId = Number(id);
   const rec = await getBackup(backupId);
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!canManage(user.role)) return NextResponse.json({ error: 'Super admin role required' }, { status: 403 });
+  if (!controlCan(user, 'backup.delete')) return denied('backup.delete');
   const { id } = await ctx.params;
   const backupId = Number(id);
   const rec = await getBackup(backupId);

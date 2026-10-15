@@ -7,6 +7,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { dispatchSentinelAlert } from '@/lib/sentinel/alert';
 import type { Incident } from '@/lib/sentinel/types';
 
@@ -15,8 +17,8 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (user.role !== 'XHENVOLT_SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Only a Super Admin may send a Sentinel test alert' }, { status: 403 });
+  if (!controlCan(user, 'sentinel.configure')) {
+    return denied('sentinel.configure');
   }
 
   const synthetic: Incident = {

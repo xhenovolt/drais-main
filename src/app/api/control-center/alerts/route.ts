@@ -6,6 +6,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { listAlerts, acknowledgeAlert } from '@/lib/control/health-history';
 
 export const runtime = 'nodejs';
@@ -13,6 +15,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'dashboard.view')) return denied('dashboard.view');
   const alerts = await listAlerts(40);
   return NextResponse.json({ success: true, alerts, unacked: alerts.filter((a: any) => !a.acknowledged_at).length });
 }
@@ -20,6 +23,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'dashboard.view')) return denied('dashboard.view');
   const b = await req.json().catch(() => null);
   const id = Number(b?.id);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'id is required' }, { status: 400 });

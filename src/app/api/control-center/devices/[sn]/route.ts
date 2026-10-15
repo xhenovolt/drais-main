@@ -5,6 +5,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession } from '@/lib/control/auth';
+import { denied, schoolInScope, isScoped } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { deviceDetail, deviceTimeline } from '@/lib/control/devices';
 
 export const runtime = 'nodejs';
@@ -12,10 +14,14 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest, ctx: { params: Promise<{ sn: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'devices.view')) return denied('devices.view');
   const { sn } = await ctx.params;
   const [device, timeline] = await Promise.all([
     deviceDetail(sn).catch(() => null),
     deviceTimeline(sn).catch(() => []),
   ]);
+  if (isScoped(user) && !(device && (device as any).school_id != null && schoolInScope(user, (device as any).school_id))) {
+    return NextResponse.json({ error: 'Device not found' }, { status: 404 });
+  }
   return NextResponse.json({ success: true, device, timeline });
 }

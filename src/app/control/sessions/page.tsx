@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import TwoFactorCard from '@/components/control/TwoFactorCard';
 import { CheckCircle2, Loader2, Monitor, Shield, Smartphone, XCircle } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then((r) => r.json());
@@ -56,6 +57,7 @@ export default function ControlSessionsPage() {
         })}
       </div>
       <p className="text-xs text-slate-500 flex items-center gap-2"><Shield className="w-4 h-4" /> Session references are non-secret identifiers. Raw session tokens are never displayed or stored.</p>
+      <TwoFactorCard />
     </div>
   );
 }

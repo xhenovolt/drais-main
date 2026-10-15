@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { listPlans, upsertPlan, deletePlan } from '@/lib/control/subscriptions';
 import { MODULE_CATALOG } from '@/lib/school-modules';
@@ -17,6 +18,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!['plans.view', 'schools.view'].some((p) => controlCan(user, p))) return denied('plans.view');
   const plans = await listPlans().catch(() => []);
   const counts = (await query(
     `SELECT subscription_plan code, COUNT(*) n FROM schools
@@ -33,7 +35,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'plans.catalog')) return NextResponse.json({ error: 'You do not have permission to manage plans' }, { status: 403 });
+  if (!['plans.create', 'plans.edit'].some((p) => controlCan(user, p))) return denied('plans.edit');
 
   const b = await req.json().catch(() => null);
   if (!b?.code || !b?.name) return NextResponse.json({ error: 'code and name are required' }, { status: 400 });
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'plans.catalog')) return NextResponse.json({ error: 'You do not have permission to manage plans' }, { status: 403 });
+  if (!controlCan(user, 'plans.delete')) return denied('plans.delete');
   const code = new URL(req.url).searchParams.get('code');
   if (!code) return NextResponse.json({ error: 'code is required' }, { status: 400 });
   const res = await deletePlan(code, user.id, clientIp(req));

@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { listIncidents, acknowledgeIncident, resolveIncident, suppressIncident, getIncident } from '@/lib/sentinel/incidents';
 
@@ -14,6 +15,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'sentinel.view')) return denied('sentinel.view');
 
   const url = new URL(req.url);
   const status = url.searchParams.get('status') as any;
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sentinel.manage')) {
+  if (!controlCan(user, 'sentinel.manage')) {
     return NextResponse.json({ error: 'You do not have permission to manage Sentinel incidents' }, { status: 403 });
   }
 

@@ -9,6 +9,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { query } from '@/lib/control/db';
 import { ensureSentinelSchema } from '@/lib/sentinel/schema';
@@ -23,7 +24,7 @@ function liveCommitSha(): string | null {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sentinel.manage')) {
+  if (!controlCan(user, 'sentinel.manage')) {
     return NextResponse.json({ error: 'You do not have permission to trigger a Full System Diagnosis' }, { status: 403 });
   }
 
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'sentinel.view')) return denied('sentinel.view');
 
   await ensureSentinelSchema();
   const rows = (await query(

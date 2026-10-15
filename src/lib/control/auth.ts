@@ -27,6 +27,28 @@ export type ControlRole = 'XHENVOLT_SUPER_ADMIN' | 'XHENVOLT_OPERATOR' | 'XHENVO
 
 export interface ControlUser {
   id: number; name: string; email: string; role: ControlRole; status: string;
+  /** Explicit permission list (Operators screen); null = the role's preset. Super admins hold everything regardless. */
+  permissions?: string[] | null;
+  /** School ids this operator is limited to; null = every school. */
+  schoolScope?: number[] | null;
+  accessExpiresAt?: string | null;
+}
+
+const parseJsonList = (v: unknown): any[] | null => {
+  if (v == null || v === '') return null;
+  if (Array.isArray(v)) return v;
+  try { const p = JSON.parse(String(v)); return Array.isArray(p) ? p : null; } catch { return null; }
+};
+
+/** Row (with permissions / school_scope / access_expires_at) → ControlUser. */
+export function toControlUser(u: any): ControlUser {
+  const scope = parseJsonList(u.school_scope);
+  return {
+    id: Number(u.id), name: u.name, email: u.email, role: u.role, status: u.status,
+    permissions: parseJsonList(u.permissions)?.map(String) ?? null,
+    schoolScope: scope ? scope.map(Number).filter((n) => Number.isFinite(n) && n > 0) : null,
+    accessExpiresAt: u.access_expires_at ? new Date(u.access_expires_at).toISOString() : null,
+  };
 }
 
 /* ── schema (runtime ensure, promise-gated — additive only) ───────────── */
@@ -71,6 +93,12 @@ export function ensureControlSchema(): Promise<void> {
       `ADD COLUMN totp_secret VARCHAR(64) DEFAULT NULL`,
       `ADD COLUMN totp_enabled TINYINT NOT NULL DEFAULT 0`,
       `ADD COLUMN totp_recovery JSON`,
+      // Per-operator access (Operators screen): explicit permissions, school scope, expiry.
+      `ADD COLUMN permissions JSON`,
+      `ADD COLUMN school_scope JSON`,
+      `ADD COLUMN access_expires_at DATETIME DEFAULT NULL`,
+      `ADD COLUMN notes VARCHAR(500) DEFAULT NULL`,
+      `ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL`,
     ]) { await query(`ALTER TABLE control_users ${ddl}`, []).catch(() => {}); }
     await query(
       `CREATE TABLE IF NOT EXISTS control_audit_logs (
@@ -152,19 +180,23 @@ export async function loginControl(
   }
 
   const rows = (await query(
-    `SELECT id, name, email, password_hash, role, status, totp_secret, totp_enabled, totp_recovery
+    `SELECT id, name, email, password_hash, role, status, totp_secret, totp_enabled, totp_recovery,
+            permissions, school_scope, access_expires_at,
+            (access_expires_at IS NOT NULL AND access_expires_at <= NOW()) AS expired
        FROM control_users WHERE email = ? LIMIT 1`,
     [normEmail],
   )) as any[];
   const u = rows[0];
   // Constant-shape failure: verify against a dummy hash when no user found.
   const ok = u ? await verifyPassword(password, u.password_hash) : (await verifyPassword(password, 'scrypt$00$00'), false);
-  if (!u || !ok || u.status !== 'active') {
+  if (!u || !ok || u.status !== 'active' || Number(u.expired) === 1) {
     await recordLoginAttempt(normEmail, ip ?? null, false);
     await controlAudit(null, 'login_failed', 'session', { email: normEmail }, ip ?? null);
-    return u && u.status !== 'active' && ok
-      ? { ok: false, reason: 'Account is disabled' }
-      : { ok: false, reason: 'Invalid email or password' };
+    return u && ok && u.status !== 'active'
+      ? { ok: false, reason: u.status === 'suspended' ? 'Your Control Center access is suspended' : 'Account is disabled' }
+      : u && ok && Number(u.expired) === 1
+        ? { ok: false, reason: 'Your Control Center access has expired' }
+        : { ok: false, reason: 'Invalid email or password' };
   }
 
   // Optional second factor (E-2): only enforced when the operator opted in.
@@ -200,7 +232,7 @@ export async function loginControl(
   await recordLoginAttempt(normEmail, ip ?? null, true);
   await clearFailures(normEmail); // reset the counter on a good login
   await controlAudit(u.id, 'login', 'session', null, ip);
-  return { ok: true, token, user: { id: Number(u.id), name: u.name, email: u.email, role: u.role, status: u.status } };
+  return { ok: true, token, user: toControlUser(u) };
 }
 
 /* ── optional 2FA (opt-in per operator) ───────────────────────────────── */
@@ -257,14 +289,15 @@ export async function getControlSession(req: NextRequest): Promise<ControlUser |
   if (!token) return null;
   await ensureControlSchema();
   const rows = (await query(
-    `SELECT u.id, u.name, u.email, u.role, u.status
+    `SELECT u.id, u.name, u.email, u.role, u.status, u.permissions, u.school_scope, u.access_expires_at
        FROM control_sessions s JOIN control_users u ON u.id = s.user_id
-      WHERE s.token_hash = ? AND s.expires_at > NOW() AND s.revoked_at IS NULL AND u.status = 'active' LIMIT 1`,
+      WHERE s.token_hash = ? AND s.expires_at > NOW() AND s.revoked_at IS NULL AND u.status = 'active'
+        AND (u.access_expires_at IS NULL OR u.access_expires_at > NOW()) LIMIT 1`,
     [hashToken(token)],
   )) as any[];
   const u = rows[0];
   if (u) await query(`UPDATE control_sessions SET last_activity_at = NOW() WHERE token_hash = ?`, [hashToken(token)]).catch(() => {});
-  return u ? { id: Number(u.id), name: u.name, email: u.email, role: u.role, status: u.status } : null;
+  return u ? toControlUser(u) : null;
 }
 
 export async function listControlSessions(req: NextRequest, userId: number) {

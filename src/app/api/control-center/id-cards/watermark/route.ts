@@ -18,7 +18,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'platform.view')) return NextResponse.json({ error: 'You do not have permission to view this' }, { status: 403 });
+  if (!controlCan(user, 'id_cards.view')) return NextResponse.json({ error: 'You do not have permission to view this' }, { status: 403 });
 
   const [schools, overrides] = await Promise.all([
     query(`SELECT id, name FROM schools WHERE deleted_at IS NULL ORDER BY name ASC`, []).catch(() => []) as Promise<any[]>,
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    canManage: controlCan(user.role, 'schools.manage'),
+    canManage: controlCan(user, 'id_cards.edit'),
     schools: schools.map((s) => ({ id: Number(s.id), name: s.name, watermarkEnabled: !disabledSet.has(Number(s.id)) })),
   });
 }
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'schools.manage')) return NextResponse.json({ error: 'You do not have permission to change this' }, { status: 403 });
+  if (!controlCan(user, 'id_cards.edit')) return NextResponse.json({ error: 'You do not have permission to change this' }, { status: 403 });
 
   const body = await req.json().catch(() => null) as any;
   const schoolId = Number(body?.schoolId);

@@ -14,6 +14,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { query } from '@/lib/control/db';
 
 export const runtime = 'nodejs';
@@ -21,6 +23,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'comm.view')) return denied('comm.view');
 
   const sp = new URL(req.url).searchParams;
   const days = Math.min(90, Math.max(1, Number(sp.get('days')) || 30));

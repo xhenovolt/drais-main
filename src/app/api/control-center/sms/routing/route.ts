@@ -32,7 +32,7 @@ const describe = (plan: RoutePlan, schoolName: (id: number) => string, providerN
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sms.route.view')) return NextResponse.json({ error: 'You do not have permission to view SMS routing' }, { status: 403 });
+  if (!controlCan(user, 'sms.route.view')) return NextResponse.json({ error: 'You do not have permission to view SMS routing' }, { status: 403 });
   await ensureRoutesTable();
 
   const [schools, routes, creds, activeId, providers, settings] = await Promise.all([
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    canManage: controlCan(user.role, 'sms.route.manage'),
+    canManage: controlCan(user, 'sms.route.manage'),
     activeProviderId: activeId,
     providers: providers.map((p) => ({ id: Number(p.id), type: p.provider_type, name: p.display_name, enabled: Number(p.enabled) === 1, active: Number(p.is_active) === 1, status: p.status })),
     schools: schools.map((s) => {
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sms.route.manage')) return NextResponse.json({ error: 'You do not have permission to change SMS routing' }, { status: 403 });
+  if (!controlCan(user, 'sms.route.manage')) return NextResponse.json({ error: 'You do not have permission to change SMS routing' }, { status: 403 });
   await ensureRoutesTable();
 
   const body = await req.json().catch(() => null) as any;

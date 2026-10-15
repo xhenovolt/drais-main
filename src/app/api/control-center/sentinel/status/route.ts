@@ -6,6 +6,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { activeIncidentSummary } from '@/lib/sentinel/incidents';
 import { allHeartbeats } from '@/lib/sentinel/heartbeat';
 import { selfCheck } from '@/lib/sentinel/observers/self';
@@ -17,6 +19,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'sentinel.view')) return denied('sentinel.view');
 
   const [incidents, heartbeats, self, phone, enabled] = await Promise.all([
     activeIncidentSummary().catch(() => null),

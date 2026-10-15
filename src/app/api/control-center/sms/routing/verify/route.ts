@@ -15,7 +15,7 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sms.route.view')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+  if (!controlCan(user, 'sms.route.view')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
 
   const body = await req.json().catch(() => null) as any;
   const schoolId = Number(body?.schoolId);

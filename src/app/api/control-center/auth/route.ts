@@ -10,6 +10,7 @@ import {
   hasAnyControlUser, createControlUser, loginControl, logoutControl,
   getControlSession, controlAudit, clientIp, CONTROL_COOKIE,
 } from '@/lib/control/auth';
+import { permissionsFor } from '@/lib/control/permissions';
 
 export const runtime = 'nodejs';
 
@@ -27,7 +28,13 @@ export async function GET(req: NextRequest) {
     success: true, setup_required: setupRequired, authenticated: !!user,
     // When a bootstrap secret is configured, first-run setup must supply it.
     bootstrap_secret_required: setupRequired && !!process.env.CONTROL_BOOTSTRAP_SECRET,
-    user: user ? { name: user.name, email: user.email, role: user.role } : null,
+    // What this operator may open and do — the shell filters its menu and pages with it
+    // (the API enforces the same list server-side).
+    user: user ? {
+      id: user.id, name: user.name, email: user.email, role: user.role,
+      permissions: permissionsFor(user), school_scope: user.schoolScope ?? null,
+      access_expires_at: user.accessExpiresAt ?? null,
+    } : null,
   });
 }
 

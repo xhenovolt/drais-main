@@ -13,9 +13,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X, BarChart3 } from 'lucide-react';
+import { canOpenPath, controlCan } from '@/lib/control/permissions';
+import { ControlAccessProvider } from '@/components/control/ControlAccess';
+import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X, BarChart3, PenSquare, ShieldOff } from 'lucide-react';
 
-const NAV_GROUPS = [
+type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; perm?: string };
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Overview',
     items: [
@@ -35,6 +38,7 @@ const NAV_GROUPS = [
     label: 'Messaging',
     items: [
       { href: '/control/sms', label: 'SMS', icon: MessageSquare },
+      { href: '/control/sms/compose', label: 'Compose SMS', icon: PenSquare, perm: 'sms.send' },
       { href: '/control/sms/accounting', label: 'SMS Accounting', icon: BarChart3 },
       { href: '/control/sms/providers', label: 'SMS Providers', icon: ShieldCheck },
       { href: '/control/sms/routing', label: 'School SMS Routing', icon: Send },
@@ -78,10 +82,25 @@ const NAV_GROUPS = [
 // everything else lives behind "More".
 const MOBILE_PRIMARY_HREFS = ['/control/dashboard', '/control/schools', '/control/sms'];
 
-function NavLinks({ onNavigate, pathname }: { onNavigate?: () => void; pathname: string }) {
+/** The menu this operator may use: links they cannot open are not shown at all. */
+function navFor(user: any) {
+  return NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((i) => canOpenPath(user, i.href) && (!i.perm || controlCan(user, i.perm))) }))
+    .filter((g) => g.items.length);
+}
+
+/** Active link = the longest matching href, so /control/sms/compose does not also light up SMS. */
+function activeHref(groups: { items: NavItem[] }[], pathname: string): string | null {
+  let best: string | null = null;
+  for (const g of groups) for (const i of g.items) if ((pathname === i.href || pathname.startsWith(`${i.href}/`)) && (!best || i.href.length > best.length)) best = i.href;
+  return best;
+}
+
+function NavLinks({ onNavigate, pathname, groups }: { onNavigate?: () => void; pathname: string; groups: { label: string; items: NavItem[] }[] }) {
+  const active = activeHref(groups, pathname);
   return (
     <nav className="p-3 space-y-5">
-      {NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.label}>
           <div className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{group.label}</div>
           <div className="space-y-0.5">
@@ -89,7 +108,7 @@ function NavLinks({ onNavigate, pathname }: { onNavigate?: () => void; pathname:
               <Link
                 key={href} href={href} onClick={onNavigate}
                 className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm ${
-                  pathname.startsWith(href)
+                  active === href
                     ? 'bg-indigo-500/15 text-indigo-300'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}`}
               >
@@ -138,6 +157,14 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
+  // Signed in without the dashboard (e.g. a support or finance operator): land on
+  // the first area they can use rather than on a "no access" panel.
+  useEffect(() => {
+    if (state !== 'authed' || pathname !== '/control/dashboard' || canOpenPath(user, pathname)) return;
+    const first = navFor(user).flatMap((g) => g.items)[0]?.href;
+    if (first) router.replace(first);
+  }, [state, user, pathname, router]);
+
   const check = useCallback(async () => {
     try {
       const r = await fetch('/api/control-center/auth', { cache: 'no-store' });
@@ -165,8 +192,15 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
   }
   if (state === 'anon') return null; // redirecting
 
-  const flatNav = NAV_GROUPS.flatMap((g) => g.items);
-  const mobilePrimary = MOBILE_PRIMARY_HREFS.map((href) => flatNav.find((i) => i.href === href)).filter(Boolean) as typeof flatNav;
+  const groups = navFor(user);
+  const flatNav = groups.flatMap((g) => g.items);
+  const firstAllowed = flatNav[0]?.href ?? '/control/sessions';
+  // Typed or bookmarked a page outside this operator's permissions: say so
+  // instead of rendering a page whose every request would be refused.
+  const navItem = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.perm && (pathname === i.href || pathname.startsWith(`${i.href}/`)));
+  const blocked = !canOpenPath(user, pathname) || (!!navItem?.perm && !controlCan(user, navItem.perm));
+  const roleLabel = user?.role === 'XHENVOLT_SUPER_ADMIN' ? 'Super admin' : user?.school_scope ? 'Limited to some schools' : (user?.role || '').replace('XHENVOLT_', '').toLowerCase();
+  const mobilePrimary = (MOBILE_PRIMARY_HREFS.map((href) => flatNav.find((i) => i.href === href)).filter(Boolean) as typeof flatNav).concat(flatNav).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3);
 
   return (
     <div data-theme={resolved} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area">
@@ -230,7 +264,7 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
             <span className="hidden md:inline text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold uppercase shrink-0">Xhenvolt internal</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-sm shrink-0">
-            <span className="text-slate-400 hidden lg:inline">{user?.name} · <span className="text-slate-500">{user?.role?.replace('XHENVOLT_', '')}</span></span>
+            <span className="text-slate-400 hidden lg:inline">{user?.name} · <span className="text-slate-500 capitalize">{roleLabel}</span></span>
             <button onClick={cycleTheme} title={`Theme: ${theme} (click to change)`}
               className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs capitalize">
               {theme === 'system' ? <Monitor className="w-3.5 h-3.5" /> : theme === 'light' ? <Sun className="w-3.5 h-3.5" /> : theme === 'contrast' ? <Contrast className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -244,10 +278,21 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
       <div className="flex">
         {/* Desktop sidebar — grouped, sticky under the header, its own scroll. */}
         <aside className="no-print hidden lg:block w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
-          <NavLinks pathname={pathname} />
+          <NavLinks pathname={pathname} groups={groups} />
         </aside>
 
-        <main className="flex-1 min-w-0 max-w-6xl mx-auto px-4 py-6 pb-20 lg:pb-6">{children}</main>
+        <main className="flex-1 min-w-0 max-w-6xl mx-auto px-4 py-6 pb-20 lg:pb-6">
+          <ControlAccessProvider user={user}>
+            {blocked ? (
+              <div className="max-w-md mx-auto mt-16 text-center rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
+                <ShieldOff className="w-10 h-10 mx-auto text-slate-500" />
+                <h1 className="mt-3 text-lg font-semibold">You do not have access to this page</h1>
+                <p className="mt-1 text-sm text-slate-400">A super admin can grant it from Operators.</p>
+                <Link href={firstAllowed} className="inline-block mt-5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm text-white">Go to an area you can use</Link>
+              </div>
+            ) : children}
+          </ControlAccessProvider>
+        </main>
       </div>
 
       {/* Mobile bottom nav — 3 highest-traffic links plus "More". */}
@@ -256,7 +301,7 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
           {mobilePrimary.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href}
               className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${
-                pathname.startsWith(href) ? 'text-indigo-300' : 'text-slate-400'}`}>
+                activeHref(groups, pathname) === href ? 'text-indigo-300' : 'text-slate-400'}`}>
               <Icon className="w-5 h-5" /> {label}
             </Link>
           ))}
@@ -276,7 +321,7 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
               <span className="text-sm font-semibold">Menu</span>
               <button onClick={() => setDrawerOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-800"><X className="w-4 h-4" /></button>
             </div>
-            <NavLinks pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+            <NavLinks pathname={pathname} groups={groups} onNavigate={() => setDrawerOpen(false)} />
           </div>
         </div>
       )}

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/control/db';
 import { getControlSession, clientIp } from '@/lib/control/auth';
+import { schoolInScope, outOfScope } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { startImpersonation, endImpersonation } from '@/lib/control/impersonation';
 
@@ -25,11 +26,12 @@ const readableOpts = { httpOnly: false, secure: process.env.NODE_ENV === 'produc
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'impersonate')) return NextResponse.json({ error: 'You do not have permission to impersonate' }, { status: 403 });
+  if (!controlCan(user, 'impersonate')) return NextResponse.json({ error: 'You do not have permission to impersonate' }, { status: 403 });
 
   const b = await req.json().catch(() => null);
   const schoolId = Number(b?.school_id);
   if (!Number.isFinite(schoolId)) return NextResponse.json({ error: 'school_id is required' }, { status: 400 });
+  if (!schoolInScope(user, schoolId)) return outOfScope();
 
   const res = await startImpersonation({
     controlUserId: user.id, controlUserName: user.name, schoolId,

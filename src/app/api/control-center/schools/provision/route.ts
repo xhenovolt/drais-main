@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'schools.manage')) {
+  if (!controlCan(user, 'schools.create')) {
     return NextResponse.json({ error: 'You do not have permission to provision schools' }, { status: 403 });
   }
 

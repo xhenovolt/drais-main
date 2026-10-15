@@ -86,7 +86,7 @@ export default function ControlSms() {
 
       <section className="bg-slate-900 border border-amber-800/60 rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-100"><Send className="w-4 h-4 text-amber-300" /> SMS Test / Send Test Message</div>
-        <p className="text-xs text-slate-400">Infrastructure troubleshooting only. One recipient, one short message, and one test per administrator every 10 minutes. This does not change school balances or pricing.</p>
+        <p className="text-xs text-slate-400">Sends one short message through the active SMS provider — the same one school messages use. Test limits are set by a super admin in Compose SMS. This does not change school balances or pricing.</p>
         <div className="grid grid-cols-1 md:grid-cols-[14rem_1fr_auto] gap-2 items-end">
           <label className="text-xs text-slate-400">Phone number<input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="0741341483" className="mt-1 w-full px-2 py-2 rounded bg-slate-800 border border-slate-700 text-slate-100" /></label>
           <label className="text-xs text-slate-400">Short test message<input value={testMessage} maxLength={160} onChange={(e) => setTestMessage(e.target.value)} className="mt-1 w-full px-2 py-2 rounded bg-slate-800 border border-slate-700 text-slate-100" /></label>

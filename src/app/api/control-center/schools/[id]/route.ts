@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/control/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied, schoolInScope, outOfScope } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { MODULE_CATALOG, isModuleCode, getSchoolModuleStatus, setSchoolModule } from '@/lib/school-modules';
 import { getPlanByCode, assignPlanToSchool, renewSchool, schoolUsage, usageAgainst } from '@/lib/control/subscriptions';
@@ -18,8 +19,10 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'schools.view')) return denied('schools.view');
   const { id } = await ctx.params;
   const schoolId = Number(id);
+  if (!schoolInScope(user, schoolId)) return outOfScope();
 
   const schools = (await query(
     // No deleted_at filter — an operator must be able to view a soft-deleted /
@@ -88,11 +91,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const { id } = await ctx.params;
   const schoolId = Number(id);
+  if (!schoolInScope(user, schoolId)) return outOfScope();
   const b = await req.json().catch(() => null);
   // RBAC (E-4): permanent delete needs its own permission; all other school
   // mutations need schools.manage (operator+).
-  const need = b?.action === 'hard_delete' ? 'schools.hard_delete' : 'schools.manage';
-  if (!controlCan(user.role, need)) return NextResponse.json({ error: 'You do not have permission for this action' }, { status: 403 });
+  const need = b?.action === 'hard_delete' ? 'schools.hard_delete'
+    : ['archive', 'soft_delete', 'restore'].includes(b?.action) ? 'schools.delete' : 'schools.edit';
+  if (!controlCan(user, need)) return NextResponse.json({ error: 'You do not have permission for this action' }, { status: 403 });
 
   if (b?.action === 'set_module') {
     if (!isModuleCode(b.module_code)) return NextResponse.json({ error: 'Unknown module code' }, { status: 400 });

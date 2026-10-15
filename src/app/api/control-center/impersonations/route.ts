@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getControlSession, clientIp } from '@/lib/control/auth';
+import { denied } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { listActiveImpersonations, revokeImpersonation, revokeAllImpersonations } from '@/lib/control/impersonation';
 
@@ -15,6 +16,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'schools.view')) return denied('schools.view');
   const active = await listActiveImpersonations();
   return NextResponse.json({ success: true, active, count: active.length });
 }
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'impersonate')) return NextResponse.json({ error: 'You do not have permission to impersonate' }, { status: 403 });
+  if (!controlCan(user, 'impersonate')) return NextResponse.json({ error: 'You do not have permission to impersonate' }, { status: 403 });
 
   const b = await req.json().catch(() => null);
   if (b?.all === true) {

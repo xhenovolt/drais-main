@@ -17,7 +17,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sms.balance.view')) return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+  if (!controlCan(user, 'sms.balance.view')) return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
 
   const [rates, carriers, schools] = await Promise.all([
     getSmsRateBySchool(30),

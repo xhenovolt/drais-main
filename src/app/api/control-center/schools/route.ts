@@ -10,6 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/control/db';
 import { getControlSession, controlAudit, clientIp } from '@/lib/control/auth';
+import { denied, scopeClause } from '@/lib/control/guard';
+import { controlCan } from '@/lib/control/permissions';
 import { parsePageParams, totalPages } from '@/lib/control/pagination';
 import { LIMIT_WARN_PERCENT, LIMIT_CRITICAL_PERCENT } from '@/lib/entitlements/limits';
 
@@ -18,6 +20,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!controlCan(user, 'schools.view')) return denied('schools.view');
 
   const sp = new URL(req.url).searchParams;
   // ?include_deleted=1 also returns soft-deleted schools (so they can be restored).
@@ -33,6 +36,8 @@ export async function GET(req: NextRequest) {
     const like = `%${q}%`;
     whereParams.push(like, like, like, like);
   }
+  const sc = scopeClause(user, 's.id');
+  if (sc.sql) { conditions.push(sc.sql.replace(/^ AND /, '')); whereParams.push(...sc.params); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countRows = (await query(`SELECT COUNT(*) AS total FROM schools s ${where}`, whereParams)) as any[];

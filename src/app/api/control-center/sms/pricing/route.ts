@@ -24,7 +24,7 @@ const validPrice = (n: unknown) => typeof n === 'number' && Number.isFinite(n) &
 export async function GET(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'sms.balance.view')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+  if (!controlCan(user, 'sms_pricing.view')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
 
   const [pricing, schools, prices, sums, recent] = await Promise.all([
     getSmsPricing(),
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    canManage: controlCan(user.role, 'billing.manage'),
+    canManage: controlCan(user, 'sms_pricing.edit'),
     marzConfigured: marzConfigured(),
     defaultPriceUgx: pricing.retailPrice,
     internalCostUgx: pricing.internalCost,
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'billing.manage')) return NextResponse.json({ error: 'You do not have permission to change SMS prices' }, { status: 403 });
+  if (!controlCan(user, 'sms_pricing.edit')) return NextResponse.json({ error: 'You do not have permission to change SMS prices' }, { status: 403 });
   const body = await req.json().catch(() => null) as any;
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
 
@@ -105,7 +105,7 @@ export async function PUT(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getControlSession(req);
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!controlCan(user.role, 'billing.manage')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+  if (!controlCan(user, 'sms_pricing.edit')) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
   const body = await req.json().catch(() => null) as any;
 
   if (body?.action === 'verify') return NextResponse.json({ success: true, ...(await verifyCredentials()) });

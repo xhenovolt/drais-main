@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-14T17:08:55.345Z",
-  "last_commit": "b744961301d15e78120f314ba9bf755936820c95",
+  "generated_at": "2026-10-15T10:34:52.015Z",
+  "last_commit": "6a7b6032f00f853ef691d955bd39ff9c31dcdc2f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9670,7 +9670,20 @@
         }
       ],
       "commit": "b744961301"
+    },
+    {
+      "version": "2.50.81",
+      "date": "2026-10-14",
+      "release_type": "patch",
+      "title": "Send absence SMS at the school's configured cutoff, not in the evening",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Send absence SMS at the school's configured cutoff, not in the evening"
+        }
+      ],
+      "commit": "6a7b6032f0"
     }
   ],
-  "app_version": "2.50.81"
+  "app_version": "2.50.82"
 }
