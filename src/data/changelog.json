@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-15T10:34:52.015Z",
-  "last_commit": "6a7b6032f00f853ef691d955bd39ff9c31dcdc2f",
+  "generated_at": "2026-10-15T15:04:23.504Z",
+  "last_commit": "14c1a3ac2668fba2aa4103aca205e7c973f0dd57",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9683,7 +9683,20 @@
         }
       ],
       "commit": "6a7b6032f0"
+    },
+    {
+      "version": "2.50.82",
+      "date": "2026-10-15",
+      "release_type": "patch",
+      "title": "Per-operator access control, school scope, Compose SMS and adjustable SMS limits",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Per-operator access control, school scope, Compose SMS and adjustable SMS limits"
+        }
+      ],
+      "commit": "14c1a3ac26"
     }
   ],
-  "app_version": "2.50.82"
+  "app_version": "2.50.83"
 }

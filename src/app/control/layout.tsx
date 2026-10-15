@@ -277,7 +277,7 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
 
       <div className="flex">
         {/* Desktop sidebar — grouped, sticky under the header, its own scroll. */}
-        <aside className="no-print hidden lg:block w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <aside className="no-print hidden lg:block w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-full overflow-y-auto">
           <NavLinks pathname={pathname} groups={groups} />
         </aside>
 
