@@ -15,10 +15,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   UserPlus, Loader2, ShieldCheck, ShieldAlert, Search, X, Check, KeyRound, LogOut, Trash2, PauseCircle,
-  PlayCircle, Clock, School, Eye, History, Crown, Lock, Sparkles, Copy, RefreshCw,
+  PlayCircle, Clock, School, Eye, History, Crown, Lock, Sparkles, Copy, RefreshCw, ChevronDown,
 } from 'lucide-react';
 import { useControlAccess } from '@/components/control/ControlAccess';
-import TwoFactorCard from '@/components/control/TwoFactorCard';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then((r) => r.json());
 
@@ -74,8 +73,10 @@ export default function ControlOperators() {
   if (data?.error) return <div className={`${card} p-6 text-sm text-rose-300`}>{data.error}</div>;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    // Desktop: exactly one screen tall (header 3.5rem + main padding 3rem); the operator list
+    // and the editor scroll inside their own panels instead of the whole page growing.
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-6.5rem)]">
+      <div className="flex flex-wrap items-end justify-between gap-3 shrink-0">
         <div>
           <h1 className="text-xl font-bold text-slate-100">Operators & access</h1>
           <p className="text-sm text-slate-400 mt-1">Decide exactly what each person can see, add, change and remove in the Control Center.</p>
@@ -87,22 +88,22 @@ export default function ControlOperators() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
         <Stat label="Operators" value={rows.length} />
         <Stat label="Super admins" value={rows.filter((r) => r.role === SUPER).length} />
         <Stat label="Suspended or expired" value={rows.filter((r) => r.status !== 'active' || r.expired).length} tone={rows.some((r) => r.status !== 'active' || r.expired) ? 'amber' : undefined} />
         <Stat label="Without 2FA" value={rows.filter((r) => !r.totp_enabled).length} tone={rows.some((r) => !r.totp_enabled) ? 'amber' : undefined} />
       </div>
 
-      {creating && <CreateOperator areas={areas} presets={data?.catalog?.presets} me={me} onClose={() => setCreating(false)} onCreated={async (id) => { await mutate(); setCreating(false); setSelected(id); }} />}
+      {creating && <div className="shrink-0 lg:max-h-[55%] overflow-y-auto"><CreateOperator areas={areas} presets={data?.catalog?.presets} me={me} onClose={() => setCreating(false)} onCreated={async (id) => { await mutate(); setCreating(false); setSelected(id); }} /></div>}
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-4 items-start">
-        <div className={`${card} overflow-hidden`}>
-          <div className="p-2 border-b border-slate-800 relative">
+      <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-4 lg:flex-1 lg:min-h-0">
+        <div className={`${card} overflow-hidden flex flex-col lg:min-h-0`}>
+          <div className="p-2 border-b border-slate-800 relative shrink-0">
             <Search className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an operator" className={`${input} w-full pl-8`} />
           </div>
-          <ul className="divide-y divide-slate-800/70 max-h-[70vh] overflow-y-auto">
+          <ul className="divide-y divide-slate-800/70 max-h-[40vh] lg:max-h-none lg:flex-1 overflow-y-auto">
             {filtered.map((r) => {
               const areasOpen = areas.filter((a) => r.effective_permissions.includes(`${a.key}.view`)).length;
               return (
@@ -129,7 +130,7 @@ export default function ControlOperators() {
           </ul>
         </div>
 
-        <div>
+        <div className="lg:min-h-0">
           {op ? (
             <OperatorEditor key={op.id} op={op} areas={areas} catalog={data.catalog} schools={data.schools || []} me={me} onChanged={() => mutate()} onRemoved={() => { setSelected(null); mutate(); }} />
           ) : (
@@ -142,7 +143,6 @@ export default function ControlOperators() {
         </div>
       </div>
 
-      <TwoFactorCard />
     </div>
   );
 }
@@ -183,8 +183,8 @@ function OperatorEditor({ op, areas, catalog, schools, me, onChanged, onRemoved 
       : op.role === SUPER && !iAmSuper ? 'Only a super admin can change a super admin.' : null;
 
   return (
-    <div className={`${card} overflow-hidden`}>
-      <div className="p-4 border-b border-slate-800 flex flex-wrap items-start justify-between gap-3">
+    <div className={`${card} overflow-hidden flex flex-col lg:h-full`}>
+      <div className="p-4 border-b border-slate-800 flex flex-wrap items-start justify-between gap-3 shrink-0">
         <div className="flex gap-3 items-center min-w-0">
           <span className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${op.role === SUPER ? 'bg-amber-500/20 text-amber-300' : 'bg-indigo-500/20 text-indigo-300'}`}>{initials(op.name)}</span>
           <div className="min-w-0">
@@ -202,8 +202,8 @@ function OperatorEditor({ op, areas, catalog, schools, me, onChanged, onRemoved 
           ))}
         </div>
       </div>
-      {lockReason && <div className="px-4 py-2 text-xs bg-slate-800/50 text-slate-400 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> {lockReason}</div>}
-      <div className="p-4">
+      {lockReason && <div className="shrink-0 px-4 py-2 text-xs bg-slate-800/50 text-slate-400 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> {lockReason}</div>}
+      <div className="p-4 lg:flex-1 lg:min-h-0 overflow-y-auto">
         {tab === 'access' && <AccessTab op={op} areas={areas} catalog={catalog} me={me} locked={locked} onSaved={onChanged} />}
         {tab === 'schools' && <SchoolsTab op={op} schools={schools} me={me} locked={locked} platformWide={catalog?.platformWideAreas || []} areas={areas} onSaved={onChanged} />}
         {tab === 'account' && <AccountTab op={op} me={me} locked={locked} self={self} onSaved={onChanged} onRemoved={onRemoved} />}
@@ -249,12 +249,14 @@ function AccessTab({ op, areas, catalog, me, locked, onSaved }: { op: Op; areas:
     setPerms(next);
   };
   const setArea = (a: Area, on: boolean) => {
-    const next = new Set(perms);
-    for (const act of Object.keys(a.actions)) {
-      const p = `${a.key}.${act}`;
-      if (on ? grantable(p) : true) on ? next.add(p) : next.delete(p);
-    }
-    setPerms(next);
+    setPerms((cur) => {
+      const next = new Set(cur);
+      for (const act of Object.keys(a.actions)) {
+        const p = `${a.key}.${act}`;
+        if (on ? grantable(p) : true) on ? next.add(p) : next.delete(p);
+      }
+      return next;
+    });
   };
   const applyPreset = (k: string) => setPerms(new Set(presets[k].permissions.filter((p) => grantable(p) || saved.has(p))));
 
@@ -273,6 +275,10 @@ function AccessTab({ op, areas, catalog, me, locked, onSaved }: { op: Op; areas:
   };
 
   const groups = [...new Set(areas.map((a) => a.group))];
+  // Groups start collapsed (one line each, with a count) so the page stays short; a filter opens them.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (g: string) => setOpenGroups((o) => { const n = new Set(o); n.has(g) ? n.delete(g) : n.add(g); return n; });
+  const allOpen = groups.every((g) => openGroups.has(g));
   const visibleAreas = areas.filter((a) => !filter || `${a.label} ${a.description} ${Object.values(a.actions).join(' ')}`.toLowerCase().includes(filter.toLowerCase()));
   const menuPreview = areas.filter((a) => fullAccess || perms.has(`${a.key}.view`));
 
@@ -308,9 +314,14 @@ function AccessTab({ op, areas, catalog, me, locked, onSaved }: { op: Op; areas:
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter areas (e.g. sms, delete, billing)" className={`${input} w-full pl-8`} />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter areas (e.g. sms, delete, billing)" className={`${input} w-full pl-8`} />
+            </div>
+            <button onClick={() => setOpenGroups(allOpen ? new Set() : new Set(groups))} className={`${btn} bg-slate-800 hover:bg-slate-700 text-slate-300 shrink-0`}>
+              {allOpen ? 'Collapse all' : 'Expand all'}
+            </button>
           </div>
 
           {op.school_scope && (
@@ -323,10 +334,28 @@ function AccessTab({ op, areas, catalog, me, locked, onSaved }: { op: Op; areas:
             {groups.map((g) => {
               const list = visibleAreas.filter((a) => a.group === g);
               if (!list.length) return null;
+              const expanded = !!filter || openGroups.has(g);
+              const groupPerms = list.flatMap((a) => Object.keys(a.actions).map((x) => `${a.key}.${x}`));
+              const onCount = groupPerms.filter((p) => perms.has(p)).length;
+              const changed = groupPerms.some((p) => perms.has(p) !== saved.has(p));
               return (
-                <div key={g}>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">{g}</div>
-                  <div className="rounded-xl border border-slate-800 divide-y divide-slate-800/70">
+                <div key={g} className="rounded-xl border border-slate-800 overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-950/40">
+                    <button onClick={() => toggleGroup(g)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                      <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+                      <span className="text-sm font-semibold text-slate-200">{g}</span>
+                      <span className="text-[11px] text-slate-500 truncate">{list.map((a) => a.label).join(' · ')}</span>
+                    </button>
+                    {changed && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Unsaved changes in this group" />}
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded shrink-0 ${onCount ? 'bg-indigo-500/15 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}>{onCount}/{groupPerms.length}</span>
+                    {!locked && (
+                      <>
+                        <button onClick={() => list.forEach((a) => setArea(a, true))} className="text-[10px] px-1.5 py-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 shrink-0">All</button>
+                        <button onClick={() => list.forEach((a) => setArea(a, false))} disabled={!onCount} className="text-[10px] px-1.5 py-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 shrink-0">None</button>
+                      </>
+                    )}
+                  </div>
+                  {expanded && <div className="divide-y divide-slate-800/70 border-t border-slate-800">
                     {list.map((a) => {
                       const acts = Object.keys(a.actions);
                       const on = acts.filter((x) => perms.has(`${a.key}.${x}`)).length;
@@ -368,7 +397,7 @@ function AccessTab({ op, areas, catalog, me, locked, onSaved }: { op: Op; areas:
                         </div>
                       );
                     })}
-                  </div>
+                  </div>}
                 </div>
               );
             })}

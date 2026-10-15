@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-15T15:04:23.504Z",
-  "last_commit": "14c1a3ac2668fba2aa4103aca205e7c973f0dd57",
+  "generated_at": "2026-10-15T15:36:10.820Z",
+  "last_commit": "cc714a72d97195d4e66641713cc5010fbbbbca9a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9696,7 +9696,20 @@
         }
       ],
       "commit": "14c1a3ac26"
+    },
+    {
+      "version": "2.50.83",
+      "date": "2026-10-15",
+      "release_type": "patch",
+      "title": "Change height of the side bar from old to full",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Change height of the side bar from old to full"
+        }
+      ],
+      "commit": "cc714a72d9"
     }
   ],
-  "app_version": "2.50.83"
+  "app_version": "2.50.84"
 }

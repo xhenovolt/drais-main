@@ -17,7 +17,7 @@ import { logAudit, AuditAction } from '@/lib/audit';
 export const runtime = 'nodejs';
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-const RADII = ['none', 'sm', 'md', 'lg', 'full'];
+const RADII = ['none', 'sm', 'md', 'lg', 'xl', 'full'];
 const BUTTON = ['solid', 'gradient', 'outline'];
 const CARD = ['elevated', 'flat', 'glass'];
 const SIDEBAR = ['solid', 'glass'];
@@ -25,7 +25,9 @@ const BRANDING = ['logo', 'name', 'both'];
 
 const DEFAULTS = {
   primary_color: null, secondary_color: null, accent_color: null, logo_url: null,
-  glass_enabled: 1, border_radius: 'lg', button_style: 'solid', card_style: 'elevated',
+  // Glass off by default: it only became visible in 2026-10 (before, the switch did nothing), so
+  // a default of "on" would suddenly change the look of every school that never chose it.
+  glass_enabled: 0, border_radius: 'lg', button_style: 'solid', card_style: 'elevated',
   sidebar_style: 'solid', report_branding: 'logo', receipt_branding: 'logo',
 };
 
@@ -62,7 +64,7 @@ export async function PUT(req: NextRequest) {
       secondary_color: color(b.secondary_color),
       accent_color: color(b.accent_color),
       logo_url: b.logo_url ? String(b.logo_url).trim().slice(0, 512) : null,
-      glass_enabled: b.glass_enabled === false || b.glass_enabled === 0 ? 0 : 1,
+      glass_enabled: b.glass_enabled === true || b.glass_enabled === 1 ? 1 : 0,
       border_radius: oneOf(b.border_radius, RADII, 'lg'),
       button_style: oneOf(b.button_style, BUTTON, 'solid'),
       card_style: oneOf(b.card_style, CARD, 'elevated'),

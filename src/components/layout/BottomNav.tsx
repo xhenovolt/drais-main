@@ -46,7 +46,7 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
       style={{ height: '60px' }}
     >
       {/* Frosted glass background */}
-      <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-700/80" />
+      <div data-surface="bottomnav" className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-700/80" />
 
       <div className="relative flex items-center justify-around h-full px-2">
         {/* Static nav links */}

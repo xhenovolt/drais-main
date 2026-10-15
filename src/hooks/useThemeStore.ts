@@ -1,6 +1,28 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { fontChoice, normalizeRadius, type RadiusSetting } from "@/lib/theme/palette";
+
+/** The school's branding (Settings → Branding), kept here so the first paint already has it. */
+export interface SchoolTheme {
+  primary: string | null;
+  secondary: string | null;
+  accent: string | null;
+  glass: boolean;
+  radius: RadiusSetting | null;
+}
+
+/** The display settings the Appearance page edits as a draft and saves together. */
+export interface DisplaySettings {
+  themePreference: "light" | "dark" | "system";
+  primary: string;
+  primaryExplicit: boolean;
+  glassMode: "school" | "on" | "off";
+  radius: "school" | RadiusSetting;
+  font: string | null;
+  fontScale: number;
+  layoutWidth: "full" | "boxed" | "wide";
+}
 
 /** Resolve the OS colour-scheme preference (SSR-safe). */
 export function resolveSystemMode(): "light" | "dark" {
@@ -30,7 +52,15 @@ interface ThemeState {
   primaryExplicit: boolean;
   gradientFrom: string;
   gradientTo: string;
+  /** @deprecated — kept for old readers; the effective value is computed from glassMode + school. */
   glass: boolean;
+  /** Personal glass choice; "school" follows Settings → Branding. */
+  glassMode: "school" | "on" | "off";
+  /** Personal roundness; "school" follows Settings → Branding. */
+  radius: "school" | RadiusSetting;
+  /** Font id (lib/theme/palette FONT_CHOICES); null = system default. */
+  font: string | null;
+  school: SchoolTheme | null;
   fontScale: number;
   sidebarCollapsed: boolean;
   sidebarPosition: "left" | "right";
@@ -83,6 +113,9 @@ interface ThemeState {
   toggleCustomizer?: () => void;
   setCustomizerPosition?: (x: number, y: number) => void;
   setHydrated: (hydrated: boolean) => void;
+  setSchoolTheme: (t: SchoolTheme | null) => void;
+  /** Save a whole set of display settings at once (the Appearance page's Save button). */
+  saveDisplaySettings: (d: Partial<DisplaySettings>) => void;
   resetTheme: () => void;
 }
 
@@ -94,6 +127,10 @@ const defaultState = {
   gradientFrom: "#2563eb",
   gradientTo: "#7c3aed",
   glass: false,
+  glassMode: "school" as const,
+  radius: "school" as const,
+  font: null as string | null,
+  school: null as SchoolTheme | null,
   fontScale: 1,
   sidebarCollapsed: true,
   language: "en" as const,
@@ -180,16 +217,34 @@ const useThemeStore = create<ThemeState>()(
       toggleCustomizer: () => set((s) => ({ customizerOpen: !s.customizerOpen })),
       setCustomizerPosition: (x, y) => set({ customizerPosX: x, customizerPosY: y }),
       setHydrated: (hydrated: boolean) => set({ hydrated }),
-      resetTheme: () => set(defaultState),
+      setSchoolTheme: (t) => set({ school: t }),
+      saveDisplaySettings: (d) => {
+        const next: Partial<ThemeState> = { ...d };
+        if (d.themePreference) next.mode = d.themePreference === "system" ? resolveSystemMode() : d.themePreference;
+        if (d.glassMode) next.glass = d.glassMode === "on";
+        set(next);
+      },
+      // Keep the school's branding and the hydration flag; reset only personal choices.
+      resetTheme: () => set((s) => ({ ...defaultState, school: s.school, hydrated: s.hydrated, mode: resolveSystemMode() })),
     }),
     {
       name: "drais-theme-store",
-      version: 3,
+      version: 4,
       // v2 → v3: no themePreference existed. Preserve the user's current
       // resolved theme as an explicit choice so nobody's UI flips on upgrade.
       migrate: (persisted: any, from: number) => {
         if (persisted && from < 3 && !persisted.themePreference) {
           persisted.themePreference = persisted.mode === "dark" ? "dark" : "light";
+        }
+        // v3 → v4: explicit "follow the school" options, and fonts by id. Whatever
+        // someone had actually picked is kept as their choice.
+        if (persisted && from < 4) {
+          persisted.glassMode = persisted.glass ? "on" : "school";
+          persisted.radius = normalizeRadius(persisted.borderRadius) ?? "school";
+          const f = fontChoice(persisted.fontFamily);
+          // The old default ("Inter, system-ui…") was never loaded, so it showed the system font.
+          persisted.font = f && !/^Inter, system-ui, Segoe UI, Arial/.test(String(persisted.fontFamily || "")) ? f.id : null;
+          persisted.school = persisted.school ?? null;
         }
         return persisted;
       },

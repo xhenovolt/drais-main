@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { useThemeStore } from "@/hooks/useThemeStore";
 import clsx from "clsx";
+import { effectiveTheme, applyThemeToDocument } from "@/lib/theme/apply";
 
 interface ThemeContextValue {
   mode: string;
@@ -40,52 +41,32 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => mq.removeEventListener('change', onChange);
   }, [hydrated, store.themePreference, syncSystemMode]);
 
-  // Apply theme vars to html only after hydration
+  // The EFFECTIVE theme: personal choices where made, else the school's branding,
+  // else the DRAIS default. Applied as CSS variables on <html> — the palette and
+  // radius variables every Tailwind utility reads — so it reaches every screen.
+  const eff = effectiveTheme(store, store.school, store.mode === 'dark');
+
   useEffect(() => {
     if (!hydrated) return;
-
+    // The settings preview page shows a DRAFT theme sent by its parent page — leave it alone.
+    if (window.location.pathname.startsWith('/theme-preview')) return;
     const root = document.documentElement;
-
-    // Tailwind dark mode is bound to `.dark` via @custom-variant in globals.css,
-    // so toggling this class now drives every `dark:` utility across the app.
-    if (store.mode === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-
+    // Tailwind dark mode is bound to `.dark` via @custom-variant in globals.css.
+    root.classList.toggle('dark', store.mode === 'dark');
     root.dataset.themeMode = store.mode;
-    // Personal brand colour drives the RAW token (--primary), which cascades to
-    // --color-primary and every `bg-primary`/`text-primary` utility. Only when
-    // the user explicitly picked one — otherwise we clear it so the school
-    // branding (Phase 3) or the DRAIS default token shows through.
-    if (store.primaryExplicit) {
-      root.style.setProperty("--primary", store.primary);
-      root.style.setProperty("--color-primary", store.primary);
-    } else {
-      root.style.removeProperty("--primary");
-      root.style.removeProperty("--color-primary");
-    }
     root.style.setProperty("--gradient-from", store.gradientFrom);
     root.style.setProperty("--gradient-to", store.gradientTo);
-    root.style.setProperty("--font-scale", store.fontScale.toString());
-    // Phase 6 — glass policy lives in globals.css (readable tint + solid
-    // fallback). Just toggle the data-glass flag; don't hardcode colours here
-    // (the old code set the surface transparent when off, making it vanish).
-    root.dataset.glass = store.glass ? 'on' : 'off';
-    if (store.fontFamily) root.style.setProperty('--app-font-family', store.fontFamily);
-    // Border radius from appearance settings
-    const br = (store as any).borderRadius || 'lg';
-    const brMap: Record<string, string> = { none: '0px', sm: '2px', md: '6px', lg: '8px', full: '9999px' };
-    root.style.setProperty('--app-border-radius', brMap[br] || '8px');
-  }, [hydrated, store.mode, store.primary, store.primaryExplicit, store.gradientFrom, store.gradientTo, store.fontScale, store.glass, store.fontFamily]);
+    applyThemeToDocument(eff);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, store.mode, store.primary, store.primaryExplicit, store.glassMode, store.radius, store.font,
+      store.fontScale, store.school, store.gradientFrom, store.gradientTo]);
 
   const value: ThemeContextValue = {
     mode: store.mode,
     primary: store.primary,
     gradientFrom: store.gradientFrom,
     gradientTo: store.gradientTo,
-    glass: store.glass,
+    glass: eff.glass,
     fontScale: store.fontScale,
     sidebarCollapsed: store.sidebarCollapsed,
     setMode: store.setMode,
@@ -102,17 +83,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <ThemeContext.Provider value={value}>
+      {/* Font family and text size are applied on <html> (applyThemeToDocument): text
+          sizes are rem, so a wrapper could never scale them. */}
       <div className={clsx(
         "min-h-screen w-full bg-gradient-to-br transition-colors duration-500",
         store.mode === "light" ? "from-gray-50 to-blue-100" : "from-gray-950 to-blue-950",
-        "text-[length:calc(1rem*var(--font-scale))]",
         hydrated && store.layoutWidth === 'boxed' && 'mx-auto max-w-7xl shadow-lg',
         hydrated && store.layoutWidth === 'wide' && 'mx-auto max-w-[1800px]',
-        hydrated && store.fontFamily && 'font-sans'
-      )} 
-      // 'Amiri' first: its @font-face (globals.css) covers Arabic script only, so Arabic text
-      // anywhere uses Amiri while Latin text keeps the font the user picked.
-      style={hydrated ? { fontFamily: "'Amiri', var(--app-font-family)" } : undefined}>
+      )}>
         {children}
       </div>
     </ThemeContext.Provider>

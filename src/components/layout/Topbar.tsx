@@ -332,7 +332,7 @@ interface TopbarProps {
  */
 export const Topbar = ({ onMenuClick }: TopbarProps) => {
   return (
-    <div className="sticky top-0 z-50 h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <div data-surface="topbar" className="sticky top-0 z-50 h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="flex items-center justify-between w-full h-full px-3 sm:px-4 lg:px-6 gap-4">
         {/* LEFT: Menu (mobile) + Logo */}
         <div className="flex items-center gap-2 flex-shrink-0">

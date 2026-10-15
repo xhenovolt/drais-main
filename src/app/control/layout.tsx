@@ -276,8 +276,11 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
       </header>
 
       <div className="flex">
-        {/* Desktop sidebar — grouped, sticky under the header, its own scroll. */}
-        <aside className="no-print hidden lg:block w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-full overflow-y-auto">
+        {/* Desktop sidebar — grouped, sticky under the header, its own scroll.
+            Exactly one screen tall (self-start stops the flex row stretching it to the
+            page's height): a sidebar as tall as a long page has nowhere to stick and
+            scrolls away with the content. */}
+        <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100dvh-3.5rem)] overflow-y-auto">
           <NavLinks pathname={pathname} groups={groups} />
         </aside>
 

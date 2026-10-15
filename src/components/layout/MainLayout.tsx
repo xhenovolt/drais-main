@@ -35,7 +35,7 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
   useRouteValidator();
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+    <div className="app-backdrop flex flex-col h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       {/* Platform maintenance notice (Phase 23) — spans the full width on top. */}
       <MaintenanceBanner />
       {/* Apply this school's brand theme (Phase 3) as the baseline for staff UI. */}

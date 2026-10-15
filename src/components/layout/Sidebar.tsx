@@ -154,7 +154,7 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="hidden md:flex w-60 flex-col h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0">
+    <aside data-surface="sidebar" className="hidden md:flex w-60 flex-col h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-800">
         <BrandLockup size={34} subtitle={school?.name ?? 'School OS'} />

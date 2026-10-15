@@ -107,7 +107,7 @@ html.dark {
 }
 
 /* ─── Tailwind v4 semantic utilities ────────────────────────────────────────
-   Non-inline `@theme` both (a) generates bg-*/text-*/border-* utilities for
+   Non-inline `@theme` both (a) generates bg-X, text-X and border-X utilities for
    every token and (b) emits the `--color-*` custom properties into :root — the
    latter keeps the ~26 files that read `var(--color-primary)` working AND lets
    runtime overrides of the raw tokens (personal/school brand, dark mode) flow
@@ -163,7 +163,9 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Amiri', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  /* --app-font = the font chosen in Settings → Appearance (set by lib/theme/apply). This plain rule outranks
+     Tailwind's font-sans utility (utilities are layered), so the choice must arrive through it. */
+  font-family: var(--app-font, 'Amiri', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif);
   font-feature-settings: "rlig" 1, "calt" 1;
   /* Long unbroken strings may wrap, but only when they overflow on their own line. This used to be
      `word-break: break-word`, which also lets a squeezed table column shrink to one letter wide and
@@ -227,7 +229,7 @@ html[dir="rtl"] {
 /* Before the theme provider hydrates (and on pages outside it), Arabic still gets Amiri, with
    system Arabic faces behind it in case the file cannot load. */
 html[dir="rtl"] body {
-  font-family: 'Amiri', 'Segoe UI', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Geeza Pro', 'SF Arabic', 'Dubai', Tahoma, Arial, sans-serif;
+  font-family: var(--app-font, 'Amiri', 'Segoe UI', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Geeza Pro', 'SF Arabic', 'Dubai', Tahoma, Arial, sans-serif);
 }
 
 html[dir="rtl"] .rtl\:space-x-reverse > :not([hidden]) ~ :not([hidden]) {
@@ -306,3 +308,68 @@ html[dir="rtl"] [data-no-mirror] {
 
 .fade-enter { opacity: 0; }
 .fade-enter-active { opacity: 1; transition: opacity .3s; }
+
+/* ─── Glass mode (Settings → Appearance "Glass", or the school's Branding) ─────
+   ThemeProvider sets data-glass="on" on <html>; the settings previews set it on
+   their preview box, so the same rules power both.
+
+   Screens paint cards with plain utilities (bg-white + rounded-xl, …), not a
+   glass class, so glass works by matching those surfaces:
+   • a soft backdrop drawn from the brand colours (glass needs something behind it;
+     the shell otherwise paints flat grey),
+   • translucent cards with a light edge,
+   • frosted top bar / sidebar / bottom nav (data-surface).
+   Kept SOLID on purpose: form controls, buttons, links, and anything floating —
+   menus, dropdowns, popovers and modals (absolute / fixed / role=dialog|menu) —
+   where see-through would hurt readability. data-no-glass opts a subtree out.
+   No backdrop-filter on cards: nothing but the backdrop sits behind them, and a
+   filter would trap position:fixed children (modals) inside the card. */
+[data-glass='on'] {
+  --glass-tint: rgb(255 255 255 / 0.6);
+  --glass-tint-strong: rgb(255 255 255 / 0.74);
+  --glass-edge: rgb(255 255 255 / 0.7);
+  --glass-shadow: 0 10px 30px -14px rgb(15 23 42 / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+.dark[data-glass='on'] {
+  --glass-tint: rgb(15 23 42 / 0.5);
+  --glass-tint-strong: rgb(15 23 42 / 0.66);
+  --glass-edge: rgb(255 255 255 / 0.1);
+  --glass-shadow: 0 10px 30px -14px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+[data-glass='on'] .app-backdrop,
+[data-glass='on'].app-backdrop {
+  background:
+    radial-gradient(55rem 38rem at 0% 0%, color-mix(in oklch, var(--color-blue-300, #93c5fd) 60%, transparent), transparent 62%),
+    radial-gradient(48rem 34rem at 100% 8%, color-mix(in oklch, var(--color-violet-300, #c4b5fd) 50%, transparent), transparent 62%),
+    radial-gradient(60rem 40rem at 45% 100%, color-mix(in oklch, var(--color-blue-200, #bfdbfe) 55%, transparent), transparent 66%),
+    #f1f5f9 !important;
+  background-attachment: fixed;
+}
+.dark[data-glass='on'] .app-backdrop,
+.dark[data-glass='on'].app-backdrop {
+  background:
+    radial-gradient(55rem 38rem at 0% 0%, color-mix(in oklch, var(--color-blue-800, #1e40af) 55%, transparent), transparent 62%),
+    radial-gradient(48rem 34rem at 100% 8%, color-mix(in oklch, var(--color-violet-900, #4c1d95) 55%, transparent), transparent 62%),
+    radial-gradient(60rem 40rem at 45% 100%, color-mix(in oklch, var(--color-blue-950, #172554) 70%, transparent), transparent 66%),
+    #020617 !important;
+  background-attachment: fixed;
+}
+
+/* Cards and panels */
+[data-glass='on'] :is(.bg-white, .bg-gray-50, .bg-slate-50, .bg-card, .dark\:bg-gray-800, .dark\:bg-gray-900, .dark\:bg-slate-800, .dark\:bg-slate-900):is([class*='rounded-lg'], [class*='rounded-xl'], [class*='rounded-2xl'], [class*='rounded-3xl']):not(input, select, textarea, button, a, option, .absolute, .absolute *, .fixed, .fixed *, [role='dialog'] *, [role='menu'] *, [role='listbox'] *, [data-no-glass], [data-no-glass] *) {
+  background-color: var(--glass-tint) !important;
+  border-color: var(--glass-edge) !important;
+  box-shadow: var(--glass-shadow);
+}
+/* Table rows inside a glass card take the card's tint instead of painting opaque stripes. */
+[data-glass='on'] :is(thead, tbody, tr, th, td):is(.bg-white, .bg-gray-50, .bg-slate-50, .dark\:bg-gray-800, .dark\:bg-gray-900, .dark\:bg-slate-800, .dark\:bg-slate-900):not([data-no-glass] *) {
+  background-color: transparent !important;
+}
+/* App chrome: frosted, since page content scrolls beneath it. */
+[data-glass='on'] [data-surface] {
+  background-color: var(--glass-tint-strong) !important;
+  border-color: var(--glass-edge) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}

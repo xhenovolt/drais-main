@@ -133,6 +133,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/print-snapshot') ||    // Naked DRCE snapshot print/PDF target
     pathname.startsWith('/print-transcript') ||  // Naked cumulative transcript print/PDF target
     pathname.startsWith('/verify') ||            // Public QR verification page
+    pathname.startsWith('/theme-preview') ||     // Display-settings preview (iframe on the Appearance/Branding pages)
     pathname.startsWith('/control');             // DRAIS Control Center — Xhenvolt console, own shell + own auth
 
   return (
@@ -180,6 +181,9 @@ export default function RootLayout({
   if(dark){el.classList.add('dark');el.dataset.themeMode='dark';}else{el.classList.remove('dark');el.dataset.themeMode='light';}
   var lng=raw?(((JSON.parse(raw)||{}).state||{}).language):null;
   if(lng==='ar'){el.lang='ar';el.dir='rtl';}else{el.lang='en';el.dir='ltr';}
+  var p=JSON.parse(localStorage.getItem('drais-theme-paint')||'null');
+  if(p&&p.vars){for(var k in p.vars){el.style.setProperty(k,p.vars[k]);}el.dataset.themeVars=Object.keys(p.vars).join(',');
+    el.dataset.glass=p.glass?'on':'off';if(p.fontScale&&p.fontScale!==1){el.style.fontSize=(p.fontScale*100)+'%';}}
 }catch(e){}})();`,
           }}
         />
