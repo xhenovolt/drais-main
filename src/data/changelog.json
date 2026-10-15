@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-15T15:36:10.820Z",
-  "last_commit": "cc714a72d97195d4e66641713cc5010fbbbbca9a",
+  "generated_at": "2026-10-15T16:06:43.005Z",
+  "last_commit": "a2f56e8efdb771551416888fd8127325c334e898",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9709,7 +9709,20 @@
         }
       ],
       "commit": "cc714a72d9"
+    },
+    {
+      "version": "2.50.84",
+      "date": "2026-10-15",
+      "release_type": "patch",
+      "title": "Display settings now apply everywhere; previews and Save; Control Center sidebar/operators layout",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Display settings now apply everywhere; previews and Save; Control Center sidebar/operators layout"
+        }
+      ],
+      "commit": "a2f56e8efd"
     }
   ],
-  "app_version": "2.50.84"
+  "app_version": "2.50.85"
 }
