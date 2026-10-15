@@ -5348,6 +5348,260 @@
           "shared": "Shared (entry + lessons)"
         },
         "room": "Room (optional)"
+      },
+      "boarding": {
+        "mode": {
+          "DAILY_PUNCH": "Daily punch",
+          "REPORTED_ONCE": "Reported once"
+        },
+        "confirmChange": "Change the boarding policy to \"{{mode}}\"?\n\nThis takes effect from today ({{today}}). Attendance already recorded is not changed.",
+        "couldNotSave": "Could not save",
+        "savedFrom": "Boarding policy saved — applies from {{date}}",
+        "today": "today",
+        "saved": "Saved",
+        "aria": "Boarding attendance policy",
+        "title": "Boarding attendance policy",
+        "intro": "How should attendance work for learners marked as {{boarding}}? Day scholars always follow the daily attendance rules.",
+        "boardingWord": "Boarding",
+        "noBoarders": "No learner is marked as Boarding yet, so this policy has nobody to apply to. Set a learner’s {{residence}} to Boarding on the learners list.",
+        "residenceWord": "Residence",
+        "dailyTitle": "Require daily biometric punch",
+        "dailyBody": "Boarding learners are expected to record attendance according to the daily attendance schedule, exactly like day scholars.",
+        "onceTitle": "Reported once",
+        "onceBody": "A boarding learner is considered reported after their first valid arrival punch for the reporting period. They will not be treated as absent merely because they do not punch again.",
+        "periodLabel": "Reporting period",
+        "period": {
+          "TERM": "Each term",
+          "WEEK": "Each week",
+          "CUSTOM_DAYS": "Every … days"
+        },
+        "periodHelp": "A boarder reports once in each period. Currently: {{label}}.",
+        "daysLabel": "Number of days",
+        "smsToggle": "Send the parent an SMS when a boarder first reports to school",
+        "message": "Message",
+        "templateHelp": "You can use {{name}}, {{school}}, {{date}} and {{time}}. This is sent once per learner per period — never again if they punch again — and it says they have {{reported}}, not that they were late.",
+        "reportedWord": "reported",
+        "useStandard": "Use the standard message",
+        "boardersCount": "Boarding learners: {{n}}",
+        "reportedCount": " · Reported this period: {{n}} ({{label}})",
+        "saving": "Saving…",
+        "savePolicy": "Save policy",
+        "inEffect": "Current policy in effect since {{date}}. Earlier days keep the behaviour they had at the time.",
+        "historyTitle": "Who changed this, and when",
+        "notSet": "not set",
+        "label": {
+          "week": "Week of {{date}}",
+          "days": "{{n}}-day period from {{date}}",
+          "fallback": "90-day period from {{date}} (no term set up)"
+        },
+        "by": {
+          "system": "System",
+          "user": "User #{{id}}"
+        }
+      },
+      "timePolicy": {
+        "policy": {
+          "CORRECT_BY_DRIFT": {
+            "label": "Correct by drift",
+            "hint": "Trust device time unless it reads in the future; recover the real time from learned drift. Best default."
+          },
+          "TRUST_DEVICE_TIME": {
+            "label": "Trust device time",
+            "hint": "Store exactly what the device reports. Never correct. Use only if every device clock is reliable."
+          },
+          "TRUST_SERVER_RECEIVE_TIME": {
+            "label": "Trust server time",
+            "hint": "Stamp every punch with the moment DRAIS received it. Accurate for realtime, wrong for offline backlog."
+          },
+          "MANUAL_REVIEW_IF_DRIFT": {
+            "label": "Flag for review",
+            "hint": "Keep device time but flag punches that drift beyond the limit for a human to check."
+          },
+          "ADAPTIVE_DRIFT_NO_MEMORY": {
+            "label": "Adaptive (unstable clock)",
+            "hint": "For a device with a failing RTC battery whose clock jumps between unrelated readings instead of drifting smoothly. Never trusts a remembered offset from an earlier batch — only ever corrects using fresh evidence from the current batch of punches; if there isn’t enough yet, keeps the safe fallback instead of guessing from stale memory."
+          }
+        },
+        "tz": {
+          "Africa/Kampala": "Africa/Kampala (EAT, +3)",
+          "Africa/Nairobi": "Africa/Nairobi (EAT, +3)",
+          "Africa/Lagos": "Africa/Lagos (WAT, +1)",
+          "UTC": "UTC (+0)"
+        },
+        "loadFailed": "Could not load time policy",
+        "loading": "Loading time policy…",
+        "saved": "Time policy saved",
+        "saveFailed": "Failed to save time policy",
+        "title": "Device Time Policy",
+        "intro": "Controls how DRAIS interprets biometric device clocks. Raw device time, server-received time, and the corrected time are always stored — this only chooses which one attendance uses, and whether DRAIS may change the device clock.",
+        "timezone": "School timezone",
+        "offset": "UTC offset (minutes)",
+        "whenWrong": "When the device clock is wrong",
+        "maxDrift": "Max allowed drift (seconds)",
+        "maxDriftHelp": "Beyond this, a clock is treated as faulty (correct/flag depending on policy).",
+        "autoSync": "Let DRAIS correct device clocks",
+        "autoSyncHint": "When ON, DRAIS pushes the correct time to a drifting device. OFF = DRAIS never changes your machine's clock.",
+        "backlog": "Trust offline backlog times",
+        "backlogHint": "Keep original timestamps for punches uploaded after the device was offline.",
+        "showBoth": "Show raw + corrected time",
+        "showBothHint": "Display both the device's reported time and the corrected time in logs.",
+        "saving": "Saving…",
+        "save": "Save Time Policy"
+      },
+      "livePopup": {
+        "duration": {
+          "0": "Until dismissed",
+          "3000": "3 seconds",
+          "5000": "5 seconds",
+          "10000": "10 seconds"
+        },
+        "where": {
+          "students": {
+            "label": "Students list",
+            "hint": "Fastest — renders from the already-loaded list, no per-scan lookup"
+          },
+          "attendance": {
+            "label": "Attendance pages",
+            "hint": "Only on /attendance screens"
+          },
+          "global": {
+            "label": "Anywhere",
+            "hint": "On every page (server looks up each scan)"
+          },
+          "off": {
+            "label": "Off",
+            "hint": "No live popup"
+          }
+        },
+        "loadFailed": "Could not load popup settings",
+        "loading": "Loading popup settings…",
+        "saved": "Popup settings saved",
+        "saveFailed": "Failed to save popup settings",
+        "title": "Live Scan Popup",
+        "whereLabel": "Where it appears",
+        "showFor": "Show popup for",
+        "students": "Students",
+        "staff": "Staff",
+        "unknown": "Unknown / unmatched scans",
+        "lateOnly": "Late arrivals only",
+        "lateOnlyHint": "Suppress on-time scans",
+        "showDetails": "Show details",
+        "smsStatus": "SMS status",
+        "guardianPhone": "Guardian phone",
+        "feeBalance": "Fee balance",
+        "sound": "Sound",
+        "enrichedNote": "Fee balance & guardian phone apply to the enriched popup (Attendance pages / Anywhere); the fast Students-list popup shows roster fields only.",
+        "autoDismiss": "Auto-dismiss after",
+        "saving": "Saving…",
+        "save": "Save Popup Settings"
+      },
+      "smsPolicies": {
+        "trigger": {
+          "attendance": {
+            "record": {
+              "upserted": {
+                "label": "Attendance status",
+                "hint": "On-time arrival, late, absent, half-day or an early departure."
+              }
+            },
+            "departure": {
+              "recorded": {
+                "label": "Departure / check-out",
+                "hint": "Any time the person actually leaves school for the day — on time, early or late. Independent of the statuses above."
+              }
+            }
+          }
+        },
+        "status": {
+          "present": "present",
+          "late": "late",
+          "absent": "absent",
+          "half_day": "half-day",
+          "early_leave": "early-leave"
+        },
+        "target": {
+          "guardian": "Guardian",
+          "self": "The person (self)",
+          "staff_room": "Staff room",
+          "admin": "Admin"
+        },
+        "channel": {
+          "sms": "SMS",
+          "email": "Email",
+          "push": "Push"
+        },
+        "appliesTo": {
+          "everyone": "Everyone",
+          "student": "Students",
+          "staff": "Staff"
+        },
+        "boarding": {
+          "all": "Boarding + day",
+          "boarding": "Boarding only",
+          "day": "Day scholars only"
+        },
+        "example": {
+          "late": "Late arrival",
+          "absent": "Absent",
+          "arrived": "Arrived safely",
+          "early": "Early leave",
+          "departed": "Departed",
+          "staffIn": "Staff punched in (to admin)"
+        },
+        "aud": {
+          "boardingOnly": "boarding only",
+          "dayOnly": "day scholars only",
+          "classes": "class: {{names}}",
+          "classCount": {
+            "one": "{{count}} class(es)",
+            "other": "{{count}} class(es)"
+          }
+        },
+        "loadFailed": "Could not load SMS policies",
+        "nameRequired": "Name is required",
+        "pickStatus": "Pick at least one status to trigger on",
+        "updated": "Policy updated",
+        "created": "Policy created",
+        "saveFailed": "Save failed",
+        "toggleFailed": "Could not toggle",
+        "confirmDelete": "Delete SMS policy \"{{name}}\"?",
+        "deleted": "Policy deleted",
+        "deleteFailed": "Delete failed",
+        "title": "Attendance SMS / Notifications",
+        "newRule": "New rule",
+        "intro": "Messages are queued to an outbox and sent in the background (never blocks a scan). Every rule is independently on/off — switch one off any time without losing its setup.",
+        "editRule": "Edit rule",
+        "ruleName": "Rule name",
+        "ruleNamePh": "e.g. Departure → guardian",
+        "triggerLabel": "Trigger",
+        "triggerLocked": "The trigger cannot be changed after a rule is created — delete and re-create instead.",
+        "statusIs": "Trigger when status is",
+        "appliesToLabel": "Applies to",
+        "adminStaffHint": "This is how admins get texted whenever a staff member punches in.",
+        "watchesHint": "Who this rule watches. \"Send to\" below is who receives the message.",
+        "boardingScope": "Boarding scope",
+        "classes": "Class(es) — leave empty for all",
+        "sendTo": "Send to",
+        "channelLabel": "Channel",
+        "dailyCap": "Daily cap (max messages/day)",
+        "template": "Message template",
+        "insertExample": "Insert example:",
+        "templatePh": "Leave blank to use the professional built-in default, or insert an example above and edit it.",
+        "variables": "Variables: {{list}} — {{name}} is the learner/staff member, {{school}} your school, {{time}} the arrival (or departure) time.",
+        "active": "Active",
+        "cancel": "Cancel",
+        "save": "Save",
+        "loading": "Loading…",
+        "empty": "No attendance SMS rules yet. Click “New rule” to add one.",
+        "on": "Active",
+        "off": "Off",
+        "departure": "Departure",
+        "onStatuses": " · on {{statuses}}",
+        "cap": " · cap {{n}}/day",
+        "disable": "Disable",
+        "enable": "Enable",
+        "edit": "Edit",
+        "delete": "Delete"
       }
     }
   }

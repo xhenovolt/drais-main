@@ -13,6 +13,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { MonitorSmartphone, Save, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 type Where = 'off' | 'students' | 'attendance' | 'global';
 
@@ -52,7 +53,7 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
         onClick={() => onChange(!checked)}
         className={`mt-0.5 relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`}
       >
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform mt-0.5 ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform mt-0.5 ${checked ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
       </button>
       <span>
         <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">{label}</span>
@@ -63,6 +64,7 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
 }
 
 export default function LivePopupSettings() {
+  const { t } = useI18n();
   const [s, setS] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -71,13 +73,13 @@ export default function LivePopupSettings() {
     fetch('/api/attendance/live-settings')
       .then((r) => r.json())
       .then((d) => { if (d?.settings) setS(d.settings); })
-      .catch(() => setToast({ type: 'error', msg: 'Could not load popup settings' }));
+      .catch(() => setToast({ type: 'error', msg: 'attendancePages.settingsPanels.livePopup.loadFailed' }));
   }, []);
 
   if (!s) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-2 text-sm text-gray-500">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading popup settings…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('attendancePages.settingsPanels.livePopup.loading')}
       </div>
     );
   }
@@ -96,9 +98,9 @@ export default function LivePopupSettings() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s),
       });
       if (!res.ok) throw new Error('Save failed');
-      setToast({ type: 'success', msg: 'Popup settings saved' });
+      setToast({ type: 'success', msg: 'attendancePages.settingsPanels.livePopup.saved' });
     } catch {
-      setToast({ type: 'error', msg: 'Failed to save popup settings' });
+      setToast({ type: 'error', msg: 'attendancePages.settingsPanels.livePopup.saveFailed' });
     } finally { setSaving(false); }
   };
 
@@ -107,65 +109,65 @@ export default function LivePopupSettings() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
       <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-        <MonitorSmartphone className="w-4 h-4 text-indigo-500" /> Live Scan Popup
+        <MonitorSmartphone className="w-4 h-4 text-indigo-500" /> {t('attendancePages.settingsPanels.livePopup.title')}
       </h2>
 
       {toast && (
         <div className={`flex items-center gap-2 p-2.5 rounded-lg text-sm font-medium ${toast.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}{toast.msg}
+          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}{t(toast.msg)}
         </div>
       )}
 
       {/* Where it appears */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Where it appears</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('attendancePages.settingsPanels.livePopup.whereLabel')}</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {WHERE_OPTS.map((o) => (
             <button
               key={o.v}
               type="button"
               onClick={() => setWhere(o.v)}
-              title={o.hint}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border text-left transition-colors ${where === o.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'}`}
+              title={t(`attendancePages.settingsPanels.livePopup.where.${o.v}.hint`)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium border text-start transition-colors ${where === o.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400'}`}
             >
-              {o.label}
+              {t(`attendancePages.settingsPanels.livePopup.where.${o.v}.label`)}
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-1.5">{WHERE_OPTS.find((o) => o.v === where)?.hint}</p>
+        <p className="text-xs text-gray-500 mt-1.5">{t(`attendancePages.settingsPanels.livePopup.where.${where}.hint`)}</p>
       </div>
 
       {enabled && (
         <>
           <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Show popup for</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">{t('attendancePages.settingsPanels.livePopup.showFor')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-              <Toggle label="Students" checked={s.show_for_students === 1} onChange={(v) => set({ show_for_students: v ? 1 : 0 })} />
-              <Toggle label="Staff" checked={s.show_for_staff === 1} onChange={(v) => set({ show_for_staff: v ? 1 : 0 })} />
-              <Toggle label="Unknown / unmatched scans" checked={s.show_for_unknown === 1} onChange={(v) => set({ show_for_unknown: v ? 1 : 0 })} />
-              <Toggle label="Late arrivals only" hint="Suppress on-time scans" checked={s.show_for_late_only === 1} onChange={(v) => set({ show_for_late_only: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.students')} checked={s.show_for_students === 1} onChange={(v) => set({ show_for_students: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.staff')} checked={s.show_for_staff === 1} onChange={(v) => set({ show_for_staff: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.unknown')} checked={s.show_for_unknown === 1} onChange={(v) => set({ show_for_unknown: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.lateOnly')} hint={t('attendancePages.settingsPanels.livePopup.lateOnlyHint')} checked={s.show_for_late_only === 1} onChange={(v) => set({ show_for_late_only: v ? 1 : 0 })} />
             </div>
           </div>
 
           <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Show details</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">{t('attendancePages.settingsPanels.livePopup.showDetails')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-              <Toggle label="SMS status" checked={s.show_sms_status === 1} onChange={(v) => set({ show_sms_status: v ? 1 : 0 })} />
-              <Toggle label="Guardian phone" checked={s.show_guardian_phone === 1} onChange={(v) => set({ show_guardian_phone: v ? 1 : 0 })} />
-              <Toggle label="Fee balance" checked={s.show_fee_balance === 1} onChange={(v) => set({ show_fee_balance: v ? 1 : 0 })} />
-              <Toggle label="Sound" checked={s.sound_enabled === 1} onChange={(v) => set({ sound_enabled: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.smsStatus')} checked={s.show_sms_status === 1} onChange={(v) => set({ show_sms_status: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.guardianPhone')} checked={s.show_guardian_phone === 1} onChange={(v) => set({ show_guardian_phone: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.feeBalance')} checked={s.show_fee_balance === 1} onChange={(v) => set({ show_fee_balance: v ? 1 : 0 })} />
+              <Toggle label={t('attendancePages.settingsPanels.livePopup.sound')} checked={s.sound_enabled === 1} onChange={(v) => set({ sound_enabled: v ? 1 : 0 })} />
             </div>
-            <p className="text-xs text-gray-400 mt-1">Fee balance &amp; guardian phone apply to the enriched popup (Attendance pages / Anywhere); the fast Students-list popup shows roster fields only.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('attendancePages.settingsPanels.livePopup.enrichedNote')}</p>
           </div>
 
           <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Auto-dismiss after</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('attendancePages.settingsPanels.livePopup.autoDismiss')}</label>
             <select
               value={s.popup_duration_ms}
               onChange={(e) => set({ popup_duration_ms: Number(e.target.value) })}
               className="w-full sm:w-60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
             >
-              {DURATIONS.map((d) => <option key={d.v} value={d.v}>{d.label}</option>)}
+              {DURATIONS.map((d) => <option key={d.v} value={d.v}>{t(`attendancePages.settingsPanels.livePopup.duration.${d.v}`)}</option>)}
             </select>
           </div>
         </>
@@ -173,7 +175,7 @@ export default function LivePopupSettings() {
 
       <div className="flex justify-end">
         <button onClick={save} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm disabled:opacity-50">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{saving ? 'Saving…' : 'Save Popup Settings'}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{saving ? t('attendancePages.settingsPanels.livePopup.saving') : t('attendancePages.settingsPanels.livePopup.save')}
         </button>
       </div>
     </div>

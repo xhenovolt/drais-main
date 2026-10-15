@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-15T16:06:43.005Z",
-  "last_commit": "a2f56e8efdb771551416888fd8127325c334e898",
+  "generated_at": "2026-10-15T16:07:36.879Z",
+  "last_commit": "423d64f3e15d0c1183926ea4fbbe4c46ef345e9d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9722,7 +9722,20 @@
         }
       ],
       "commit": "a2f56e8efd"
+    },
+    {
+      "version": "2.50.85",
+      "date": "2026-10-15",
+      "release_type": "patch",
+      "title": "refine the logo of the auth page ie login page and improve wording",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "refine the logo of the auth page ie login page and improve wording"
+        }
+      ],
+      "commit": "423d64f3e1"
     }
   ],
-  "app_version": "2.50.85"
+  "app_version": "2.50.86"
 }
