@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-15T16:07:36.879Z",
-  "last_commit": "423d64f3e15d0c1183926ea4fbbe4c46ef345e9d",
+  "generated_at": "2026-10-15T16:11:00.667Z",
+  "last_commit": "4e095df1a026ee8640af90ee5755ed7203611a2a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9735,7 +9735,20 @@
         }
       ],
       "commit": "423d64f3e1"
+    },
+    {
+      "version": "2.50.86",
+      "date": "2026-10-15",
+      "release_type": "patch",
+      "title": "Attendance settings panels — boarding policy, device time policy, live popup, SMS rules fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Attendance settings panels — boarding policy, device time policy, live popup, SMS rules fully Arabic"
+        }
+      ],
+      "commit": "4e095df1a0"
     }
   ],
-  "app_version": "2.50.86"
+  "app_version": "2.50.87"
 }
