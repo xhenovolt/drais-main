@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T10:23:02.900Z",
-  "last_commit": "013db09d7ef152e20b5f7560c247b1b456978582",
+  "generated_at": "2026-10-16T17:40:03.811Z",
+  "last_commit": "186fdbba0e2be95816fd76098e5c0bd0b240c895",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9813,7 +9813,20 @@
         }
       ],
       "commit": "013db09d7e"
+    },
+    {
+      "version": "2.50.92",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "Identity Matching and Identity Intelligence fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Identity Matching and Identity Intelligence fully Arabic"
+        }
+      ],
+      "commit": "186fdbba0e"
     }
   ],
-  "app_version": "2.50.92"
+  "app_version": "2.50.93"
 }

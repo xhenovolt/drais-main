@@ -26,6 +26,7 @@ import {
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
 import { toLocalDateStr } from '@/lib/datetime/local-date';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -47,7 +48,7 @@ function getAttendanceValue(row: any, key: string) {
     case 'time':
       return row.record_time || (row.recordTime ? row.recordTime.slice(11, 19) : row.check_time?.slice(11, 19)) || '';
     case 'staff':
-      return 'staff';
+      return 'staff'; // label translated at render
     case 'device_user_id':
       return row.deviceUserId ?? row.device_user_id ?? '';
     case 'device_name':
@@ -68,25 +69,20 @@ function getAttendanceValue(row: any, key: string) {
 }
 
 function AttendanceResultTable({ rows }: { rows: any[] }) {
-  const columns = [
-    { key: 'date', label: 'Date' },
-    { key: 'time', label: 'Time' },
-    { key: 'staff', label: 'Staff' },
-    { key: 'device_user_id', label: 'Device PIN' },
-    { key: 'device_name', label: 'Device Name' },
-    { key: 'drais_name', label: 'DRAIS Name' },
-    { key: 'role_type', label: 'Role' },
-    { key: 'matched', label: 'Matched' },
-    { key: 'verification', label: 'Verification' },
-    { key: 'status', label: 'Status' },
-  ];
+  const { t } = useI18n();
+  const columns = ['date', 'time', 'staff', 'device_user_id', 'device_name', 'drais_name', 'role_type', 'matched', 'verification', 'status']
+    .map((key) => ({ key, label: t(`devicesPages.control.col.${key}`) }));
+  const cell = (r: any, key: string) => {
+    const v = String(getAttendanceValue(r, key));
+    return key === 'staff' || key === 'matched' ? t(`devicesPages.control.val.${v}`, v) : v;
+  };
   return (
     <div className="overflow-x-auto max-h-64 border border-gray-100 dark:border-gray-700 rounded">
       <table className="text-xs w-full">
         <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
           <tr>
             {columns.map(c => (
-              <th key={c.key} className="px-2 py-1.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{c.label}</th>
+              <th key={c.key} className="px-2 py-1.5 text-start font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{c.label}</th>
             ))}
           </tr>
         </thead>
@@ -94,7 +90,7 @@ function AttendanceResultTable({ rows }: { rows: any[] }) {
           {rows.slice(0, 200).map((r, i) => (
             <tr key={i}>
               {columns.map(c => (
-                <td key={c.key} className="px-2 py-1 text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono">{String(getAttendanceValue(r, c.key))}</td>
+                <td key={c.key} className="px-2 py-1 text-gray-700 dark:text-gray-300 whitespace-nowrap font-mono">{cell(r, c.key)}</td>
               ))}
             </tr>
           ))}
@@ -117,7 +113,7 @@ function Section({
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 text-start"
       >
         <span className="text-indigo-500">{icon}</span>
         <span className="flex-1 min-w-0">
@@ -166,6 +162,18 @@ const PAGE_SIZE = 50;
 const todayStr = () => toLocalDateStr();
 
 export default function DeviceControlPage() {
+  const { t, lang, digits } = useI18n();
+  const ar = lang === 'ar';
+  const okMsg = (m?: string) => (ar || !m ? t('devicesPages.control.done') : m);
+  const errMsg = (m?: string) => (ar || !m ? t('devicesPages.control.failed') : m);
+  // Pull-validation warnings are English sentences (acquisition/validate.ts).
+  const warning = (w: string) => {
+    let m = /^Device clock differs from server by (-?\d+)s \(device wall (.+), expected ~(.+)\)\.$/.exec(w);
+    if (m) return t('devicesPages.control.warn.clock', { delta: m[1], device: m[2], server: m[3] });
+    m = /^(\d+) punch\(es\) are timestamped in the device's future — inspect before saving\.$/.exec(w);
+    if (m) return t('devicesPages.control.warn.future', { n: m[1] });
+    return w;
+  };
   const [deviceSn, setDeviceSn] = useState('');
   const [directIp, setDirectIp] = useState('');
   const [directPort, setDirectPort] = useState('4370');
@@ -211,8 +219,8 @@ export default function DeviceControlPage() {
   }, [useDirectIp, directIp, directPort, deviceSn]);
 
   const requireTarget = () => {
-    if (!useDirectIp && !deviceSn) { showToast('error', 'Select a device or enter an IP'); return false; }
-    if (useDirectIp && !directIp) { showToast('error', 'Enter a device IP address'); return false; }
+    if (!useDirectIp && !deviceSn) { showToast('error', t('devicesPages.control.selectTarget')); return false; }
+    if (useDirectIp && !directIp) { showToast('error', t('devicesPages.control.enterIp')); return false; }
     return true;
   };
 
@@ -228,7 +236,7 @@ export default function DeviceControlPage() {
         if (!res.ok) {
           const err = await res.text();
           addResult(label, { error: err }, false);
-          showToast('error', err || 'Failed');
+          showToast('error', errMsg(err));
         } else {
           const blob = await res.blob();
           const fname = res.headers.get('content-disposition')?.match(/filename="?(.*)"?/)?.[1] || 'attendance.csv';
@@ -238,17 +246,17 @@ export default function DeviceControlPage() {
           document.body.appendChild(a); a.click(); a.remove();
           window.URL.revokeObjectURL(urlObj);
           addResult(label, { message: 'CSV downloaded', filename: fname }, true);
-          showToast('success', 'CSV downloaded');
+          showToast('success', t('devicesPages.control.csvDownloaded'));
         }
       } else {
         const res = await fetch(url);
         const json = await res.json();
         addResult(label, json, json.success);
-        if (!json.success) showToast('error', json.error || 'Failed');
+        if (!json.success) showToast('error', errMsg(json.error));
       }
     } catch (err: any) {
       addResult(label, { error: err.message }, false);
-      showToast('error', err.message);
+      showToast('error', errMsg(err.message));
     } finally {
       setBusy(null);
     }
@@ -266,11 +274,11 @@ export default function DeviceControlPage() {
       });
       const json = await res.json();
       addResult(label, json, json.success);
-      if (json.success) showToast('success', json.message || 'Done');
-      else showToast('error', json.error || 'Failed');
+      if (json.success) showToast('success', okMsg(json.message));
+      else showToast('error', errMsg(json.error));
     } catch (err: any) {
       addResult(label, { error: err.message }, false);
-      showToast('error', err.message);
+      showToast('error', errMsg(err.message));
     } finally {
       setBusy(null);
     }
@@ -319,8 +327,8 @@ export default function DeviceControlPage() {
       }));
       refreshAcquisitions();
     } catch (err: any) {
-      setWiz(w => ({ ...w, step: 'error', error: err.message }));
-      showToast('error', err.message);
+      setWiz(w => ({ ...w, step: 'error', error: ar ? t('devicesPages.control.pullFailed') : err.message }));
+      showToast('error', errMsg(err.message));
     }
   };
 
@@ -355,10 +363,10 @@ export default function DeviceControlPage() {
       setWiz(w => ({ ...w, records }));
       setTimeCheck(tc => ({ ...tc, answered: true, appliedDrift: json.driftSeconds }));
       showToast('success', json.corrected
-        ? `Correction applied — pulled times shifted by ${-json.driftSeconds}s`
-        : 'Clock verified — no correction needed');
+        ? t('devicesPages.control.correctionApplied', { n: -json.driftSeconds })
+        : t('devicesPages.control.clockVerified'));
     } catch (err: any) {
-      showToast('error', err.message);
+      showToast('error', errMsg(err.message));
     }
   };
 
@@ -381,7 +389,7 @@ export default function DeviceControlPage() {
 
   const saveBatch = async () => {
     if (!wiz.acquisitionId) return;
-    if (!confirm(`Save ${wiz.staged} punch(es) permanently to DRAIS attendance? Duplicates are skipped automatically.`)) return;
+    if (!confirm(t('devicesPages.control.confirmSave', { n: wiz.staged }))) return;
     setWiz(w => ({ ...w, step: 'saving' }));
     try {
       const res = await fetch('/api/attendance/acquisitions', {
@@ -393,10 +401,10 @@ export default function DeviceControlPage() {
       if (!json.success) throw new Error(json.error || 'Save failed');
       setWiz(w => ({ ...w, step: 'saved', saveResult: json }));
       refreshAcquisitions();
-      showToast('success', `Saved ${json.committed} punch(es) to DRAIS`);
+      showToast('success', t('devicesPages.control.saved', { n: json.committed }));
     } catch (err: any) {
       setWiz(w => ({ ...w, step: 'decide' }));
-      showToast('error', err.message);
+      showToast('error', errMsg(err.message));
     }
   };
 
@@ -412,9 +420,9 @@ export default function DeviceControlPage() {
       if (!json.success) throw new Error(json.error || 'Discard failed');
       setWiz(w => ({ ...w, step: 'discarded' }));
       refreshAcquisitions();
-      showToast('success', 'Batch discarded — nothing was saved');
+      showToast('success', t('devicesPages.control.discarded'));
     } catch (err: any) {
-      showToast('error', err.message);
+      showToast('error', errMsg(err.message));
     }
   };
 
@@ -468,10 +476,10 @@ export default function DeviceControlPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
           <Terminal className="w-7 h-7 text-indigo-500" />
-          Device Control
+          {t('devicesPages.control.title')}
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Biometric device operations &amp; attendance acquisition center — direct TCP (port 4370, LAN or relay)
+          {t('devicesPages.control.subtitle')}
         </p>
       </div>
 
@@ -482,29 +490,29 @@ export default function DeviceControlPage() {
             onClick={() => setUseDirectIp(false)}
             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${!useDirectIp ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}
           >
-            Registered Devices
+            {t('devicesPages.control.registered')}
           </button>
           <button
             onClick={() => setUseDirectIp(true)}
             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition flex items-center gap-1.5 ${useDirectIp ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}
           >
             <Globe className="w-3.5 h-3.5" />
-            Direct IP (LAN Test)
+            {t('devicesPages.control.directIp')}
           </button>
         </div>
 
         {useDirectIp ? (
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Device IP Address</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.ipLabel')}</label>
               <input
                 type="text" value={directIp} onChange={(e) => setDirectIp(e.target.value)}
-                placeholder="e.g. 192.168.1.197"
+                placeholder={t('devicesPages.control.ipPh')}
                 className="w-full sm:w-64 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Port</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.port')}</label>
               <input
                 type="number" value={directPort} onChange={(e) => setDirectPort(e.target.value)}
                 placeholder="4370"
@@ -514,22 +522,22 @@ export default function DeviceControlPage() {
             {directIp && (
               <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                 <Globe className="w-3 h-3" />
-                Direct → {directIp}:{directPort}
+                <span dir="ltr">{t('devicesPages.control.direct', { target: `${directIp}:${directPort}` })}</span>
               </span>
             )}
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1 min-w-0">
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Target Device</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.target')}</label>
               <select
                 value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)}
                 className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
               >
-                <option value="">Select device...</option>
+                <option value="">{t('devicesPages.control.selectDevice')}</option>
                 {devices.map((d: any) => (
                   <option key={d.sn} value={d.sn}>
-                    {d.sn} {d.device_name ? `— ${d.device_name}` : ''} ({d.ip_address || 'no IP'})
+                    {d.sn} {d.device_name ? `— ${d.device_name}` : ''} ({d.ip_address || t('devicesPages.control.noIp')})
                   </option>
                 ))}
               </select>
@@ -538,9 +546,9 @@ export default function DeviceControlPage() {
               <div className="flex items-center gap-3 text-xs">
                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full font-medium ${isOnline ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                   {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                  {isOnline ? 'Online' : 'Offline'}
+                  {isOnline ? t('devicesPages.control.online') : t('devicesPages.control.offline')}
                 </span>
-                <span className="text-gray-400">IP: {selectedDevice.ip_address || '—'}</span>
+                <span className="text-gray-400">{t('devicesPages.control.ip', { ip: selectedDevice.ip_address || '—' })}</span>
               </div>
             )}
           </div>
@@ -548,36 +556,36 @@ export default function DeviceControlPage() {
       </div>
 
       {/* ── 1. Device Status ─────────────────────────────────────────────── */}
-      <Section icon={<Activity className="w-5 h-5" />} title="Device Status"
-        subtitle="Connection, identity, firmware, users">
+      <Section icon={<Activity className="w-5 h-5" />} title={t('devicesPages.control.sec.status')}
+        subtitle={t('devicesPages.control.sec.statusSub')}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <ActionButton icon={<Wifi className="w-5 h-5" />} label="Test TCP" color="green"
-            busy={busy === 'status'} disabled={busy !== null} onClick={() => doGet('status', 'TCP Test')} />
-          <ActionButton icon={<Monitor className="w-5 h-5" />} label="Get Info" color="blue"
-            busy={busy === 'info'} disabled={busy !== null} onClick={() => doGet('info', 'Get Info')} />
-          <ActionButton icon={<Users className="w-5 h-5" />} label="Get Users" color="blue"
-            busy={busy === 'users'} disabled={busy !== null} onClick={() => doGet('users', 'Get Users')} />
-          <ActionButton icon={<Users className="w-5 h-5" />} label="Map Names" color="blue"
-            busy={busy === 'map_attendance'} disabled={busy !== null} onClick={() => doGet('map_attendance', 'Map Names')} />
+          <ActionButton icon={<Wifi className="w-5 h-5" />} label={t('devicesPages.control.act.testTcp')} color="green"
+            busy={busy === 'status'} disabled={busy !== null} onClick={() => doGet('status', t('devicesPages.control.act.testTcpLog'))} />
+          <ActionButton icon={<Monitor className="w-5 h-5" />} label={t('devicesPages.control.act.getInfo')} color="blue"
+            busy={busy === 'info'} disabled={busy !== null} onClick={() => doGet('info', t('devicesPages.control.act.getInfo'))} />
+          <ActionButton icon={<Users className="w-5 h-5" />} label={t('devicesPages.control.act.getUsers')} color="blue"
+            busy={busy === 'users'} disabled={busy !== null} onClick={() => doGet('users', t('devicesPages.control.act.getUsers'))} />
+          <ActionButton icon={<Users className="w-5 h-5" />} label={t('devicesPages.control.act.mapNames')} color="blue"
+            busy={busy === 'map_attendance'} disabled={busy !== null} onClick={() => doGet('map_attendance', t('devicesPages.control.act.mapNames'))} />
         </div>
       </Section>
 
       {/* ── 2. Attendance Acquisition (wizard) ───────────────────────────── */}
-      <Section icon={<ShieldCheck className="w-5 h-5" />} title="Attendance Acquisition"
-        subtitle="Pull one date → inspect raw device times → confirm → decide. Nothing is saved without your confirmation.">
+      <Section icon={<ShieldCheck className="w-5 h-5" />} title={t('devicesPages.control.sec.acq')}
+        subtitle={t('devicesPages.control.sec.acqSub')}>
 
         {(wiz.step === 'idle' || wiz.step === 'error' || wiz.step === 'discarded') && (
           <div className="space-y-3">
             {wiz.step === 'error' && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
                 <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Pull failed: {wiz.error}</span>
+                <span>{t('devicesPages.control.pullFailedMsg', { error: wiz.error })}</span>
               </div>
             )}
             {wiz.step === 'discarded' && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300 text-sm">
                 <Trash2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Batch #{wiz.acquisitionId} discarded. Nothing was saved to DRAIS.</span>
+                <span>{t('devicesPages.control.discardedMsg', { id: wiz.acquisitionId })}</span>
               </div>
             )}
             {/* ONE-CLICK: today's attendance */}
@@ -587,12 +595,12 @@ export default function DeviceControlPage() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold disabled:opacity-50 shadow-sm"
             >
               <Clock className="w-5 h-5" />
-              Pull today&apos;s attendance
+              {t('devicesPages.control.pullToday')}
             </button>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 pt-1">
               <div>
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">…or a specific date</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.orDate')}</label>
                 <input
                   type="date" value={wiz.date} max={todayStr()}
                   onChange={(e) => setWiz(w => ({ ...w, date: e.target.value }))}
@@ -605,10 +613,10 @@ export default function DeviceControlPage() {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm font-medium disabled:opacity-50"
               >
                 <CalendarDays className="w-4 h-4" />
-                Pull this date
+                {t('devicesPages.control.pullDate')}
               </button>
-              <p className="text-xs text-gray-400 dark:text-gray-500 sm:ml-2">
-                Staging only — you inspect and confirm before anything is stored.
+              <p className="text-xs text-gray-400 dark:text-gray-500 sm:ms-2">
+                {t('devicesPages.control.stagingOnly')}
               </p>
             </div>
           </div>
@@ -617,14 +625,14 @@ export default function DeviceControlPage() {
         {wiz.step === 'pulling' && (
           <div className="flex items-center gap-3 p-6 justify-center text-sm text-gray-600 dark:text-gray-300">
             <Loader className="w-5 h-5 animate-spin text-indigo-500" />
-            Pulling device log, staging &amp; validating {wiz.date}…
+            {t('devicesPages.control.pulling', { date: wiz.date })}
           </div>
         )}
 
         {wiz.step === 'saving' && (
           <div className="flex items-center gap-3 p-6 justify-center text-sm text-gray-600 dark:text-gray-300">
             <Loader className="w-5 h-5 animate-spin text-green-500" />
-            Saving batch #{wiz.acquisitionId} in a single transaction…
+            {t('devicesPages.control.saving', { id: wiz.acquisitionId })}
           </div>
         )}
 
@@ -632,21 +640,21 @@ export default function DeviceControlPage() {
           <div className="space-y-3">
             <div className="p-4 rounded-lg border border-green-200 dark:border-green-800 bg-green-50/60 dark:bg-green-900/10">
               <div className="flex items-center gap-2 text-green-800 dark:text-green-300 font-medium text-sm mb-2">
-                <CheckCircle className="w-4 h-4" /> Batch #{wiz.acquisitionId} saved to DRAIS
+                <CheckCircle className="w-4 h-4" /> {t('devicesPages.control.savedBatch', { id: wiz.acquisitionId })}
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">{wiz.saveResult.committed} saved</span>
-                <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">{wiz.saveResult.duplicates} duplicates skipped</span>
-                {wiz.saveResult.invalid > 0 && <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{wiz.saveResult.invalid} invalid</span>}
-                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{wiz.saveResult.evaluated} evaluated into attendance</span>
-                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">device zone UTC{wiz.saveResult.tzOffsetMinutes >= 0 ? '+' : ''}{wiz.saveResult.tzOffsetMinutes / 60}h</span>
+                <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">{t('devicesPages.control.res.saved', { n: wiz.saveResult.committed })}</span>
+                <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">{t('devicesPages.control.res.dup', { n: wiz.saveResult.duplicates })}</span>
+                {wiz.saveResult.invalid > 0 && <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{t('devicesPages.control.res.invalid', { n: wiz.saveResult.invalid })}</span>}
+                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{t('devicesPages.control.res.evaluated', { n: wiz.saveResult.evaluated })}</span>
+                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{t('devicesPages.control.res.zone', { sign: wiz.saveResult.tzOffsetMinutes >= 0 ? '+' : '', h: wiz.saveResult.tzOffsetMinutes / 60 })}</span>
               </div>
             </div>
             <button
               onClick={() => setWiz({ step: 'idle', date: todayStr(), records: [], search: '', page: 0 })}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
             >
-              <CalendarDays className="w-4 h-4" /> Pull another date
+              <CalendarDays className="w-4 h-4" /> {t('devicesPages.control.pullAnother')}
             </button>
           </div>
         )}
@@ -655,14 +663,14 @@ export default function DeviceControlPage() {
           <div className="space-y-4">
             {/* Summary chips */}
             <div className="flex flex-wrap gap-2 text-xs">
-              <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-medium">Batch #{wiz.acquisitionId}</span>
-              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{wiz.staged} staged / {wiz.totalOnDevice} on device</span>
-              <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">{v.matched} matched</span>
-              <span className={`px-2 py-1 rounded-full ${v.unmatched ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{v.unmatched} unmatched</span>
-              <span className={`px-2 py-1 rounded-full ${v.duplicates ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{v.duplicates} already in DRAIS</span>
+              <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-medium">{t('devicesPages.control.chip.batch', { id: wiz.acquisitionId })}</span>
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{t('devicesPages.control.chip.staged', { staged: wiz.staged, total: wiz.totalOnDevice })}</span>
+              <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">{t('devicesPages.control.chip.matched', { n: v.matched })}</span>
+              <span className={`px-2 py-1 rounded-full ${v.unmatched ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{t('devicesPages.control.chip.unmatched', { n: v.unmatched })}</span>
+              <span className={`px-2 py-1 rounded-full ${v.duplicates ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>{t('devicesPages.control.chip.dup', { n: v.duplicates })}</span>
               {v.clockDeltaSeconds != null && (
                 <span className={`px-2 py-1 rounded-full ${Math.abs(v.clockDeltaSeconds) > 120 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                  device clock {v.clockDeltaSeconds > 0 ? '+' : ''}{v.clockDeltaSeconds}s vs server
+                  {t('devicesPages.control.chip.clock', { delta: `${v.clockDeltaSeconds > 0 ? '+' : ''}${v.clockDeltaSeconds}` })}
                 </span>
               )}
             </div>
@@ -670,21 +678,21 @@ export default function DeviceControlPage() {
             {v.warnings.length > 0 && (
               <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-xs space-y-1">
                 {v.warnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-2"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{w}</div>
+                  <div key={i} className="flex items-start gap-2"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{warning(w)}</div>
                 ))}
               </div>
             )}
 
             {/* First/Last anchors */}
             <div className="grid sm:grid-cols-2 gap-3">
-              {[['First punches of the day', v.first3], ['Last punches of the day', v.last3]].map(([title, list]: any) => (
+              {[[t('devicesPages.control.firstPunches'), v.first3], [t('devicesPages.control.lastPunches'), v.last3]].map(([title, list]: any) => (
                 <div key={title} className="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10 p-3">
                   <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2">{title}</div>
-                  {list.length === 0 && <div className="text-xs text-gray-400">No records</div>}
+                  {list.length === 0 && <div className="text-xs text-gray-400">{t('devicesPages.control.noRecords')}</div>}
                   {list.map((a: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-sm py-0.5">
-                      <span className="font-mono text-gray-900 dark:text-white">{a.wall.slice(11)}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{a.name || `PIN ${a.pin}`}</span>
+                      <span className="font-mono text-gray-900 dark:text-white">{digits(a.wall.slice(11))}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{a.name || t('devicesPages.control.pin', { pin: a.pin })}</span>
                     </div>
                   ))}
                 </div>
@@ -698,53 +706,53 @@ export default function DeviceControlPage() {
                 : 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10'}`}>
                 <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
-                  Time check — is the device clock correct?
+                  {t('devicesPages.control.timeCheck')}
                   {timeCheck.answered && (
-                    <span className="ml-auto text-xs font-normal text-green-700 dark:text-green-400">
+                    <span className="ms-auto text-xs font-normal text-green-700 dark:text-green-400">
                       {timeCheck.appliedDrift
-                        ? `Correction applied: pulled times shifted by ${-timeCheck.appliedDrift}s`
-                        : 'Clock accepted — no correction'}
+                        ? t('devicesPages.control.correctionShift', { n: -timeCheck.appliedDrift })
+                        : t('devicesPages.control.clockAccepted')}
                     </span>
                   )}
                 </div>
                 <div className="flex flex-wrap items-end gap-3">
                   <div>
-                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">What time is on the DEVICE right now?</label>
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.deviceTime')}</label>
                     <input
                       type="time" step={1} value={timeCheck.device}
                       onChange={(e) => setTimeCheck(tc => ({ ...tc, device: e.target.value, answered: false }))}
                       className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
                     />
                     {v.deviceWallNow && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">Device reported {String(v.deviceWallNow).slice(11)} at pull</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{t('devicesPages.control.deviceReported', { time: String(v.deviceWallNow).slice(11) })}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">What is the REAL time right now?</label>
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.realTime')}</label>
                     <input
                       type="time" step={1} value={timeCheck.real}
                       onChange={(e) => setTimeCheck(tc => ({ ...tc, real: e.target.value, answered: false }))}
                       className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono"
                     />
-                    <p className="text-[10px] text-gray-400 mt-0.5">Prefilled from this computer&apos;s clock</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{t('devicesPages.control.prefilled')}</p>
                   </div>
                   {liveDriftSeconds != null && (
                     <div className={`px-3 py-2 rounded-lg text-sm font-mono ${Math.abs(liveDriftSeconds) > 60
                       ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                       : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
-                      drift: {liveDriftSeconds > 0 ? '+' : ''}{liveDriftSeconds}s
-                      {Math.abs(liveDriftSeconds) > 60 ? ' (device wrong)' : ' (ok)'}
+                      {t('devicesPages.control.drift', { n: `${liveDriftSeconds > 0 ? '+' : ''}${liveDriftSeconds}` })}
+                      {Math.abs(liveDriftSeconds) > 60 ? t('devicesPages.control.deviceWrong') : t('devicesPages.control.ok')}
                     </div>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={acceptClock}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium">
-                    <CheckCircle className="w-3.5 h-3.5" /> Clock is correct — keep pulled times
+                    <CheckCircle className="w-3.5 h-3.5" /> {t('devicesPages.control.keepTimes')}
                   </button>
                   <button onClick={applyCorrection} disabled={liveDriftSeconds == null || liveDriftSeconds === 0}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium disabled:opacity-50">
-                    <RefreshCw className="w-3.5 h-3.5" /> Correct pulled times by this drift
+                    <RefreshCw className="w-3.5 h-3.5" /> {t('devicesPages.control.correctTimes')}
                   </button>
                 </div>
               </div>
@@ -755,17 +763,17 @@ export default function DeviceControlPage() {
               <div className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 ${!timeCheck.answered ? 'opacity-50 pointer-events-none' : ''}`}>
                 <span className="text-sm font-medium text-gray-900 dark:text-white flex-1">
                   {timeCheck.answered
-                    ? 'Do these timestamps match what you expect from this day’s attendance?'
-                    : 'Answer the time check above first'}
+                    ? t('devicesPages.control.matchQ')
+                    : t('devicesPages.control.answerFirst')}
                 </span>
                 <div className="flex gap-2">
                   <button onClick={() => setWiz(w => ({ ...w, step: 'decide' }))}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium">
-                    <CheckCircle className="w-4 h-4" /> Yes
+                    <CheckCircle className="w-4 h-4" /> {t('devicesPages.control.yes')}
                   </button>
                   <button onClick={() => setWiz(w => ({ ...w, rejected: true }))}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium">
-                    <XCircle className="w-4 h-4" /> No
+                    <XCircle className="w-4 h-4" /> {t('devicesPages.control.no')}
                   </button>
                 </div>
               </div>
@@ -773,19 +781,19 @@ export default function DeviceControlPage() {
 
             {wiz.step === 'inspect' && wiz.rejected && (
               <div className="p-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10 space-y-2">
-                <div className="text-sm text-red-700 dark:text-red-300 font-medium">Timestamps rejected — choose what to do:</div>
+                <div className="text-sm text-red-700 dark:text-red-300 font-medium">{t('devicesPages.control.rejected')}</div>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={discardBatch} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium">
-                    <Trash2 className="w-3.5 h-3.5" /> Discard
+                    <Trash2 className="w-3.5 h-3.5" /> {t('devicesPages.control.discard')}
                   </button>
                   <button onClick={() => downloadRaw('json')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium">
-                    <FileDown className="w-3.5 h-3.5" /> Download raw logs
+                    <FileDown className="w-3.5 h-3.5" /> {t('devicesPages.control.downloadRaw')}
                   </button>
                   <button onClick={() => setWiz(w => ({ ...w, rejected: false }))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-medium">
-                    <Eye className="w-3.5 h-3.5" /> Keep inspecting
+                    <Eye className="w-3.5 h-3.5" /> {t('devicesPages.control.keepInspecting')}
                   </button>
-                  <button onClick={startPull} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
-                    <RefreshCw className="w-3.5 h-3.5" /> Retry pull
+                  <button onClick={() => startPull()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
+                    <RefreshCw className="w-3.5 h-3.5" /> {t('devicesPages.control.retry')}
                   </button>
                 </div>
               </div>
@@ -794,27 +802,26 @@ export default function DeviceControlPage() {
             {/* Decision */}
             {wiz.step === 'decide' && (
               <div className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10 space-y-2">
-                <div className="text-sm text-green-800 dark:text-green-300 font-medium">Timestamps confirmed. What would you like to do?</div>
+                <div className="text-sm text-green-800 dark:text-green-300 font-medium">{t('devicesPages.control.confirmed')}</div>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => { showToast('success', 'Preview mode — nothing was written'); setWiz(w => ({ ...w, step: 'inspect', rejected: false })); }}
+                  <button onClick={() => { showToast('success', t('devicesPages.control.previewMode')); setWiz(w => ({ ...w, step: 'inspect', rejected: false })); }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium">
-                    <Eye className="w-3.5 h-3.5" /> Preview only (no database writes)
+                    <Eye className="w-3.5 h-3.5" /> {t('devicesPages.control.previewOnly')}
                   </button>
                   <button onClick={saveBatch}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Save attendance to DRAIS
+                    <ShieldCheck className="w-3.5 h-3.5" /> {t('devicesPages.control.saveToDrais')}
                   </button>
                   <button onClick={() => downloadRaw('csv')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium">
-                    <Download className="w-3.5 h-3.5" /> Export CSV
+                    <Download className="w-3.5 h-3.5" /> {t('devicesPages.control.exportCsv')}
                   </button>
                   <button onClick={() => setWiz(w => ({ ...w, step: 'idle', records: [], validation: undefined, rejected: false }))}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-medium">
-                    Cancel
+                    {t('devicesPages.control.cancel')}
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Save runs in a single transaction: duplicates are re-checked at the moment of saving, timestamps are
-                  converted once using the device&apos;s configured timezone, and every row records this batch and operator.
+                  {t('devicesPages.control.saveNote')}
                 </p>
               </div>
             )}
@@ -823,24 +830,24 @@ export default function DeviceControlPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1 max-w-xs">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-gray-400" />
+                  <Search className="w-3.5 h-3.5 absolute start-2.5 top-2.5 text-gray-400" />
                   <input
                     value={wiz.search}
                     onChange={(e) => setWiz(w => ({ ...w, search: e.target.value, page: 0 }))}
-                    placeholder="Search PIN, name, time, flag…"
-                    className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-xs"
+                    placeholder={t('devicesPages.control.searchPh')}
+                    className="w-full ps-8 pe-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-xs"
                   />
                 </div>
-                <span className="text-xs text-gray-400">{filteredRecords.length} record(s) — raw device times, no conversion</span>
+                <span className="text-xs text-gray-400">{t('devicesPages.control.recordsCount', { n: filteredRecords.length })}</span>
               </div>
               <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
                 <table className="text-xs w-full">
                   <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 z-10">
                     <tr>
-                      {['#', 'Device PIN', 'Name', 'Raw Timestamp (device)',
-                        ...(hasCorrection ? ['Corrected Time'] : []),
-                        'Verify', 'Matched', 'Flags'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
+                      {['#', t('devicesPages.control.col.device_user_id'), t('devicesPages.control.raw.name'), t('devicesPages.control.raw.ts'),
+                        ...(hasCorrection ? [t('devicesPages.control.raw.corrected')] : []),
+                        t('devicesPages.control.raw.verify'), t('devicesPages.control.raw.matched'), t('devicesPages.control.raw.flags')].map(h => (
+                        <th key={h} className="px-3 py-2 text-start font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -849,24 +856,24 @@ export default function DeviceControlPage() {
                       const isAnchor = anchorIds.has(`${r.device_user_id}|${r.device_wall_time}`);
                       return (
                         <tr key={r.id} className={isAnchor ? 'bg-indigo-50 dark:bg-indigo-900/20' : undefined}>
-                          <td className="px-3 py-1.5 text-gray-400">{wiz.page * PAGE_SIZE + i + 1}</td>
-                          <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white">{r.device_user_id}</td>
+                          <td className="px-3 py-1.5 text-gray-400">{digits(wiz.page * PAGE_SIZE + i + 1)}</td>
+                          <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white">{digits(r.device_user_id)}</td>
                           <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{r.display_name || <span className="text-gray-400">—</span>}</td>
-                          <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white whitespace-nowrap">{r.device_wall_time}</td>
+                          <td className="px-3 py-1.5 font-mono text-gray-900 dark:text-white whitespace-nowrap">{digits(r.device_wall_time)}</td>
                           {hasCorrection && (
-                            <td className="px-3 py-1.5 font-mono text-amber-700 dark:text-amber-400 whitespace-nowrap">{r.corrected_wall_time || '—'}</td>
+                            <td className="px-3 py-1.5 font-mono text-amber-700 dark:text-amber-400 whitespace-nowrap">{r.corrected_wall_time ? digits(r.corrected_wall_time) : '—'}</td>
                           )}
-                          <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400">{r.verify_type ?? '—'}</td>
+                          <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400">{r.verify_type != null ? t(`devicesPages.control.verify.${String(r.verify_type).toUpperCase()}`, String(r.verify_type)) : '—'}</td>
                           <td className="px-3 py-1.5">{r.matched
                             ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                             : <XCircle className="w-3.5 h-3.5 text-yellow-500" />}</td>
                           <td className="px-3 py-1.5">
                             {(r.validation_flags || '').split(',').filter(Boolean).map((f: string) => (
-                              <span key={f} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-1 ${
+                              <span key={f} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium me-1 ${
                                 f === 'duplicate' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                                 : f === 'future' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                 : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
-                                {f}
+                                {t(`devicesPages.control.flag.${f}`, f)}
                               </span>
                             ))}
                           </td>
@@ -874,7 +881,7 @@ export default function DeviceControlPage() {
                       );
                     })}
                     {pageRecords.length === 0 && (
-                      <tr><td colSpan={hasCorrection ? 8 : 7} className="px-3 py-6 text-center text-gray-400">No records</td></tr>
+                      <tr><td colSpan={hasCorrection ? 8 : 7} className="px-3 py-6 text-center text-gray-400">{t('devicesPages.control.noRecords')}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -882,10 +889,10 @@ export default function DeviceControlPage() {
               {pageCount > 1 && (
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <button disabled={wiz.page === 0} onClick={() => setWiz(w => ({ ...w, page: w.page - 1 }))}
-                    className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">Previous</button>
-                  <span>Page {wiz.page + 1} / {pageCount}</span>
+                    className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">{t('devicesPages.control.previous')}</button>
+                  <span>{t('devicesPages.control.page', { n: wiz.page + 1, total: pageCount })}</span>
                   <button disabled={wiz.page >= pageCount - 1} onClick={() => setWiz(w => ({ ...w, page: w.page + 1 }))}
-                    className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">Next</button>
+                    className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">{t('devicesPages.control.next')}</button>
                 </div>
               )}
             </div>
@@ -894,71 +901,70 @@ export default function DeviceControlPage() {
       </Section>
 
       {/* ── 3. Device Operations ─────────────────────────────────────────── */}
-      <Section icon={<Fingerprint className="w-5 h-5" />} title="Device Operations"
-        subtitle="Power, access, enrollment, display" defaultOpen={false}>
+      <Section icon={<Fingerprint className="w-5 h-5" />} title={t('devicesPages.control.sec.ops')}
+        subtitle={t('devicesPages.control.sec.opsSub')} defaultOpen={false}>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          <ActionButton icon={<RefreshCw className="w-5 h-5" />} label="Restart" color="yellow"
-            busy={busy === 'restart'} disabled={busy !== null} onClick={() => { if (confirm('Restart the device now?')) doPost('restart', 'Restart'); }} />
-          <ActionButton icon={<Lock className="w-5 h-5" />} label="Disable" color="red"
-            busy={busy === 'disable'} disabled={busy !== null} onClick={() => { if (confirm('Disable the device (stops accepting punches)?')) doPost('disable', 'Disable Device'); }} />
-          <ActionButton icon={<Unlock className="w-5 h-5" />} label="Enable" color="green"
-            busy={busy === 'enable'} disabled={busy !== null} onClick={() => doPost('enable', 'Enable Device')} />
-          <ActionButton icon={<Unlock className="w-5 h-5" />} label="Unlock Door" color="purple"
-            busy={busy === 'unlock'} disabled={busy !== null} onClick={() => doPost('unlock', 'Unlock Door')} />
-          <ActionButton icon={<Clock className="w-5 h-5" />} label="Attendance (legacy)" color="blue"
-            busy={busy === 'attendance'} disabled={busy !== null} onClick={() => doGet('attendance', 'Get Attendance')} />
-          <ActionButton icon={<Download className="w-5 h-5" />} label="CSV (legacy)" color="blue"
-            busy={busy === 'attendance_csv'} disabled={busy !== null} onClick={() => doGet('attendance_csv', 'Download CSV')} />
+          <ActionButton icon={<RefreshCw className="w-5 h-5" />} label={t('devicesPages.control.op.restart')} color="yellow"
+            busy={busy === 'restart'} disabled={busy !== null} onClick={() => { if (confirm(t('devicesPages.control.op.confirmRestart'))) doPost('restart', t('devicesPages.control.op.restart')); }} />
+          <ActionButton icon={<Lock className="w-5 h-5" />} label={t('devicesPages.control.op.disable')} color="red"
+            busy={busy === 'disable'} disabled={busy !== null} onClick={() => { if (confirm(t('devicesPages.control.op.confirmDisable'))) doPost('disable', t('devicesPages.control.op.disableLog')); }} />
+          <ActionButton icon={<Unlock className="w-5 h-5" />} label={t('devicesPages.control.op.enable')} color="green"
+            busy={busy === 'enable'} disabled={busy !== null} onClick={() => doPost('enable', t('devicesPages.control.op.enableLog'))} />
+          <ActionButton icon={<Unlock className="w-5 h-5" />} label={t('devicesPages.control.op.unlock')} color="purple"
+            busy={busy === 'unlock'} disabled={busy !== null} onClick={() => doPost('unlock', t('devicesPages.control.op.unlock'))} />
+          <ActionButton icon={<Clock className="w-5 h-5" />} label={t('devicesPages.control.op.attendance')} color="blue"
+            busy={busy === 'attendance'} disabled={busy !== null} onClick={() => doGet('attendance', t('devicesPages.control.op.attendanceLog'))} />
+          <ActionButton icon={<Download className="w-5 h-5" />} label={t('devicesPages.control.op.csv')} color="blue"
+            busy={busy === 'attendance_csv'} disabled={busy !== null} onClick={() => doGet('attendance_csv', t('devicesPages.control.op.csvLog'))} />
         </div>
 
         {/* Remote Enrollment (preserved) */}
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
           <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
-            <Fingerprint className="w-4 h-4 text-indigo-500" /> Remote Enrollment
+            <Fingerprint className="w-4 h-4 text-indigo-500" /> {t('devicesPages.control.remoteEnroll')}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Enter the device UID (internal user number on device) and finger index. The device will prompt the user to
-            place their finger. After 3 touches the template is stored on device, then click &quot;Save Template&quot; to pull it into DRAIS.
+            {t('devicesPages.control.remoteHelp')}
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Device UID</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.uid')}</label>
               <input type="text" value={enrollUid} onChange={(e) => setEnrollUid(e.target.value)}
                 className="w-28 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Finger (0-9)</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.finger')}</label>
               <input type="number" min={0} max={9} value={enrollFinger}
                 onChange={(e) => setEnrollFinger(parseInt(e.target.value || '0', 10))}
                 className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
             </div>
             <button
               onClick={() => {
-                if (!enrollUid) return showToast('error', 'Enter device UID');
-                doPost('enroll', `Enroll UID=${enrollUid} F=${enrollFinger}`, { uid: parseInt(enrollUid, 10), finger: enrollFinger });
+                if (!enrollUid) return showToast('error', t('devicesPages.control.enterUid'));
+                doPost('enroll', t('devicesPages.control.enrollLog', { uid: enrollUid, f: enrollFinger }), { uid: parseInt(enrollUid, 10), finger: enrollFinger });
               }}
               disabled={busy !== null}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50"
             >
               {busy === 'enroll' ? <Loader className="w-4 h-4 animate-spin" /> : <Fingerprint className="w-4 h-4" />}
-              Start Enrollment
+              {t('devicesPages.control.startEnroll')}
             </button>
             <button
-              onClick={() => doPost('save_template', `Save Template UID=${enrollUid} F=${enrollFinger}`, {
+              onClick={() => doPost('save_template', t('devicesPages.control.saveTemplateLog', { uid: enrollUid, f: enrollFinger }), {
                 uid: parseInt(enrollUid || '0', 10), finger: enrollFinger, pin: enrollUid,
               })}
               disabled={busy !== null || !enrollUid}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50"
             >
               {busy === 'save_template' ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Save Template
+              {t('devicesPages.control.saveTemplate')}
             </button>
             <button
-              onClick={() => doPost('cancel_enroll', 'Cancel Enrollment')}
+              onClick={() => doPost('cancel_enroll', t('devicesPages.control.cancelEnrollLog'))}
               disabled={busy !== null}
               className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium disabled:opacity-50"
             >
-              Cancel
+              {t('devicesPages.control.cancel')}
             </button>
           </div>
         </div>
@@ -966,27 +972,27 @@ export default function DeviceControlPage() {
         {/* LCD Display (preserved) */}
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
           <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
-            <Type className="w-4 h-4 text-indigo-500" /> LCD Display
+            <Type className="w-4 h-4 text-indigo-500" /> {t('devicesPages.control.lcd')}
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <input
               type="text" value={lcdText} onChange={(e) => setLcdText(e.target.value)}
-              placeholder="Message to show on device screen"
+              placeholder={t('devicesPages.control.lcdPh')}
               className="flex-1 min-w-48 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
             />
             <button
-              onClick={() => doPost('write_lcd', `LCD: ${lcdText}`, { text: lcdText })}
+              onClick={() => doPost('write_lcd', t('devicesPages.control.lcdLog', { text: lcdText }), { text: lcdText })}
               disabled={busy !== null || !lcdText}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50"
             >
-              <Send className="w-4 h-4" /> Write
+              <Send className="w-4 h-4" /> {t('devicesPages.control.write')}
             </button>
             <button
-              onClick={() => doPost('clear_lcd', 'Clear LCD')}
+              onClick={() => doPost('clear_lcd', t('devicesPages.control.clearLcdLog'))}
               disabled={busy !== null}
               className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium disabled:opacity-50"
             >
-              Clear
+              {t('devicesPages.control.clear')}
             </button>
           </div>
         </div>
@@ -998,34 +1004,34 @@ export default function DeviceControlPage() {
             className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300"
           >
             <Terminal className="w-4 h-4" />
-            Raw Command (Advanced)
+            {t('devicesPages.control.rawCmd')}
             {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
           {showAdvanced && (
             <div className="mt-3 space-y-3">
               <div className="flex flex-wrap items-end gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Command (numeric)</label>
-                  <input type="text" value={rawCmd} onChange={(e) => setRawCmd(e.target.value)} placeholder="e.g. 50"
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.cmd')}</label>
+                  <input type="text" value={rawCmd} onChange={(e) => setRawCmd(e.target.value)} placeholder={t('devicesPages.control.cmdPh')}
                     className="w-32 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
                 </div>
                 <div className="flex-1 min-w-48">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Data (hex, optional)</label>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.control.data')}</label>
                   <input type="text" value={rawData} onChange={(e) => setRawData(e.target.value)} placeholder="deadbeef"
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono" />
                 </div>
                 <button
-                  onClick={() => doPost('exec', `Exec ${rawCmd}`, { command: rawCmd, data: rawData || undefined })}
+                  onClick={() => doPost('exec', t('devicesPages.control.execLog', { cmd: rawCmd }), { command: rawCmd, data: rawData || undefined })}
                   disabled={busy !== null || !rawCmd}
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium disabled:opacity-50"
                 >
                   {busy === 'exec' ? <Loader className="w-4 h-4 animate-spin" /> : <Terminal className="w-4 h-4" />}
-                  Execute
+                  {t('devicesPages.control.execute')}
                 </button>
               </div>
               <div className="text-[11px] text-gray-400 dark:text-gray-500 space-y-0.5">
-                <p>Common: 1000=CONNECT, 1004=RESTART, 50=GET_FREE_SIZES, 61=STARTENROLL, 62=CANCELCAPTURE</p>
-                <p>1002=ENABLE, 1003=DISABLE, 9=READ_TEMPLATE, 10=WRITE_TEMPLATE, 500=REG_EVENT, 201=GET_TIME</p>
+                <p>{t('devicesPages.control.commonCmds')} <span dir="ltr">1000=CONNECT, 1004=RESTART, 50=GET_FREE_SIZES, 61=STARTENROLL, 62=CANCELCAPTURE</span></p>
+                <p dir="ltr">1002=ENABLE, 1003=DISABLE, 9=READ_TEMPLATE, 10=WRITE_TEMPLATE, 500=REG_EVENT, 201=GET_TIME</p>
               </div>
             </div>
           )}
@@ -1033,46 +1039,46 @@ export default function DeviceControlPage() {
       </Section>
 
       {/* ── 4. Diagnostics ───────────────────────────────────────────────── */}
-      <Section icon={<History className="w-5 h-5" />} title="Diagnostics"
-        subtitle="Acquisition history & operational visibility" defaultOpen={false}>
+      <Section icon={<History className="w-5 h-5" />} title={t('devicesPages.control.sec.diag')}
+        subtitle={t('devicesPages.control.sec.diagSub')} defaultOpen={false}>
         <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
           <table className="text-xs w-full">
             <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
               <tr>
-                {['#', 'Method', 'Status', 'Device', 'Date window', 'Staged', 'Saved', 'Dup', 'Unmatched', 'Clock Δ', 'Duration', 'Started'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
+                {['#', t('devicesPages.control.diag.method'), t('devicesPages.control.diag.status'), t('devicesPages.control.diag.device'), t('devicesPages.control.diag.window'), t('devicesPages.control.diag.staged'), t('devicesPages.control.diag.saved'), t('devicesPages.control.diag.dup'), t('devicesPages.control.diag.unmatched'), t('devicesPages.control.diag.clock'), t('devicesPages.control.diag.duration'), t('devicesPages.control.diag.started')].map(h => (
+                  <th key={h} className="px-3 py-2 text-start font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
               {acquisitions.map((a: any) => (
                 <tr key={a.id}>
-                  <td className="px-3 py-1.5 text-gray-400">{a.id}</td>
-                  <td className="px-3 py-1.5 font-mono text-gray-700 dark:text-gray-300">{a.method}</td>
+                  <td className="px-3 py-1.5 text-gray-400">{digits(a.id)}</td>
+                  <td className="px-3 py-1.5 font-mono text-gray-700 dark:text-gray-300">{t(`devicesPages.control.method.${a.method}`, a.method)}</td>
                   <td className="px-3 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       a.status === 'committed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                       : a.status === 'validated' || a.status === 'staged' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                       : a.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
-                      {a.status}
+                      {t(`devicesPages.control.acq.${a.status}`, a.status)}
                     </span>
                   </td>
                   <td className="px-3 py-1.5 font-mono text-gray-500 dark:text-gray-400">{a.device_sn || a.device_ip || '—'}</td>
                   <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {a.window_from ? String(a.window_from).slice(0, 10) : '—'}
+                    {a.window_from ? digits(String(a.window_from).slice(0, 10)) : '—'}
                   </td>
-                  <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{a.records_staged}</td>
-                  <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{a.records_committed}</td>
-                  <td className="px-3 py-1.5 text-gray-500">{a.records_duplicate}</td>
-                  <td className="px-3 py-1.5 text-gray-500">{a.records_unmatched}</td>
-                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{a.clock_delta_seconds != null ? `${a.clock_delta_seconds}s` : '—'}</td>
-                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{a.duration_ms != null ? `${Math.round(a.duration_ms / 100) / 10}s` : '—'}</td>
-                  <td className="px-3 py-1.5 text-gray-400 whitespace-nowrap">{a.started_at ? String(a.started_at).replace('T', ' ').slice(0, 19) : '—'}</td>
+                  <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{digits(a.records_staged)}</td>
+                  <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{digits(a.records_committed)}</td>
+                  <td className="px-3 py-1.5 text-gray-500">{digits(a.records_duplicate)}</td>
+                  <td className="px-3 py-1.5 text-gray-500">{digits(a.records_unmatched)}</td>
+                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{a.clock_delta_seconds != null ? t('devicesPages.control.seconds', { n: a.clock_delta_seconds }) : '—'}</td>
+                  <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{a.duration_ms != null ? t('devicesPages.control.seconds', { n: Math.round(a.duration_ms / 100) / 10 }) : '—'}</td>
+                  <td className="px-3 py-1.5 text-gray-400 whitespace-nowrap">{a.started_at ? digits(String(a.started_at).replace('T', ' ').slice(0, 19)) : '—'}</td>
                 </tr>
               ))}
               {acquisitions.length === 0 && (
-                <tr><td colSpan={12} className="px-3 py-6 text-center text-gray-400">No acquisitions yet — pull a date above to create the first audit entry.</td></tr>
+                <tr><td colSpan={12} className="px-3 py-6 text-center text-gray-400">{t('devicesPages.control.noAcq')}</td></tr>
               )}
             </tbody>
           </table>
@@ -1083,9 +1089,9 @@ export default function DeviceControlPage() {
       {results.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-            <h2 className="font-semibold text-gray-900 dark:text-white">Results ({results.length})</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-white">{t('devicesPages.control.results', { n: results.length })}</h2>
             <button onClick={() => setResults([])} className="text-xs text-gray-400 hover:text-gray-600 transition">
-              Clear
+              {t('devicesPages.control.clear')}
             </button>
           </div>
           <div className="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700/50">
@@ -1096,7 +1102,7 @@ export default function DeviceControlPage() {
                     ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                     : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
                   <span className="font-medium text-sm text-gray-900 dark:text-white">{r.action}</span>
-                  <span className="text-xs text-gray-400 ml-auto">{r.time}</span>
+                  <span className="text-xs text-gray-400 ms-auto">{digits(r.time)}</span>
                 </div>
                 {isAttendanceResponse(r.data) ? (
                   <AttendanceResultTable rows={r.data.data} />
@@ -1112,7 +1118,7 @@ export default function DeviceControlPage() {
       )}
 
       <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
-        TCP SDK connects directly to device port 4370 — requires LAN access or relay agent
+        {t('devicesPages.control.footer')}
       </div>
     </div>
   );
