@@ -5775,5 +5775,292 @@
         "delete": "حذف"
       }
     }
+  },
+  "gateMovement": {
+    "server": {
+      "title": {
+        "authorized": "مسموح",
+        "notAuthorized": "غير مسموح",
+        "returnRecorded": "سُجّلت العودة",
+        "unknownCard": "بطاقة زيارة غير معروفة",
+        "visitDenied": "الزيارة مرفوضة",
+        "visitAllowed": "الزيارة مسموحة",
+        "error": "خطأ"
+      },
+      "reason": {
+        "noActivePass": "لا يوجد إذن خروج معتمد وساري",
+        "returning": "الطالب عائد",
+        "alreadyReturned": "استُخدم إذن الخروج وعاد الطالب",
+        "awaitingApproval": "إذن الخروج بانتظار الموافقة",
+        "expired": "انتهت صلاحية إذن الخروج",
+        "approvedPass": "إذن خروج معتمد",
+        "pinRequired": "رقم الجهاز مطلوب للتحقق بالبصمة",
+        "idRequired": "رقم الطالب مطلوب",
+        "studentRequired": "يجب تحديد الطالب للتحقق اليدوي",
+        "notFound": "الطالب غير موجود في هذه المدرسة",
+        "secondApprover": "يجب أن تأتي الموافقة الثانية من مستخدم آخر",
+        "passNotFound": "إذن الخروج غير موجود",
+        "cardNotRegistered": "البطاقة غير مسجّلة",
+        "cardExpired": "انتهت صلاحية البطاقة",
+        "verifiedGuardian": "ولي أمر موثَّق",
+        "cardStatus": "البطاقة {{status}}",
+        "visiting": "زيارة {{name}}"
+      },
+      "msg": {
+        "approved": "اعتُمد إذن الخروج",
+        "firstApproval": "سُجّلت الموافقة الأولى — بانتظار الموافق الثاني",
+        "cannotApprove": "تعذّرت الموافقة",
+        "requestFailed": "تعذّر تنفيذ الطلب",
+        "verificationFailed": "فشل التحقق",
+        "failed": "تعذّرت العملية",
+        "notAuthenticated": "لم يتم تسجيل الدخول",
+        "cardUidRequired": "رقم البطاقة مطلوب"
+      }
+    },
+    "cardStatus": {
+      "active": "مفعّلة",
+      "suspended": "موقوفة",
+      "lost": "مفقودة",
+      "expired": "منتهية"
+    },
+    "status": {
+      "pending": "معلّق",
+      "approved": "معتمد",
+      "used": "خارج المدرسة",
+      "returned": "عاد",
+      "overdue": "متأخر عن العودة",
+      "expired": "منتهي",
+      "rejected": "مرفوض",
+      "cancelled": "ملغى"
+    },
+    "passouts": {
+      "done": {
+        "approve": "تمت الموافقة",
+        "reject": "تم الرفض",
+        "cancel": "تم الإلغاء"
+      },
+      "title": "أذونات الخروج",
+      "subtitle": "حركة طلاب موثّقة — التحقق من الهوية أولًا، والبوابة تطبّق القرار، وأولياء الأمور على علم.",
+      "gateMode": "وضع البوابة",
+      "gateDevices": "أجهزة البوابة",
+      "settings": "الإعدادات",
+      "new": "إذن خروج جديد",
+      "card": {
+        "pending": "معلّقة",
+        "approved": "معتمدة",
+        "outside": "خارج المدرسة الآن",
+        "overdue": "متأخرون عن العودة",
+        "exits": "خروج اليوم",
+        "returns": "عودة اليوم",
+        "lateReturns": "عودة متأخرة",
+        "denied": "مرفوض اليوم"
+      },
+      "outsideNow": "خارج المدرسة الآن ({{n}})",
+      "emg": "طارئ",
+      "med": "طبي",
+      "overdueTag": "متأخر",
+      "back": "يعود {{time}}",
+      "out": "خارج",
+      "frequent": "الأكثر خروجًا (٣٠ يومًا)",
+      "frequentNone": "لا أحد — لم يخرج أي طالب أكثر من مرة.",
+      "times": "{{n}}×",
+      "col": {
+        "no": "رقم الإذن",
+        "learner": "الطالب",
+        "class": "الصف",
+        "reason": "السبب",
+        "validUntil": "صالح حتى",
+        "status": "الحالة"
+      },
+      "none": "لا توجد أذونات خروج.",
+      "halfApproved": "موافقة ١ من ٢",
+      "late": "متأخر",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "cancel": "إلغاء"
+    },
+    "create": {
+      "title": "إذن خروج جديد",
+      "verifyFirst": "تحقّق من هوية الطالب أولًا — برقم الطالب أو بالبحث.",
+      "tabCard": "رقم الطالب",
+      "tabSearch": "بحث",
+      "cardPh": "رقم الطالب / رقم القيد…",
+      "verify": "تحقّق",
+      "searchPh": "ابحث عن الطالب بالاسم أو رقم القيد…",
+      "verified": "موثَّق · {{method}}",
+      "method": {
+        "card": "رقم الطالب",
+        "manual": "يدوي",
+        "fingerprint": "بصمة"
+      },
+      "noClass": "بلا صف",
+      "today": " · اليوم: {{status}}",
+      "change": "تغيير",
+      "guardian": "ولي الأمر",
+      "noPhone": "لا يوجد هاتف — لن تُرسل رسالة نصية",
+      "previous": {
+        "zero": "لا أذونات سابقة",
+        "one": "إذن خروج سابق واحد",
+        "two": "إذنا خروج سابقان",
+        "few": "{{count}} أذونات خروج سابقة",
+        "many": "{{count}} إذن خروج سابقًا",
+        "other": "{{count}} إذن خروج سابق"
+      },
+      "outstanding": "الطالب خارج المدرسة حاليًا ولم يعد — لا يمكن إصدار إذن جديد.",
+      "activeExists": "يوجد إذن ساري ({{status}}) — إنشاء إذن آخر سيحل محله عند البوابة.",
+      "reasonPh": "السبب (مثال: موعد طبي)",
+      "destinationPh": "الوجهة",
+      "validUntil": "صالح حتى",
+      "expectedReturn": "العودة المتوقعة",
+      "accompaniedPh": "المرافق (اختياري)",
+      "transportLabel": "وسيلة النقل (اختياري)",
+      "transport": {
+        "Walking": "سيرًا على الأقدام",
+        "Parent vehicle": "سيارة ولي الأمر",
+        "School vehicle": "سيارة المدرسة",
+        "Boda/Taxi": "دراجة نارية / سيارة أجرة",
+        "Ambulance": "سيارة إسعاف"
+      },
+      "notesPh": "ملاحظات داعمة (اختياري)",
+      "emergency": "طارئ",
+      "medical": "طبي",
+      "approveNow": "الموافقة فورًا",
+      "cancel": "إلغاء",
+      "submit": "إنشاء إذن الخروج",
+      "created": "الإذن {{no}} {{status}}"
+    },
+    "settings": {
+      "title": "إعدادات أذونات الخروج",
+      "saved": "حُفظت الإعدادات",
+      "smsHeading": "رسائل أولياء الأمور (تُرسل فقط بعد أحداث بوابة موثّقة)",
+      "notify_exit": "إبلاغ ولي الأمر عند خروج الطالب من البوابة",
+      "notify_return": "إبلاغ ولي الأمر عند عودة الطالب",
+      "emergency_only": "الإبلاغ فقط عن الأذونات الطارئة / الطبية",
+      "notifications_disabled": "إيقاف جميع إشعارات أذونات الخروج",
+      "workflow": "مسار الموافقة",
+      "single": "موافقة واحدة (أي موافق)",
+      "twoStep": "خطوتان (يلزم موافقان مختلفان)",
+      "twoStepHelp": "الخطوتان: مثلًا يوافق معلم الصف أولًا ثم يعتمد المسؤول. لا تُفتح البوابة إلا بعد الموافقة النهائية.",
+      "cancel": "إلغاء",
+      "save": "حفظ"
+    },
+    "devices": {
+      "title": "أجهزة البوابة",
+      "help": "حوّل جهازًا إلى بوابة أذونات خروج — فتُظهر بصماته قرار «مسموح / غير مسموح» في النافذة المباشرة.",
+      "none": "لا توجد أجهزة.",
+      "device": "جهاز",
+      "online": "متصل",
+      "offline": "غير متصل",
+      "updated": "تم التحديث",
+      "done": "تم"
+    },
+    "gate": {
+      "title": "التحقق عند البوابة",
+      "fingerprintNote": "بصمات جهاز البوابة تُتحقق تلقائيًا — وإلا فاستخدم الخيارات أدناه.",
+      "tabCard": "رقم الطالب",
+      "tabSearch": "البحث عن طالب",
+      "cardPh": "اكتب رقم الطالب أو امسحه…",
+      "verify": "تحقّق",
+      "searchPh": "ابحث عن طالب…",
+      "pass": "الإذن:",
+      "reason": "السبب:",
+      "destination": "الوجهة:",
+      "emergency": "طارئ",
+      "medical": "طبي",
+      "leaving": "وقت الخروج:",
+      "leftAt": "خرج في:",
+      "validUntil": "صالح حتى:",
+      "expectedReturn": "العودة المتوقعة:",
+      "approvedBy": "وافق عليه:",
+      "next": "الطالب التالي"
+    },
+    "visit": {
+      "updated": "تم التحديث",
+      "title": "بطاقات الزيارة",
+      "subtitle": "أصدر بطاقات لأولياء الأمور وتحقّق من الزيارات واستلام الطلاب عند البوابة.",
+      "issue": "إصدار بطاقة",
+      "verifyCard": "التحقق من بطاقة",
+      "uidPh": "امسح رقم البطاقة أو اكتبه…",
+      "verify": "تحقّق",
+      "guardian": "ولي الأمر:",
+      "learner": "الطالب:",
+      "card": "البطاقة:",
+      "col": {
+        "uid": "رقم البطاقة",
+        "guardian": "ولي الأمر",
+        "learner": "الطالب",
+        "type": "النوع",
+        "status": "الحالة"
+      },
+      "none": "لم تُصدر أي بطاقات.",
+      "suspend": "إيقاف",
+      "activate": "تفعيل",
+      "type": {
+        "zkteco_rfid": "بطاقة RFID لجهاز ZKTeco",
+        "manual": "يدوي",
+        "qr": "رمز QR"
+      },
+      "uidRequired": "رقم البطاقة مطلوب",
+      "issued": "أُصدرت البطاقة",
+      "issueTitle": "إصدار بطاقة زيارة",
+      "issueUidPh": "رقم البطاقة (امسح بطاقة RFID)",
+      "change": "تغيير",
+      "linkPh": "ربطها بطالب (اختياري)…",
+      "expires": "تنتهي في (اختياري)",
+      "cancel": "إلغاء",
+      "issueBtn": "إصدار"
+    },
+    "reports": {
+      "tab": {
+        "out_today": "خارج اليوم",
+        "overdue": "متأخرون عن العودة",
+        "by_reason": "حسب السبب",
+        "by_officer": "حسب الموظف",
+        "denied": "محاولات مرفوضة",
+        "visitation": "سجل الزيارات",
+        "unknown_cards": "بطاقات غير معروفة"
+      },
+      "title": "تقارير أذونات الخروج",
+      "rows": {
+        "zero": "{{label}} · لا صفوف",
+        "one": "{{label}} · صف واحد",
+        "two": "{{label}} · صفان",
+        "few": "{{label}} · {{count}} صفوف",
+        "many": "{{label}} · {{count}} صفًا",
+        "other": "{{label}} · {{count}} صف"
+      },
+      "excel": "إكسل",
+      "pdf": "طباعة",
+      "noData": "لا توجد بيانات.",
+      "none": "(بلا سبب)",
+      "col": {
+        "learner": "الطالب",
+        "admission_no": "رقم القيد",
+        "class": "الصف",
+        "reason": "السبب",
+        "destination": "الوجهة",
+        "actual_exit_at": "وقت الخروج الفعلي",
+        "expected_return_at": "وقت العودة المتوقع",
+        "count": "العدد",
+        "officer": "الموظف",
+        "approved": "الموافقات",
+        "device_sn": "الرقم التسلسلي للجهاز",
+        "created_at": "الوقت",
+        "card_uid": "رقم البطاقة",
+        "event_type": "نوع الحدث",
+        "decision": "القرار"
+      },
+      "event": {
+        "visit": "زيارة",
+        "exit_allowed": "خروج مسموح",
+        "return_recorded": "سُجّلت العودة",
+        "exit_denied": "خروج مرفوض"
+      },
+      "decision": {
+        "allowed": "مسموح",
+        "denied": "مرفوض",
+        "review": "مراجعة"
+      }
+    }
   }
 }

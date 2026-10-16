@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-15T16:11:00.667Z",
-  "last_commit": "4e095df1a026ee8640af90ee5755ed7203611a2a",
+  "generated_at": "2026-10-16T09:44:37.691Z",
+  "last_commit": "f75c12c39f195176f8d08f965dea61c4bb0da500",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9748,7 +9748,20 @@
         }
       ],
       "commit": "4e095df1a0"
+    },
+    {
+      "version": "2.50.87",
+      "date": "2026-10-15",
+      "release_type": "patch",
+      "title": "DRAIS logo on the login and sign-up pages instead of the generic book icon",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "DRAIS logo on the login and sign-up pages instead of the generic book icon"
+        }
+      ],
+      "commit": "f75c12c39f"
     }
   ],
-  "app_version": "2.50.87"
+  "app_version": "2.50.88"
 }

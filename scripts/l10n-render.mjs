@@ -23,6 +23,8 @@ const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
 const outDir = flag('--out') || fs.mkdtempSync(path.join(os.tmpdir(), 'l10n-render-'));
 const clickSel = flag('--click');
+// --type 'selector=text' : type into a field before the --click (e.g. a search box that enables a button).
+const typeArg = flag('--type');
 const mockPath = flag('--mock');
 // --props '{"open":true}' : props for a component that needs them (a dialog needs open/isOpen).
 // Any prop the component calls that is not given (onClose, onSubmit, ...) is a no-op.
@@ -128,6 +130,7 @@ const settle = () => new Promise((r) => setTimeout(r, 900));
 async function snapshot(lang) {
   await page.evaluate((l) => window.__setLang(l), lang);
   await settle();
+  if (typeArg) { const i = typeArg.indexOf('='); try { await page.type(typeArg.slice(0, i), typeArg.slice(i + 1)); await settle(); } catch { /* field not present in this state */ } }
   if (clickSel) { try { await page.click(clickSel); await settle(); } catch { /* selector not present in this state */ } }
   const data = await page.evaluate(() => {
     const visible = (el) => { const s = getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden'; };

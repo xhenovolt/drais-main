@@ -5604,5 +5604,284 @@
         "delete": "Delete"
       }
     }
+  },
+  "gateMovement": {
+    "server": {
+      "title": {
+        "authorized": "AUTHORIZED",
+        "notAuthorized": "NOT AUTHORIZED",
+        "returnRecorded": "RETURN RECORDED",
+        "unknownCard": "UNKNOWN VISITATION CARD",
+        "visitDenied": "VISIT DENIED",
+        "visitAllowed": "VISIT ALLOWED",
+        "error": "ERROR"
+      },
+      "reason": {
+        "noActivePass": "No active approved pass-out",
+        "returning": "Learner returning",
+        "alreadyReturned": "Pass-out already used and returned",
+        "awaitingApproval": "Pass-out awaiting approval",
+        "expired": "Pass-out expired",
+        "approvedPass": "Approved pass-out",
+        "pinRequired": "A device PIN is required for fingerprint verification",
+        "idRequired": "Student ID number is required",
+        "studentRequired": "student_id is required for manual verification",
+        "notFound": "Learner not found in this school",
+        "secondApprover": "Second approval must come from a different user",
+        "passNotFound": "Pass-out not found",
+        "cardNotRegistered": "Card is not registered",
+        "cardExpired": "Card expired",
+        "verifiedGuardian": "Verified guardian",
+        "cardStatus": "Card {{status}}",
+        "visiting": "Visiting {{name}}"
+      },
+      "msg": {
+        "approved": "Pass-out approved",
+        "firstApproval": "First approval recorded — awaiting second approver",
+        "cannotApprove": "Cannot approve",
+        "requestFailed": "Request failed",
+        "verificationFailed": "Verification failed",
+        "failed": "Failed",
+        "notAuthenticated": "Not authenticated",
+        "cardUidRequired": "card_uid is required"
+      }
+    },
+    "cardStatus": {
+      "active": "active",
+      "suspended": "suspended",
+      "lost": "lost",
+      "expired": "expired"
+    },
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "used": "used",
+      "returned": "returned",
+      "overdue": "overdue",
+      "expired": "expired",
+      "rejected": "rejected",
+      "cancelled": "cancelled"
+    },
+    "passouts": {
+      "done": {
+        "approve": "Approved",
+        "reject": "Rejected",
+        "cancel": "Cancelled"
+      },
+      "title": "Pass-outs",
+      "subtitle": "Verified learner movement — identity first, gate enforced, parents informed.",
+      "gateMode": "Gate mode",
+      "gateDevices": "Gate devices",
+      "settings": "Settings",
+      "new": "New pass-out",
+      "card": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "outside": "Outside now",
+        "overdue": "Overdue",
+        "exits": "Exits today",
+        "returns": "Returns today",
+        "lateReturns": "Late returns",
+        "denied": "Denied today"
+      },
+      "outsideNow": "Outside school now ({{n}})",
+      "emg": "EMG",
+      "med": "MED",
+      "overdueTag": "OVERDUE",
+      "back": "back {{time}}",
+      "out": "out",
+      "frequent": "Frequent leavers (30 days)",
+      "frequentNone": "None — no learner has left more than once.",
+      "times": "{{n}}×",
+      "col": {
+        "no": "Pass No",
+        "learner": "Learner",
+        "class": "Class",
+        "reason": "Reason",
+        "validUntil": "Valid until",
+        "status": "Status"
+      },
+      "none": "No pass-outs.",
+      "halfApproved": "1/2 approved",
+      "late": "late",
+      "approve": "Approve",
+      "reject": "Reject",
+      "cancel": "cancel"
+    },
+    "create": {
+      "title": "New pass-out",
+      "verifyFirst": "Verify the learner's identity first — by student ID or search.",
+      "tabCard": "Student ID",
+      "tabSearch": "Search",
+      "cardPh": "Student ID / admission number…",
+      "verify": "Verify",
+      "searchPh": "Search learner by name or reg no…",
+      "verified": "verified · {{method}}",
+      "method": {
+        "card": "card",
+        "manual": "manual",
+        "fingerprint": "fingerprint"
+      },
+      "noClass": "no class",
+      "today": " · today: {{status}}",
+      "change": "change",
+      "guardian": "Guardian",
+      "noPhone": "no phone — SMS will not send",
+      "previous": {
+        "one": "{{count}} previous pass-out",
+        "other": "{{count}} previous pass-outs"
+      },
+      "outstanding": "Learner is currently OUT and has not returned — a new pass cannot be issued.",
+      "activeExists": "An active pass ({{status}}) already exists — creating another will supersede it at the gate.",
+      "reasonPh": "Reason (e.g. Medical appointment)",
+      "destinationPh": "Destination",
+      "validUntil": "Valid until",
+      "expectedReturn": "Expected return",
+      "accompaniedPh": "Accompanied by (optional)",
+      "transportLabel": "Transport (optional)",
+      "transport": {
+        "Walking": "Walking",
+        "Parent vehicle": "Parent vehicle",
+        "School vehicle": "School vehicle",
+        "Boda/Taxi": "Boda/Taxi",
+        "Ambulance": "Ambulance"
+      },
+      "notesPh": "Supporting notes (optional)",
+      "emergency": "Emergency",
+      "medical": "Medical",
+      "approveNow": "Approve immediately",
+      "cancel": "Cancel",
+      "submit": "Create pass-out",
+      "created": "Pass {{no}} {{status}}"
+    },
+    "settings": {
+      "title": "Pass-out settings",
+      "saved": "Settings saved",
+      "smsHeading": "Parent SMS (sent only after verified gate events)",
+      "notify_exit": "Notify parent when learner exits the gate",
+      "notify_return": "Notify parent when learner returns",
+      "emergency_only": "Only notify for emergency / medical passes",
+      "notifications_disabled": "Disable ALL pass-out notifications",
+      "workflow": "Approval workflow",
+      "single": "Single approval (any approver)",
+      "twoStep": "Two-step (two different approvers required)",
+      "twoStepHelp": "Two-step: e.g. class teacher approves first, then an administrator finalizes. The gate only opens after the final approval.",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "devices": {
+      "title": "Gate devices",
+      "help": "Turn a device into a pass-out gate — its fingerprint scans then show the AUTHORIZED / NOT AUTHORIZED verdict in the live popup.",
+      "none": "No devices.",
+      "device": "device",
+      "online": "online",
+      "offline": "offline",
+      "updated": "Updated",
+      "done": "Done"
+    },
+    "gate": {
+      "title": "Gate Verification",
+      "fingerprintNote": "Fingerprint scans on a gate device verify automatically — use the options below otherwise.",
+      "tabCard": "Student ID",
+      "tabSearch": "Search learner",
+      "cardPh": "Type or scan student ID number…",
+      "verify": "Verify",
+      "searchPh": "Search learner…",
+      "pass": "Pass:",
+      "reason": "Reason:",
+      "destination": "Destination:",
+      "emergency": "EMERGENCY",
+      "medical": "MEDICAL",
+      "leaving": "Leaving:",
+      "leftAt": "Left at:",
+      "validUntil": "Valid until:",
+      "expectedReturn": "Expected return:",
+      "approvedBy": "Approved by:",
+      "next": "Next learner"
+    },
+    "visit": {
+      "updated": "Updated",
+      "title": "Visitation Cards",
+      "subtitle": "Issue guardian cards; verify visits/pickups at the gate.",
+      "issue": "Issue card",
+      "verifyCard": "Verify a card",
+      "uidPh": "Scan or type card UID…",
+      "verify": "Verify",
+      "guardian": "Guardian:",
+      "learner": "Learner:",
+      "card": "Card:",
+      "col": {
+        "uid": "Card UID",
+        "guardian": "Guardian",
+        "learner": "Learner",
+        "type": "Type",
+        "status": "Status"
+      },
+      "none": "No cards issued.",
+      "suspend": "suspend",
+      "activate": "activate",
+      "type": {
+        "zkteco_rfid": "ZKTeco RFID",
+        "manual": "Manual",
+        "qr": "QR"
+      },
+      "uidRequired": "Card UID required",
+      "issued": "Card issued",
+      "issueTitle": "Issue visitation card",
+      "issueUidPh": "Card UID (scan the RFID card)",
+      "change": "change",
+      "linkPh": "Link to learner (optional)…",
+      "expires": "Expires (optional)",
+      "cancel": "Cancel",
+      "issueBtn": "Issue"
+    },
+    "reports": {
+      "tab": {
+        "out_today": "Out today",
+        "overdue": "Overdue",
+        "by_reason": "By reason",
+        "by_officer": "By officer",
+        "denied": "Denied attempts",
+        "visitation": "Visitation logs",
+        "unknown_cards": "Unknown cards"
+      },
+      "title": "Pass-out Reports",
+      "rows": {
+        "one": "{{label}} · {{count}} rows",
+        "other": "{{label}} · {{count}} rows"
+      },
+      "excel": "Excel",
+      "pdf": "PDF",
+      "noData": "No data.",
+      "none": "(none)",
+      "col": {
+        "learner": "learner",
+        "admission_no": "admission no",
+        "class": "class",
+        "reason": "reason",
+        "destination": "destination",
+        "actual_exit_at": "actual exit at",
+        "expected_return_at": "expected return at",
+        "count": "count",
+        "officer": "officer",
+        "approved": "approved",
+        "device_sn": "device sn",
+        "created_at": "created at",
+        "card_uid": "card uid",
+        "event_type": "event type",
+        "decision": "decision"
+      },
+      "event": {
+        "visit": "visit",
+        "exit_allowed": "exit_allowed",
+        "return_recorded": "return_recorded",
+        "exit_denied": "exit_denied"
+      },
+      "decision": {
+        "allowed": "allowed",
+        "denied": "denied",
+        "review": "review"
+      }
+    }
   }
 }

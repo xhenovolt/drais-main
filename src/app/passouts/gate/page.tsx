@@ -13,10 +13,14 @@
  */
 import React, { useCallback, useState } from 'react';
 import { Search, Loader2, DoorOpen, CreditCard, Fingerprint, User } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { gateText, gateError } from '@/lib/passouts/messages';
 
 const COLOR: Record<string, string> = { allowed: 'bg-emerald-600', denied: 'bg-rose-600', review: 'bg-amber-500' };
 
 export default function GatePage() {
+  const { t, lang, formatDate } = useI18n();
+  const when = (v: string | Date) => (lang === 'ar' ? formatDate(v, 'datetime') : new Date(v).toLocaleString());
   const [mode, setMode] = useState<'card' | 'manual'>('card');
   const [q, setQ] = useState('');
   const [cardNo, setCardNo] = useState('');
@@ -36,7 +40,7 @@ export default function GatePage() {
     try {
       const r = await fetch('/api/passouts/gate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
-      if (!r.ok) { setVerdict({ decision: 'denied', title: 'ERROR', reason: j.error || 'Request failed' }); return; }
+      if (!r.ok) { setVerdict({ decision: 'denied', title: 'ERROR', reason: j.error || 'Request failed' }); return; } // translated at render
       setVerdict(j);
     } finally { setBusy(false); }
   }, []);
@@ -52,15 +56,15 @@ export default function GatePage() {
       <div className="max-w-md mx-auto space-y-4">
         <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
           <DoorOpen className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-lg font-bold">Gate Verification</h1>
+          <h1 className="text-lg font-bold">{t('gateMovement.gate.title')}</h1>
         </div>
         <p className="text-xs text-gray-500 flex items-center gap-1.5">
-          <Fingerprint className="w-3.5 h-3.5" /> Fingerprint scans on a gate device verify automatically — use the options below otherwise.
+          <Fingerprint className="w-3.5 h-3.5" /> {t('gateMovement.gate.fingerprintNote')}
         </p>
 
         {/* Method tabs */}
         <div className="flex gap-2">
-          {([['card', 'Student ID', CreditCard], ['manual', 'Search learner', User]] as const).map(([key, label, Icon]) => (
+          {([['card', t('gateMovement.gate.tabCard'), CreditCard], ['manual', t('gateMovement.gate.tabSearch'), User]] as const).map(([key, label, Icon]) => (
             <button
               key={key}
               onClick={() => { setMode(key); setVerdict(null); setResults([]); }}
@@ -81,23 +85,23 @@ export default function GatePage() {
               autoFocus value={cardNo}
               onChange={(e) => { setCardNo(e.target.value); setVerdict(null); }}
               onKeyDown={(e) => e.key === 'Enter' && verifyByCard()}
-              placeholder="Type or scan student ID number…"
+              placeholder={t('gateMovement.gate.cardPh')}
               className="flex-1 px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-base"
             />
             <button onClick={verifyByCard} disabled={!cardNo.trim() || busy}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium disabled:opacity-50">Verify</button>
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium disabled:opacity-50">{t('gateMovement.gate.verify')}</button>
           </div>
         ) : (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
             <Search className="w-5 h-5 text-gray-400" />
-            <input autoFocus value={q} onChange={(e) => search(e.target.value)} placeholder="Search learner…" className="flex-1 bg-transparent outline-none text-base" />
+            <input autoFocus value={q} onChange={(e) => search(e.target.value)} placeholder={t('gateMovement.gate.searchPh')} className="flex-1 bg-transparent outline-none text-base" />
           </div>
         )}
 
         {results.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
             {results.map((s) => (
-              <button key={s.id} onClick={() => runGate({ student_id: s.id })} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <button key={s.id} onClick={() => runGate({ student_id: s.id })} className="w-full text-start px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700">
                 <div className="font-medium">{s.display_name || `${s.first_name} ${s.last_name}`}</div>
                 <div className="text-xs text-gray-400">{s.admission_no} · {s.class_name}</div>
               </button>
@@ -110,8 +114,8 @@ export default function GatePage() {
         {verdict && !busy && (
           <div className="rounded-2xl overflow-hidden shadow-lg">
             <div className={`${COLOR[verdict.decision] || 'bg-gray-500'} text-white p-8 text-center`}>
-              <div className="text-4xl font-extrabold tracking-wide">{verdict.title}</div>
-              <div className="text-sm opacity-90 mt-2">{verdict.reason}</div>
+              <div className="text-4xl font-extrabold tracking-wide">{gateText(t, verdict.title)}</div>
+              <div className="text-sm opacity-90 mt-2">{verdict.title === 'ERROR' ? gateError(t, lang, verdict.reason, 'msg.requestFailed') : gateText(t, verdict.reason)}</div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-4 space-y-2 text-sm">
               <div className="flex items-center gap-3">
@@ -128,21 +132,21 @@ export default function GatePage() {
                   </div>
                 </div>
               </div>
-              {verdict.passout?.passout_no && <div><span className="text-gray-400">Pass:</span> <span className="font-mono">{verdict.passout.passout_no}</span></div>}
-              {verdict.passout?.reason && <div><span className="text-gray-400">Reason:</span> {verdict.passout.reason}</div>}
-              {verdict.passout?.destination && <div><span className="text-gray-400">Destination:</span> {verdict.passout.destination}</div>}
+              {verdict.passout?.passout_no && <div><span className="text-gray-400">{t('gateMovement.gate.pass')}</span> <span className="font-mono">{verdict.passout.passout_no}</span></div>}
+              {verdict.passout?.reason && <div><span className="text-gray-400">{t('gateMovement.gate.reason')}</span> {verdict.passout.reason}</div>}
+              {verdict.passout?.destination && <div><span className="text-gray-400">{t('gateMovement.gate.destination')}</span> {verdict.passout.destination}</div>}
               {(verdict.passout?.is_emergency || verdict.passout?.is_medical) && (
                 <div className="flex gap-1.5">
-                  {verdict.passout.is_emergency ? <span className="text-[11px] px-2 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 font-medium">EMERGENCY</span> : null}
-                  {verdict.passout.is_medical ? <span className="text-[11px] px-2 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 font-medium">MEDICAL</span> : null}
+                  {verdict.passout.is_emergency ? <span className="text-[11px] px-2 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 font-medium">{t('gateMovement.gate.emergency')}</span> : null}
+                  {verdict.passout.is_medical ? <span className="text-[11px] px-2 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 font-medium">{t('gateMovement.gate.medical')}</span> : null}
                 </div>
               )}
-              {verdict.outcome === 'exit_allowed' && <div><span className="text-gray-400">Leaving:</span> {new Date().toLocaleTimeString()}</div>}
-              {verdict.passout?.actual_exit_at && verdict.outcome !== 'exit_allowed' && <div><span className="text-gray-400">Left at:</span> {new Date(verdict.passout.actual_exit_at).toLocaleString()}</div>}
-              {verdict.passout?.approved_until && <div><span className="text-gray-400">Valid until:</span> {new Date(verdict.passout.approved_until).toLocaleString()}</div>}
-              {verdict.passout?.expected_return_at && <div><span className="text-gray-400">Expected return:</span> {new Date(verdict.passout.expected_return_at).toLocaleString()}</div>}
-              {verdict.approved_by_name && <div><span className="text-gray-400">Approved by:</span> {verdict.approved_by_name}</div>}
-              <button onClick={() => setVerdict(null)} className="mt-3 w-full py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 font-medium">Next learner</button>
+              {verdict.outcome === 'exit_allowed' && <div><span className="text-gray-400">{t('gateMovement.gate.leaving')}</span> {lang === 'ar' ? formatDate(new Date(), 'time') : new Date().toLocaleTimeString()}</div>}
+              {verdict.passout?.actual_exit_at && verdict.outcome !== 'exit_allowed' && <div><span className="text-gray-400">{t('gateMovement.gate.leftAt')}</span> {when(verdict.passout.actual_exit_at)}</div>}
+              {verdict.passout?.approved_until && <div><span className="text-gray-400">{t('gateMovement.gate.validUntil')}</span> {when(verdict.passout.approved_until)}</div>}
+              {verdict.passout?.expected_return_at && <div><span className="text-gray-400">{t('gateMovement.gate.expectedReturn')}</span> {when(verdict.passout.expected_return_at)}</div>}
+              {verdict.approved_by_name && <div><span className="text-gray-400">{t('gateMovement.gate.approvedBy')}</span> {verdict.approved_by_name}</div>}
+              <button onClick={() => setVerdict(null)} className="mt-3 w-full py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 font-medium">{t('gateMovement.gate.next')}</button>
             </div>
           </div>
         )}
