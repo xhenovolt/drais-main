@@ -6777,6 +6777,72 @@
         "relay": "relay",
         "usb": "usb"
       }
+    },
+    "commands": {
+      "status": {
+        "pending": "Pending",
+        "sent": "Sent",
+        "acknowledged": "Success",
+        "failed": "Failed",
+        "expired": "Expired"
+      },
+      "title": "Command Monitor",
+      "subtitle": "Live view of all ADMS commands — refreshes every 5s",
+      "refresh": "Refresh",
+      "filters": "Filters:",
+      "allStatuses": "All Statuses",
+      "snPh": "Device SN...",
+      "clearFilters": "Clear filters",
+      "loading": "Loading commands...",
+      "loadFailed": "Failed to load commands",
+      "none": "No commands found",
+      "col": {
+        "status": "Status",
+        "command": "Command",
+        "device": "Device",
+        "created": "Created",
+        "sent": "Sent",
+        "ack": "ACK",
+        "retries": "Retries",
+        "error": "Error"
+      },
+      "showing": "Showing page {{page}} of {{pages}} ({{total}} total)"
+    },
+    "alerts": {
+      "ackFailed": "Ack failed",
+      "acked": "Alert acknowledged",
+      "title": "Device Alerts",
+      "intro": "Operational events emitted by the device health sweeper. Acknowledge once you have investigated; the alert stays in history but stops counting against open totals.",
+      "sev": {
+        "critical": "Critical",
+        "warning": "Warning",
+        "info": "Info"
+      },
+      "sevLower": {
+        "critical": "critical",
+        "warning": "warning",
+        "info": "info"
+      },
+      "status": "Status",
+      "st": {
+        "open": "open",
+        "acked": "acked",
+        "all": "all"
+      },
+      "clearSeverity": "clear severity filter ({{severity}})",
+      "loading": "Loading…",
+      "noneOpen": "No open alerts. All devices are quiet.",
+      "noneMatch": "No alerts match the current filters.",
+      "code": {
+        "device_offline": "device_offline"
+      },
+      "msg": {
+        "offline": "Device {{sn}} stopped heart-beating"
+      },
+      "opened": "opened {{when}}",
+      "ackedAt": "acked {{when}}",
+      "ack": "Ack",
+      "counter": "{{label}} (open)"
     }
   }
 }

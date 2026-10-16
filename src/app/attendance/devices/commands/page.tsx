@@ -8,6 +8,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { fetcher } from '@/utils/fetcher';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   pending:      { label: 'Pending',      color: 'text-yellow-700', bg: 'bg-yellow-100 dark:bg-yellow-900/30', icon: <Clock className="w-3 h-3" /> },
@@ -17,12 +18,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   expired:      { label: 'Expired',      color: 'text-gray-500',   bg: 'bg-gray-100 dark:bg-gray-700',      icon: <X className="w-3 h-3" /> },
 };
 
-function timeAgo(dateStr: string): string {
+function timeAgo(t: (k: string, v?: any) => string, dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return t('devicesPages.devices.ago.s', { n: diff });
+  if (diff < 3600) return t('devicesPages.devices.ago.m', { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t('devicesPages.devices.ago.h', { n: Math.floor(diff / 3600) });
+  return t('devicesPages.devices.ago.d', { n: Math.floor(diff / 86400) });
 }
 
 function truncateCommand(cmd: string, len = 60): string {
@@ -31,6 +32,8 @@ function truncateCommand(cmd: string, len = 60): string {
 }
 
 export default function CommandMonitorPage() {
+  const { t, digits } = useI18n();
+  const statusLabel = (k: string) => t(`devicesPages.commands.status.${k}`);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [deviceFilter, setDeviceFilter] = useState<string>('');
   const [page, setPage] = useState(1);
@@ -69,17 +72,17 @@ export default function CommandMonitorPage() {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
               bg-clip-text text-transparent flex items-center gap-3">
               <Activity className="w-7 h-7 text-blue-600" />
-              Command Monitor
+              {t('devicesPages.commands.title')}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-              Live view of all ADMS commands — refreshes every 5s
+              {t('devicesPages.commands.subtitle')}
             </p>
           </div>
           <button onClick={() => mutate()}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600
               rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm">
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('devicesPages.commands.refresh')}
           </button>
         </div>
 
@@ -97,9 +100,9 @@ export default function CommandMonitorPage() {
             >
               <div className={`inline-flex items-center gap-1.5 ${cfg.color}`}>
                 {cfg.icon}
-                <span className="text-xs font-medium uppercase">{cfg.label}</span>
+                <span className="text-xs font-medium uppercase">{statusLabel(key)}</span>
               </div>
-              <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{stats[key as keyof typeof stats]}</p>
+              <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{digits(stats[key as keyof typeof stats])}</p>
             </button>
           ))}
         </div>
@@ -108,21 +111,21 @@ export default function CommandMonitorPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Filter className="w-4 h-4" />
-            <span>Filters:</span>
+            <span>{t('devicesPages.commands.filters')}</span>
           </div>
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 text-sm"
           >
-            <option value="">All Statuses</option>
+            <option value="">{t('devicesPages.commands.allStatuses')}</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
+              <option key={k} value={k}>{statusLabel(k)}</option>
             ))}
           </select>
           <input
             type="text"
-            placeholder="Device SN..."
+            placeholder={t('devicesPages.commands.snPh')}
             value={deviceFilter}
             onChange={(e) => { setDeviceFilter(e.target.value); setPage(1); }}
             className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 text-sm font-mono w-48"
@@ -132,7 +135,7 @@ export default function CommandMonitorPage() {
               onClick={() => { setStatusFilter(''); setDeviceFilter(''); setPage(1); }}
               className="text-xs text-red-500 hover:underline"
             >
-              Clear filters
+              {t('devicesPages.commands.clearFilters')}
             </button>
           )}
         </div>
@@ -142,31 +145,26 @@ export default function CommandMonitorPage() {
           {isLoading && commands.length === 0 ? (
             <div className="text-center py-16">
               <Loader className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
-              <p className="text-gray-500 mt-3 text-sm">Loading commands...</p>
+              <p className="text-gray-500 mt-3 text-sm">{t('devicesPages.commands.loading')}</p>
             </div>
           ) : error ? (
             <div className="text-center py-16">
               <AlertTriangle className="w-8 h-8 text-red-400 mx-auto" />
-              <p className="text-red-600 mt-3">Failed to load commands</p>
+              <p className="text-red-600 mt-3">{t('devicesPages.commands.loadFailed')}</p>
             </div>
           ) : commands.length === 0 ? (
             <div className="text-center py-16">
               <Activity className="w-10 h-10 text-gray-300 mx-auto" />
-              <p className="text-gray-500 mt-3">No commands found</p>
+              <p className="text-gray-500 mt-3">{t('devicesPages.commands.none')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-700 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Command</th>
-                    <th className="px-4 py-3 text-left">Device</th>
-                    <th className="px-4 py-3 text-left">Created</th>
-                    <th className="px-4 py-3 text-left">Sent</th>
-                    <th className="px-4 py-3 text-left">ACK</th>
-                    <th className="px-4 py-3 text-left">Retries</th>
-                    <th className="px-4 py-3 text-left">Error</th>
+                    {['status', 'command', 'device', 'created', 'sent', 'ack', 'retries', 'error'].map((c) => (
+                      <th key={c} className="px-4 py-3 text-start">{t(`devicesPages.commands.col.${c}`)}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -177,7 +175,7 @@ export default function CommandMonitorPage() {
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.bg} ${cfg.color}`}>
                             {cfg.icon}
-                            {cfg.label}
+                            {statusLabel(STATUS_CONFIG[cmd.status] ? cmd.status : 'expired')}
                           </span>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs max-w-xs" title={cmd.command}>
@@ -187,22 +185,22 @@ export default function CommandMonitorPage() {
                           <div className="text-xs">
                             <span className="font-mono">{cmd.device_sn}</span>
                             {cmd.device_name && (
-                              <span className="text-gray-400 ml-1">({cmd.device_name})</span>
+                              <span className="text-gray-400 ms-1">({cmd.device_name})</span>
                             )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">
-                          {cmd.created_at ? timeAgo(cmd.created_at) : '—'}
+                          {cmd.created_at ? timeAgo(t, cmd.created_at) : '—'}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">
-                          {cmd.sent_at ? timeAgo(cmd.sent_at) : '—'}
+                          {cmd.sent_at ? timeAgo(t, cmd.sent_at) : '—'}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">
-                          {cmd.ack_at ? timeAgo(cmd.ack_at) : '—'}
+                          {cmd.ack_at ? timeAgo(t, cmd.ack_at) : '—'}
                         </td>
                         <td className="px-4 py-3 text-xs text-center">
                           <span className={cmd.retry_count >= cmd.max_retries ? 'text-red-600 font-bold' : 'text-gray-500'}>
-                            {cmd.retry_count}/{cmd.max_retries}
+                            {digits(`${cmd.retry_count}/${cmd.max_retries}`)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-red-500 max-w-[200px] truncate" title={cmd.error_message || ''}>
@@ -221,7 +219,7 @@ export default function CommandMonitorPage() {
         {pagination.totalPages > 1 && (
           <div className="flex items-center justify-between px-1">
             <p className="text-xs text-gray-500">
-              Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+              {t('devicesPages.commands.showing', { page: pagination.page, pages: pagination.totalPages, total: pagination.total })}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -229,15 +227,15 @@ export default function CommandMonitorPage() {
                 disabled={page <= 1}
                 className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-slate-700"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 rtl-flip" />
               </button>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{page}</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{digits(page)}</span>
               <button
                 onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
                 disabled={page >= pagination.totalPages}
                 className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-slate-700"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 rtl-flip" />
               </button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T17:40:03.811Z",
-  "last_commit": "186fdbba0e2be95816fd76098e5c0bd0b240c895",
+  "generated_at": "2026-10-16T17:42:50.514Z",
+  "last_commit": "9ca7743e392cdf93a91157ec569a8f1eabb8da48",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9826,7 +9826,20 @@
         }
       ],
       "commit": "186fdbba0e"
+    },
+    {
+      "version": "2.50.93",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "/attendance/device-control fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/device-control fully Arabic"
+        }
+      ],
+      "commit": "9ca7743e39"
     }
   ],
-  "app_version": "2.50.93"
+  "app_version": "2.50.94"
 }

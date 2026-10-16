@@ -14,6 +14,7 @@ import {
   AlertTriangle, AlertCircle, Info, Check, Loader2, Filter, Cpu,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -35,6 +36,10 @@ type StatusFilter = 'open' | 'acked' | 'all';
 type SeverityFilter = '' | 'info' | 'warning' | 'critical';
 
 export default function DeviceAlertsPage() {
+  const { t, lang, formatDate } = useI18n();
+  const when = (v: string) => (lang === 'ar' ? formatDate(v, 'datetime') : new Date(v).toLocaleString());
+  // The sweeper writes one known sentence; anything else is shown as stored.
+  const message = (m: string) => { const x = /^Device (.+) stopped heart-beating$/.exec(m); return x ? t('devicesPages.alerts.msg.offline', { sn: x[1] }) : m; };
   const [status, setStatus] = useState<StatusFilter>('open');
   const [severity, setSeverity] = useState<SeverityFilter>('');
   const qs = new URLSearchParams();
@@ -55,10 +60,10 @@ export default function DeviceAlertsPage() {
       const r = await fetch(`/api/admin/device-alerts/${a.id}/ack`, { method: 'PATCH' });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Ack failed');
-      toast.success('Alert acknowledged');
+      toast.success(t('devicesPages.alerts.acked'));
       await mutate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Ack failed');
+      toast.error(lang !== 'ar' && err instanceof Error ? err.message : t('devicesPages.alerts.ackFailed'));
     }
   };
 
@@ -68,12 +73,10 @@ export default function DeviceAlertsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-amber-500" />
-            Device Alerts
+            {t('devicesPages.alerts.title')}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Operational events emitted by the device health sweeper.
-            Acknowledge once you have investigated; the alert stays in
-            history but stops counting against open totals.
+            {t('devicesPages.alerts.intro')}
           </p>
         </div>
       </div>
@@ -82,21 +85,21 @@ export default function DeviceAlertsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
         <Counter
           icon={<AlertCircle className="w-4 h-4" />}
-          label="Critical"
+          label={t('devicesPages.alerts.sev.critical')}
           value={counts.critical}
           tone="critical"
           onClick={() => setSeverity('critical')}
         />
         <Counter
           icon={<AlertTriangle className="w-4 h-4" />}
-          label="Warning"
+          label={t('devicesPages.alerts.sev.warning')}
           value={counts.warning}
           tone="warning"
           onClick={() => setSeverity('warning')}
         />
         <Counter
           icon={<Info className="w-4 h-4" />}
-          label="Info"
+          label={t('devicesPages.alerts.sev.info')}
           value={counts.info}
           tone="info"
           onClick={() => setSeverity('info')}
@@ -106,7 +109,7 @@ export default function DeviceAlertsPage() {
       {/* Filter bar */}
       <div className="flex items-center gap-2 mb-3 text-sm">
         <Filter className="w-4 h-4 text-gray-400" />
-        <span className="text-gray-600 dark:text-gray-400">Status</span>
+        <span className="text-gray-600 dark:text-gray-400">{t('devicesPages.alerts.status')}</span>
         {(['open','acked','all'] as StatusFilter[]).map(s => (
           <button
             key={s}
@@ -117,30 +120,30 @@ export default function DeviceAlertsPage() {
                 : 'bg-white dark:bg-gray-900 text-gray-700 border-gray-300 dark:border-gray-700'
             }`}
           >
-            {s}
+            {t(`devicesPages.alerts.st.${s}`)}
           </button>
         ))}
         {severity && (
           <button
             onClick={() => setSeverity('')}
-            className="ml-2 text-xs text-gray-500 underline"
+            className="ms-2 text-xs text-gray-500 underline"
           >
-            clear severity filter ({severity})
+            {t('devicesPages.alerts.clearSeverity', { severity: t(`devicesPages.alerts.sevLower.${severity}`) })}
           </button>
         )}
       </div>
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t('devicesPages.alerts.loading')}
         </div>
       ) : alerts.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
           <Cpu className="w-10 h-10 mx-auto text-gray-400 mb-2" />
           <p className="text-sm text-gray-600">
             {status === 'open'
-              ? 'No open alerts. All devices are quiet.'
-              : 'No alerts match the current filters.'}
+              ? t('devicesPages.alerts.noneOpen')
+              : t('devicesPages.alerts.noneMatch')}
           </p>
         </div>
       ) : (
@@ -154,20 +157,20 @@ export default function DeviceAlertsPage() {
                     {a.device_name || a.device_sn}
                   </span>
                   <span className="text-[10px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    {a.code}
+                    {t(`devicesPages.alerts.code.${a.code}`, a.code)}
                   </span>
                   {a.location && (
                     <span className="text-[10px] text-gray-500">@{a.location}</span>
                   )}
                 </div>
                 {a.message && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{a.message}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{message(a.message)}</p>
                 )}
                 <div className="text-[11px] text-gray-400 mt-1 flex items-center gap-3">
-                  <span>opened {new Date(a.created_at).toLocaleString()}</span>
+                  <span>{t('devicesPages.alerts.opened', { when: when(a.created_at) })}</span>
                   {a.acknowledged_at && (
                     <span className="text-emerald-600 dark:text-emerald-400">
-                      acked {new Date(a.acknowledged_at).toLocaleString()}
+                      {t('devicesPages.alerts.ackedAt', { when: when(a.acknowledged_at) })}
                     </span>
                   )}
                 </div>
@@ -177,7 +180,7 @@ export default function DeviceAlertsPage() {
                   onClick={() => ack(a)}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  <Check className="w-3.5 h-3.5" /> Ack
+                  <Check className="w-3.5 h-3.5" /> {t('devicesPages.alerts.ack')}
                 </button>
               )}
             </div>
@@ -211,6 +214,7 @@ interface CounterProps {
 }
 
 function Counter({ icon, label, value, tone, onClick }: CounterProps) {
+  const { t, digits } = useI18n();
   const cls = {
     critical: 'border-red-200 dark:border-red-900/40 hover:bg-red-50/50 dark:hover:bg-red-900/10 text-red-700 dark:text-red-300',
     warning:  'border-amber-200 dark:border-amber-900/40 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 text-amber-700 dark:text-amber-300',
@@ -219,10 +223,10 @@ function Counter({ icon, label, value, tone, onClick }: CounterProps) {
   return (
     <button
       onClick={onClick}
-      className={`text-left px-4 py-3 rounded-xl border bg-white dark:bg-gray-900 transition-colors ${cls}`}
+      className={`text-start px-4 py-3 rounded-xl border bg-white dark:bg-gray-900 transition-colors ${cls}`}
     >
-      <div className="flex items-center gap-2 text-xs font-medium">{icon} {label} (open)</div>
-      <div className="text-2xl font-bold mt-1 text-gray-900 dark:text-gray-100">{value}</div>
+      <div className="flex items-center gap-2 text-xs font-medium">{icon} {t('devicesPages.alerts.counter', { label })}</div>
+      <div className="text-2xl font-bold mt-1 text-gray-900 dark:text-gray-100">{digits(value)}</div>
     </button>
   );
 }
