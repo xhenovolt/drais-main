@@ -3887,7 +3887,41 @@
       "clock": "Clock",
       "upload": "Upload",
       "heartbeat": "Heartbeat",
-      "activity": "Activity"
+      "activity": "Activity",
+      "sub": {
+        "noClockHistory": "No clock history yet",
+        "clockDriftMany": "{{n}} clock-drift days in 30",
+        "clockDriftSome": "{{n}} clock-drift day(s) in 30",
+        "clockSteady": "Clock steady",
+        "prompt": "Punches arrive promptly",
+        "lateHours": "Typically {{n}}h late (heavy store-and-forward)",
+        "lateMin": "Typically {{n}} min late",
+        "minorDelay": "Minor upload delay",
+        "gapDays": "{{n}} day(s) with no uploads in 30",
+        "neverCheckedIn": "Never checked in",
+        "fresh": "Online, fresh heartbeat",
+        "withinHour": "Seen within the hour",
+        "lastSeenH": "Last seen {{n}}h ago",
+        "silentD": "Silent {{n}}d",
+        "noExpectation": "No recent expectation set",
+        "steadyUse": "In steady daily use",
+        "mostDays": "Used most days",
+        "intermittent": "Intermittent use",
+        "rarely": "Rarely producing data"
+      },
+      "rec": {
+        "battery": "Replace the RTC coin-cell battery — the clock drifts repeatedly.",
+        "power": "Check the device power and network — it is going silent.",
+        "uploads": "Uploads are unreliable — verify the ADMS/push settings or pull over LAN.",
+        "unused": "Device is barely used — confirm it is still deployed where expected.",
+        "monitor": "Monitor this device; reliability is below the fleet standard."
+      },
+      "band": {
+        "excellent": "Reliable",
+        "good": "Healthy",
+        "fair": "Needs attention",
+        "poor": "Maintenance required"
+      }
     },
     "trends": {
       "title": "Attendance Trends",
@@ -6368,6 +6402,74 @@
       "failures": "Failures",
       "finger": "{{person}} (finger {{n}})",
       "refresh": "Refresh status"
+    },
+    "enrollment": {
+      "queuedToast": "{{n}} identities queued for sync. Device will process them on next heartbeats.",
+      "allSyncedToast": "All students already synced ({{n}} mapped).",
+      "bulkFailed": "Bulk sync failed",
+      "title": "Enrollment Station",
+      "subtitle": "Bulk fingerprint enrollment — sync identities, then enroll locally on device",
+      "selectDevice": "Select device…",
+      "card": {
+        "total": "Total Students",
+        "synced": "Synced to Device",
+        "needsSync": "Needs bulk sync",
+        "allSynced": "All synced",
+        "captured": "Fingerprints Captured",
+        "pending": "Pending Enrollment"
+      },
+      "step1": "Step 1: Sync Identities",
+      "step1Help": "Push all student names to the device so they appear in the enrollment menu.",
+      "needSyncing": " {{n}} students need syncing.",
+      "syncing": "Syncing…",
+      "syncAll": "Sync All Identities",
+      "step2": "Step 2: Enroll Fingerprints on Device",
+      "step2Help": "On the K40 Pro: Menu → User Mgt → select a user by PIN → Enroll FP → student places finger 3×. Templates auto-sync back here. This page refreshes every 5 seconds.",
+      "progress": "Enrollment Progress",
+      "recent": "Recent Captures (Last Hour)",
+      "selectToStart": "Select a device above to start",
+      "students": {
+        "one": "{{count}} student",
+        "other": "{{count}} students"
+      },
+      "col": {
+        "pin": "PIN",
+        "name": "Name",
+        "adm": "Adm No",
+        "synced": "Synced",
+        "fingerprint": "Fingerprint"
+      }
+    },
+    "bioPanel": {
+      "cardUpdated": "Card updated",
+      "fingerRemoved": "Finger removed",
+      "queued": "Templates queued to device",
+      "title": "Biometric enrollment lookup",
+      "staff": "Staff",
+      "learner": "Learner",
+      "searchPh": "Search a person…",
+      "notEnrolled": "{{name}} has no biometric enrollment yet — enrol on the station.",
+      "pin": "PIN {{pin}}",
+      "fingers": "{{n}} finger(s)",
+      "card": "card ✓",
+      "noCard": "no card",
+      "fingerprints": "Fingerprints",
+      "noneEnrolled": "None enrolled.",
+      "quality": " · q{{q}}",
+      "syncTitle": "Devices this template is loaded on / still queued",
+      "onDevices": " · on {{on}}/{{targets}} device(s)",
+      "queuedN": ", {{n}} queued",
+      "removeFinger": "Remove this finger",
+      "addFinger": "Add a finger (capture on the enrollment station)",
+      "cardTitle": "Card",
+      "cardPh": "Card number / UID",
+      "save": "Save",
+      "current": "Current: {{card}} — this person can check in by fingerprint or card.",
+      "available": "Available on devices",
+      "offline": " (offline)",
+      "push": "Push fingerprints",
+      "pushHelp": "Queues the templates as device commands; the device loads them on its next sync. Nothing is deleted on the device.",
+      "another": "← look up another person"
     }
   }
 }

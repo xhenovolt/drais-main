@@ -13,10 +13,14 @@ import React, { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { Fingerprint, CreditCard, Search, Trash2, Plus, Loader2, ShieldCheck, UploadCloud } from 'lucide-react';
 import { apiFetch } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { FINGER_KEYS } from '@/lib/biometric/fingers';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
 export default function BiometricEnrollmentPanel() {
+  const { t, rich, lang, digits } = useI18n();
+  const fingerName = (f: any) => (lang === 'ar' && FINGER_KEYS[Number(f.finger_index)] ? t(`biometric.finger.${FINGER_KEYS[Number(f.finger_index)]}`) : f.name);
   const [role, setRole] = useState<'staff' | 'student'>('staff');
   const [q, setQ] = useState('');
   const [person, setPerson] = useState<{ id: number; person_id: number; name: string } | null>(null);
@@ -34,13 +38,13 @@ export default function BiometricEnrollmentPanel() {
   const setCard = useCallback(async () => {
     if (!data?.enrollment?.id) return;
     await apiFetch('/api/biometric/enrollment-status', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set_card', enrollment_id: data.enrollment.id, card_number: cardEdit.trim() }), successMessage: 'Card updated' });
+      body: JSON.stringify({ action: 'set_card', enrollment_id: data.enrollment.id, card_number: cardEdit.trim() }), successMessage: t('devicesPages.bioPanel.cardUpdated') });
     setCardEdit(''); mutate();
   }, [data, cardEdit, mutate]);
   const removeFinger = useCallback(async (fi: number) => {
     if (!data?.enrollment?.id) return;
     await apiFetch('/api/biometric/enrollment-status', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'remove_finger', enrollment_id: data.enrollment.id, finger_index: fi }), successMessage: 'Finger removed' });
+      body: JSON.stringify({ action: 'remove_finger', enrollment_id: data.enrollment.id, finger_index: fi }), successMessage: t('devicesPages.bioPanel.fingerRemoved') });
     mutate();
   }, [data, mutate]);
 
@@ -52,7 +56,7 @@ export default function BiometricEnrollmentPanel() {
     setSyncing(deviceSn);
     try {
       await apiFetch('/api/biometric/template-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_sn: deviceSn, person_id: person.person_id }), successMessage: 'Templates queued to device' });
+        body: JSON.stringify({ device_sn: deviceSn, person_id: person.person_id }), successMessage: t('devicesPages.bioPanel.queued') });
       mutate();
     } catch { /* toast */ } finally { setSyncing(null); }
   }, [person, mutate]);
@@ -60,25 +64,25 @@ export default function BiometricEnrollmentPanel() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
       <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
-        <ShieldCheck className="w-4 h-4 text-indigo-500" /> Biometric enrollment lookup
+        <ShieldCheck className="w-4 h-4 text-indigo-500" /> {t('devicesPages.bioPanel.title')}
       </p>
 
       {/* person search */}
       <div className="flex gap-2">
         <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-xs">
           {(['staff', 'student'] as const).map(r => (
-            <button key={r} onClick={() => { setRole(r); setPerson(null); }} className={`px-2.5 py-1.5 ${role === r ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>{r === 'staff' ? 'Staff' : 'Learner'}</button>
+            <button key={r} onClick={() => { setRole(r); setPerson(null); }} className={`px-2.5 py-1.5 ${role === r ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>{r === 'staff' ? t('devicesPages.bioPanel.staff') : t('devicesPages.bioPanel.learner')}</button>
           ))}
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 flex-1">
           <Search className="w-3.5 h-3.5 text-gray-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a person…" className="flex-1 bg-transparent text-sm outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('devicesPages.bioPanel.searchPh')} className="flex-1 bg-transparent text-sm outline-none" />
         </div>
       </div>
       {!person && results.length > 0 && (
         <div className="max-h-32 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 rounded-lg border border-gray-100 dark:border-gray-700">
           {results.map((r: any) => (
-            <button key={r.id} onClick={() => { setPerson(r); setQ(r.name); }} className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700">{r.name}</button>
+            <button key={r.id} onClick={() => { setPerson(r); setQ(r.name); }} className="w-full text-start px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700">{r.name}</button>
           ))}
         </div>
       )}
@@ -86,70 +90,70 @@ export default function BiometricEnrollmentPanel() {
       {person && (
         <div className="space-y-3">
           {isLoading && <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />}
-          {data && !data.enrolled && <p className="text-sm text-gray-400">{person.name} has no biometric enrollment yet — enrol on the station.</p>}
+          {data && !data.enrolled && <p className="text-sm text-gray-400">{t('devicesPages.bioPanel.notEnrolled', { name: person.name })}</p>}
           {data?.enrolled && (
             <>
               <div className="flex items-center gap-3 text-xs text-gray-500">
-                <span>PIN <span className="font-mono font-semibold text-gray-700 dark:text-gray-200">{data.enrollment.pin}</span></span>
-                <span className={`px-1.5 py-0.5 rounded ${data.methods.fingerprint ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500'}`}>{data.fingers.length} finger(s)</span>
-                <span className={`px-1.5 py-0.5 rounded ${data.methods.card ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' : 'bg-gray-100 text-gray-500'}`}>{data.methods.card ? 'card ✓' : 'no card'}</span>
+                <span>{rich('devicesPages.bioPanel.pin', { pin: <span className="font-mono font-semibold text-gray-700 dark:text-gray-200">{digits(data.enrollment.pin)}</span> })}</span>
+                <span className={`px-1.5 py-0.5 rounded ${data.methods.fingerprint ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500'}`}>{t('devicesPages.bioPanel.fingers', { n: data.fingers.length })}</span>
+                <span className={`px-1.5 py-0.5 rounded ${data.methods.card ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' : 'bg-gray-100 text-gray-500'}`}>{data.methods.card ? t('devicesPages.bioPanel.card') : t('devicesPages.bioPanel.noCard')}</span>
               </div>
 
               {/* fingers */}
               <div>
-                <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><Fingerprint className="w-3 h-3" /> Fingerprints</p>
-                {data.fingers.length === 0 ? <p className="text-xs text-gray-400">None enrolled.</p> : (
+                <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><Fingerprint className="w-3 h-3" /> {t('devicesPages.bioPanel.fingerprints')}</p>
+                {data.fingers.length === 0 ? <p className="text-xs text-gray-400">{t('devicesPages.bioPanel.noneEnrolled')}</p> : (
                   <div className="space-y-1">
                     {data.fingers.map((f: any) => (
                       <div key={f.finger_index} className="flex items-center justify-between text-xs">
                         <span className="text-gray-700 dark:text-gray-200">
-                          {f.name}{f.quality ? <span className="text-gray-400"> · q{f.quality}</span> : ''}
+                          {fingerName(f)}{f.quality ? <span className="text-gray-400">{t('devicesPages.bioPanel.quality', { q: f.quality })}</span> : ''}
                           {f.sync && f.sync.targets > 0 && (
-                            <span className="text-gray-400" title="Devices this template is loaded on / still queued">
-                              {' '}· on {f.sync.on_devices}/{f.sync.targets} device(s){f.sync.pending ? `, ${f.sync.pending} queued` : ''}
+                            <span className="text-gray-400" title={t('devicesPages.bioPanel.syncTitle')}>
+                              {t('devicesPages.bioPanel.onDevices', { on: f.sync.on_devices, targets: f.sync.targets })}{f.sync.pending ? t('devicesPages.bioPanel.queuedN', { n: f.sync.pending }) : ''}
                             </span>
                           )}
                         </span>
-                        <button onClick={() => removeFinger(f.finger_index)} className="text-rose-500 hover:text-rose-600" title="Remove this finger"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeFinger(f.finger_index)} className="text-rose-500 hover:text-rose-600" title={t('devicesPages.bioPanel.removeFinger')}><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}
                   </div>
                 )}
-                <a href="/attendance/enrollment" className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"><Plus className="w-3 h-3" /> Add a finger (capture on the enrollment station)</a>
+                <a href="/attendance/enrollment" className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"><Plus className="w-3 h-3" /> {t('devicesPages.bioPanel.addFinger')}</a>
               </div>
 
               {/* card */}
               <div>
-                <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Card</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><CreditCard className="w-3 h-3" /> {t('devicesPages.bioPanel.cardTitle')}</p>
                 <div className="flex items-center gap-2">
-                  <input value={cardEdit} onChange={(e) => setCardEdit(e.target.value)} placeholder={data.enrollment.card_number || 'Card number / UID'} className="flex-1 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm" />
-                  <button onClick={setCard} disabled={!cardEdit.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium disabled:opacity-50">Save</button>
+                  <input value={cardEdit} onChange={(e) => setCardEdit(e.target.value)} placeholder={data.enrollment.card_number ? digits(data.enrollment.card_number) : t('devicesPages.bioPanel.cardPh')} className="flex-1 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm" />
+                  <button onClick={setCard} disabled={!cardEdit.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium disabled:opacity-50">{t('devicesPages.bioPanel.save')}</button>
                 </div>
-                {data.enrollment.card_number && <p className="text-[10px] text-gray-400 mt-1">Current: <span className="font-mono">{data.enrollment.card_number}</span> — this person can check in by fingerprint or card.</p>}
+                {data.enrollment.card_number && <p className="text-[10px] text-gray-400 mt-1">{rich('devicesPages.bioPanel.current', { card: <span className="font-mono">{digits(data.enrollment.card_number)}</span> })}</p>}
               </div>
 
               {/* Central-identity sync (Part 6): push this person's fingerprints
                   to another device so they work on it too. Manual + audited. */}
               {data.fingers.length > 0 && (devData?.devices?.length > 1) && (
                 <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><UploadCloud className="w-3 h-3" /> Available on devices</p>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1 flex items-center gap-1"><UploadCloud className="w-3 h-3" /> {t('devicesPages.bioPanel.available')}</p>
                   <div className="space-y-1">
                     {devData.devices.map((dv: any) => (
                       <div key={dv.sn} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 dark:text-gray-300 font-mono">{dv.device_name || dv.sn}{dv.is_online ? '' : ' (offline)'}</span>
+                        <span className="text-gray-600 dark:text-gray-300 font-mono">{dv.device_name || dv.sn}{dv.is_online ? '' : t('devicesPages.bioPanel.offline')}</span>
                         <button onClick={() => pushToDevice(dv.sn)} disabled={syncing === dv.sn}
                           className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 disabled:opacity-50">
-                          {syncing === dv.sn ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadCloud className="w-3 h-3" />} Push fingerprints
+                          {syncing === dv.sn ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadCloud className="w-3 h-3" />} {t('devicesPages.bioPanel.push')}
                         </button>
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Queues the templates as device commands; the device loads them on its next sync. Nothing is deleted on the device.</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{t('devicesPages.bioPanel.pushHelp')}</p>
                 </div>
               )}
             </>
           )}
-          <button onClick={() => { setPerson(null); setQ(''); }} className="text-[11px] text-gray-400 hover:underline">← look up another person</button>
+          <button onClick={() => { setPerson(null); setQ(''); }} className="text-[11px] text-gray-400 hover:underline">{t('devicesPages.bioPanel.another')}</button>
         </div>
       )}
     </div>

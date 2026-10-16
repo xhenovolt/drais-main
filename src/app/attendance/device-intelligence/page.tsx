@@ -17,23 +17,24 @@ const BAND_STYLE: Record<string, string> = {
 };
 const barColor = (s: number) => (s >= 90 ? 'bg-emerald-500' : s >= 75 ? 'bg-sky-500' : s >= 55 ? 'bg-amber-500' : 'bg-rose-500');
 
-function SubBar({ icon, label, sub }: { icon: React.ReactNode; label: string; sub: { score: number; label: string } }) {
+function SubBar({ icon, label, sub }: { icon: React.ReactNode; label: string; sub: { score: number; label: string; key?: string; vars?: Record<string, number> } }) {
+  const { t, formatPercent } = useI18n();
   return (
     <div>
       <div className="flex items-center justify-between text-[11px] mb-0.5">
         <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">{icon} {label}</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{sub.score}%</span>
+        <span className="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{formatPercent(sub.score)}</span>
       </div>
       <div className="w-full h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${barColor(sub.score)}`} style={{ width: `${sub.score}%` }} />
       </div>
-      <p className="text-[10px] text-gray-400 mt-0.5 truncate">{sub.label}</p>
+      <p className="text-[10px] text-gray-400 mt-0.5 truncate">{sub.key ? t(`attendanceIntel.deviceIntel.sub.${sub.key}`, sub.vars ?? {}) : sub.label}</p>
     </div>
   );
 }
 
 export default function DeviceIntelligence() {
-  const { t } = useI18n();
+  const { t, formatPercent, digits } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +57,7 @@ export default function DeviceIntelligence() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {data?.fleet != null && <span className="text-sm text-gray-500">{t('attendanceIntel.deviceIntel.fleet', 'Fleet:')} <span className="font-bold text-gray-800 dark:text-gray-100">{data.fleet}%</span></span>}
+          {data?.fleet != null && <span className="text-sm text-gray-500">{t('attendanceIntel.deviceIntel.fleet', 'Fleet:')} <span className="font-bold text-gray-800 dark:text-gray-100">{formatPercent(data.fleet)}</span></span>}
           <button onClick={load} aria-label={t('attendanceIntel.deviceIntel.recheck', 'Re-check')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {t('attendanceIntel.deviceIntel.recheck', 'Re-check')}</button>
         </div>
       </div>
@@ -74,9 +75,9 @@ export default function DeviceIntelligence() {
                   <p className="font-mono text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{d.device_name || d.sn}</p>
                   <p className="text-[11px] text-gray-400">{d.firmware || t('attendanceIntel.deviceIntel.firmwareUnknown', 'firmware ?')} · {t('attendanceIntel.deviceIntel.activeDays', { n: d.active_days_30 }, '{{n}} active days/30')}{d.is_online ? '' : ` · ${t('attendanceIntel.deviceIntel.offline', 'offline')}`}</p>
                 </div>
-                <div className="text-right">
-                  <div className={`text-2xl font-bold tabular-nums ${rep.overall >= 90 ? 'text-emerald-600 dark:text-emerald-400' : rep.overall >= 75 ? 'text-sky-600 dark:text-sky-400' : rep.overall >= 55 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{rep.overall}%</div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${BAND_STYLE[rep.band]}`}>{rep.headline}</span>
+                <div className="text-end">
+                  <div className={`text-2xl font-bold tabular-nums ${rep.overall >= 90 ? 'text-emerald-600 dark:text-emerald-400' : rep.overall >= 75 ? 'text-sky-600 dark:text-sky-400' : rep.overall >= 55 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatPercent(rep.overall)}</div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${BAND_STYLE[rep.band]}`}>{t(`attendanceIntel.deviceIntel.band.${rep.band}`)}</span>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
@@ -87,7 +88,7 @@ export default function DeviceIntelligence() {
               </div>
               {rep.recommendation && (
                 <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-2.5 py-2">
-                  <Wrench className="w-3.5 h-3.5 mt-px flex-shrink-0" /> {rep.recommendation}
+                  <Wrench className="w-3.5 h-3.5 mt-px flex-shrink-0" /> {rep.recommendationKey ? t(`attendanceIntel.deviceIntel.rec.${rep.recommendationKey}`) : rep.recommendation}
                 </div>
               )}
             </div>

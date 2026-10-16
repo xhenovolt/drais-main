@@ -10,6 +10,7 @@ import {
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import BiometricEnrollmentPanel from '@/components/attendance/BiometricEnrollmentPanel';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 /* ── Types ──────────────────────────────────────────────────────── */
 
@@ -51,6 +52,12 @@ interface Device {
 /* ── Component ──────────────────────────────────────────────────── */
 
 export default function EnrollmentStationPage() {
+  const { t, lang, digits, formatPercent, formatDate } = useI18n();
+  // hand + position from the device ('right', 'index') → the shared finger names (biometric.finger.rightIndex).
+  const fingerName = (hand: string, pos: string) => {
+    const k = `${String(hand || '').toLowerCase()}${String(pos || '').charAt(0).toUpperCase()}${String(pos || '').slice(1).toLowerCase()}`;
+    return t(`biometric.finger.${k}`, `${hand} ${pos}`);
+  };
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
@@ -103,17 +110,17 @@ export default function EnrollmentStationPage() {
         body: JSON.stringify({ action: 'bulk_sync', device_sn: selectedDevice }),
       });
       if (res.queued > 0) {
-        showToast('success', `${res.queued} identities queued for sync. Device will process them on next heartbeats.`);
+        showToast('success', t('devicesPages.enrollment.queuedToast', { n: res.queued }));
       } else {
-        showToast('info', `All students already synced (${res.already_synced} mapped).`);
+        showToast('info', t('devicesPages.enrollment.allSyncedToast', { n: res.already_synced }));
       }
       mutate();
     } catch (err: any) {
-      showToast('error', err?.message || 'Bulk sync failed');
+      showToast('error', lang === 'ar' ? t('devicesPages.enrollment.bulkFailed') : (err?.message || 'Bulk sync failed'));
     } finally {
       setSyncing(false);
     }
-  }, [selectedDevice, mutate]);
+  }, [selectedDevice, mutate, t, lang]);
 
   const pctEnrolled = summary.total_students > 0
     ? Math.round((summary.total_enrolled / summary.total_students) * 100)
@@ -133,10 +140,10 @@ export default function EnrollmentStationPage() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
               bg-clip-text text-transparent flex items-center gap-3">
               <Fingerprint className="w-8 h-8 text-blue-600" />
-              Enrollment Station
+              {t('devicesPages.enrollment.title')}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-              Bulk fingerprint enrollment — sync identities, then enroll locally on device
+              {t('devicesPages.enrollment.subtitle')}
             </p>
           </div>
 
@@ -148,7 +155,7 @@ export default function EnrollmentStationPage() {
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
                 bg-white dark:bg-slate-800 text-sm"
             >
-              <option value="">Select device…</option>
+              <option value="">{t('devicesPages.enrollment.selectDevice')}</option>
               {devices.map(d => (
                 <option key={d.serial_number} value={d.serial_number}>
                   {d.connection_status === 'online' ? '🟢' : '🔴'} {d.device_name || d.serial_number}
@@ -166,24 +173,24 @@ export default function EnrollmentStationPage() {
         {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <SummaryCard
-            label="Total Students"
-            value={summary.total_students}
+            label={t('devicesPages.enrollment.card.total')}
+            value={digits(summary.total_students)}
             icon={<Users className="w-5 h-5 text-blue-500" />}
           />
           <SummaryCard
-            label="Synced to Device"
-            value={`${summary.total_synced} (${pctSynced}%)`}
+            label={t('devicesPages.enrollment.card.synced')}
+            value={lang === 'ar' ? `${digits(summary.total_synced)} (${formatPercent(pctSynced)})` : `${summary.total_synced} (${pctSynced}%)`}
             icon={<UserPlus className="w-5 h-5 text-indigo-500" />}
-            subtext={summary.total_synced < summary.total_students ? 'Needs bulk sync' : 'All synced'}
+            subtext={summary.total_synced < summary.total_students ? t('devicesPages.enrollment.card.needsSync') : t('devicesPages.enrollment.card.allSynced')}
           />
           <SummaryCard
-            label="Fingerprints Captured"
-            value={`${summary.total_enrolled} (${pctEnrolled}%)`}
+            label={t('devicesPages.enrollment.card.captured')}
+            value={lang === 'ar' ? `${digits(summary.total_enrolled)} (${formatPercent(pctEnrolled)})` : `${summary.total_enrolled} (${pctEnrolled}%)`}
             icon={<Fingerprint className="w-5 h-5 text-emerald-500" />}
           />
           <SummaryCard
-            label="Pending Enrollment"
-            value={summary.total_pending}
+            label={t('devicesPages.enrollment.card.pending')}
+            value={digits(summary.total_pending)}
             icon={<AlertTriangle className="w-5 h-5 text-amber-500" />}
           />
         </div>
@@ -196,11 +203,11 @@ export default function EnrollmentStationPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200">Step 1: Sync Identities</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t('devicesPages.enrollment.step1')}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Push all student names to the device so they appear in the enrollment menu.
+                  {t('devicesPages.enrollment.step1Help')}
                   {summary.total_synced < summary.total_students &&
-                    ` ${summary.total_students - summary.total_synced} students need syncing.`}
+                    t('devicesPages.enrollment.needSyncing', { n: summary.total_students - summary.total_synced })}
                 </p>
               </div>
               <button
@@ -211,15 +218,14 @@ export default function EnrollmentStationPage() {
                   disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-sm whitespace-nowrap"
               >
                 {syncing ? <Loader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                {syncing ? 'Syncing…' : 'Sync All Identities'}
+                {syncing ? t('devicesPages.enrollment.syncing') : t('devicesPages.enrollment.syncAll')}
               </button>
             </div>
 
             <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-4">
-              <h3 className="font-semibold text-gray-800 dark:text-gray-200">Step 2: Enroll Fingerprints on Device</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t('devicesPages.enrollment.step2')}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                On the K40 Pro: Menu → User Mgt → select a user by PIN → Enroll FP → student places finger 3×.
-                Templates auto-sync back here. This page refreshes every 5 seconds.
+                {t('devicesPages.enrollment.step2Help')}
               </p>
             </div>
           </div>
@@ -229,9 +235,9 @@ export default function EnrollmentStationPage() {
         {summary.total_students > 0 && (
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Enrollment Progress</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('devicesPages.enrollment.progress')}</span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {summary.total_enrolled}/{summary.total_students} ({pctEnrolled}%)
+                {digits(`${summary.total_enrolled}/${summary.total_students}`)} ({formatPercent(pctEnrolled)})
               </span>
             </div>
             <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -248,7 +254,7 @@ export default function EnrollmentStationPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-emerald-200 dark:border-emerald-800 p-4">
             <h3 className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-3">
               <Zap className="w-4 h-4" />
-              Recent Captures (Last Hour)
+              {t('devicesPages.enrollment.recent')}
             </h3>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {recentCaptures.map((c, i) => (
@@ -258,10 +264,10 @@ export default function EnrollmentStationPage() {
                     {c.first_name} {c.last_name}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {c.hand} {c.finger_position}
+                    {fingerName(c.hand, c.finger_position)}
                   </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-                    {new Date(c.enrollment_timestamp).toLocaleTimeString()}
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ms-auto">
+                    {lang === 'ar' ? formatDate(c.enrollment_timestamp, 'time') : new Date(c.enrollment_timestamp).toLocaleTimeString()}
                   </span>
                 </div>
               ))}
@@ -273,7 +279,7 @@ export default function EnrollmentStationPage() {
         {!selectedDevice ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <Fingerprint className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p>Select a device above to start</p>
+            <p>{t('devicesPages.enrollment.selectToStart')}</p>
           </div>
         ) : isLoading ? (
           <div className="text-center py-12">
@@ -298,7 +304,7 @@ export default function EnrollmentStationPage() {
                       {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                       <span className="font-semibold text-gray-800 dark:text-gray-200">{cls.class_name}</span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        {cls.total} students
+                        {t('devicesPages.enrollment.students', { count: cls.total })}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -312,8 +318,8 @@ export default function EnrollmentStationPage() {
                             style={{ width: `${classPct}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">
-                          {cls.enrolled}/{cls.total}
+                        <span className="text-xs text-gray-500 dark:text-gray-400 w-12 text-end">
+                          {digits(`${cls.enrolled}/${cls.total}`)}
                         </span>
                       </div>
                     </div>
@@ -324,12 +330,12 @@ export default function EnrollmentStationPage() {
                     <div className="border-t border-gray-100 dark:border-gray-700">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="bg-gray-50 dark:bg-slate-700/50 text-left text-xs text-gray-500 dark:text-gray-400 uppercase">
-                            <th className="px-4 py-2">PIN</th>
-                            <th className="px-4 py-2">Name</th>
-                            <th className="px-4 py-2">Adm No</th>
-                            <th className="px-4 py-2 text-center">Synced</th>
-                            <th className="px-4 py-2 text-center">Fingerprint</th>
+                          <tr className="bg-gray-50 dark:bg-slate-700/50 text-start text-xs text-gray-500 dark:text-gray-400 uppercase">
+                            <th className="px-4 py-2 text-start">{t('devicesPages.enrollment.col.pin')}</th>
+                            <th className="px-4 py-2 text-start">{t('devicesPages.enrollment.col.name')}</th>
+                            <th className="px-4 py-2 text-start">{t('devicesPages.enrollment.col.adm')}</th>
+                            <th className="px-4 py-2 text-center">{t('devicesPages.enrollment.col.synced')}</th>
+                            <th className="px-4 py-2 text-center">{t('devicesPages.enrollment.col.fingerprint')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -339,7 +345,7 @@ export default function EnrollmentStationPage() {
                                 ? 'bg-emerald-50/50 dark:bg-emerald-900/10'
                                 : ''}>
                               <td className="px-4 py-2 text-gray-600 dark:text-gray-400 font-mono text-xs">
-                                {s.device_pin || '—'}
+                                {s.device_pin ? digits(s.device_pin) : '—'}
                               </td>
                               <td className="px-4 py-2 font-medium text-gray-800 dark:text-gray-200">
                                 {s.first_name} {s.last_name}
