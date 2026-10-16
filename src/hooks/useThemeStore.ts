@@ -73,6 +73,13 @@ interface ThemeState {
    * sign-in. When true, the user's choice always wins.
    */
   languageExplicit: boolean;
+  /** The language each school was last used in, by school id. A choice made in one school never
+   *  follows the person into another school (see I18nProvider). */
+  langBySchool: Record<string, "en" | "ar">;
+  /** One-time move of a pre-per-school choice to the first school opened afterwards. */
+  langBySchoolMigrated: boolean;
+  rememberSchoolLanguage: (schoolId: number | string, lng: "en" | "ar") => void;
+  markLangBySchoolMigrated: () => void;
   fontFamily?: string;
   layoutWidth?: "full" | "boxed" | "wide";
   navbarStyle?: "solid" | "glass" | "transparent";
@@ -135,6 +142,8 @@ const defaultState = {
   sidebarCollapsed: true,
   language: "en" as const,
   languageExplicit: false,
+  langBySchool: {} as Record<string, "en" | "ar">,
+  langBySchoolMigrated: false,
   sidebarPosition: "left" as const,
   iconScale: 1,
   layoutWidth: "full" as const,
@@ -207,6 +216,8 @@ const useThemeStore = create<ThemeState>()(
           document.cookie = `lang=${lng}; path=/; max-age=31536000; SameSite=Strict`;
         }
       },
+      rememberSchoolLanguage: (schoolId, lng) => set((s) => ({ langBySchool: { ...s.langBySchool, [String(schoolId)]: lng } })),
+      markLangBySchoolMigrated: () => set({ langBySchoolMigrated: true }),
       setSidebarPosition: (pos) => set({ sidebarPosition: pos }),
       setIconScale: (n) => set({ iconScale: n }),
       setFontFamily: (f) => set({ fontFamily: f }),
@@ -225,7 +236,8 @@ const useThemeStore = create<ThemeState>()(
         set(next);
       },
       // Keep the school's branding and the hydration flag; reset only personal choices.
-      resetTheme: () => set((s) => ({ ...defaultState, school: s.school, hydrated: s.hydrated, mode: resolveSystemMode() })),
+      resetTheme: () => set((s) => ({ ...defaultState, school: s.school, hydrated: s.hydrated, mode: resolveSystemMode(),
+        language: s.language, languageExplicit: s.languageExplicit, langBySchool: s.langBySchool, langBySchoolMigrated: s.langBySchoolMigrated })),
     }),
     {
       name: "drais-theme-store",

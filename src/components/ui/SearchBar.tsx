@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Loader2, ArrowRight, X } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface SearchResult {
   type: 'student' | 'class' | 'academicYear' | 'result' | 'report' | 'user';
@@ -25,6 +26,7 @@ interface SearchResult {
  */
 
 export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -139,12 +141,12 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
   }, {});
 
   const typeLabels: Record<string, string> = {
-    student: 'Students',
-    class: 'Classes',
-    academicYear: 'Academic Years',
-    result: 'Results',
-    report: 'Reports',
-    user: 'Users',
+    student: t('shell.searchBar.type.student', 'Students'),
+    class: t('shell.searchBar.type.class', 'Classes'),
+    academicYear: t('shell.searchBar.type.academicYear', 'Academic Years'),
+    result: t('shell.searchBar.type.result', 'Results'),
+    report: t('shell.searchBar.type.report', 'Reports'),
+    user: t('shell.searchBar.type.user', 'Users'),
   };
 
   // MOBILE VIEW: Icon only
@@ -154,7 +156,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          aria-label="Search"
+          aria-label={t('shell.search', 'Search')}
         >
           <Search size={20} className="text-gray-700 dark:text-gray-300" />
         </button>
@@ -167,7 +169,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Search students, classes, results..."
+                  placeholder={t('shell.searchBar.placeholderMobile', 'Search students, classes, results...')}
                   value={query}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -204,7 +206,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
                         <button
                           key={`${type}-${result.id}`}
                           onClick={() => handleSelectResult(result)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
+                          className="w-full text-start px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
                         >
                           <div>
                             <div className="font-medium text-gray-900 dark:text-white">
@@ -216,7 +218,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
                               </div>
                             )}
                           </div>
-                          <ArrowRight size={16} className="text-gray-400 dark:text-gray-500" />
+                          <ArrowRight size={16} className="text-gray-400 dark:text-gray-500 rtl:-scale-x-100" />
                         </button>
                       ))}
                     </div>
@@ -225,13 +227,13 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
               ) : query && !loading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                   <Search size={32} className="text-gray-300 dark:text-gray-600 mb-2" />
-                  <p className="text-gray-500 dark:text-gray-400">No results for "{query}"</p>
+                  <p className="text-gray-500 dark:text-gray-400">{t('shell.searchBar.noResults', { query })}</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                   <Search size={32} className="text-gray-300 dark:text-gray-600 mb-2" />
                   <p className="text-gray-500 dark:text-gray-400">
-                    Search students, classes, academic years, results, reports, and users
+                    {t('shell.searchBar.hint', 'Search students, classes, academic years, results, reports, and users')}
                   </p>
                 </div>
               )}
@@ -247,16 +249,16 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
     <div className="relative flex-1 max-w-md" ref={searchRef}>
       {/* Search Input */}
       <div className="relative">
-        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
+        <Search size={18} className="absolute start-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
-          placeholder="Search anything..."
+          placeholder={t('shell.searchBar.placeholder', 'Search anything...')}
           value={query}
           onChange={(e) => handleSearchChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => setIsOpen(true)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm rounded-lg
+          className="w-full ps-10 pe-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm rounded-lg
 
  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         />
@@ -267,7 +269,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
               setResults([]);
               inputRef.current?.focus();
             }}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
+            className="absolute end-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
           >
             <X size={16} />
           </button>
@@ -276,7 +278,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
 
       {/* Dropdown Results */}
       {isOpen && (results.length > 0 || loading || query) && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 shadow-xl rounded-lg border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-full start-0 end-0 mt-2 bg-white dark:bg-gray-800 shadow-xl rounded-lg border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 size={18} className="animate-spin text-blue-500" />
@@ -292,7 +294,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
                     <button
                       key={`${type}-${result.id}`}
                       onClick={() => handleSelectResult(result)}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center justify-between ${
+                      className={`w-full text-start px-4 py-2 text-sm transition-colors flex items-center justify-between ${
                         selectedIndex === results.indexOf(result)
                           ? 'bg-blue-50 dark:bg-blue-900/20'
                           : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
@@ -308,7 +310,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
                           </div>
                         )}
                       </div>
-                      <ArrowRight size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0 ml-2" />
+                      <ArrowRight size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0 ms-2 rtl:-scale-x-100" />
                     </button>
                   ))}
                 </div>
@@ -316,7 +318,7 @@ export const SearchBar: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }
             </div>
           ) : query && !loading ? (
             <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-              No results for "{query}"
+              {t('shell.searchBar.noResults', { query })}
             </div>
           ) : null}
         </div>

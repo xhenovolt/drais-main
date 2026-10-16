@@ -28,6 +28,8 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Cloud, HardDrive, Database, Loader2 } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { isEnglishText } from '@/lib/toast';
 
 type DbMode = 'online' | 'local-mysql' | 'local-sqlite';
 interface Health { ok: boolean; mode: DbMode; database: string; host: string; error?: string }
@@ -142,6 +144,9 @@ function toneFor(mode: DbMode): string {
 
 export default function DbModeBadge({ variant = 'badge', onSelected }: { variant?: 'badge' | 'drawer' | 'login'; onSelected?: () => void }) {
   const { info, switching, selectedMode, error, switchTo } = useDbMode(onSelected);
+  const { t, lang } = useI18n();
+  const modeLabel = (m: DbMode) => m === 'online' ? t('shell.db.online', 'Online Cloud') : m === 'local-mysql' ? t('shell.db.localServer', 'Local Server') : t('shell.db.localSqlite', 'Local Server (SQLite)');
+  const errText = error && (lang === 'ar' && isEnglishText(error) ? t('shell.db.switchFailed', 'Switch failed') : error);
   const [menuOpen, setMenuOpen] = useState(false);
   const Icon = ICON_FOR_MODE[info.mode];
   const tone = toneFor(info.mode);
@@ -163,7 +168,7 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
     };
     return (
       <div className="space-y-2">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Connection</p>
+        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('shell.db.connection', 'Connection')}</p>
         <div className="grid grid-cols-1 gap-2">
           {ALL_MODES.map((m) => {
             const active = (selectedMode ?? info.mode) === m;
@@ -183,8 +188,8 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
                 } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <ModeIcon className="w-4 h-4" />
-                <span className="flex-1 text-left">
-                  {m === 'online' ? 'Online Cloud' : m === 'local-mysql' ? 'Offline (Local MySQL)' : 'Offline (Local SQLite)'}
+                <span className="flex-1 text-start">
+                  {m === 'online' ? t('shell.db.online', 'Online Cloud') : m === 'local-mysql' ? t('shell.db.offlineMysql', 'Offline (Local MySQL)') : t('shell.db.offlineSqlite', 'Offline (Local SQLite)')}
                 </span>
                 {switching === m ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : h ? <Dot ok={h.ok} /> : null}
               </button>
@@ -192,9 +197,9 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
           })}
         </div>
         {!info.allowLocal && (
-          <p className="text-[11px] text-gray-400">Local modes are available in the desktop app.</p>
+          <p className="text-[11px] text-gray-400">{t('shell.db.localOnlyDesktop', 'Local modes are available in the desktop app.')}</p>
         )}
-        {error && <p className="text-[11px] text-red-600">{error}</p>}
+        {errText && <p className="text-[11px] text-red-600">{errText}</p>}
       </div>
     );
   }
@@ -213,7 +218,7 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
       <div className="px-3 py-2">
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${tone}`}>
           <Icon className="w-4 h-4" />
-          <span className="text-xs font-semibold flex-1">{info.label}</span>
+          <span className="text-xs font-semibold flex-1">{modeLabel(info.mode)}</span>
           {info.health && <Dot ok={info.health.ok} />}
         </div>
         {canSwitch && (
@@ -223,14 +228,14 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
                 key={m}
                 onClick={() => choose(m)}
                 disabled={switching !== null}
-                className="w-full text-left text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                className="w-full text-start text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
               >
-                {switching === m ? 'Switching…' : `Switch to ${LABEL_FOR_MODE[m]}`}
+                {switching === m ? t('shell.db.switching', 'Switching…') : t('shell.db.switchTo', { mode: modeLabel(m) })}
               </button>
             ))}
           </div>
         )}
-        {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
+        {errText && <p className="mt-1 text-[11px] text-red-600">{errText}</p>}
       </div>
     );
   }
@@ -242,17 +247,17 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
       <button
         onClick={() => canSwitch && setMenuOpen((o) => !o)}
         disabled={!canSwitch || switching !== null}
-        title={canSwitch ? 'Switch DB mode' : `${info.label}${info.health ? ` — ${info.health.database}` : ''}`}
+        title={canSwitch ? t('shell.db.switchDbMode', 'Switch DB mode') : `${modeLabel(info.mode)}${info.health ? ` — ${info.health.database}` : ''}`}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${tone} ${
           canSwitch ? 'cursor-pointer hover:opacity-90' : 'cursor-default'
         }`}
       >
         {switching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Icon className="w-3.5 h-3.5" />}
-        {info.short}
+        {info.mode === 'online' ? t('shell.db.shortOnline', 'ONLINE') : t('shell.db.shortLocal', 'LOCAL')}
         {info.health && <Dot ok={info.health.ok} />}
       </button>
       {menuOpen && canSwitch && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
+        <div className="absolute end-0 top-full mt-1 z-20 w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
           {choices.map((m) => {
             const ModeIcon = ICON_FOR_MODE[m];
             return (
@@ -263,14 +268,14 @@ export default function DbModeBadge({ variant = 'badge', onSelected }: { variant
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 <ModeIcon className="w-3.5 h-3.5" />
-                Switch to {LABEL_FOR_MODE[m]}
+                {t('shell.db.switchTo', { mode: modeLabel(m) })}
               </button>
             );
           })}
         </div>
       )}
-      {error && (
-        <span className="absolute right-0 top-full mt-1 text-[11px] text-red-600 whitespace-nowrap">{error}</span>
+      {errText && (
+        <span className="absolute end-0 top-full mt-1 text-[11px] text-red-600 whitespace-nowrap">{errText}</span>
       )}
     </div>
   );

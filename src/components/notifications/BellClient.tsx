@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react';
 import { DefaultBell } from '@/components/icons/DefaultBell';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationsDropdown } from './NotificationsDropdown';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { useSocket } from '@/hooks/useSocket';
 
 interface BellClientProps {
@@ -17,6 +18,7 @@ export const BellClient: React.FC<BellClientProps> = ({
   schoolId, 
   className = '' 
 }) => {
+  const { t, digits } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const socket = useSocket();
@@ -102,7 +104,7 @@ export const BellClient: React.FC<BellClientProps> = ({
       <button
         onClick={handleClick}
         className={`relative p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
-        aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+        aria-label={unreadCount > 0 ? t('shell.notificationsUnreadAria', { count: unreadCount }) : t('shell.notificationsAria', 'Notifications')}
       >
         <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         
@@ -116,7 +118,7 @@ export const BellClient: React.FC<BellClientProps> = ({
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
               className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-semibold rounded-full flex items-center justify-center leading-none"
             >
-              {unreadCount > 99 ? '99+' : unreadCount}
+              {digits(unreadCount > 99 ? '99+' : unreadCount)}
             </motion.span>
           )}
         </AnimatePresence>

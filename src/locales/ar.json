@@ -7302,5 +7302,233 @@
       "foot3": "اختُبر على K40 Pro · البرنامج الثابت 8.0.4.3-20230515 · البروتوكول 2.4.1",
       "autoCmd": "(تلقائي — يرسل الجهاز POST للجدول {{table}})"
     }
+  },
+  "commPages": {
+    "admin": {
+      "subtitle": "رسائل نصية تلقائية حسب الأحداث، وقوالب، وقواعد أتمتة.",
+      "failed": "تعذّرت العملية. حاول مرة أخرى.",
+      "quota": {
+        "unavailable": "الرسائل غير متاحة",
+        "unlimited": "الرسائل: غير محدودة",
+        "left": "متبقٍ {{n}} رسالة",
+        "depleted": "نفد رصيد الرسائل في المنصة — يلزم الشحن",
+        "exhausted": "نفدت حصة الرسائل لهذه المدرسة",
+        "used": "استُخدم {{used}} من {{quota}} مخصصة",
+        "noCap": "لا يوجد حد للحصة"
+      },
+      "bc": {
+        "messageRequired": "الرسالة مطلوبة",
+        "pasteOne": "الصق رقمًا واحدًا على الأقل",
+        "pickClass": "اختر صفًا",
+        "noRecipients": "لا يوجد مستلمون صالحون",
+        "cost": " يستهلك هذا {{n}} رسالة.",
+        "costLeft": " يستهلك هذا {{n}} رسالة من {{left}} متبقية لديك.",
+        "confirm": {
+          "zero": "لا مستلمين؟{{cost}}",
+          "one": "إرسال إلى مستلم واحد؟{{cost}}",
+          "two": "إرسال إلى مستلمَين؟{{cost}}",
+          "few": "إرسال إلى {{count}} مستلمين؟{{cost}}",
+          "many": "إرسال إلى {{count}} مستلمًا؟{{cost}}",
+          "other": "إرسال إلى {{count}} مستلم؟{{cost}}"
+        },
+        "sent": "أُرسل {{sent}} · فشل {{failed}}",
+        "queued": " · في الانتظار {{n}}",
+        "left": " · متبقٍ {{n}} رسالة",
+        "audience": "الجمهور",
+        "selectClass": "— اختر صفًا —",
+        "pastePh": "الصق رقم هاتف في كل سطر. أمثلة:\n+256712345678\n0712345678\n+256712345678 اسم الشخص\nاسم الشخص <+256712345678>",
+        "pasteHelp": "يقبل الصيغة الدولية (+256…) أو المحلية (0712…) أو «+256… الاسم». تُستبعد الأرقام غير الصالحة.",
+        "message": "الرسالة",
+        "messagePh": "اكتب رسالتك هنا. تُضاف بادئة المدرسة تلقائيًا — لا تكررها.",
+        "prefix": "البادئة: {{prefix}}",
+        "noPrefix": "لا توجد بادئة مضبوطة",
+        "chars": {
+          "zero": "{{chars}} حرفًا · لا أجزاء",
+          "one": "{{chars}} حرفًا · رسالة واحدة",
+          "two": "{{chars}} حرفًا · جزآن",
+          "few": "{{chars}} حرفًا · {{count}} أجزاء",
+          "many": "{{chars}} حرفًا · {{count}} جزءًا",
+          "other": "{{chars}} حرفًا · {{count}} جزء"
+        },
+        "previewBtn": "معاينة المستلمين",
+        "send": "إرسال",
+        "preview": "المعاينة",
+        "previewHint": "انقر {{btn}} لترى من سيتلقى هذه الرسالة.",
+        "body": "النص",
+        "recipients": {
+          "zero": "لا مستلمين",
+          "one": "مستلم واحد",
+          "two": "مستلمان",
+          "few": "{{count}} مستلمين",
+          "many": "{{count}} مستلمًا",
+          "other": "{{count}} مستلم"
+        },
+        "showingFirst": "(عرض أول {{n}})",
+        "phone": "الهاتف",
+        "name": "الاسم",
+        "role": "الدور"
+      },
+      "aud": {
+        "paste": "لصق أرقام",
+        "all_parents": "كل أولياء الأمور",
+        "class_parents": "أولياء أمور صف",
+        "all_staff": "كل الموظفين",
+        "all_teachers": "كل المعلمين",
+        "class_teachers": "معلمو الصفوف"
+      }
+    }
+  },
+  "shell": {
+    "schoolOs": "نظام المدرسة",
+    "noModules": "لا توجد وحدات متاحة",
+    "multiTenant": "متعدد المدارس · DRAIS الإصدار 4",
+    "user": "مستخدم",
+    "toggleTheme": "تبديل المظهر",
+    "language": "اللغة",
+    "search": "بحث",
+    "myProfile": "ملفي الشخصي",
+    "settings": "الإعدادات",
+    "helpSupport": "المساعدة والدعم",
+    "signOut": "تسجيل الخروج",
+    "switchLanguage": "التبديل إلى الإنجليزية",
+    "toggleLanguage": "تبديل اللغة",
+    "devicesOnline": {
+      "zero": "الأجهزة المتصلة: {{online}} من {{total}}",
+      "one": "الأجهزة المتصلة: {{online}} من {{total}}",
+      "two": "الأجهزة المتصلة: {{online}} من {{total}}",
+      "few": "الأجهزة المتصلة: {{online}} من {{total}}",
+      "many": "الأجهزة المتصلة: {{online}} من {{total}}",
+      "other": "الأجهزة المتصلة: {{online}} من {{total}}"
+    },
+    "staleRelay": {
+      "zero": "أوامر ترحيل قديمة: {{count}} — انقر لإلغائها جميعًا",
+      "one": "أوامر ترحيل قديمة: {{count}} — انقر لإلغائها جميعًا",
+      "two": "أوامر ترحيل قديمة: {{count}} — انقر لإلغائها جميعًا",
+      "few": "أوامر ترحيل قديمة: {{count}} — انقر لإلغائها جميعًا",
+      "many": "أوامر ترحيل قديمة: {{count}} — انقر لإلغائها جميعًا",
+      "other": "أوامر ترحيل قديمة: {{count}} — انقر لإلغائها جميعًا"
+    },
+    "justNow": "الآن",
+    "minAgo": "قبل {{n}} د",
+    "hoursAgo": "قبل {{n}} س",
+    "daysAgo": "قبل {{n}} يوم",
+    "weeksAgo": "قبل {{n}} أسبوع",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "notificationsAria": "الإشعارات",
+    "notificationsUnreadAria": "الإشعارات ({{count}} غير مقروءة)",
+    "markAllAsRead": "تعيين الكل كمقروء",
+    "toggleMenu": "تبديل القائمة",
+    "home": "الصفحة الرئيسية لـ DRAIS",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "students": "الطلاب",
+      "attendance": "الحضور",
+      "more": "المزيد",
+      "openMenu": "فتح قائمة التنقل"
+    },
+    "profile": {
+      "menu": "قائمة الملف الشخصي",
+      "school": "المدرسة",
+      "profile": "الملف الشخصي",
+      "sessions": "الجلسات والأجهزة",
+      "logout": "تسجيل الخروج"
+    },
+    "role": {
+      "superadmin": "المشرف العام",
+      "admin": "مسؤول",
+      "administrator": "مسؤول",
+      "teacher": "معلم",
+      "bursar": "أمين الصندوق",
+      "staff": "موظف",
+      "warden": "مشرف السكن",
+      "parent": "ولي الأمر",
+      "receptionist": "موظف الاستقبال",
+      "director_of_studies": "مدير الدراسات",
+      "deputy_director_of_studies": "نائب مدير الدراسات",
+      "computer_lab_attendant": "مشرف مختبر الحاسوب",
+      "lab_attendant": "مشرف المختبر",
+      "accountant": "محاسب",
+      "headteacher": "مدير المدرسة",
+      "deputy_headteacher": "نائب مدير المدرسة",
+      "general_director": "المدير العام",
+      "principal": "الناظر",
+      "secretary": "السكرتير"
+    },
+    "searchBar": {
+      "placeholderMobile": "ابحث عن الطلاب والفصول والنتائج...",
+      "placeholder": "ابحث عن أي شيء...",
+      "noResults": "لا توجد نتائج لـ \"{{query}}\"",
+      "hint": "ابحث في الطلاب والفصول والسنوات الدراسية والنتائج والتقارير والمستخدمين",
+      "type": {
+        "student": "الطلاب",
+        "class": "الفصول",
+        "academicYear": "السنوات الدراسية",
+        "result": "النتائج",
+        "report": "التقارير",
+        "user": "المستخدمون"
+      }
+    },
+    "whatsNew": {
+      "title": "ما الجديد",
+      "version": "الإصدار {{v}}",
+      "label": {
+        "New": "جديد",
+        "Improved": "محسّن",
+        "Fixed": "مُصلَح"
+      }
+    },
+    "db": {
+      "online": "السحابة عبر الإنترنت",
+      "localServer": "الخادم المحلي",
+      "localSqlite": "الخادم المحلي (SQLite)",
+      "offlineMysql": "دون اتصال (MySQL محلي)",
+      "offlineSqlite": "دون اتصال (SQLite محلي)",
+      "connection": "الاتصال",
+      "localOnlyDesktop": "الأوضاع المحلية متاحة في تطبيق سطح المكتب.",
+      "switching": "جارٍ التبديل…",
+      "switchTo": "التبديل إلى {{mode}}",
+      "switchDbMode": "تبديل وضع قاعدة البيانات",
+      "switchFailed": "فشل التبديل",
+      "shortOnline": "متصل",
+      "shortLocal": "محلي"
+    },
+    "scan": {
+      "learner": "متعلم",
+      "unknownUser": "مستخدم غير معروف",
+      "scanned": "👤 تم مسح {{name}}",
+      "smsSent": "✅ أُرسلت الرسالة · ولي أمر {{name}}",
+      "smsSending": "📨 جارٍ إرسال الرسالة · ولي أمر {{name}}",
+      "smsFailed": "⚠ فشلت الرسالة · {{name}}",
+      "smsOff": "🔕 الرسائل متوقفة · تم مسح {{name}}",
+      "noPhone": "📵 لا يوجد هاتف لولي الأمر · {{name}}",
+      "guardianOf": "ولي أمر {{name}}",
+      "guardianOfNamed": "ولي أمر {{name}} ({{recipient}})",
+      "theRecipient": "المستلم",
+      "deliveredTo": "تم تسليم الرسالة إلى {{who}}",
+      "notDeliveredTo": "لم تُسلَّم الرسالة إلى {{who}}",
+      "onNetworkFor": "الرسالة على الشبكة إلى {{who}}",
+      "pillDelivered": "✅ تم تسليم الرسالة · {{who}}",
+      "pillNotDelivered": "⚠ لم تُسلَّم الرسالة · {{who}}",
+      "pillOnNetwork": "📡 الرسالة على الشبكة · {{who}}",
+      "title": "آخر مسح للحضور — حالة الرسالة"
+    },
+    "nd": {
+      "title": "الإشعارات",
+      "markedRead": "تم التعيين كمقروء",
+      "archived": "تمت أرشفة الإشعارات",
+      "markAllRead": "تعيين الكل كمقروء",
+      "all": "الكل",
+      "unread": "غير المقروءة",
+      "loading": "جارٍ تحميل الإشعارات...",
+      "noUnread": "لا توجد إشعارات غير مقروءة",
+      "none": "لا توجد إشعارات بعد",
+      "markRead": "تعيين كمقروء",
+      "archive": "أرشفة",
+      "openLink": "فتح الرابط",
+      "loadingMore": "جارٍ التحميل...",
+      "loadMore": "تحميل المزيد من الإشعارات",
+      "viewAll": "عرض كل الإشعارات"
+    }
   }
 }

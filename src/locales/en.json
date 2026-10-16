@@ -7091,5 +7091,213 @@
       "foot3": "Tested on K40 Pro · Firmware 8.0.4.3-20230515 · Push Protocol v2.4.1",
       "autoCmd": "(automatic — device POSTs table={{table}})"
     }
+  },
+  "commPages": {
+    "admin": {
+      "subtitle": "Event-driven SMS, templates, and automation rules.",
+      "failed": "Something went wrong. Please try again.",
+      "quota": {
+        "unavailable": "SMS unavailable",
+        "unlimited": "SMS: unlimited",
+        "left": "{{n}} SMS left",
+        "depleted": "Platform SMS balance depleted — top-up required",
+        "exhausted": "This school's SMS allocation is exhausted",
+        "used": "{{used}} used of {{quota}} allocated",
+        "noCap": "No allocation cap set"
+      },
+      "bc": {
+        "messageRequired": "Message required",
+        "pasteOne": "Paste at least one number",
+        "pickClass": "Pick a class",
+        "noRecipients": "No valid recipients",
+        "cost": " This uses {{n}} SMS.",
+        "costLeft": " This uses {{n}} SMS of the {{left}} you have left.",
+        "confirm": {
+          "one": "Send to {{count}} recipient?{{cost}}",
+          "other": "Send to {{count}} recipients?{{cost}}"
+        },
+        "sent": "Sent {{sent}} · failed {{failed}}",
+        "queued": " · queued {{n}}",
+        "left": " · {{n}} SMS left",
+        "audience": "Audience",
+        "selectClass": "— Select class —",
+        "pastePh": "Paste one phone per line. Examples:\n+256712345678\n0712345678\n+256712345678 John Doe\nJane Smith <+256712345678>",
+        "pasteHelp": "Accepts E.164 (+256…), local (0712…), or \"+256… Name\" format. Invalid numbers are dropped.",
+        "message": "Message",
+        "messagePh": "Write your message here. The school prefix is added automatically — don't repeat it.",
+        "prefix": "Prefix: {{prefix}}",
+        "noPrefix": "No prefix configured",
+        "chars": {
+          "one": "{{chars}} chars · {{count}} SMS part",
+          "other": "{{chars}} chars · {{count}} SMS parts"
+        },
+        "previewBtn": "Preview Recipients",
+        "send": "Send",
+        "preview": "Preview",
+        "previewHint": "Click {{btn}} to see who will receive this message.",
+        "body": "Body",
+        "recipients": {
+          "one": "{{count}} recipient",
+          "other": "{{count}} recipients"
+        },
+        "showingFirst": "(showing first {{n}})",
+        "phone": "Phone",
+        "name": "Name",
+        "role": "Role"
+      },
+      "aud": {
+        "paste": "Paste numbers",
+        "all_parents": "All parents",
+        "class_parents": "Parents of class",
+        "all_staff": "All staff",
+        "all_teachers": "All teachers",
+        "class_teachers": "Class teachers"
+      }
+    }
+  },
+  "shell": {
+    "schoolOs": "School OS",
+    "noModules": "No modules available",
+    "multiTenant": "Multi-tenant · DRAIS v4",
+    "user": "User",
+    "toggleTheme": "Toggle theme",
+    "language": "Language",
+    "search": "Search",
+    "myProfile": "My Profile",
+    "settings": "Settings",
+    "helpSupport": "Help & Support",
+    "signOut": "Sign Out",
+    "switchLanguage": "Switch to Arabic",
+    "toggleLanguage": "Toggle language",
+    "devicesOnline": {
+      "one": "{{online}}/{{total}} device online",
+      "other": "{{online}}/{{total}} devices online"
+    },
+    "staleRelay": {
+      "one": "{{count}} stale relay command — click to cancel all",
+      "other": "{{count}} stale relay commands — click to cancel all"
+    },
+    "justNow": "just now",
+    "minAgo": "{{n}}m ago",
+    "hoursAgo": "{{n}}h ago",
+    "daysAgo": "{{n}}d ago",
+    "weeksAgo": "{{n}}w ago",
+    "today": "today",
+    "yesterday": "yesterday",
+    "notificationsAria": "Notifications",
+    "notificationsUnreadAria": "Notifications ({{count}} unread)",
+    "markAllAsRead": "Mark all as read",
+    "toggleMenu": "Toggle menu",
+    "home": "DRAIS home",
+    "nav": {
+      "dashboard": "Dashboard",
+      "students": "Students",
+      "attendance": "Attendance",
+      "more": "More",
+      "openMenu": "Open navigation menu"
+    },
+    "profile": {
+      "menu": "User profile menu",
+      "school": "School",
+      "profile": "Profile",
+      "sessions": "Sessions & Devices",
+      "logout": "Logout"
+    },
+    "role": {
+      "superadmin": "Super Admin",
+      "admin": "Admin",
+      "administrator": "Administrator",
+      "teacher": "Teacher",
+      "bursar": "Bursar",
+      "staff": "Staff",
+      "warden": "Warden",
+      "parent": "Parent",
+      "receptionist": "Receptionist",
+      "director_of_studies": "Director of Studies",
+      "deputy_director_of_studies": "Deputy Director of Studies",
+      "computer_lab_attendant": "Computer Lab Attendant",
+      "lab_attendant": "Lab Attendant",
+      "accountant": "Accountant",
+      "headteacher": "Headteacher",
+      "deputy_headteacher": "Deputy Headteacher",
+      "general_director": "General Director",
+      "principal": "Principal",
+      "secretary": "Secretary"
+    },
+    "searchBar": {
+      "placeholderMobile": "Search students, classes, results...",
+      "placeholder": "Search anything...",
+      "noResults": "No results for \"{{query}}\"",
+      "hint": "Search students, classes, academic years, results, reports, and users",
+      "type": {
+        "student": "Students",
+        "class": "Classes",
+        "academicYear": "Academic Years",
+        "result": "Results",
+        "report": "Reports",
+        "user": "Users"
+      }
+    },
+    "whatsNew": {
+      "title": "What's new",
+      "version": "v{{v}}",
+      "label": {
+        "New": "New",
+        "Improved": "Improved",
+        "Fixed": "Fixed"
+      }
+    },
+    "db": {
+      "online": "Online Cloud",
+      "localServer": "Local Server",
+      "localSqlite": "Local Server (SQLite)",
+      "offlineMysql": "Offline (Local MySQL)",
+      "offlineSqlite": "Offline (Local SQLite)",
+      "connection": "Connection",
+      "localOnlyDesktop": "Local modes are available in the desktop app.",
+      "switching": "Switching…",
+      "switchTo": "Switch to {{mode}}",
+      "switchDbMode": "Switch DB mode",
+      "switchFailed": "Switch failed",
+      "shortOnline": "ONLINE",
+      "shortLocal": "LOCAL"
+    },
+    "scan": {
+      "learner": "Learner",
+      "unknownUser": "Unknown user",
+      "scanned": "👤 {{name}} scanned",
+      "smsSent": "✅ SMS sent · {{name}}'s guardian",
+      "smsSending": "📨 SMS sending · {{name}}'s guardian",
+      "smsFailed": "⚠ SMS failed · {{name}}",
+      "smsOff": "🔕 SMS off · {{name}} scanned",
+      "noPhone": "📵 No guardian phone · {{name}}",
+      "guardianOf": "{{name}}'s guardian",
+      "guardianOfNamed": "{{name}}'s guardian ({{recipient}})",
+      "theRecipient": "the recipient",
+      "deliveredTo": "SMS delivered to {{who}}",
+      "notDeliveredTo": "SMS not delivered to {{who}}",
+      "onNetworkFor": "SMS on the network for {{who}}",
+      "pillDelivered": "✅ SMS delivered · {{who}}",
+      "pillNotDelivered": "⚠ SMS not delivered · {{who}}",
+      "pillOnNetwork": "📡 SMS on network · {{who}}",
+      "title": "Latest attendance scan — SMS status"
+    },
+    "nd": {
+      "title": "Notifications",
+      "markedRead": "Marked as read",
+      "archived": "Notifications archived",
+      "markAllRead": "Mark all read",
+      "all": "All",
+      "unread": "Unread",
+      "loading": "Loading notifications...",
+      "noUnread": "No unread notifications",
+      "none": "No notifications yet",
+      "markRead": "Mark as read",
+      "archive": "Archive",
+      "openLink": "Open link",
+      "loadingMore": "Loading...",
+      "loadMore": "Load more notifications",
+      "viewAll": "View all notifications"
+    }
   }
 }

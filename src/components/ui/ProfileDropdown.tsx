@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings, User, Smartphone } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 /**
  * PROFESSIONAL USER PROFILE DROPDOWN
@@ -21,6 +22,7 @@ import { LogOut, Settings, User, Smartphone } from 'lucide-react';
 
 export const ProfileDropdown: React.FC = () => {
   const { user, logout } = useAuth();
+  const { t, lang } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -51,11 +53,16 @@ export const ProfileDropdown: React.FC = () => {
   };
 
   // Get user role display
-  const roleDisplay = Array.isArray(user.roles) && user.roles.length > 0
+  const roleRaw = Array.isArray(user.roles) && user.roles.length > 0
     ? typeof user.roles[0] === 'string'
       ? user.roles[0].toUpperCase()
       : user.roles[0].name
-    : 'User';
+    : t('shell.user', 'User');
+  // Role names are school data; in Arabic the common ones are shown by their Arabic title.
+  const roleSlug = String(Array.isArray(user.roles) && user.roles.length > 0
+    ? (typeof user.roles[0] === 'string' ? user.roles[0] : (user.roles[0].slug || user.roles[0].name || ''))
+    : '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^super_admin$/, 'superadmin');
+  const roleDisplay = lang === 'ar' && roleSlug ? t(`shell.role.${roleSlug}`, roleRaw) : roleRaw;
 
   // Get initials
   const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U';
@@ -66,7 +73,7 @@ export const ProfileDropdown: React.FC = () => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        aria-label="User profile menu"
+        aria-label={t('shell.profile.menu', 'User profile menu')}
         aria-expanded={isOpen}
       >
         {/* Avatar Circle */}
@@ -83,7 +90,7 @@ export const ProfileDropdown: React.FC = () => {
       {/* Dropdown Menu */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 py-0 z-50 animate-in fade-in slide-in-from-top-2 origin-top-right"
+          className="absolute end-0 mt-2 w-72 bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 py-0 z-50 animate-in fade-in slide-in-from-top-2 origin-top-right"
           role="menu"
           aria-orientation="vertical"
         >
@@ -110,7 +117,7 @@ export const ProfileDropdown: React.FC = () => {
             {/* School Info */}
             {user.schoolName && (
               <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                <div className="text-xs text-gray-500 dark:text-gray-400">School</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{t('shell.profile.school', 'School')}</div>
                 <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                   {user.schoolName}
                 </div>
@@ -127,7 +134,7 @@ export const ProfileDropdown: React.FC = () => {
               role="menuitem"
             >
               <User size={16} className="text-gray-400 dark:text-gray-500" />
-              <span>Profile</span>
+              <span>{t('shell.profile.profile', 'Profile')}</span>
             </Link>
 
             <Link
@@ -137,7 +144,7 @@ export const ProfileDropdown: React.FC = () => {
               role="menuitem"
             >
               <Settings size={16} className="text-gray-400 dark:text-gray-500" />
-              <span>Settings</span>
+              <span>{t('shell.settings', 'Settings')}</span>
             </Link>
 
             <Link
@@ -147,7 +154,7 @@ export const ProfileDropdown: React.FC = () => {
               role="menuitem"
             >
               <Smartphone size={16} className="text-gray-400 dark:text-gray-500" />
-              <span>Sessions & Devices</span>
+              <span>{t('shell.profile.sessions', 'Sessions & Devices')}</span>
             </Link>
           </div>
 
@@ -165,7 +172,7 @@ export const ProfileDropdown: React.FC = () => {
               role="menuitem"
             >
               <LogOut size={16} />
-              <span>Logout</span>
+              <span>{t('shell.profile.logout', 'Logout')}</span>
             </button>
           </div>
         </div>

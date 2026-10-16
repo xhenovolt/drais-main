@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useCallback } from 'react';
 import { useThemeStore } from '@/hooks/useThemeStore';
+import { useAuth } from '@/contexts/AuthContext';
 import { translate, type Dictionary, type TVars } from '@/lib/i18n/core';
 import enDictionary from '@/locales/en.json';
 import arDictionary from '@/locales/ar.json';
@@ -81,8 +82,15 @@ function warnMissingKey(key: string, lang: string) {
 
 export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefault?: boolean }> = ({ children, loadSchoolDefault = true }) => {
   const lang = useThemeStore(s=>s.language);
-  const setLanguage = useThemeStore(s=>s.setLanguage);
-  const languageExplicit = useThemeStore(s=>s.languageExplicit);
+  const setLanguageGlobal = useThemeStore(s=>s.setLanguage);
+  // The school whose screens are open. Pages rendered outside an AuthProvider simply have none.
+  let schoolId: number | null = null;
+  try { schoolId = useAuth()?.user?.schoolId ?? null; } catch { schoolId = null; }
+  /** Choosing a language applies here and is remembered for THIS school only. */
+  const setLanguage = useCallback((lng: string) => {
+    setLanguageGlobal(lng);
+    if (schoolId) useThemeStore.getState().rememberSchoolLanguage(schoolId, lng === 'ar' ? 'ar' : 'en');
+  }, [setLanguageGlobal, schoolId]);
   const setLanguageFromSchoolDefault = useThemeStore(s=>s.setLanguageFromSchoolDefault);
   const dict = DICTIONARIES[lang] ?? DICTIONARIES.en;
   // Kept in the context value for existing consumers; the dictionaries are always available.
@@ -91,29 +99,35 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
   const error: string | null = null;
 
   /**
-   * Phase 6 — once per mount, fetch the school's default_locale and apply
-   * it ONLY IF the user has never explicitly chosen a language. Failures
-   * are swallowed: not authenticated, network glitch, pre-migration row
-   * (column absent) all just leave the existing language in place.
+   * Which language this school's screens open in — decided per school, never carried over
+   * from another school used in the same browser:
+   *   1. the language last chosen while in THIS school;
+   *   2. otherwise the school's default (Settings → Appearance → School default language);
+   *   3. otherwise English.
+   * A choice made before languages were per school is given once to the first school opened.
    */
   useEffect(() => {
-    if (!loadSchoolDefault || languageExplicit) return; // public/login routes must not touch the DB
+    if (!loadSchoolDefault || !schoolId) return; // public/login routes must not touch the DB
+    const st = useThemeStore.getState();
+    if (!st.langBySchoolMigrated) {
+      st.markLangBySchoolMigrated();
+      if (st.languageExplicit) { st.rememberSchoolLanguage(schoolId, st.language === 'ar' ? 'ar' : 'en'); return; }
+    }
+    const mine = st.langBySchool[String(schoolId)];
+    if (mine) { if (mine !== st.language) setLanguageFromSchoolDefault(mine); return; }
     let cancelled = false;
     fetch('/api/school-config')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (cancelled || !d?.success) return;
         const def = d.school?.default_locale;
-        if ((def === 'ar' || def === 'en') && def !== lang) {
-          setLanguageFromSchoolDefault(def);
-        }
+        const target: 'en' | 'ar' = def === 'ar' ? 'ar' : 'en';
+        if (target !== useThemeStore.getState().language) setLanguageFromSchoolDefault(target);
       })
       .catch(() => { /* silent — keep current language */ });
     return () => { cancelled = true; };
-    // Intentionally NOT depending on `lang` — only on the explicit flag.
-    // We hydrate at most once per mount when the user is implicit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [languageExplicit, loadSchoolDefault]);
+  }, [schoolId, loadSchoolDefault]);
 
 
   useEffect(() => {

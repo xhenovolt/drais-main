@@ -86,8 +86,8 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   };
 
   const getDisplayName = () => {
-    if (!user) return 'User';
-    return user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User';
+    if (!user) return t('shell.user', 'User');
+    return user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || t('shell.user', 'User');
   };
 
   const handleLogout = async () => {
@@ -209,7 +209,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
               className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-xs"
             >
               <Search className="w-3.5 h-3.5" />
-              Search
+              {t('shell.search', 'Search')}
             </Link>
 
             <div className="flex items-center gap-1">
@@ -224,7 +224,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
               <button
                 onClick={() => theme.setMode(theme.mode === 'light' ? 'dark' : 'light')}
                 className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                aria-label="Toggle theme"
+                aria-label={t('shell.toggleTheme', 'Toggle theme')}
               >
                 {theme.mode === 'light'
                   ? <Moon className="w-4 h-4" />
@@ -237,7 +237,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
                 <button
                   onClick={() => setLangOpen(v => !v)}
                   className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                  aria-label="Language"
+                  aria-label={t('shell.language', 'Language')}
                 >
                   <Globe className="w-4 h-4" />
                 </button>
@@ -269,7 +269,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 custom-scroll">
           {navigationItems.length > 0
             ? navigationItems.map(item => renderItem(item))
-            : <p className="text-xs text-slate-400 px-3 py-2">No modules available</p>
+            : <p className="text-xs text-slate-400 px-3 py-2">{t('shell.noModules', 'No modules available')}</p>
           }
         </nav>
 
@@ -280,28 +280,28 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <User className="w-4 h-4" />
-            My Profile
+            {t('shell.myProfile', 'My Profile')}
           </Link>
           <Link
             href="/settings"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <Settings className="w-4 h-4" />
-            Settings
+            {t('shell.settings', 'Settings')}
           </Link>
           <Link
             href="/help"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <HelpCircle className="w-4 h-4" />
-            Help & Support
+            {t('shell.helpSupport', 'Help & Support')}
           </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Sign Out
+            {t('shell.signOut', 'Sign Out')}
           </button>
         </div>
       </div>

@@ -9,8 +9,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
-interface Flag { route: string; title: string; label: 'New' | 'Improved' | 'Fixed'; since: string; description: string; }
+interface Flag { route: string; title: string; label: 'New' | 'Improved' | 'Fixed'; since: string; description: string; titleAr?: string; descriptionAr?: string; }
 
 const LABEL_STYLE: Record<string, string> = {
   New:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -19,17 +20,18 @@ const LABEL_STYLE: Record<string, string> = {
 };
 const SEEN_KEY = 'drais.whatsnew.lastSeen';
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (k: string, v?: any) => string): string {
   const d = Date.parse(`${iso}T00:00:00Z`);
   if (!Number.isFinite(d)) return '';
   const days = Math.floor((Date.now() - d) / 86_400_000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days}d ago`;
-  return `${Math.floor(days / 7)}w ago`;
+  if (days <= 0) return t('shell.today');
+  if (days === 1) return t('shell.yesterday');
+  if (days < 7) return t('shell.daysAgo', { n: days });
+  return t('shell.weeksAgo', { n: Math.floor(days / 7) });
 }
 
 export default function WhatsNew() {
+  const { t, lang, digits } = useI18n();
   const [flags, setFlags] = useState<Flag[]>([]);
   const [version, setVersion] = useState('');
   const [open, setOpen] = useState(false);
@@ -63,22 +65,22 @@ export default function WhatsNew() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen((o) => !o); if (!open) markSeen(); }}
-        title="What's new"
+        title={t('shell.whatsNew.title', "What's new")}
         className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
       >
         <Sparkles className="w-5 h-5" />
         {unseen > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
-            {unseen > 9 ? '9+' : unseen}
+          <span className="absolute -top-0.5 -end-0.5 min-w-[16px] h-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+            {digits(unseen > 9 ? '9+' : unseen)}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-xl z-50">
+        <div className="absolute end-0 mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-xl z-50">
           <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">What's new</span>
-            <span className="text-[11px] text-gray-400">v{version}</span>
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t('shell.whatsNew.title', "What's new")}</span>
+            <span className="text-[11px] text-gray-400">{t('shell.whatsNew.version', { v: version })}</span>
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {flags.map((f, i) => (
@@ -89,11 +91,11 @@ export default function WhatsNew() {
                 className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700/50"
               >
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${LABEL_STYLE[f.label]}`}>{f.label}</span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{f.title}</span>
-                  <span className="ml-auto text-[10px] text-gray-400 whitespace-nowrap">{timeAgo(f.since)}</span>
+                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${LABEL_STYLE[f.label]}`}>{t(`shell.whatsNew.label.${f.label}`, f.label)}</span>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{lang === 'ar' && f.titleAr ? f.titleAr : f.title}</span>
+                  <span className="ms-auto text-[10px] text-gray-400 whitespace-nowrap">{timeAgo(f.since, t)}</span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{f.description}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{lang === 'ar' && f.descriptionAr ? f.descriptionAr : f.description}</p>
               </Link>
             ))}
           </div>

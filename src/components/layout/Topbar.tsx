@@ -19,13 +19,13 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
  *  flips <html dir>, persists via useThemeStore, and re-renders every t()
  *  consumer in place. */
 function LanguageToggle() {
-  const { lang, setLang } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const next = lang === 'ar' ? 'en' : 'ar';
   return (
     <button
       onClick={() => setLang(next)}
-      title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
-      aria-label="Toggle language"
+      title={t('shell.switchLanguage', 'Switch to Arabic')}
+      aria-label={t('shell.toggleLanguage', 'Toggle language')}
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
     >
       <Globe className="w-4 h-4" />
@@ -38,7 +38,7 @@ function LanguageToggle() {
 
 /** Small badge shown in the navbar indicating Cloudinary connection status. */
 function CloudinaryBadge() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const { data } = useSWR('/api/cloudinary/status', fetcher, {
     refreshInterval: 5 * 60 * 1000, // re-check every 5 min
     revalidateOnFocus: false,
@@ -66,7 +66,7 @@ function CloudinaryBadge() {
 
 /** Global badge showing device status — RED if no devices or all offline. */
 function DeviceStatusBadge() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const { data } = useSWR('/api/devices/summary', fetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: false,
@@ -97,7 +97,7 @@ function DeviceStatusBadge() {
   return (
     <Link
       href="/attendance/devices/monitor"
-      title={`${online}/${total} device${total !== 1 ? 's' : ''} online`}
+      title={t('shell.devicesOnline', { online, total, count: total })}
       className={`hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
         anyOnline
           ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
@@ -105,13 +105,13 @@ function DeviceStatusBadge() {
       }`}
     >
       {anyOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-      <span>{anyOnline ? `${online} ${t('topbar.live', 'Live')}` : t('topbar.offline', 'Offline')}</span>
+      <span>{anyOnline ? `${digits(online)} ${t('topbar.live', 'Live')}` : t('topbar.offline', 'Offline')}</span>
     </Link>
   );
 }
 /** Global badge to cancel stale relay commands — only visible when queue has pending/sent rows. */
 function RelayQueueDrainBadge() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [count, setCount] = useState(0);
   const [draining, setDraining] = useState(false);
 
@@ -146,32 +146,32 @@ function RelayQueueDrainBadge() {
     <button
       onClick={drain}
       disabled={draining}
-      title={`${count} stale relay command${count !== 1 ? 's' : ''} — click to cancel all`}
+      title={t('shell.staleRelay', { count })}
       className="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border
                  bg-amber-50 border-amber-300 text-amber-700
                  dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400
                  hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-60 transition-colors"
     >
       {draining ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-      <span>{t('topbar.clearQueue', 'Clear queue')} ({count})</span>
+      <span>{t('topbar.clearQueue', 'Clear queue')} ({digits(count)})</span>
     </button>
   );
 }
 // ─── Notification Bell Dropdown ───────────────────────────────────────────────
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (k: string, v?: any) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
-  if (mins < 1)  return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+  if (mins < 1)  return t('shell.justNow');
+  if (mins < 60) return t('shell.minAgo', { n: mins });
+  if (hours < 24) return t('shell.hoursAgo', { n: hours });
+  return t('shell.daysAgo', { n: days });
 }
 
 function NotificationBell() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -228,12 +228,12 @@ function NotificationBell() {
       <button
         onClick={handleOpen}
         className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-ring relative"
-        aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}
+        aria-label={unread > 0 ? t('shell.notificationsUnreadAria', { count: unread }) : t('shell.notificationsAria', 'Notifications')}
       >
         <Bell size={20} className="text-gray-700 dark:text-gray-300" />
         {unread > 0 && (
           <span className="absolute top-1.5 end-1.5 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[10px] text-white font-bold flex items-center justify-center leading-none">
-            {unread > 99 ? '99+' : unread}
+            {digits(unread > 99 ? '99+' : unread)}
           </span>
         )}
       </button>
@@ -247,14 +247,14 @@ function NotificationBell() {
               <Bell className="w-4 h-4 text-indigo-500" />
               {t('topbar.notifications', 'Notifications')}
               {unread > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">{unread}</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">{digits(unread)}</span>
               )}
             </p>
             <div className="flex items-center gap-2">
               {unread > 0 && (
                 <button
                   onClick={markAllRead}
-                  title="Mark all as read"
+                  title={t('shell.markAllAsRead', 'Mark all as read')}
                   className="flex items-center gap-1 text-[10px] text-indigo-600 hover:underline font-semibold"
                 >
                   <CheckCheck className="w-3 h-3" /> {t('topbar.allRead', 'All read')}
@@ -294,7 +294,7 @@ function NotificationBell() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800 dark:text-white truncate">{n.title}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{n.created_at ? timeAgo(n.created_at) : '—'}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{n.created_at ? timeAgo(n.created_at, t) : '—'}</p>
                   </div>
                 </div>
               ))
@@ -331,6 +331,7 @@ interface TopbarProps {
  * - No clutter
  */
 export const Topbar = ({ onMenuClick }: TopbarProps) => {
+  const { t } = useI18n();
   return (
     <div data-surface="topbar" className="sticky top-0 z-50 h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="flex items-center justify-between w-full h-full px-3 sm:px-4 lg:px-6 gap-4">
@@ -340,7 +341,7 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
           <button
             onClick={onMenuClick}
             className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Toggle menu"
+            aria-label={t('shell.toggleMenu', 'Toggle menu')}
           >
             <Menu size={24} className="text-gray-700 dark:text-gray-300" />
           </button>
@@ -349,7 +350,7 @@ export const Topbar = ({ onMenuClick }: TopbarProps) => {
           <Link
             href="/"
             className="flex items-center gap-2 font-bold text-lg text-foreground transition-opacity hover:opacity-80"
-            aria-label="DRAIS home"
+            aria-label={t('shell.home', 'DRAIS home')}
           >
             <BrandBadge size={32} />
             <span className="hidden sm:inline">DRAIS</span>

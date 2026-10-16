@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, CalendarCheck, Menu } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 /**
  * BOTTOM NAVIGATION — One UI 8 Style — Mobile only (lg:hidden)
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
 
 export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
   const pathname = usePathname();
+  const { t } = useI18n();
   // Deliberately the SAME 4 items regardless of DB mode — see Sidebar.tsx's
   // own comment (Phase 7 sub-effort 27, reverting sub-effort 26's filtering).
   const items = NAV_ITEMS;
@@ -84,7 +86,7 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
                     : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
                 }`}
               >
-                {label}
+                {t(`shell.nav.${key}`, label)}
               </span>
             </Link>
           );
@@ -94,13 +96,13 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
         <button
           onClick={onMoreClick}
           className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 group relative"
-          aria-label="Open navigation menu"
+          aria-label={t('shell.nav.openMenu', 'Open navigation menu')}
         >
           <div className="flex items-center justify-center w-10 h-8 rounded-2xl transition-all duration-200 group-hover:bg-gray-100 dark:group-hover:bg-gray-800">
             <Menu className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-200" />
           </div>
           <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-200">
-            More
+            {t('shell.nav.more', 'More')}
           </span>
         </button>
       </div>

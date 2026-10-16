@@ -13,6 +13,8 @@ import {
   XCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ar as arLocale } from 'date-fns/locale';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 
@@ -41,6 +43,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
   onClose,
   onNotificationRead
 }) => {
+  const { t, lang, digits } = useI18n();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [cursor, setCursor] = useState<string | null>(null);
@@ -119,7 +122,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: notificationIds, user_id: userId }),
-        successMessage: 'Marked as read',
+        successMessage: t('shell.nd.markedRead', 'Marked as read'),
       });
 
       setAllNotifications(prev => 
@@ -148,7 +151,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: notificationIds, user_id: userId }),
-        successMessage: 'Notifications archived',
+        successMessage: t('shell.nd.archived', 'Notifications archived'),
       });
 
       setAllNotifications(prev => 
@@ -210,26 +213,26 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"
+      className="absolute end-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"
       style={{ maxHeight: '80vh' }}
     >
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Notifications
+            {t('shell.nd.title', 'Notifications')}
           </h3>
           <button
             onClick={markAllAsRead}
             className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             disabled={allNotifications.every(n => n.is_read)}
           >
-            Mark all read
+            {t('shell.nd.markAllRead', 'Mark all read')}
           </button>
         </div>
         
         {/* Filter tabs */}
-        <div className="flex space-x-4">
+        <div className="flex gap-4">
           <button
             onClick={() => setFilter('all')}
             className={`text-sm font-medium pb-2 border-b-2 transition-colors ${
@@ -238,7 +241,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
                 : 'text-gray-500 border-transparent hover:text-gray-700'
             }`}
           >
-            All
+            {t('shell.nd.all', 'All')}
           </button>
           <button
             onClick={() => setFilter('unread')}
@@ -248,7 +251,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
                 : 'text-gray-500 border-transparent hover:text-gray-700'
             }`}
           >
-            Unread
+            {t('shell.nd.unread', 'Unread')}
           </button>
         </div>
       </div>
@@ -258,7 +261,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
         {isLoading ? (
           <div className="p-8 text-center">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-sm text-gray-500">Loading notifications...</p>
+            <p className="text-sm text-gray-500">{t('shell.nd.loading', 'Loading notifications...')}</p>
           </div>
         ) : allNotifications.length === 0 ? (
           <div className="p-8 text-center">
@@ -266,7 +269,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
               <CheckCircle className="w-full h-full" />
             </div>
             <p className="text-gray-500 dark:text-gray-400">
-              {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+              {filter === 'unread' ? t('shell.nd.noUnread', 'No unread notifications') : t('shell.nd.none', 'No notifications yet')}
             </p>
           </div>
         ) : (
@@ -313,8 +316,10 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                           <Clock className="w-3 h-3" />
-                          <span title={new Date(notification.created_at).toLocaleString()}>
-                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          <span title={lang === 'ar' ? digits(new Date(notification.created_at).toLocaleString('ar')) : new Date(notification.created_at).toLocaleString()}>
+                            {lang === 'ar'
+                              ? digits(formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: arLocale }))
+                              : formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                           </span>
                         </div>
                         
@@ -324,7 +329,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
                             <button
                               onClick={() => markAsRead([notification.id])}
                               className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                              title="Mark as read"
+                              title={t('shell.nd.markRead', 'Mark as read')}
                             >
                               <Eye className="w-3 h-3" />
                             </button>
@@ -333,7 +338,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
                           <button
                             onClick={() => archiveNotifications([notification.id])}
                             className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                            title="Archive"
+                            title={t('shell.nd.archive', 'Archive')}
                           >
                             <Archive className="w-3 h-3" />
                           </button>
@@ -344,7 +349,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                              title="Open link"
+                              title={t('shell.nd.openLink', 'Open link')}
                             >
                               <ExternalLink className="w-3 h-3" />
                             </a>
@@ -367,7 +372,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
               disabled={isLoadingMore}
               className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
             >
-              {isLoadingMore ? 'Loading...' : 'Load more notifications'}
+              {isLoadingMore ? t('shell.nd.loadingMore', 'Loading...') : t('shell.nd.loadMore', 'Load more notifications')}
             </button>
           </div>
         )}
@@ -383,7 +388,7 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
           }}
           className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
         >
-          View all notifications
+          {t('shell.nd.viewAll', 'View all notifications')}
         </button>
       </div>
     </motion.div>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T17:48:47.026Z",
-  "last_commit": "ae1453ca3ecc793009ae33262b33fca8ce23602b",
+  "generated_at": "2026-10-16T18:17:25.058Z",
+  "last_commit": "c7019414989a30e339b6e39329bff1769f6c145b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9865,7 +9865,20 @@
         }
       ],
       "commit": "ae1453ca3e"
+    },
+    {
+      "version": "2.50.96",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "/attendance/remote-features fully Arabic — completes Devices & Biometrics",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/remote-features fully Arabic — completes Devices & Biometrics"
+        }
+      ],
+      "commit": "c701941498"
     }
   ],
-  "app_version": "2.50.96"
+  "app_version": "2.50.97"
 }
