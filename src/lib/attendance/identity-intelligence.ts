@@ -29,6 +29,8 @@ export interface StaleEnrollment { pin: number; name: string | null; role_type: 
 export interface IdentityIssue {
   kind: IdentityIssueKind; action: IdentityAction; severity: 'high' | 'medium' | 'low';
   subject: string; detail: string; recommendation: string;
+  /** The values in subject/detail/recommendation, so a screen can word them in another language. */
+  vars?: Record<string, string | number | null>;
   ref?: { role_type?: string; role_ref_id?: number; pin?: string | number; keep_pin?: number };
 }
 
@@ -63,6 +65,7 @@ export function classifyIssues(input: IdentityInput): IdentityIssue[] {
       subject: g.name || `${g.role_type} #${g.role_ref_id}`,
       detail: `Mapped to ${g.enrollments.length} device PINs (${g.enrollments.map(e => e.pin).join(', ')}). Attendance can double-count or split.`,
       recommendation: `Keep PIN ${keep} (most recently active) and unmap ${drop.join(', ')}.`,
+      vars: { name: g.name ?? null, role: g.role_type, id: g.role_ref_id, count: g.enrollments.length, pins: g.enrollments.map(e => e.pin).join(', '), keep, drop: drop.join(', ') },
       ref: { role_type: g.role_type, role_ref_id: g.role_ref_id, keep_pin: keep },
     });
   }
@@ -76,6 +79,7 @@ export function classifyIssues(input: IdentityInput): IdentityIssue[] {
       recommendation: u.suggested_name
         ? `Likely "${u.suggested_name}" — confirm in Identity Matching.`
         : 'Map to a person via Detect & map / Identity Matching.',
+      vars: { pin: u.pin, device: u.device_sn ?? null, events: u.events, name: u.suggested_name ?? null },
       ref: { pin: u.pin, role_type: undefined },
     });
   }
@@ -86,6 +90,7 @@ export function classifyIssues(input: IdentityInput): IdentityIssue[] {
       subject: s.name || `${s.role_type} · PIN ${s.pin}`,
       detail: `Enrolled but the device hasn't recorded PIN ${s.pin} in ${s.last_seen_days} days.`,
       recommendation: 'Confirm the person is still enrolled on the device, or revoke the stale mapping.',
+      vars: { name: s.name ?? null, role: s.role_type, pin: s.pin, days: s.last_seen_days },
       ref: { pin: s.pin, role_type: s.role_type },
     });
   }

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T10:17:29.518Z",
-  "last_commit": "590df203ff27b26621144cc165c2fd185d3f6528",
+  "generated_at": "2026-10-16T10:23:02.900Z",
+  "last_commit": "013db09d7ef152e20b5f7560c247b1b456978582",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9800,7 +9800,20 @@
         }
       ],
       "commit": "590df203ff"
+    },
+    {
+      "version": "2.50.91",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "Device Intelligence and Enrollment Station fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Device Intelligence and Enrollment Station fully Arabic"
+        }
+      ],
+      "commit": "013db09d7e"
     }
   ],
-  "app_version": "2.50.91"
+  "app_version": "2.50.92"
 }

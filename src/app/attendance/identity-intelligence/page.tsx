@@ -24,7 +24,28 @@ const ACTION_ICON: Record<string, React.ReactNode> = {
 };
 
 export default function IdentityIntelligence() {
-  const { t } = useI18n();
+  const { t, lang, digits, formatPercent } = useI18n();
+  const role = (r: any) => t(`attendanceIntel.identity.role.${r}`, String(r));
+  // Sentences from the issue's numbers (falls back to the server's English when an issue has none).
+  const issueText = (i: any) => {
+    const v = i.vars;
+    if (!v) return { subject: i.subject, detail: i.detail, rec: i.recommendation };
+    if (i.kind === 'duplicate') return {
+      subject: v.name || t('attendanceIntel.identity.subj.roleRef', { role: role(v.role), id: v.id }),
+      detail: t('attendanceIntel.identity.dup.detail', { count: v.count, pins: v.pins }),
+      rec: t('attendanceIntel.identity.dup.rec', { keep: v.keep, drop: v.drop }),
+    };
+    if (i.kind === 'unknown') return {
+      subject: v.device ? t('attendanceIntel.identity.subj.pinOn', { pin: v.pin, device: v.device }) : t('attendanceIntel.identity.subj.pin', { pin: v.pin }),
+      detail: v.name ? t('attendanceIntel.identity.unk.detailName', { events: v.events, name: v.name }) : t('attendanceIntel.identity.unk.detail', { events: v.events }),
+      rec: v.name ? t('attendanceIntel.identity.unk.recName', { name: v.name }) : t('attendanceIntel.identity.unk.rec'),
+    };
+    return {
+      subject: v.name || t('attendanceIntel.identity.subj.rolePin', { role: role(v.role), pin: v.pin }),
+      detail: t('attendanceIntel.identity.stale.detail', { pin: v.pin, days: v.days }),
+      rec: t('attendanceIntel.identity.stale.rec'),
+    };
+  };
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,11 +81,14 @@ export default function IdentityIntelligence() {
       {health && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-5 flex-wrap">
           <div className="text-center">
-            <div className={`text-5xl font-extrabold tabular-nums ${scoreColor}`}>{health.score}<span className="text-xl">%</span></div>
+            <div className={`text-5xl font-extrabold tabular-nums ${scoreColor}`}>{digits(health.score)}<span className="text-xl">{lang === 'ar' ? '٪' : '%'}</span></div>
             <div className="text-[11px] text-gray-400 uppercase">{health.band === 'clean' ? t('attendanceIntel.identity.clean', 'Clean') : health.band === 'minor' ? t('attendanceIntel.identity.minor', 'Minor issues') : t('attendanceIntel.identity.attention', 'Needs attention')}</div>
           </div>
           <div className="flex-1 min-w-[200px]">
-            <p className="text-sm text-gray-700 dark:text-gray-200">{health.summary}</p>
+            <p className="text-sm text-gray-700 dark:text-gray-200">{data?.counts
+              ? ([['duplicates', data.counts.duplicates], ['unknowns', data.counts.unknowns], ['stales', data.counts.stales]] as const)
+                  .filter(([, n]) => n > 0).map(([k, n]) => t(`attendanceIntel.identity.sum.${k}`, { count: n })).join(' · ') || t('attendanceIntel.identity.sum.clean')
+              : health.summary}</p>
             {data?.counts && (
               <div className="flex gap-3 mt-2 text-xs text-gray-500">
                 <span>{t('attendanceIntel.identity.countDuplicate', { n: data.counts.duplicates }, '{{n}} duplicate')}</span>
@@ -81,21 +105,21 @@ export default function IdentityIntelligence() {
 
       <div className="space-y-2">
         {data && issues.length === 0 && <p className="text-sm text-gray-400 text-center py-6">{t('attendanceIntel.identity.noIssues', 'No identity issues — every device PIN maps cleanly.')}</p>}
-        {issues.map((i: any, idx: number) => (
+        {issues.map((i: any, idx: number) => { const x = issueText(i); return (
           <div key={idx} className={`rounded-xl border p-3.5 ${SEV_STYLE[i.severity]}`}>
             <div className="flex items-start gap-2">
               <span className="mt-0.5">{ACTION_ICON[i.action]}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                  {i.subject}
-                  <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300">{i.action}</span>
+                  {x.subject}
+                  <span className="ms-2 text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300">{t(`attendanceIntel.identity.action.${i.action}`, i.action)}</span>
                 </p>
-                <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{i.detail}</p>
-                <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-1">→ {i.recommendation}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{x.detail}</p>
+                <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-1">{lang === 'ar' ? '←' : '→'} {x.rec}</p>
               </div>
             </div>
           </div>
-        ))}
+        ); })}
       </div>
 
       {/* Duplicate people — guided merge (Phase B) */}
@@ -131,6 +155,7 @@ function DuplicatePeople({ t }: { t: TFn }) {
 }
 
 function DupGroup({ group, onMerged, t }: { group: any; onMerged: () => void; t: TFn }) {
+  const { digits: dg } = useI18n();
   const withRole = group.members.filter((m: any) => m.role !== 'none');
   const [keeper, setKeeper] = useState<number>(withRole[0]?.person_id ?? group.members[0]?.person_id);
   const [preview, setPreview] = useState<any>(null);
@@ -163,8 +188,8 @@ function DupGroup({ group, onMerged, t }: { group: any; onMerged: () => void; t:
           <label key={m.person_id} className="flex items-center justify-between text-xs cursor-pointer">
             <span className="flex items-center gap-1.5">
               <input type="radio" name={`keep-${group.name}`} checked={keeper === m.person_id} onChange={() => { setKeeper(m.person_id); setPreview(null); }} disabled={m.role === 'none'} />
-              <span className="text-gray-700 dark:text-gray-200">#{m.person_id}</span>
-              <span className={`text-[10px] px-1 rounded ${m.role === 'none' ? 'bg-gray-100 text-gray-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>{m.role}</span>
+              <span className="text-gray-700 dark:text-gray-200">#{dg(m.person_id)}</span>
+              <span className={`text-[10px] px-1 rounded ${m.role === 'none' ? 'bg-gray-100 text-gray-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>{t(`attendanceIntel.identity.role.${m.role}`, m.role)}</span>
             </span>
             <span className="text-gray-400">{t('attendanceIntel.identity.eventsPins', { events: m.events, pins: m.enrollments }, '{{events}} events · {{pins}} PIN(s)')}</span>
           </label>

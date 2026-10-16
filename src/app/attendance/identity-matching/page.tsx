@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -44,6 +45,16 @@ interface Report {
 }
 
 export default function IdentityMatchingPage() {
+  const { t, rich, lang, digits, formatPercent } = useI18n();
+  const arrow = lang === 'ar' ? '←' : '→';
+  const errText = (e: any) => (lang === 'ar' ? t('devicesPages.idMatch.requestFailed') : e.message);
+  // Engine warnings are English sentences (device-user-sync); shown in the interface language.
+  const warning = (w: string) => {
+    const m = /^TCP inventory failed \((.*)\) — using the cached directory\.$/.exec(w);
+    if (m) return t('devicesPages.idMatch.warn.tcp', { reason: m[1] === 'no users returned' ? t('devicesPages.idMatch.warn.noUsers') : m[1] });
+    if (w === 'No LAN IP for this device — using the cached directory.') return t('devicesPages.idMatch.warn.noLan');
+    return w;
+  };
   const [deviceSn, setDeviceSn] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
@@ -68,14 +79,14 @@ export default function IdentityMatchingPage() {
   };
 
   const runMatching = async () => {
-    if (!deviceSn) return showToast('error', 'Select a device');
+    if (!deviceSn) return showToast('error', t('devicesPages.idMatch.selectDevice'));
     setBusy('run'); setReport(null); setDecided({});
     try {
       const json = await api({ action: 'run', device_sn: deviceSn });
       setReport(json.report);
-      showToast('success', `Matched ${json.report.usersOnDevice} device user(s)`);
+      showToast('success', t('devicesPages.idMatch.matched', { n: json.report.usersOnDevice }));
     } catch (err: any) {
-      showToast('error', err.message);
+      showToast('error', errText(err));
     } finally { setBusy(null); }
   };
 
@@ -84,9 +95,9 @@ export default function IdentityMatchingPage() {
     try {
       await api({ action: 'confirm', device_sn: deviceSn, pin, role_type: cand.roleType, ref_id: cand.refId });
       setDecided(d => ({ ...d, [pin]: 'confirmed' }));
-      showToast('success', `PIN ${pin} → ${cand.name}`);
+      showToast('success', t('devicesPages.idMatch.mapped', { pin, name: cand.name }));
     } catch (err: any) {
-      showToast('error', err.message);
+      showToast('error', errText(err));
     } finally { setBusy(null); }
   };
 
@@ -96,13 +107,13 @@ export default function IdentityMatchingPage() {
       await api({ action: 'reject', device_sn: deviceSn, pin });
       setDecided(d => ({ ...d, [pin]: 'rejected' }));
     } catch (err: any) {
-      showToast('error', err.message);
+      showToast('error', errText(err));
     } finally { setBusy(null); }
   };
 
   const confirmAllAuto = async () => {
     if (!report) return;
-    if (!window.confirm(`Confirm all ${report.auto} automatic matches (≥90% confidence)?`)) return;
+    if (!window.confirm(t('devicesPages.idMatch.confirmAll', { n: report.auto }))) return;
     setBusy('confirm_auto');
     try {
       const json = await api({ action: 'confirm_auto', device_sn: deviceSn });
@@ -111,9 +122,9 @@ export default function IdentityMatchingPage() {
         if (it.tier === 'auto' && !it.contested) d[it.device.pin] = 'confirmed';
       }
       setDecided(prev => ({ ...prev, ...d }));
-      showToast('success', `${json.confirmed} mapping(s) confirmed${json.failed ? `, ${json.failed} failed` : ''}`);
+      showToast('success', `${t('devicesPages.idMatch.confirmedN', { n: json.confirmed })}${json.failed ? t('devicesPages.idMatch.failedN', { n: json.failed }) : ''}`);
     } catch (err: any) {
-      showToast('error', err.message);
+      showToast('error', errText(err));
     } finally { setBusy(null); }
   };
 
@@ -122,7 +133,7 @@ export default function IdentityMatchingPage() {
       c >= 90 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
       : c >= 60 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
       : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-      {c}%
+      {formatPercent(c)}
     </span>
   );
 
@@ -138,11 +149,11 @@ export default function IdentityMatchingPage() {
         : 'border-gray-200 dark:border-gray-700'}`}>
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-28">
-            <div className="text-[10px] uppercase text-gray-400">Device user</div>
-            <div className="font-mono text-sm text-gray-900 dark:text-white">PIN {pin}</div>
+            <div className="text-[10px] uppercase text-gray-400">{t('devicesPages.idMatch.deviceUser')}</div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">{t('devicesPages.idMatch.pin', { pin })}</div>
             <div className="text-sm text-gray-700 dark:text-gray-300">{it.device.name || '—'}</div>
             <div className="text-[10px] text-gray-400">
-              {it.device.privilege === 14 ? 'Admin' : 'User'}{it.device.card ? ` · card ${it.device.card}` : ''}
+              {it.device.privilege === 14 ? t('devicesPages.idMatch.admin') : t('devicesPages.idMatch.user')}{it.device.card ? t('devicesPages.idMatch.card', { card: it.device.card }) : ''}
             </div>
           </div>
           <Link2 className="w-4 h-4 text-gray-300 dark:text-gray-600" />
@@ -154,27 +165,27 @@ export default function IdentityMatchingPage() {
                 {c.position && <span className="text-xs text-gray-400">{c.position}</span>}
                 {idx === 0 && it.contested && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                    contested — another PIN also claims this person
+                    {t('devicesPages.idMatch.contested')}
                   </span>
                 )}
                 {!done && (
                   <button
                     onClick={() => confirm(pin, c)}
                     disabled={busy !== null}
-                    className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium disabled:opacity-50"
+                    className="ms-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium disabled:opacity-50"
                   >
                     {busy === `confirm:${pin}` ? <Loader className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
-                    Confirm match
+                    {t('devicesPages.idMatch.confirmMatch')}
                   </button>
                 )}
               </div>
             )) : (
-              <div className="text-sm text-gray-400">No plausible DRAIS staff found</div>
+              <div className="text-sm text-gray-400">{t('devicesPages.idMatch.noStaff')}</div>
             )}
           </div>
           {done === 'confirmed' && (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400">
-              <CheckCircle className="w-3.5 h-3.5" /> Mapped
+              <CheckCircle className="w-3.5 h-3.5" /> {t('devicesPages.idMatch.mappedDone')}
             </span>
           )}
           {!done && (
@@ -183,7 +194,7 @@ export default function IdentityMatchingPage() {
               disabled={busy !== null}
               className="px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-xs disabled:opacity-50"
             >
-              Skip
+              {t('devicesPages.idMatch.skip')}
             </button>
           )}
         </div>
@@ -196,23 +207,22 @@ export default function IdentityMatchingPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
           <Fingerprint className="w-7 h-7 text-indigo-500" />
-          Identity Matching
+          {t('devicesPages.idMatch.title')}
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Reconcile biometric device users with DRAIS staff — the device is never modified;
-          DRAIS becomes the identity authority.
+          {t('devicesPages.idMatch.subtitle')}
         </p>
       </div>
 
       {/* Device + run */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col sm:flex-row items-start sm:items-end gap-3">
         <div className="flex-1 min-w-0">
-          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Device</label>
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t('devicesPages.idMatch.device')}</label>
           <select
             value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)}
             className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
           >
-            <option value="">Select device…</option>
+            <option value="">{t('devicesPages.idMatch.selectDeviceOpt')}</option>
             {devices.map((d: any) => (
               <option key={d.sn} value={d.sn}>{d.sn} {d.device_name ? `— ${d.device_name}` : ''}</option>
             ))}
@@ -224,7 +234,7 @@ export default function IdentityMatchingPage() {
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-50"
         >
           {busy === 'run' ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Pull device users &amp; match
+          {t('devicesPages.idMatch.run')}
         </button>
       </div>
 
@@ -232,20 +242,20 @@ export default function IdentityMatchingPage() {
         <>
           {/* Summary */}
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{report.usersOnDevice} on device</span>
-            <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">{report.alreadyMapped} already mapped</span>
-            <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">{report.auto} auto (≥90%)</span>
-            <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">{report.review} need review</span>
-            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">{report.unmatched} unmatched</span>
+            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{t('devicesPages.idMatch.sum.onDevice', { n: report.usersOnDevice })}</span>
+            <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">{t('devicesPages.idMatch.sum.mapped', { n: report.alreadyMapped })}</span>
+            <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">{t('devicesPages.idMatch.sum.auto', { n: report.auto })}</span>
+            <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">{t('devicesPages.idMatch.sum.review', { n: report.review })}</span>
+            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">{t('devicesPages.idMatch.sum.unmatched', { n: report.unmatched })}</span>
             {report.source !== 'tcp' && (
-              <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">from cached directory</span>
+              <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('devicesPages.idMatch.cached')}</span>
             )}
           </div>
 
           {report.warnings.length > 0 && (
             <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-xs space-y-1">
               {report.warnings.map((w, i) => (
-                <div key={i} className="flex items-start gap-2"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{w}</div>
+                <div key={i} className="flex items-start gap-2"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{warning(w)}</div>
               ))}
             </div>
           )}
@@ -256,7 +266,7 @@ export default function IdentityMatchingPage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-green-500" />
-                  Automatically matched — ≥90% confidence
+                  {t('devicesPages.idMatch.autoTitle')}
                 </h2>
                 <button
                   onClick={confirmAllAuto}
@@ -264,7 +274,7 @@ export default function IdentityMatchingPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium disabled:opacity-50"
                 >
                   {busy === 'confirm_auto' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                  Confirm all auto matches
+                  {t('devicesPages.idMatch.confirmAllBtn')}
                 </button>
               </div>
               {tierItems('auto').map(it => <MatchRow key={it.device.pin} it={it} />)}
@@ -276,7 +286,7 @@ export default function IdentityMatchingPage() {
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Users className="w-4 h-4 text-yellow-500" />
-                Needs review — 60–89% confidence
+                {t('devicesPages.idMatch.reviewTitle')}
               </h2>
               {tierItems('review').map(it => <MatchRow key={it.device.pin} it={it} />)}
             </div>
@@ -287,7 +297,7 @@ export default function IdentityMatchingPage() {
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-gray-400" />
-                Unmatched — below 60%
+                {t('devicesPages.idMatch.unmatchedTitle')}
               </h2>
               {tierItems('unmatched').map(it => <MatchRow key={it.device.pin} it={it} />)}
             </div>
@@ -297,12 +307,12 @@ export default function IdentityMatchingPage() {
           {report.mappedPins.length > 0 && (
             <details className="text-sm">
               <summary className="cursor-pointer text-gray-500 dark:text-gray-400 font-medium">
-                {report.mappedPins.length} PIN(s) already mapped — untouched by this run
+                {t('devicesPages.idMatch.mappedPins', { n: report.mappedPins.length })}
               </summary>
               <div className="mt-2 space-y-1">
                 {report.mappedPins.map(m => (
                   <div key={m.pin} className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                    PIN {m.pin} · {m.name || '—'} → {m.mappedTo || '—'}
+                    {t('devicesPages.idMatch.pin', { pin: m.pin })} · {m.name || '—'} {arrow} {m.mappedTo || '—'}
                   </div>
                 ))}
               </div>
@@ -312,7 +322,7 @@ export default function IdentityMatchingPage() {
       )}
 
       <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
-        Confirmed mappings create canonical enrollments (device PIN → DRAIS person). Existing mappings are never overwritten.
+        {t('devicesPages.idMatch.footer')}
       </div>
     </div>
   );

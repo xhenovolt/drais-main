@@ -3848,7 +3848,52 @@
       "keeperMustBeReal": "Keeper must be a real staff/learner record.",
       "confirmMerge": "Merge {{n}} duplicate(s) into {{name}}? Attendance moves over; the duplicates go to Trash (restorable).",
       "mergedToast": "Merged {{merged}} duplicate(s); {{events}} events moved.",
-      "failed": "Failed"
+      "failed": "Failed",
+      "sum": {
+        "duplicates": {
+          "one": "{{count}} duplicate mapping",
+          "other": "{{count}} duplicate mappings"
+        },
+        "unknowns": {
+          "one": "{{count}} unknown PIN",
+          "other": "{{count}} unknown PINs"
+        },
+        "stales": {
+          "one": "{{count}} stale enrollment",
+          "other": "{{count}} stale enrollments"
+        },
+        "clean": "All device identities are clean"
+      },
+      "action": {
+        "merge": "merge",
+        "map": "map",
+        "review": "review"
+      },
+      "role": {
+        "student": "student",
+        "staff": "staff",
+        "none": "none"
+      },
+      "subj": {
+        "roleRef": "{{role}} #{{id}}",
+        "pinOn": "PIN {{pin}} on {{device}}",
+        "pin": "PIN {{pin}}",
+        "rolePin": "{{role}} · PIN {{pin}}"
+      },
+      "dup": {
+        "detail": "Mapped to {{count}} device PINs ({{pins}}). Attendance can double-count or split.",
+        "rec": "Keep PIN {{keep}} (most recently active) and unmap {{drop}}."
+      },
+      "unk": {
+        "detail": "{{events}} punch(es) with no confirmed person.",
+        "detailName": "{{events}} punch(es) with no confirmed person — device name \"{{name}}\".",
+        "recName": "Likely \"{{name}}\" — confirm in Identity Matching.",
+        "rec": "Map to a person via Detect & map / Identity Matching."
+      },
+      "stale": {
+        "detail": "Enrolled but the device hasn't recorded PIN {{pin}} in {{days}} days.",
+        "rec": "Confirm the person is still enrolled on the device, or revoke the stale mapping."
+      }
     },
     "health": {
       "title": "Attendance Health Center",
@@ -6470,6 +6515,49 @@
       "push": "Push fingerprints",
       "pushHelp": "Queues the templates as device commands; the device loads them on its next sync. Nothing is deleted on the device.",
       "another": "← look up another person"
+    },
+    "idMatch": {
+      "selectDevice": "Select a device",
+      "matched": "Matched {{n}} device user(s)",
+      "requestFailed": "Request failed",
+      "mapped": "PIN {{pin}} → {{name}}",
+      "confirmAll": "Confirm all {{n}} automatic matches (≥90% confidence)?",
+      "confirmedN": "{{n}} mapping(s) confirmed",
+      "failedN": ", {{n}} failed",
+      "deviceUser": "Device user",
+      "pin": "PIN {{pin}}",
+      "admin": "Admin",
+      "user": "User",
+      "card": " · card {{card}}",
+      "contested": "contested — another PIN also claims this person",
+      "confirmMatch": "Confirm match",
+      "noStaff": "No plausible DRAIS staff found",
+      "mappedDone": "Mapped",
+      "skip": "Skip",
+      "title": "Identity Matching",
+      "subtitle": "Reconcile biometric device users with DRAIS staff — the device is never modified; DRAIS becomes the identity authority.",
+      "device": "Device",
+      "selectDeviceOpt": "Select device…",
+      "run": "Pull device users & match",
+      "sum": {
+        "onDevice": "{{n}} on device",
+        "mapped": "{{n}} already mapped",
+        "auto": "{{n}} auto (≥90%)",
+        "review": "{{n}} need review",
+        "unmatched": "{{n}} unmatched"
+      },
+      "cached": "from cached directory",
+      "warn": {
+        "tcp": "TCP inventory failed ({{reason}}) — using the cached directory.",
+        "noUsers": "no users returned",
+        "noLan": "No LAN IP for this device — using the cached directory."
+      },
+      "autoTitle": "Automatically matched — ≥90% confidence",
+      "confirmAllBtn": "Confirm all auto matches",
+      "reviewTitle": "Needs review — 60–89% confidence",
+      "unmatchedTitle": "Unmatched — below 60%",
+      "mappedPins": "{{n}} PIN(s) already mapped — untouched by this run",
+      "footer": "Confirmed mappings create canonical enrollments (device PIN → DRAIS person). Existing mappings are never overwritten."
     }
   }
 }
