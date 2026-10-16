@@ -5740,11 +5740,11 @@
       "accompaniedPh": "Accompanied by (optional)",
       "transportLabel": "Transport (optional)",
       "transport": {
-        "Walking": "Walking",
-        "Parent vehicle": "Parent vehicle",
-        "School vehicle": "School vehicle",
-        "Boda/Taxi": "Boda/Taxi",
-        "Ambulance": "Ambulance"
+        "walking": "Walking",
+        "parentVehicle": "Parent vehicle",
+        "schoolVehicle": "School vehicle",
+        "bodaTaxi": "Boda/Taxi",
+        "ambulance": "Ambulance"
       },
       "notesPh": "Supporting notes (optional)",
       "emergency": "Emergency",

@@ -5915,11 +5915,11 @@
       "accompaniedPh": "المرافق (اختياري)",
       "transportLabel": "وسيلة النقل (اختياري)",
       "transport": {
-        "Walking": "سيرًا على الأقدام",
-        "Parent vehicle": "سيارة ولي الأمر",
-        "School vehicle": "سيارة المدرسة",
-        "Boda/Taxi": "دراجة نارية / سيارة أجرة",
-        "Ambulance": "سيارة إسعاف"
+        "walking": "سيرًا على الأقدام",
+        "parentVehicle": "سيارة ولي الأمر",
+        "schoolVehicle": "سيارة المدرسة",
+        "bodaTaxi": "دراجة نارية / سيارة أجرة",
+        "ambulance": "سيارة إسعاف"
       },
       "notesPh": "ملاحظات داعمة (اختياري)",
       "emergency": "طارئ",

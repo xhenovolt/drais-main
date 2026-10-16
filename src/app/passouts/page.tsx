@@ -313,7 +313,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
               <input value={form.accompanied_by} onChange={(e) => setForm({ ...form, accompanied_by: e.target.value })} placeholder={t('gateMovement.create.accompaniedPh')} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
               <select value={form.transport_method} onChange={(e) => setForm({ ...form, transport_method: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-600 dark:text-gray-300">
                 <option value="">{t('gateMovement.create.transportLabel')}</option>
-                {['Walking', 'Parent vehicle', 'School vehicle', 'Boda/Taxi', 'Ambulance'].map((v) => <option key={v} value={v}>{t(`gateMovement.create.transport.${v}`)}</option>)}
+                {([['Walking', 'walking'], ['Parent vehicle', 'parentVehicle'], ['School vehicle', 'schoolVehicle'], ['Boda/Taxi', 'bodaTaxi'], ['Ambulance', 'ambulance']] as const).map(([v, id]) => <option key={v} value={v}>{t(`gateMovement.create.transport.${id}`)}</option>)}
               </select>
             </div>
             <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder={t('gateMovement.create.notesPh')} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm resize-none" />

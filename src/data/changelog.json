@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T09:44:37.691Z",
-  "last_commit": "f75c12c39f195176f8d08f965dea61c4bb0da500",
+  "generated_at": "2026-10-16T09:46:30.641Z",
+  "last_commit": "35b846a8bfc5c196b729dee4b76d9beeba7d5e77",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9761,7 +9761,20 @@
         }
       ],
       "commit": "f75c12c39f"
+    },
+    {
+      "version": "2.50.88",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "Gate & Movement fully Arabic — pass-outs, gate mode, visitation cards, pass-out reports",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Gate & Movement fully Arabic — pass-outs, gate mode, visitation cards, pass-out reports"
+        }
+      ],
+      "commit": "35b846a8bf"
     }
   ],
-  "app_version": "2.50.88"
+  "app_version": "2.50.89"
 }
