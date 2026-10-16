@@ -6955,6 +6955,141 @@
       },
       "unknown": "unknown",
       "toRaw": "→ raw #{{id}}"
+    },
+    "remote": {
+      "st": {
+        "supported": "Supported",
+        "partial": "Partial",
+        "unsupported": "Unsupported",
+        "untested": "Untested"
+      },
+      "cat": {
+        "DeviceControl": "Device Control",
+        "DataManagement": "Data Management",
+        "BiometricEnrollment": "Biometric Enrollment",
+        "TemplateTransfer": "Template Transfer"
+      },
+      "code": {
+        "0": "Success",
+        "6": "DATA_NOT_EXIST",
+        "-1001": "Command error",
+        "-1002": "Unsupported command",
+        "-1003": "Parameter error",
+        "-1004": "Internal error",
+        "-1005": "Command timeout",
+        "-1006": "Data already exists",
+        "-1007": "Data not exist"
+      },
+      "cmd": {
+        "REBOOT": {
+          "desc": "Restart the device remotely",
+          "notes": "Device restarts immediately. No acknowledgment returned — confirmed by heartbeat gap."
+        },
+        "INFO": {
+          "desc": "Request device specs (firmware, user/FP/record counts, IP)",
+          "notes": "Device responds with INFO= in next GET heartbeat, not via devicecmd. Format: Ver,UserCount,FPCount,AttCount,IP,..."
+        },
+        "CHECK": {
+          "desc": "Ping/health check",
+          "notes": "Returns -1007 (data not exist). Not implemented on K40 Pro firmware."
+        },
+        "SyncTime": {
+          "name": "Sync Time",
+          "desc": "Force server time synchronization",
+          "notes": "Device syncs clock to server time."
+        },
+        "SyncUserIdentity": {
+          "name": "Sync User Identity",
+          "desc": "Push or update a user on the device",
+          "notes": "Tab-separated parameters. PIN is the device user ID. Returns 0 on success."
+        },
+        "QueryUsers": {
+          "name": "Query Users",
+          "desc": "Request list of all enrolled users from device",
+          "notes": "Device responds with table=USERINFO POST containing all user records."
+        },
+        "ClearLogs": {
+          "name": "Clear Logs",
+          "desc": "Delete attendance logs from device memory",
+          "notes": "Clears attendance records. Use with caution."
+        },
+        "ClearAllData": {
+          "name": "Clear All Data",
+          "desc": "Delete ALL data from device (users, FPs, logs)",
+          "notes": "⚠️ DESTRUCTIVE — Removes all users, fingerprints, and logs."
+        },
+        "ENROLL": {
+          "desc": "Legacy enrollment command",
+          "notes": "Returns -1002 (unsupported command). Not available on K40 Pro."
+        },
+        "ENROLLFP": {
+          "desc": "Fingerprint enrollment (push v2.x)",
+          "notes": "Returns 6 (DATA_NOT_EXIST). Command recognized but not functional."
+        },
+        "ENROLLBIO": {
+          "desc": "Biometric enrollment (push v3.x)",
+          "notes": "Returns -1003 (parameter error). Command IS recognized (not -1002) but no parameter format accepted. Tested 17 variants including: space/tab/ampersand separators, with/without FID/TYPE/RETRY/OVERWRITE/NAME/MESSION, zero-padded PIN, positional args, bare command. Push version 2.4.1 likely lacks full ENROLL_BIO implementation — requires firmware upgrade to push v3.x+."
+        },
+        "FPviaOPERLOG": {
+          "name": "FP via OPERLOG",
+          "desc": "Device pushes fingerprint templates after local enrollment",
+          "notes": "After enrolling a finger locally on the device, it pushes FP PIN={id}\\tFID={n}\\tSize={s}\\tValid=1\\tTMP={base64} via OPERLOG. DRAIS captures and stores these automatically."
+        },
+        "templatev10POST": {
+          "desc": "Biometric template upload (push v3.x format)",
+          "notes": "Handler ready in DRAIS to capture templates from table=templatev10 POST. Not yet triggered — depends on successful ENROLL_BIO."
+        },
+        "biodataPOST": {
+          "desc": "Biometric data upload (alternative format)",
+          "notes": "Handler ready in DRAIS to capture templates from table=biodata POST. Not yet triggered — depends on successful remote enrollment."
+        }
+      },
+      "selectFirst": "Select a device first",
+      "queued": "Queued: {{cmd}}",
+      "title": "Remote Features & ADMS Protocol",
+      "subtitle": "ZKTeco Push Protocol command reference — tested against live hardware",
+      "refresh": "Refresh",
+      "target": "Target Device",
+      "selectDevice": "Select device...",
+      "onlineOpt": "● Online",
+      "offlineOpt": "○ Offline",
+      "online": "Online",
+      "offline": "Offline",
+      "fw": "FW: {{v}}",
+      "push": "Push: v{{v}}",
+      "ip": "IP: {{ip}}",
+      "commands": "Commands: {{n}} total",
+      "acked": "✓ {{n}} acknowledged",
+      "failedN": "✗ {{n}} failed",
+      "pendingN": "⏳ {{n}} pending",
+      "supportedOf": "{{n}}/{{total}} supported",
+      "col": {
+        "command": "Command",
+        "syntax": "Syntax",
+        "status": "Status",
+        "return": "Return",
+        "action": "Action"
+      },
+      "test": "Test",
+      "auto": "auto",
+      "codeRef": "ADMS Return Code Reference",
+      "recent": "Recent Commands ({{n}})",
+      "rc": {
+        "id": "ID",
+        "error": "Error",
+        "time": "Time"
+      },
+      "cmdst": {
+        "acknowledged": "acknowledged",
+        "failed": "failed",
+        "sent": "sent",
+        "pending": "pending",
+        "expired": "expired"
+      },
+      "foot1": "ZKTeco ADMS Push Protocol — Command delivery via HTTP GET/POST",
+      "foot2": "Device heartbeats via GET → Commands delivered as C:id:command → Device acknowledges via POST path=devicecmd",
+      "foot3": "Tested on K40 Pro · Firmware 8.0.4.3-20230515 · Push Protocol v2.4.1",
+      "autoCmd": "(automatic — device POSTs table={{table}})"
     }
   }
 }

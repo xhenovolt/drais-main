@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T17:45:46.794Z",
-  "last_commit": "ec28b3905c943310ba216840e72766bc78f59c6b",
+  "generated_at": "2026-10-16T17:48:47.026Z",
+  "last_commit": "ae1453ca3ecc793009ae33262b33fca8ce23602b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9852,7 +9852,20 @@
         }
       ],
       "commit": "ec28b3905c"
+    },
+    {
+      "version": "2.50.95",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "/attendance/device-logs (Device Observability) fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/attendance/device-logs (Device Observability) fully Arabic"
+        }
+      ],
+      "commit": "ae1453ca3e"
     }
   ],
-  "app_version": "2.50.95"
+  "app_version": "2.50.96"
 }
