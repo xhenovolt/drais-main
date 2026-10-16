@@ -5883,5 +5883,491 @@
         "review": "review"
       }
     }
+  },
+  "devicesPages": {
+    "devices": {
+      "ago": {
+        "now": "just now",
+        "s": "{{n}}s ago",
+        "m": "{{n}}m ago",
+        "h": "{{n}}h ago",
+        "d": "{{n}}d ago"
+      },
+      "sync": {
+        "unknown": "Unknown",
+        "synced": "Synced",
+        "syncing": "Syncing",
+        "outOfSync": "Out of Sync"
+      },
+      "inv": {
+        "never_synced": "Never synced",
+        "pending": "Sync queued",
+        "running": "Syncing…",
+        "completed": "Synced",
+        "stale": "Stale inventory",
+        "failed": "Sync failed",
+        "timeout": "Sync timeout",
+        "method": {
+          "adms": "ADMS",
+          "tcp": "TCP"
+        }
+      },
+      "mismatchToast": {
+        "one": "{{count}} device has data mismatch. Please re-sync.",
+        "other": "{{count}} devices have data mismatch. Please re-sync."
+      },
+      "title": "Device Management",
+      "subtitle": "Drais is the source of truth — auto-refreshes every 30s",
+      "refresh": "Refresh",
+      "total": "Total Devices",
+      "online": "Online",
+      "offline": "Offline",
+      "outOfSync": "Out of Sync",
+      "mismatchBanner": {
+        "one": "{{count}} device has data mismatch",
+        "other": "{{count}} devices have data mismatch"
+      },
+      "mismatchHelp": "Device data does not match Drais DB. Use \"Re-sync Device\" to push DB state, or \"Reset & Rebuild\" for a full wipe + reload.",
+      "loading": "Loading devices...",
+      "loadFailed": "Failed to load devices",
+      "listening": "Listening for devices...",
+      "listeningHelp": "Connect a biometric device to this server. Devices auto-register on first heartbeat and auto-recover if deleted.",
+      "recent": "Recently active devices (from attendance logs)",
+      "col": {
+        "sn": "Device SN",
+        "status": "Status",
+        "lastSeen": "Last Seen",
+        "punches": "Punches (7d)"
+      },
+      "conn": {
+        "online": "online",
+        "offline": "offline"
+      },
+      "debugTitle": "Debug: Last Heartbeats Received",
+      "debugNone": "No heartbeats recorded yet.",
+      "debug": {
+        "sn": "SN:",
+        "ip": "IP:",
+        "time": "Time:",
+        "push": "Push:"
+      },
+      "debugTotals": "Total devices in DB: {{total}} | Discovered from logs: {{found}}",
+      "card": {
+        "promptLanUsers": "Enter the device LAN IP (e.g. 192.168.1.17) for \"{{name}}\" to pull its user list directly.\n\nLeave blank to queue an over-the-air sync instead (device returns its list on its next heartbeat; K40 support varies).",
+        "inventoryDone": "Inventory sync done",
+        "inventoryQueued": "Inventory sync queued — the device sends its list on its next heartbeat",
+        "promptLanLogs": "Enter the device LAN IP (e.g. 192.168.1.197) for \"{{name}}\" to pull attendance directly.",
+        "pullFailed": "Pull failed",
+        "offlineNoCmd": "Device is offline — cannot send commands",
+        "actionQueued": "{{label}} queued — executes on next heartbeat",
+        "membersSynced": "{{n}} members synced",
+        "syncFailed": "Sync failed",
+        "identitiesSynced": "All {{n}} identities synced to device",
+        "identitiesFailures": "Sync had {{n}} failures",
+        "identityStarted": "Identity sync started",
+        "allSynced": "All users already synced",
+        "syncQueued": "Sync queued — waiting for heartbeat...",
+        "offline": "Device is offline",
+        "resyncTitle": "Re-sync Device",
+        "resyncBody": "Re-push all {{count}} users from Drais DB to \"{{name}}\". Safe — does not wipe device first.",
+        "mapped": "mapped",
+        "resyncQueuedMsg": "Re-sync queued: commands will push on next heartbeat",
+        "resyncCount": "{{n}} user commands queued for re-sync",
+        "resetTitle": "⚠️ Reset & Rebuild Device",
+        "resetBody": "This will send CLEAR DATA USER to \"{{name}}\", wiping ALL users from the device, then immediately re-push all users from Drais DB.\n\nDevice will be temporarily empty until commands are processed. Continue?",
+        "resetConfirm": "Reset & Rebuild",
+        "resetQueuedMsg": "Device wipe + rebuild queued",
+        "resetCount": "Reset queued. {{n}} users will reload after wipe.",
+        "promptSecret": "Enter the device transfer secret to {{action}} \"{{name}}\".\n\nThis confirms you are authorised to {{action}} this device.",
+        "act": {
+          "release": "release",
+          "acquire": "acquire",
+          "decommission": "decommission"
+        },
+        "secretRequired": "Device transfer secret is required.",
+        "transferFailed": "{{label}} failed",
+        "transferOk": "{{label}} OK",
+        "impact": {
+          "enrollments": "{{n}} enrollments archived",
+          "orphans": "{{n}} fingerprints reassigned",
+          "directory": "{{n}} directory entries reassigned",
+          "raw": "{{n}} raw events preserved"
+        },
+        "label": {
+          "Released": "Released",
+          "Acquired": "Acquired",
+          "Decommissioned": "Decommissioned"
+        },
+        "releaseTitle": "Release Device",
+        "releaseBody": "Release \"{{name}}\" from this school? All active enrollments on this device will be archived to status='transferred'. Historical attendance is preserved. Another school can then acquire it.",
+        "releaseBtn": "Release",
+        "acquireTitle": "Acquire Device",
+        "acquireBody": "Take ownership of \"{{sn}}\" into this school? Requires the device to be in status='released'. Any unclaimed fingerprint orphans tied to this device will be wiped.",
+        "acquireBtn": "Acquire",
+        "decomTitle": "Decommission Device",
+        "decomBody": "Permanently retire \"{{name}}\"? This is irreversible. All active enrollments will be revoked. Historical attendance stays in place.",
+        "decomBtn": "Decommission",
+        "removeTitle": "Remove Device",
+        "removeBody": "Are you sure? This will remove \"{{name}}\" from the registry. Existing attendance logs will be preserved.",
+        "removed": "Device removed successfully",
+        "updated": "Device updated",
+        "sync": {
+          "idle": "View Members",
+          "pending": "Waiting for heartbeat...",
+          "sent": "Device processing...",
+          "acknowledged": "{{n}} members synced",
+          "failed": "Sync failed — retry?"
+        },
+        "online": "Online",
+        "offlineLabel": "Offline",
+        "reconcile": "Reconciliation Center",
+        "pushTemplates": "Push Templates",
+        "pullTitle": "Pull Attendance Logs",
+        "info": {
+          "device": "Device",
+          "serial": "Serial",
+          "lanIp": "LAN IP",
+          "notSet": "Not set (will prompt)",
+          "status": "Status"
+        },
+        "selectRange": "Select range to pull:",
+        "mode": {
+          "today": "Today's Logs",
+          "full": "All Logs",
+          "range": "Date Range"
+        },
+        "from": "From",
+        "to": "To",
+        "modeHelp": {
+          "today": "Retrieves only today's punches from the device.",
+          "full": "Downloads all logs stored on the device. May take a moment.",
+          "range": "Retrieves logs between the two dates (device local time)."
+        },
+        "connecting": "Connecting to device…",
+        "downloading": "Downloading attendance logs over LAN TCP",
+        "pullComplete": "Pull complete",
+        "res": {
+          "onDevice": "Logs on device",
+          "matching": "Matching date filter",
+          "inserted": "Inserted (new)",
+          "duplicates": "Duplicates skipped",
+          "unmatched": "Unmatched identity",
+          "failed": "Failed"
+        },
+        "unmatchedNote": {
+          "one": "{{count}} punch stored but identity pending — visible under Attendance → Logs → Unmatched tab.",
+          "other": "{{count}} punches stored but identity pending — visible under Attendance → Logs → Unmatched tab."
+        },
+        "pullFailedTitle": "Pull failed",
+        "unknownError": "Unknown error",
+        "portHelp": "Check that the device LAN IP is correct and the device is reachable on port 4370.",
+        "pullLogs": "Pull Logs",
+        "pulling": "Pulling…",
+        "pullAgain": "Pull Again",
+        "close": "Close",
+        "edit": {
+          "name": "Device name",
+          "location": "Location",
+          "role": "Role (e.g. Gate Verification)"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "lastSeen": "Last seen {{ago}}",
+        "onDevice": "On device: {{n}}",
+        "unknown": "unknown",
+        "unknownTitle": "No inventory poll has completed for this device",
+        "syncUsersTitle": "Sync Users From Device — ask the device for its current user list",
+        "syncUsers": "Sync users",
+        "expected": "Expected in DRAIS: {{n}}",
+        "syncedAgo": "synced {{ago}}",
+        "mismatch": "⚠ device {{device}} vs DRAIS {{drais}}",
+        "today": "Today: {{n}} punches",
+        "pending": "Pending: {{n}} cmds",
+        "templates": "Templates: {{loaded}}/{{total}}",
+        "tpl": {
+          "healthy": "Healthy",
+          "failed": "{{n}} failed",
+          "syncing": "Syncing"
+        },
+        "mismatchStrip": "Device data mismatch detected. Please re-sync.",
+        "syncingIdentities": "Syncing identities to device...",
+        "prog": {
+          "pending": "Pending: {{n}}",
+          "sent": "Sent: {{n}}",
+          "done": "Done: {{n}}",
+          "failed": "Failed: {{n}}"
+        },
+        "action": {
+          "syncUsers": "Sync Users → Device",
+          "pullUsers": "Pull Users from Device",
+          "pullLogs": "Pull Attendance Logs",
+          "resync": "Re-sync Device",
+          "syncTime": "Sync Time",
+          "clearLogs": "Clear Logs",
+          "clearLogsBody": "Clear all attendance logs from \"{{name}}\"? Logs already in Drais are safe.",
+          "restart": "Restart Device",
+          "restartShort": "Restart",
+          "restartBody": "Reboot \"{{name}}\"? Device will be offline for ~30s.",
+          "reset": "Reset & Rebuild",
+          "release": "Release Device",
+          "acquire": "Acquire Device",
+          "decommission": "Decommission Device",
+          "edit": "Edit Device",
+          "remove": "Remove Device"
+        }
+      }
+    },
+    "recon": {
+      "mm": {
+        "MAPPED_OK": "Mapped",
+        "DEVICE_ONLY_USER": "On device, not in DRAIS",
+        "DEVICE_ONLY_TEMPLATE": "Fingerprint on device, no DRAIS identity",
+        "DRAIS_ONLY_PERSON": "In DRAIS, not on device",
+        "DRAIS_TEMPLATE_NOT_ON_DEVICE": "Template in DRAIS, not confirmed on device",
+        "NAME_DRIFT": "Name differs from DRAIS",
+        "PIN_CONFLICT": "PIN conflict",
+        "ROLE_CONFLICT": "Role conflict",
+        "STAFF_STUDENT_AMBIGUOUS": "Matches learner AND staff",
+        "ORPHAN_TEMPLATE": "Orphan fingerprint",
+        "STALE_MAPPING": "Stale — not echoed recently",
+        "DELETED_PERSON_MAPPING": "Mapped to a deleted person",
+        "INACTIVE_MAPPING": "Inactive mapping",
+        "IGNORED_OR_QUARANTINED": "Ignored / quarantined"
+      },
+      "note": {
+        "suspended": "Enrollment suspended ({{reason}}) — not recognised",
+        "inactive": "inactive",
+        "archived": "Mapped to an archived {{role}} — unmap or reassign, and remove from device",
+        "stale": "Not echoed by device in {{n}}+ days",
+        "templateUnconfirmed": "DRAIS holds a template; device has not confirmed this PIN",
+        "notSeen": "Enrolled in DRAIS, not seen on device",
+        "orphan": "Fingerprint template on device with no DRAIS identity",
+        "quarantined": "Quarantined"
+      },
+      "role": {
+        "student": "learner",
+        "staff": "staff"
+      },
+      "runRecorded": "Reconciliation run recorded",
+      "previewReady": "Preview ready.",
+      "provisionPreview": "Preview: {{convert}} device users → staff, {{blank}} skipped (blank), {{already}} already staff. {{students}} student mapping(s) would be unmapped. Nothing written yet.",
+      "provisionConfirm": "This will:\n• create a staff record for each named device user\n• re-own their PIN (and fingerprint) from student → staff\n• unmap every remaining student mapping for this school\n\nFingerprints are reused — nobody re-scans. Proceed?",
+      "provisionDone": "Done. {{now}} device users are now staff ({{created}} staff created); {{students}} student mapping(s) unmapped; {{blank}} skipped. Fingerprints on the device were reused — no re-scan needed.",
+      "provisioned": "Provisioned device users as staff",
+      "promptLan": "Enter the device LAN IP (e.g. 192.168.1.17) to pull its user list directly.\nLeave blank to queue an over-the-air sync (device responds on next heartbeat).",
+      "inventoryDone": "Inventory sync done",
+      "inventoryQueued": "Inventory sync queued — the device sends its list on its next heartbeat",
+      "title": "{{name}} — Reconciliation Center",
+      "device": "Device",
+      "syncDirectory": "Sync directory",
+      "convertTitle": "Create staff from the device's users and re-own their PINs from student to staff",
+      "convert": "Convert users → staff",
+      "runRecon": "Run reconciliation",
+      "partial": "Partial device directory — the K40 only echoes users it was told about. \"Not on device\" rows may simply not have been echoed yet. Sync the directory and re-run before bulk action.",
+      "tab": {
+        "overview": "Overview",
+        "people": "People on Device ({{n}})",
+        "missing": "Missing from Device ({{n}})",
+        "mismatches": "Mismatches ({{n}})",
+        "orphans": "Orphan Templates ({{n}})",
+        "activity": "Activity"
+      },
+      "loading": "Loading reconciliation…",
+      "noData": "No reconciliation data. Click \"Run reconciliation\".",
+      "stat": {
+        "echoed": "Device users echoed",
+        "enrollments": "DRAIS enrollments",
+        "mapped": "Mapped OK",
+        "attention": "Need attention"
+      },
+      "breakdown": "Mismatch breakdown",
+      "filter": {
+        "all": "all",
+        "mapped": "mapped",
+        "unknown": "unknown",
+        "ambiguous": "ambiguous",
+        "deleted": "deleted",
+        "inactive": "inactive",
+        "ignored": "ignored"
+      },
+      "emptyPeople": "No device users echoed yet. Sync the directory to pull the device's users.",
+      "col": {
+        "pin": "PIN",
+        "deviceName": "Device name",
+        "person": "DRAIS person",
+        "status": "Status",
+        "fingerprint": "Fingerprint",
+        "actions": "Actions"
+      },
+      "unmapped": "unmapped",
+      "none": "none",
+      "roleRef": "{{role}} #{{id}}",
+      "btn": {
+        "reassign": "Reassign",
+        "unmap": "Unmap",
+        "history": "History",
+        "removeFromDevice": "Remove from device",
+        "release": "Release",
+        "resolve": "Resolve",
+        "ignore": "Ignore",
+        "quarantine": "Quarantine",
+        "attach": "Attach"
+      },
+      "confirmUnmap": "Unmap PIN {{pin}}{{name}}?\n\nFuture scans on this PIN will no longer be recognised. Past attendance is kept. You can re-map it later.",
+      "confirmRemoveMapped": "Queue removal of PIN {{pin}}{{name}} from the device?\n\nThis deletes the user + fingerprint from the hardware on its next heartbeat. DRAIS mapping is unchanged — use Unmap for that. Track progress in Activity.",
+      "confirmRemove": "Queue removal of PIN {{pin}}{{name}} from the device?\n\nThis deletes the user + fingerprint from the hardware on its next heartbeat. Track progress in Activity.",
+      "resolved": "Resolved",
+      "mode": {
+        "map": "Map to existing",
+        "createStudent": "Create learner",
+        "createStaff": "Create staff"
+      },
+      "suggested": "Suggested (confirm — never auto-applied): {{list}}",
+      "searchPh": "Search learner or staff name…",
+      "learnerRef": "learner {{id}}",
+      "staffRef": "staff {{id}}",
+      "noMatches": "No matches",
+      "firstName": "First name *",
+      "lastName": "Last name *",
+      "admissionNo": "Admission no.",
+      "selectClass": "Select class *",
+      "creating": "Creating…",
+      "createLearner": "Create learner + map PIN",
+      "classRequired": "Class is required. This creates a person + student + canonical enrollment and attaches device PIN {{pin}}.",
+      "designation": "Designation",
+      "phone": "Phone",
+      "createStaff": "Create staff + map PIN",
+      "confirmReassign": "Reassign PIN {{pin}} to {{name}}?\n\n• Future scans on this device PIN will resolve to {{name}}.\n• Past attendance stays with the previously-mapped person.\n• This is recorded in mapping history.",
+      "reassigning": "Reassigning {{pin}}{{current}}. Old attendance is preserved with the current person; only future scans move to the new person.",
+      "pinRef": "PIN {{pin}}",
+      "currently": " (currently {{role}} #{{id}})",
+      "searchNewPh": "Search the NEW learner or staff…",
+      "reasonPh": "Reason (optional, e.g. wrong mapping)",
+      "hist": {
+        "map": "Mapped",
+        "reassign": "Reassigned",
+        "unmap": "Unmapped",
+        "revoke": "Revoked",
+        "suspend_person_archived": "Suspended (person archived)",
+        "reactivate": "Reactivated",
+        "edit": "Edited"
+      },
+      "loadingHistory": "Loading history…",
+      "noHistory": "No mapping changes recorded for PIN {{pin}}.",
+      "historyTitle": "Mapping history · PIN {{pin}}",
+      "emptyMissing": "Every DRAIS enrollment is accounted for on this device (within the partial directory).",
+      "selectOne": "Select at least one person",
+      "willQueue": "Will queue {{queue}}, skip {{skip}}",
+      "queued": {
+        "one": "Queued {{count}} person to device. They register on the next heartbeat; fingerprint capture still happens at the device.",
+        "other": "Queued {{count}} people to device. They register on the next heartbeat; fingerprint capture still happens at the device."
+      },
+      "previewPush": "Preview push ({{n}})",
+      "pushSelected": "Push selected to device",
+      "selectAll": "Select all pushable",
+      "mcol": {
+        "name": "Name",
+        "role": "Role",
+        "template": "Template",
+        "lastSeen": "Last seen"
+      },
+      "inDrais": "in DRAIS",
+      "emptyMismatch": "No mismatches — device and DRAIS agree (within the partial directory).",
+      "emptyOrphans": "No orphan fingerprint templates on this device.",
+      "orphansHelp": "Fingerprint templates the device captured that DRAIS cannot link to a person. Attach to a learner/staff, or ignore.",
+      "commandQueue": "Command queue",
+      "refresh": "refresh",
+      "noCommands": "No commands.",
+      "cmd": {
+        "pending": "pending",
+        "sent": "sent",
+        "acknowledged": "acknowledged",
+        "failed": "failed",
+        "expired": "expired"
+      },
+      "directoryAudit": "Directory audit",
+      "noAudit": "No directory actions yet.",
+      "done": "Done",
+      "audit": {
+        "map": "map",
+        "unmap": "unmap",
+        "reassign": "reassign",
+        "ignore": "ignore",
+        "quarantine": "quarantine",
+        "release": "release",
+        "remove-from-device": "remove-from-device",
+        "create-student": "create-student",
+        "create-staff": "create-staff",
+        "provision-staff": "provision-staff",
+        "push-missing": "push-missing",
+        "reconcile": "reconcile"
+      }
+    },
+    "push": {
+      "scope": {
+        "all": {
+          "label": "All templates assigned to this school",
+          "hint": "Every active/pending enrollment in this school"
+        },
+        "diff_only": {
+          "label": "Synchronize differences only",
+          "hint": "Only people the device has never confirmed (recommended for routine syncs)"
+        },
+        "role_staff": {
+          "label": "Staff only"
+        },
+        "role_student": {
+          "label": "Learners only"
+        },
+        "modified_since": {
+          "label": "Recently modified users",
+          "hint": "Enrollment or template changed within the window below"
+        },
+        "selected": {
+          "label": "Only selected users",
+          "hint": "Search and pick specific people"
+        }
+      },
+      "previewFailed": "Preview failed",
+      "queued": "Templates queued for deployment",
+      "pushFailed": "Push failed",
+      "title": "Push Templates — {{name}}",
+      "device": "Device",
+      "intro": "Choose who this deployment covers. Nothing is written to the device until you confirm the preview.",
+      "within": "Within the last",
+      "days": "day(s)",
+      "staff": "Staff",
+      "learner": "Learner",
+      "searchPh": "Search a person…",
+      "previewBtn": "Preview deployment",
+      "row": {
+        "machine": "Machine",
+        "scope": "Scope",
+        "people": "People in scope",
+        "toUpload": "Templates to upload",
+        "loaded": "Already loaded",
+        "estimate": "Estimated time",
+        "conflicts": "Potential conflicts"
+      },
+      "seconds": "~{{n}}s",
+      "previouslyFailed": "{{n}} previously failed",
+      "none": "None",
+      "nothing": "Nothing to push — everything in this scope is already loaded on this device.",
+      "back": "Back",
+      "confirm": "Confirm & push {{n}} template(s)",
+      "queuing": "Queuing deployment…",
+      "reportNote": "Delivery rides the device's own heartbeat poll — this isn't instant. Refresh to check progress.",
+      "loadingReport": "Loading report…",
+      "rep": {
+        "uploaded": "Templates uploaded",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "pending": "Pending",
+        "duration": "Duration"
+      },
+      "failures": "Failures",
+      "finger": "{{person}} (finger {{n}})",
+      "refresh": "Refresh status"
+    }
   }
 }

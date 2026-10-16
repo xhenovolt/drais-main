@@ -13,7 +13,16 @@
  *   import { apiFetch } from '@/lib/apiClient';
  *   const data = await apiFetch('/api/staff/add', { method: 'POST', body: formData });
  */
-import { showToast } from '@/lib/toast';
+import { showToast, uiIsArabic, isEnglishText } from '@/lib/toast';
+
+// In Arabic the person sees Arabic only: an English sentence from the server becomes a general
+// message in Arabic (pages translate the messages they know before they get here), and the
+// original goes to the console so support can still read it.
+function shown(msg: string, kind: 'error' | 'success'): string {
+  if (!uiIsArabic() || !isEnglishText(msg)) return msg;
+  console.warn('[apiFetch] server message:', msg);
+  return kind === 'error' ? 'تعذّرت العملية. حاول مرة أخرى أو تواصل مع الدعم.' : 'تمت العملية بنجاح';
+}
 
 interface ApiFetchOptions extends RequestInit {
   /** Suppress the automatic success toast (e.g. for background fetches) */
@@ -39,7 +48,7 @@ export async function apiFetch<T = any>(
   try {
     res = await fetch(input, { credentials: 'include', ...fetchInit });
   } catch (e) {
-    showToast('error', 'Network error. Check your connection.');
+    showToast('error', uiIsArabic() ? 'خطأ في الشبكة. تحقّق من اتصالك.' : 'Network error. Check your connection.');
     throw e;
   }
 
@@ -47,7 +56,7 @@ export async function apiFetch<T = any>(
   try {
     data = await res.json();
   } catch {
-    showToast('error', 'Invalid server response');
+    showToast('error', uiIsArabic() ? 'استجابة غير صالحة من الخادم' : 'Invalid server response');
     throw new Error('Invalid JSON response');
   }
 
@@ -60,7 +69,7 @@ export async function apiFetch<T = any>(
     if (typeof data?.details === 'string' && data.details && !msg.includes(data.details)) {
       msg = `${msg}: ${data.details}`;
     }
-    showToast('error', msg);
+    showToast('error', shown(msg, 'error'));
     const err = new Error(msg) as Error & { code?: string; status?: number };
     err.code = data?.error?.code;
     err.status = res.status;
@@ -71,7 +80,7 @@ export async function apiFetch<T = any>(
   if (!silent) {
     const method = (fetchInit.method || 'GET').toUpperCase();
     if (method !== 'GET' && method !== 'HEAD') {
-      showToast('success', successMessage || data.message || 'Success');
+      showToast('success', successMessage || shown(data.message || 'Success', 'success'));
     }
   }
 

@@ -16,22 +16,24 @@ import { toLocalDateStr } from '@/lib/datetime/local-date';
 import { apiFetch } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import DeviceReconciliationModal from '@/components/attendance/DeviceReconciliationModal';
+import { useI18n } from '@/components/i18n/I18nProvider';
 import PushTemplatesModal from '@/components/attendance/PushTemplatesModal';
 
-function formatTimeAgo(seconds: number): string {
-  if (seconds <= 0) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
+function formatTimeAgo(t: (k: string, v?: any) => string, seconds: number): string {
+  if (seconds <= 0) return t('devicesPages.devices.ago.now');
+  if (seconds < 60) return t('devicesPages.devices.ago.s', { n: seconds });
+  if (seconds < 3600) return t('devicesPages.devices.ago.m', { n: Math.floor(seconds / 60) });
+  if (seconds < 86400) return t('devicesPages.devices.ago.h', { n: Math.floor(seconds / 3600) });
+  return t('devicesPages.devices.ago.d', { n: Math.floor(seconds / 86400) });
 }
 
 function SyncStatusBadge({ status }: { status: string | null }) {
+  const { t } = useI18n();
   if (!status || status === 'unknown') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500">
         <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-        Unknown
+        {t('devicesPages.devices.sync.unknown')}
       </span>
     );
   }
@@ -39,7 +41,7 @@ function SyncStatusBadge({ status }: { status: string | null }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
         <CheckCircle className="w-3 h-3" />
-        Synced
+        {t('devicesPages.devices.sync.synced')}
       </span>
     );
   }
@@ -47,7 +49,7 @@ function SyncStatusBadge({ status }: { status: string | null }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
         <Loader className="w-3 h-3 animate-spin" />
-        Syncing
+        {t('devicesPages.devices.sync.syncing')}
       </span>
     );
   }
@@ -55,20 +57,21 @@ function SyncStatusBadge({ status }: { status: string | null }) {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
       <ShieldAlert className="w-3 h-3" />
-      Out of Sync
+      {t('devicesPages.devices.sync.outOfSync')}
     </span>
   );
 }
 
 function InventoryBadge({ status, stale, method }: { status: string | null; stale: boolean | null; method?: string | null }) {
-  const m = method ? ` (${method.toUpperCase()})` : '';
+  const { t } = useI18n();
+  const m = method ? ` (${t(`devicesPages.devices.inv.method.${method.toLowerCase()}`, method.toUpperCase())})` : '';
   const map: Record<string, { label: string; cls: string }> = {
-    never_synced: { label: 'Never synced', cls: 'bg-gray-100 text-gray-500' },
-    pending:      { label: 'Sync queued',  cls: 'bg-amber-100 text-amber-800' },
-    running:      { label: 'Syncing…',     cls: 'bg-blue-100 text-blue-700' },
-    completed:    { label: stale ? 'Stale inventory' : 'Synced', cls: stale ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700' },
-    failed:       { label: 'Sync failed',  cls: 'bg-red-100 text-red-700' },
-    timeout:      { label: 'Sync timeout', cls: 'bg-red-100 text-red-700' },
+    never_synced: { label: t('devicesPages.devices.inv.never_synced'), cls: 'bg-gray-100 text-gray-500' },
+    pending:      { label: t('devicesPages.devices.inv.pending'),  cls: 'bg-amber-100 text-amber-800' },
+    running:      { label: t('devicesPages.devices.inv.running'),     cls: 'bg-blue-100 text-blue-700' },
+    completed:    { label: stale ? t('devicesPages.devices.inv.stale') : t('devicesPages.devices.inv.completed'), cls: stale ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700' },
+    failed:       { label: t('devicesPages.devices.inv.failed'),  cls: 'bg-red-100 text-red-700' },
+    timeout:      { label: t('devicesPages.devices.inv.timeout'), cls: 'bg-red-100 text-red-700' },
   };
   const e = map[status ?? 'never_synced'] ?? map.never_synced;
   return (
@@ -79,6 +82,8 @@ function InventoryBadge({ status, stale, method }: { status: string | null; stal
 }
 
 export default function DevicesPage() {
+  const { t, lang, digits, formatDate } = useI18n();
+  const when = (v: string) => (lang === 'ar' ? formatDate(v, 'datetime') : new Date(v).toLocaleString());
   const { data, isLoading, error, mutate } = useSWR<any>('/api/attendance/zk/devices', {
     refreshInterval: 30000,
   });
@@ -95,9 +100,7 @@ export default function DevicesPage() {
     if (!data?.data) return;
     const bad = (data.data as any[]).filter((d) => d.sync_status === 'out_of_sync');
     if (bad.length > 0) {
-      showToast('error',
-        `${bad.length} device${bad.length > 1 ? 's' : ''} ha${bad.length > 1 ? 've' : 's'} data mismatch. Please re-sync.`,
-      );
+      showToast('error', t('devicesPages.devices.mismatchToast', { count: bad.length }));
     }
   }, [data]);
 
@@ -112,10 +115,10 @@ export default function DevicesPage() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600
               bg-clip-text text-transparent flex items-center gap-3">
               <Fingerprint className="w-8 h-8 text-blue-600" />
-              Device Management
+              {t('devicesPages.devices.title')}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-              Drais is the source of truth — auto-refreshes every 30s
+              {t('devicesPages.devices.subtitle')}
             </p>
           </div>
           <button
@@ -124,7 +127,7 @@ export default function DevicesPage() {
               rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('devicesPages.devices.refresh')}
           </button>
         </div>
 
@@ -133,8 +136,8 @@ export default function DevicesPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Total Devices</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{devices.length}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.total')}</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{digits(devices.length)}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                 <Server className="w-6 h-6 text-blue-600" />
@@ -144,8 +147,8 @@ export default function DevicesPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Online</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{online}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.online')}</p>
+                <p className="text-3xl font-bold text-green-600 mt-1">{digits(online)}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                 <Wifi className="w-6 h-6 text-green-600" />
@@ -155,8 +158,8 @@ export default function DevicesPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Offline</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{offline}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.offline')}</p>
+                <p className="text-3xl font-bold text-red-600 mt-1">{digits(offline)}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                 <WifiOff className="w-6 h-6 text-red-600" />
@@ -168,9 +171,9 @@ export default function DevicesPage() {
             : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Out of Sync</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.outOfSync')}</p>
                 <p className={`text-3xl font-bold mt-1 ${outOfSync > 0 ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>
-                  {outOfSync}
+                  {digits(outOfSync)}
                 </p>
               </div>
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
@@ -188,10 +191,10 @@ export default function DevicesPage() {
             <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-red-800 dark:text-red-300">
-                {outOfSync} device{outOfSync > 1 ? 's' : ''} {outOfSync > 1 ? 'have' : 'has'} data mismatch
+                {t('devicesPages.devices.mismatchBanner', { count: outOfSync })}
               </p>
               <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
-                Device data does not match Drais DB. Use "Re-sync Device" to push DB state, or "Reset &amp; Rebuild" for a full wipe + reload.
+                {t('devicesPages.devices.mismatchHelp')}
               </p>
             </div>
           </div>
@@ -201,12 +204,12 @@ export default function DevicesPage() {
         {isLoading ? (
           <div className="text-center py-16">
             <Loader className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
-            <p className="text-gray-500 mt-3 text-sm">Loading devices...</p>
+            <p className="text-gray-500 mt-3 text-sm">{t('devicesPages.devices.loading')}</p>
           </div>
         ) : error ? (
           <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-red-200">
             <WifiOff className="w-10 h-10 text-red-400 mx-auto" />
-            <p className="text-red-600 mt-3 font-medium">Failed to load devices</p>
+            <p className="text-red-600 mt-3 font-medium">{t('devicesPages.devices.loadFailed')}</p>
           </div>
         ) : devices.length === 0 ? (
           <div className="space-y-6">
@@ -214,9 +217,9 @@ export default function DevicesPage() {
               <div className="relative inline-block mb-4">
                 <Activity className="w-12 h-12 text-blue-400 mx-auto animate-pulse" />
               </div>
-              <p className="text-gray-700 dark:text-gray-200 font-medium text-lg">Listening for devices...</p>
+              <p className="text-gray-700 dark:text-gray-200 font-medium text-lg">{t('devicesPages.devices.listening')}</p>
               <p className="text-gray-400 text-sm mt-1 max-w-md mx-auto">
-                Connect a biometric device to this server. Devices auto-register on first heartbeat and auto-recover if deleted.
+                {t('devicesPages.devices.listeningHelp')}
               </p>
             </div>
 
@@ -225,16 +228,16 @@ export default function DevicesPage() {
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-blue-500" />
-                  Recently active devices (from attendance logs)
+                  {t('devicesPages.devices.recent')}
                 </h3>
                 <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-700">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Device SN</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Last Seen</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Punches (7d)</th>
+                        <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.col.sn')}</th>
+                        <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.col.status')}</th>
+                        <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.col.lastSeen')}</th>
+                        <th className="px-4 py-2 text-start text-xs font-medium text-gray-500 uppercase">{t('devicesPages.devices.col.punches')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -246,11 +249,11 @@ export default function DevicesPage() {
                               d.connection_status === 'online' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${d.connection_status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                              {d.connection_status}
+                              {t(`devicesPages.devices.conn.${d.connection_status}`, d.connection_status)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-500">{d.last_heartbeat ? new Date(d.last_heartbeat).toLocaleString() : '—'}</td>
-                          <td className="px-4 py-3 text-xs font-medium">{d.today_punches}</td>
+                          <td className="px-4 py-3 text-xs text-gray-500">{d.last_heartbeat ? when(d.last_heartbeat) : '—'}</td>
+                          <td className="px-4 py-3 text-xs font-medium">{digits(d.today_punches)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -272,31 +275,31 @@ export default function DevicesPage() {
           rounded-xl p-4">
           <h3 className="text-xs font-bold text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Database className="w-4 h-4" />
-            Debug: Last Heartbeats Received
+            {t('devicesPages.devices.debugTitle')}
           </h3>
           {debugHeartbeats.length === 0 ? (
-            <p className="text-xs text-yellow-700 dark:text-yellow-400">No heartbeats recorded yet.</p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400">{t('devicesPages.devices.debugNone')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {debugHeartbeats.map((hb: any, i: number) => (
                 <div key={i} className="bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-yellow-200
                   dark:border-yellow-800 text-xs font-mono space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">SN:</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.debug.sn')}</span>
                     <span className="font-semibold text-gray-900 dark:text-white">{hb.sn}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">IP:</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.debug.ip')}</span>
                     <span className="text-gray-700 dark:text-gray-300">{hb.ip}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Time:</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.debug.time')}</span>
                     <span className="text-gray-700 dark:text-gray-300">
-                      {hb.created_at ? new Date(hb.created_at).toLocaleString() : '—'}
+                      {hb.created_at ? when(hb.created_at) : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Push:</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.debug.push')}</span>
                     <span className="text-gray-700 dark:text-gray-300">{hb.push_version || '—'}</span>
                   </div>
                 </div>
@@ -304,7 +307,7 @@ export default function DevicesPage() {
             </div>
           )}
           <p className="text-[10px] text-yellow-600 dark:text-yellow-500 mt-2">
-            Total devices in DB: {devices.length} | Discovered from logs: {discovered.length}
+            {t('devicesPages.devices.debugTotals', { total: devices.length, found: discovered.length })}
           </p>
         </div>
       </div>
@@ -313,6 +316,8 @@ export default function DevicesPage() {
 }
 
 function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void }) {
+  const { t, rich, lang, digits, formatDate } = useI18n();
+  const devName = device.device_name || device.serial_number;
   const isSuperAdmin = useAuth()?.isSuperAdmin ?? false;
   const isOnline = device.connection_status === 'online';
   const [deleting, setDeleting] = useState(false);
@@ -364,7 +369,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
     const stored = device.ip_address && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(device.ip_address) ? device.ip_address : '';
     if (!lanIp) {
       lanIp = window.prompt(
-        `Enter the device LAN IP (e.g. 192.168.1.17) for "${device.device_name || device.serial_number}" to pull its user list directly.\n\nLeave blank to queue an over-the-air sync instead (device returns its list on its next heartbeat; K40 support varies).`,
+        t('devicesPages.devices.card.promptLanUsers', { name: devName }),
         stored || '192.168.1.',
       ) ?? '';
       // null = cancel; empty string = use ADMS
@@ -378,7 +383,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      showToast(r?.method === 'adms' ? 'info' : 'success', r?.message ?? 'Inventory sync done');
+      showToast(r?.method === 'adms' ? 'info' : 'success', lang === 'ar' ? t(r?.method === 'adms' ? 'devicesPages.devices.card.inventoryQueued' : 'devicesPages.devices.card.inventoryDone') : (r?.message ?? 'Inventory sync done'));
       onMutate();
     } catch {
       // Wrong/changed LAN IP → forget it so the next click re-prompts.
@@ -417,7 +422,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
       || '';
     if (!lanIp) {
       lanIp = window.prompt(
-        `Enter the device LAN IP (e.g. 192.168.1.197) for "${device.device_name || device.serial_number}" to pull attendance directly.`,
+        t('devicesPages.devices.card.promptLanLogs', { name: devName }),
         '192.168.1.',
       ) ?? '';
       if (!lanIp) return;
@@ -446,7 +451,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
       setPullStage('done');
       onMutate();
     } catch (err: any) {
-      setPullResult({ error: err?.message || 'Pull failed' });
+      setPullResult({ error: lang === 'ar' ? t('devicesPages.devices.card.pullFailed') : (err?.message || 'Pull failed') });
       setPullStage('error');
     }
   }, [device, pullMode, pullDateFrom, pullDateTo, onMutate]);
@@ -455,7 +460,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const runDeviceAction = useCallback(async (action: string, label: string, confirmMsg?: string) => {
-    if (!isOnline) { showToast('error', 'Device is offline — cannot send commands'); return; }
+    if (!isOnline) { showToast('error', t('devicesPages.devices.card.offlineNoCmd')); return; }
     if (confirmMsg) {
       const ok = await confirmAction(label, confirmMsg, label);
       if (!ok) return;
@@ -466,7 +471,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: device.serial_number, action }),
-        successMessage: `${label} queued — executes on next heartbeat`,
+        successMessage: t('devicesPages.devices.card.actionQueued', { label }),
       });
       onMutate();
     } catch { /* apiFetch shows toast */ } finally { setActionLoading(null); }
@@ -484,8 +489,8 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         setMemberCount(json.member_count ?? null);
         if (status === 'acknowledged' || status === 'failed' || status === 'expired' || status === 'idle') {
           setPolling(false);
-          if (status === 'acknowledged') showToast('success', `${json.member_count} members synced`);
-          else if (status === 'failed' || status === 'expired') showToast('error', 'Sync failed');
+          if (status === 'acknowledged') showToast('success', t('devicesPages.devices.card.membersSynced', { n: json.member_count }));
+          else if (status === 'failed' || status === 'expired') showToast('error', t('devicesPages.devices.card.syncFailed'));
         }
       } catch { /* silent */ }
     }, 2000);
@@ -511,8 +516,8 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         if (json.sync_status === 'complete' || json.sync_status === 'idle' || json.sync_status === 'failed') {
           setIdPolling(false);
           setIdSyncing(false);
-          if (json.sync_status === 'complete') showToast('success', `All ${json.acknowledged} identities synced to device`);
-          else if (json.sync_status === 'failed') showToast('error', `Sync had ${json.failed} failures`);
+          if (json.sync_status === 'complete') showToast('success', t('devicesPages.devices.card.identitiesSynced', { n: json.acknowledged }));
+          else if (json.sync_status === 'failed') showToast('error', t('devicesPages.devices.card.identitiesFailures', { n: json.failed }));
           onMutate();
         }
       } catch { /* silent */ }
@@ -527,10 +532,10 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: device.serial_number }),
-        successMessage: 'Identity sync started',
+        successMessage: t('devicesPages.devices.card.identityStarted'),
       });
       if (res.queued === 0) {
-        showToast('info', res.message || 'All users already synced');
+        showToast('info', lang === 'ar' ? t('devicesPages.devices.card.allSynced') : (res.message || 'All users already synced'));
         setIdSyncing(false);
         return;
       }
@@ -549,7 +554,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: device.serial_number }),
-        successMessage: 'Sync queued — waiting for heartbeat...',
+        successMessage: t('devicesPages.devices.card.syncQueued'),
       });
     } catch {
       setSyncState('idle');
@@ -559,11 +564,11 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
   // ── Re-sync Device (push all mapped users) ──
   const handleResync = useCallback(async () => {
-    if (!isOnline) { showToast('error', 'Device is offline'); return; }
+    if (!isOnline) { showToast('error', t('devicesPages.devices.card.offline')); return; }
     const confirmed = await confirmAction(
-      'Re-sync Device',
-      `Re-push all ${device.expected_user_count ?? 'mapped'} users from Drais DB to "${device.device_name || device.serial_number}". Safe — does not wipe device first.`,
-      'Re-sync Device',
+      t('devicesPages.devices.card.resyncTitle'),
+      t('devicesPages.devices.card.resyncBody', { count: device.expected_user_count ?? t('devicesPages.devices.card.mapped'), name: devName }),
+      t('devicesPages.devices.card.resyncTitle'),
     );
     if (!confirmed) return;
     setActionLoading('resync');
@@ -572,20 +577,20 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: device.serial_number }),
-        successMessage: `Re-sync queued: commands will push on next heartbeat`,
+        successMessage: t('devicesPages.devices.card.resyncQueuedMsg'),
       });
-      showToast('success', `${res.queued ?? 0} user commands queued for re-sync`);
+      showToast('success', t('devicesPages.devices.card.resyncCount', { n: res.queued ?? 0 }));
       onMutate();
     } catch { /* apiFetch shows error toast */ } finally { setActionLoading(null); }
   }, [device, isOnline, onMutate]);
 
   // ── Reset & Rebuild (wipe + re-push all) ──
   const handleResetAndSync = useCallback(async () => {
-    if (!isOnline) { showToast('error', 'Device is offline'); return; }
+    if (!isOnline) { showToast('error', t('devicesPages.devices.card.offline')); return; }
     const confirmed = await confirmAction(
-      '⚠️ Reset & Rebuild Device',
-      `This will send CLEAR DATA USER to "${device.device_name || device.serial_number}", wiping ALL users from the device, then immediately re-push all users from Drais DB.\n\nDevice will be temporarily empty until commands are processed. Continue?`,
-      'Reset & Rebuild',
+      t('devicesPages.devices.card.resetTitle'),
+      t('devicesPages.devices.card.resetBody', { name: devName }),
+      t('devicesPages.devices.card.resetConfirm'),
     );
     if (!confirmed) return;
     setActionLoading('reset');
@@ -594,9 +599,9 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_sn: device.serial_number }),
-        successMessage: `Device wipe + rebuild queued`,
+        successMessage: t('devicesPages.devices.card.resetQueuedMsg'),
       });
-      showToast('success', `Reset queued. ${res.users_queued ?? 0} users will reload after wipe.`);
+      showToast('success', t('devicesPages.devices.card.resetCount', { n: res.users_queued ?? 0 }));
       onMutate();
     } catch { /* apiFetch shows error toast */ } finally { setActionLoading(null); }
   }, [device, isOnline, onMutate]);
@@ -614,11 +619,11 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
       let secret: string | undefined;
       if (!isSuperAdmin) {
         const entered = window.prompt(
-          `Enter the device transfer secret to ${action} "${device.device_name || device.serial_number}".\n\nThis confirms you are authorised to ${action} this device.`,
+          t('devicesPages.devices.card.promptSecret', { action: t(`devicesPages.devices.card.act.${action}`), name: devName }),
         );
         if (entered === null) return; // cancelled
         if (!entered.trim()) {
-          showToast('error', 'Device transfer secret is required.');
+          showToast('error', t('devicesPages.devices.card.secretRequired'));
           return;
         }
         secret = entered.trim();
@@ -631,36 +636,37 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           body: JSON.stringify({ ...body, ...(secret ? { secret } : {}) }),
         });
         const j = await r.json();
+        const shown = t(`devicesPages.devices.card.label.${label}`, label);
         if (!r.ok) {
-          showToast('error', j.error || `${label} failed`);
+          showToast('error', lang === 'ar' || !j.error ? t('devicesPages.devices.card.transferFailed', { label: shown }) : j.error);
           return;
         }
         const impact = j.impact;
-        let msg = `${label} OK`;
+        let msg = t('devicesPages.devices.card.transferOk', { label: shown });
         if (impact) {
           const parts: string[] = [];
-          if (impact.enrollmentsArchived) parts.push(`${impact.enrollmentsArchived} enrollments archived`);
-          if (impact.orphansArchived)     parts.push(`${impact.orphansArchived} fingerprints reassigned`);
-          if (impact.directoryReassigned) parts.push(`${impact.directoryReassigned} directory entries reassigned`);
-          if (impact.rawEventsPreserved)  parts.push(`${impact.rawEventsPreserved} raw events preserved`);
-          if (parts.length) msg = `${label}: ${parts.join(', ')}`;
+          if (impact.enrollmentsArchived) parts.push(t('devicesPages.devices.card.impact.enrollments', { n: impact.enrollmentsArchived }));
+          if (impact.orphansArchived)     parts.push(t('devicesPages.devices.card.impact.orphans', { n: impact.orphansArchived }));
+          if (impact.directoryReassigned) parts.push(t('devicesPages.devices.card.impact.directory', { n: impact.directoryReassigned }));
+          if (impact.rawEventsPreserved)  parts.push(t('devicesPages.devices.card.impact.raw', { n: impact.rawEventsPreserved }));
+          if (parts.length) msg = `${shown}: ${parts.join(t('common.listSeparator'))}`;
         }
         showToast('success', msg);
         onMutate();
       } catch (err) {
-        showToast('error', err instanceof Error ? err.message : `${label} failed`);
+        showToast('error', lang !== 'ar' && err instanceof Error ? err.message : t('devicesPages.devices.card.transferFailed', { label: t(`devicesPages.devices.card.label.${label}`, label) }));
       } finally {
         setTransferLoading(null);
       }
     },
-    [device.serial_number, device.device_name, onMutate, isSuperAdmin],
+    [device.serial_number, device.device_name, onMutate, isSuperAdmin, t, lang],
   );
 
   const handleRelease = useCallback(async () => {
     const confirmed = await confirmAction(
-      'Release Device',
-      `Release "${device.device_name || device.serial_number}" from this school? All active enrollments on this device will be archived to status='transferred'. Historical attendance is preserved. Another school can then acquire it.`,
-      'Release',
+      t('devicesPages.devices.card.releaseTitle'),
+      t('devicesPages.devices.card.releaseBody', { name: devName }),
+      t('devicesPages.devices.card.releaseBtn'),
     );
     if (!confirmed) return;
     await runTransferAction('release', 'Released');
@@ -668,9 +674,9 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
   const handleAcquire = useCallback(async () => {
     const confirmed = await confirmAction(
-      'Acquire Device',
-      `Take ownership of "${device.serial_number}" into this school? Requires the device to be in status='released'. Any unclaimed fingerprint orphans tied to this device will be wiped.`,
-      'Acquire',
+      t('devicesPages.devices.card.acquireTitle'),
+      t('devicesPages.devices.card.acquireBody', { sn: device.serial_number }),
+      t('devicesPages.devices.card.acquireBtn'),
     );
     if (!confirmed) return;
     await runTransferAction('acquire', 'Acquired');
@@ -678,9 +684,9 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
   const handleDecommission = useCallback(async () => {
     const confirmed = await confirmAction(
-      'Decommission Device',
-      `Permanently retire "${device.device_name || device.serial_number}"? This is irreversible. All active enrollments will be revoked. Historical attendance stays in place.`,
-      'Decommission',
+      t('devicesPages.devices.card.decomTitle'),
+      t('devicesPages.devices.card.decomBody', { name: devName }),
+      t('devicesPages.devices.card.decomBtn'),
     );
     if (!confirmed) return;
     await runTransferAction('decommission', 'Decommissioned');
@@ -688,9 +694,9 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
   const handleDelete = async () => {
     const confirmed = await confirmAction(
-      'Remove Device',
-      `Are you sure? This will remove "${device.device_name || device.serial_number}" from the registry. Existing attendance logs will be preserved.`,
-      'Remove Device',
+      t('devicesPages.devices.card.removeTitle'),
+      t('devicesPages.devices.card.removeBody', { name: devName }),
+      t('devicesPages.devices.card.removeTitle'),
     );
     if (!confirmed) return;
 
@@ -698,7 +704,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
     try {
       await apiFetch(`/api/attendance/zk/devices?id=${device.id}`, {
         method: 'DELETE',
-        successMessage: 'Device removed successfully',
+        successMessage: t('devicesPages.devices.card.removed'),
       });
       onMutate();
     } catch {
@@ -720,7 +726,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           location: editForm.location || null,
           role_label: editForm.role_label || null,
         }),
-        successMessage: 'Device updated',
+        successMessage: t('devicesPages.devices.card.updated'),
       });
       setEditing(false);
       onMutate();
@@ -732,11 +738,11 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
   };
 
   const syncLabel: Record<string, string> = {
-    idle: 'View Members',
-    pending: 'Waiting for heartbeat...',
-    sent: 'Device processing...',
-    acknowledged: `${memberCount ?? '?'} members synced`,
-    failed: 'Sync failed — retry?',
+    idle: t('devicesPages.devices.card.sync.idle'),
+    pending: t('devicesPages.devices.card.sync.pending'),
+    sent: t('devicesPages.devices.card.sync.sent'),
+    acknowledged: t('devicesPages.devices.card.sync.acknowledged', { n: memberCount ?? '?' }),
+    failed: t('devicesPages.devices.card.sync.failed'),
   };
 
   const lastSeenSeconds = device.last_heartbeat
@@ -775,7 +781,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
-              {isOnline ? 'Online' : 'Offline'}
+              {isOnline ? t('devicesPages.devices.card.online') : t('devicesPages.devices.card.offlineLabel')}
             </span>
             <SyncStatusBadge status={syncStatus} />
           </div>
@@ -786,7 +792,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           onClick={() => setShowReconcile(true)}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
         >
-          <ClipboardList className="w-4 h-4" /> Reconciliation Center
+          <ClipboardList className="w-4 h-4" /> {t('devicesPages.devices.card.reconcile')}
         </button>
         {showReconcile && (
           <DeviceReconciliationModal
@@ -802,7 +808,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
           onClick={() => setShowPushTemplates(true)}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
         >
-          <Send className="w-4 h-4" /> Push Templates
+          <Send className="w-4 h-4" /> {t('devicesPages.devices.card.pushTemplates')}
         </button>
         {showPushTemplates && (
           <PushTemplatesModal
@@ -821,7 +827,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 <div className="flex items-center gap-2">
                   <Download className="w-5 h-5 text-blue-600" />
                   <h2 className="font-semibold text-gray-900 dark:text-white text-sm">
-                    Pull Attendance Logs
+                    {t('devicesPages.devices.card.pullTitle')}
                   </h2>
                 </div>
                 <button onClick={() => { setShowPullDialog(false); setPullStage('idle'); setPullResult(null); }}
@@ -834,21 +840,21 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 {/* Device info */}
                 <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-3 space-y-1.5 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Device</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.card.info.device')}</span>
                     <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{device.device_name || device.serial_number}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Serial</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.card.info.serial')}</span>
                     <span className="font-mono text-gray-700 dark:text-gray-300">{device.serial_number}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">LAN IP</span>
-                    <span className="font-mono text-gray-700 dark:text-gray-300">{device.lan_ip || 'Not set (will prompt)'}</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.card.info.lanIp')}</span>
+                    <span className="font-mono text-gray-700 dark:text-gray-300">{device.lan_ip || t('devicesPages.devices.card.info.notSet')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Status</span>
+                    <span className="text-gray-500">{t('devicesPages.devices.card.info.status')}</span>
                     <span className={`font-semibold ${isOnline ? 'text-green-600' : 'text-red-500'}`}>
-                      {isOnline ? 'Online' : 'Offline'}
+                      {isOnline ? t('devicesPages.devices.card.online') : t('devicesPages.devices.card.offlineLabel')}
                     </span>
                   </div>
                 </div>
@@ -856,7 +862,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 {/* Mode selector */}
                 {pullStage === 'idle' && (
                   <div className="space-y-3">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Select range to pull:</p>
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{t('devicesPages.devices.card.selectRange')}</p>
                     <div className="grid grid-cols-3 gap-2">
                       {(['today', 'full', 'range'] as const).map(m => (
                         <button key={m} onClick={() => setPullMode(m)}
@@ -865,28 +871,26 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                               ? 'bg-blue-600 text-white border-blue-600'
                               : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                           }`}>
-                          {m === 'today' ? "Today's Logs" : m === 'full' ? 'All Logs' : 'Date Range'}
+                          {t(`devicesPages.devices.card.mode.${m}`)}
                         </button>
                       ))}
                     </div>
                     {pullMode === 'range' && (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] text-gray-500 mb-1">From</label>
+                          <label className="block text-[11px] text-gray-500 mb-1">{t('devicesPages.devices.card.from')}</label>
                           <input type="date" value={pullDateFrom} onChange={e => setPullDateFrom(e.target.value)}
                             className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white" />
                         </div>
                         <div>
-                          <label className="block text-[11px] text-gray-500 mb-1">To</label>
+                          <label className="block text-[11px] text-gray-500 mb-1">{t('devicesPages.devices.card.to')}</label>
                           <input type="date" value={pullDateTo} onChange={e => setPullDateTo(e.target.value)}
                             className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white" />
                         </div>
                       </div>
                     )}
                     <p className="text-[11px] text-gray-400">
-                      {pullMode === 'today' && 'Retrieves only today\'s punches from the device.'}
-                      {pullMode === 'full'  && 'Downloads all logs stored on the device. May take a moment.'}
-                      {pullMode === 'range' && 'Retrieves logs between the two dates (device local time).'}
+                      {t(`devicesPages.devices.card.modeHelp.${pullMode}`)}
                     </p>
                   </div>
                 )}
@@ -895,8 +899,8 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 {pullStage === 'running' && (
                   <div className="flex flex-col items-center py-6 gap-3">
                     <Loader className="w-8 h-8 text-blue-500 animate-spin" />
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Connecting to device…</p>
-                    <p className="text-xs text-gray-400">Downloading attendance logs over LAN TCP</p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('devicesPages.devices.card.connecting')}</p>
+                    <p className="text-xs text-gray-400">{t('devicesPages.devices.card.downloading')}</p>
                   </div>
                 )}
 
@@ -905,39 +909,39 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-green-600">
                       <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-semibold">Pull complete</span>
+                      <span className="text-sm font-semibold">{t('devicesPages.devices.card.pullComplete')}</span>
                     </div>
                     <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-3 space-y-1.5 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Logs on device</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.totalOnDevice ?? '—'}</span>
+                        <span className="text-gray-500">{t('devicesPages.devices.card.res.onDevice')}</span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.totalOnDevice != null ? digits(pullResult.totalOnDevice) : '—'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Matching date filter</span>
-                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.filteredCount ?? '—'}</span>
+                        <span className="text-gray-500">{t('devicesPages.devices.card.res.matching')}</span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{pullResult.filteredCount != null ? digits(pullResult.filteredCount) : '—'}</span>
                       </div>
                       <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-1.5 mt-1">
-                        <span className="text-green-600 font-medium">Inserted (new)</span>
-                        <span className="font-bold text-green-700 dark:text-green-400">{pullResult.inserted ?? 0}</span>
+                        <span className="text-green-600 font-medium">{t('devicesPages.devices.card.res.inserted')}</span>
+                        <span className="font-bold text-green-700 dark:text-green-400">{digits(pullResult.inserted ?? 0)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-blue-500 font-medium">Duplicates skipped</span>
-                        <span className="font-semibold text-blue-600">{pullResult.duplicates ?? 0}</span>
+                        <span className="text-blue-500 font-medium">{t('devicesPages.devices.card.res.duplicates')}</span>
+                        <span className="font-semibold text-blue-600">{digits(pullResult.duplicates ?? 0)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-amber-500 font-medium">Unmatched identity</span>
-                        <span className="font-semibold text-amber-600">{pullResult.unmatched ?? 0}</span>
+                        <span className="text-amber-500 font-medium">{t('devicesPages.devices.card.res.unmatched')}</span>
+                        <span className="font-semibold text-amber-600">{digits(pullResult.unmatched ?? 0)}</span>
                       </div>
                       {(pullResult.failed ?? 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-red-500 font-medium">Failed</span>
-                          <span className="font-semibold text-red-600">{pullResult.failed}</span>
+                          <span className="text-red-500 font-medium">{t('devicesPages.devices.card.res.failed')}</span>
+                          <span className="font-semibold text-red-600">{digits(pullResult.failed)}</span>
                         </div>
                       )}
                     </div>
                     {(pullResult.unmatched ?? 0) > 0 && (
                       <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                        {pullResult.unmatched} punch{pullResult.unmatched !== 1 ? 'es' : ''} stored but identity pending — visible under Attendance → Logs → Unmatched tab.
+                        {t('devicesPages.devices.card.unmatchedNote', { count: pullResult.unmatched })}
                       </p>
                     )}
                   </div>
@@ -948,12 +952,12 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-red-600">
                       <AlertTriangle className="w-5 h-5" />
-                      <span className="text-sm font-semibold">Pull failed</span>
+                      <span className="text-sm font-semibold">{t('devicesPages.devices.card.pullFailedTitle')}</span>
                     </div>
                     <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
-                      {pullResult?.error || 'Unknown error'}
+                      {pullResult?.error || t('devicesPages.devices.card.unknownError')}
                     </p>
-                    <p className="text-[11px] text-gray-400">Check that the device LAN IP is correct and the device is reachable on port 4370.</p>
+                    <p className="text-[11px] text-gray-400">{t('devicesPages.devices.card.portHelp')}</p>
                   </div>
                 )}
               </div>
@@ -964,23 +968,23 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   <button onClick={handlePullAttendance}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                     <Download className="w-4 h-4" />
-                    Pull Logs
+                    {t('devicesPages.devices.card.pullLogs')}
                   </button>
                 )}
                 {pullStage === 'running' && (
                   <button disabled className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg text-sm font-medium cursor-wait">
-                    <Loader className="w-4 h-4 animate-spin" /> Pulling…
+                    <Loader className="w-4 h-4 animate-spin" /> {t('devicesPages.devices.card.pulling')}
                   </button>
                 )}
                 {(pullStage === 'done' || pullStage === 'error') && (
                   <button onClick={() => { setPullStage('idle'); setPullResult(null); }}
                     className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                    Pull Again
+                    {t('devicesPages.devices.card.pullAgain')}
                   </button>
                 )}
                 <button onClick={() => { setShowPullDialog(false); setPullStage('idle'); setPullResult(null); }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                  Close
+                  {t('devicesPages.devices.card.close')}
                 </button>
               </div>
             </div>
@@ -989,23 +993,23 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
 
         {editing ? (
           <div className="space-y-2">
-            <input type="text" placeholder="Device name" value={editForm.device_name}
+            <input type="text" placeholder={t('devicesPages.devices.card.edit.name')} value={editForm.device_name}
               onChange={(e) => setEditForm({ ...editForm, device_name: e.target.value })}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="text" placeholder="Location" value={editForm.location}
+            <input type="text" placeholder={t('devicesPages.devices.card.edit.location')} value={editForm.location}
               onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900" />
-            <input type="text" placeholder="Role (e.g. Gate Verification)" value={editForm.role_label}
+            <input type="text" placeholder={t('devicesPages.devices.card.edit.role')} value={editForm.role_label}
               onChange={(e) => setEditForm({ ...editForm, role_label: e.target.value })}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-900" />
             <div className="flex gap-2">
               <button onClick={handleSaveEdit} disabled={saving}
                 className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-600 text-white rounded-lg text-xs">
-                {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+                {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t('devicesPages.devices.card.save')}
               </button>
               <button onClick={() => setEditing(false)}
                 className="flex-1 flex items-center justify-center gap-1 py-1.5 border border-gray-300 rounded-lg text-xs">
-                <X className="w-3.5 h-3.5" /> Cancel
+                <X className="w-3.5 h-3.5" /> {t('devicesPages.devices.card.cancel')}
               </button>
             </div>
           </div>
@@ -1014,7 +1018,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Clock className="w-4 h-4 shrink-0" />
-                <span>Last seen <span className="font-medium text-gray-800 dark:text-gray-200">{formatTimeAgo(lastSeenSeconds)}</span></span>
+                <span>{rich('devicesPages.devices.card.lastSeen', { ago: <span className="font-medium text-gray-800 dark:text-gray-200">{formatTimeAgo(t, lastSeenSeconds)}</span> })}</span>
               </div>
               {device.ip_address && (
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -1053,26 +1057,26 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                     // back to the last completed run; "unknown" if neither.
                     const onDevice = device.device_user_count ?? device.device_confirmed_users ?? null;
                     return (
-                      <span>On device: {onDevice != null ? (
-                        <strong className="text-gray-800 dark:text-gray-200">{onDevice}</strong>
+                      <span>{rich('devicesPages.devices.card.onDevice', { n: onDevice != null ? (
+                        <strong className="text-gray-800 dark:text-gray-200">{digits(onDevice)}</strong>
                       ) : (
-                        <strong className="text-amber-600" title="No inventory poll has completed for this device">unknown</strong>
-                      )}</span>
+                        <strong className="text-amber-600" title={t('devicesPages.devices.card.unknownTitle')}>{t('devicesPages.devices.card.unknown')}</strong>
+                      ) })}</span>
                     );
                   })()}
                   <button
                     onClick={handleSyncUsers}
                     disabled={probing}
-                    title="Sync Users From Device — ask the device for its current user list"
-                    className="ml-1 inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+                    title={t('devicesPages.devices.card.syncUsersTitle')}
+                    className="ms-1 inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
                   >
                     {probing ? <Loader className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                    <span className="text-[11px] font-medium">Sync users</span>
+                    <span className="text-[11px] font-medium">{t('devicesPages.devices.card.syncUsers')}</span>
                   </button>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Database className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Expected in DRAIS: <strong className="text-gray-800 dark:text-gray-200">{device.mapped_users ?? 0}</strong></span>
+                  <span>{rich('devicesPages.devices.card.expected', { n: <strong className="text-gray-800 dark:text-gray-200">{digits(device.mapped_users ?? 0)}</strong> })}</span>
                 </div>
               </div>
 
@@ -1085,20 +1089,20 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 />
                 {device.inventory_synced_at && (
                   <span className="text-gray-400">
-                    synced {formatTimeAgo(Math.floor((Date.now() - new Date(device.inventory_synced_at).getTime()) / 1000))}
+                    {t('devicesPages.devices.card.syncedAgo', { ago: formatTimeAgo(t, Math.floor((Date.now() - new Date(device.inventory_synced_at).getTime()) / 1000)) })}
                   </span>
                 )}
                 {(() => {
                   const onDevice = device.device_user_count ?? device.device_confirmed_users ?? null;
                   return onDevice != null && device.mapped_users != null && onDevice !== device.mapped_users ? (
-                    <span className="text-amber-600 font-medium">⚠ device {onDevice} vs DRAIS {device.mapped_users}</span>
+                    <span className="text-amber-600 font-medium">{t('devicesPages.devices.card.mismatch', { device: onDevice, drais: device.mapped_users })}</span>
                   ) : null;
                 })()}
               </div>
 
               <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">
-                <span>Today: <strong>{device.today_punches || 0}</strong> punches</span>
-                <span>Pending: <strong>{device.pending_commands || 0}</strong> cmds</span>
+                <span>{rich('devicesPages.devices.card.today', { n: <strong>{digits(device.today_punches || 0)}</strong> })}</span>
+                <span>{rich('devicesPages.devices.card.pending', { n: <strong>{digits(device.pending_commands || 0)}</strong> })}</span>
               </div>
 
               {/* Template deployment readiness (Phase 4/5 — central
@@ -1107,13 +1111,13 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {Number(device.templates_total || 0) > 0 && (
                 <div className="flex items-center gap-2 text-xs pt-0.5">
                   <Fingerprint className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span className="text-gray-500">Templates: <strong className="text-gray-800 dark:text-gray-200">{device.templates_loaded}/{device.templates_total}</strong></span>
+                  <span className="text-gray-500">{rich('devicesPages.devices.card.templates', { loaded: <strong className="text-gray-800 dark:text-gray-200">{digits(device.templates_loaded)}</strong>, total: <strong className="text-gray-800 dark:text-gray-200">{digits(device.templates_total)}</strong> })}</span>
                   <span className={`px-1.5 py-0.5 rounded font-medium ${
                     device.template_sync_status === 'healthy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
                     : device.template_sync_status === 'attention' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
                     : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                   }`}>
-                    {device.template_sync_status === 'healthy' ? 'Healthy' : device.template_sync_status === 'attention' ? `${device.templates_failed} failed` : 'Syncing'}
+                    {device.template_sync_status === 'healthy' ? t('devicesPages.devices.card.tpl.healthy') : device.template_sync_status === 'attention' ? t('devicesPages.devices.card.tpl.failed', { n: device.templates_failed }) : t('devicesPages.devices.card.tpl.syncing')}
                   </span>
                 </div>
               )}
@@ -1124,7 +1128,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
                 <p className="text-[11px] text-red-700 dark:text-red-300 font-medium">
-                  Device data mismatch detected. Please re-sync.
+                  {t('devicesPages.devices.card.mismatchStrip')}
                 </p>
               </div>
             )}
@@ -1134,10 +1138,10 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-blue-600 font-medium flex items-center gap-1">
-                    <Send className="w-3 h-3" /> Syncing identities to device...
+                    <Send className="w-3 h-3" /> {t('devicesPages.devices.card.syncingIdentities')}
                   </span>
                   <span className="text-gray-500 font-mono">
-                    {idProgress.sent + idProgress.acknowledged}/{idProgress.total}
+                    {digits(`${idProgress.sent + idProgress.acknowledged}/${idProgress.total}`)}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
@@ -1145,10 +1149,10 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                     style={{ width: `${idProgress.total > 0 ? Math.round(((idProgress.sent + idProgress.acknowledged) / idProgress.total) * 100) : 0}%` }} />
                 </div>
                 <div className="flex gap-3 text-[10px] text-gray-400">
-                  <span>Pending: {idProgress.pending}</span>
-                  <span>Sent: {idProgress.sent}</span>
-                  <span className="text-green-600">Done: {idProgress.acknowledged}</span>
-                  {idProgress.failed > 0 && <span className="text-red-500">Failed: {idProgress.failed}</span>}
+                  <span>{t('devicesPages.devices.card.prog.pending', { n: idProgress.pending })}</span>
+                  <span>{t('devicesPages.devices.card.prog.sent', { n: idProgress.sent })}</span>
+                  <span className="text-green-600">{t('devicesPages.devices.card.prog.done', { n: idProgress.acknowledged })}</span>
+                  {idProgress.failed > 0 && <span className="text-red-500">{t('devicesPages.devices.card.prog.failed', { n: idProgress.failed })}</span>}
                 </div>
               </div>
             )}
@@ -1169,7 +1173,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {/* Sync Users */}
               <ActionIcon
                 icon={<UserPlus className="w-4 h-4" />}
-                label="Sync Users → Device"
+                label={t('devicesPages.devices.card.action.syncUsers')}
                 color="purple"
                 loading={idSyncing}
                 done={idProgress?.status === 'complete'}
@@ -1179,7 +1183,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {/* Pull Users from Device */}
               <ActionIcon
                 icon={<Download className="w-4 h-4" />}
-                label="Pull Users from Device"
+                label={t('devicesPages.devices.card.action.pullUsers')}
                 color="blue"
                 loading={syncState === 'pending' || syncState === 'sent'}
                 done={syncState === 'acknowledged'}
@@ -1189,7 +1193,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {/* Pull Attendance Logs */}
               <ActionIcon
                 icon={<ClipboardList className="w-4 h-4" />}
-                label="Pull Attendance Logs"
+                label={t('devicesPages.devices.card.action.pullLogs')}
                 color="green"
                 loading={pullStage === 'running'}
                 done={pullStage === 'done'}
@@ -1198,7 +1202,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {/* Re-sync (push DB → device) */}
               <ActionIcon
                 icon={<RotateCcw className="w-4 h-4" />}
-                label="Re-sync Device"
+                label={t('devicesPages.devices.card.action.resync')}
                 color={isOutOfSync ? 'red' : 'blue'}
                 loading={actionLoading === 'resync'}
                 disabled={!isOnline}
@@ -1207,34 +1211,34 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {/* Sync Time */}
               <ActionIcon
                 icon={<Timer className="w-4 h-4" />}
-                label="Sync Time"
+                label={t('devicesPages.devices.card.action.syncTime')}
                 color="teal"
                 loading={actionLoading === 'sync_time'}
                 disabled={!isOnline}
-                onClick={() => runDeviceAction('sync_time', 'Sync Time')}
+                onClick={() => runDeviceAction('sync_time', t('devicesPages.devices.card.action.syncTime'))}
               />
               {/* Clear Logs */}
               <ActionIcon
                 icon={<ClipboardList className="w-4 h-4" />}
-                label="Clear Logs"
+                label={t('devicesPages.devices.card.action.clearLogs')}
                 color="orange"
                 loading={actionLoading === 'clear_logs'}
                 disabled={!isOnline}
-                onClick={() => runDeviceAction('clear_logs', 'Clear Logs', `Clear all attendance logs from "${device.device_name || device.serial_number}"? Logs already in Drais are safe.`)}
+                onClick={() => runDeviceAction('clear_logs', t('devicesPages.devices.card.action.clearLogs'), t('devicesPages.devices.card.action.clearLogsBody', { name: devName }))}
               />
               {/* Restart */}
               <ActionIcon
                 icon={<Power className="w-4 h-4" />}
-                label="Restart Device"
+                label={t('devicesPages.devices.card.action.restart')}
                 color="red"
                 loading={actionLoading === 'restart'}
                 disabled={!isOnline}
-                onClick={() => runDeviceAction('restart', 'Restart', `Reboot "${device.device_name || device.serial_number}"? Device will be offline for ~30s.`)}
+                onClick={() => runDeviceAction('restart', t('devicesPages.devices.card.action.restartShort'), t('devicesPages.devices.card.action.restartBody', { name: devName }))}
               />
               {/* Reset & Rebuild */}
               <ActionIcon
                 icon={<ShieldAlert className="w-4 h-4" />}
-                label="Reset & Rebuild"
+                label={t('devicesPages.devices.card.action.reset')}
                 color="orange"
                 loading={actionLoading === 'reset'}
                 disabled={!isOnline}
@@ -1249,7 +1253,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                 <>
                   <ActionIcon
                     icon={<LogOut className="w-4 h-4" />}
-                    label="Release Device"
+                    label={t('devicesPages.devices.card.action.release')}
                     color="orange"
                     loading={transferLoading === 'release'}
                     disabled={device.status === 'released' || device.status === 'retired'}
@@ -1257,7 +1261,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   />
                   <ActionIcon
                     icon={<LogIn className="w-4 h-4" />}
-                    label="Acquire Device"
+                    label={t('devicesPages.devices.card.action.acquire')}
                     color="teal"
                     loading={transferLoading === 'acquire'}
                     disabled={device.status !== 'released'}
@@ -1265,7 +1269,7 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
                   />
                   <ActionIcon
                     icon={<Archive className="w-4 h-4" />}
-                    label="Decommission Device"
+                    label={t('devicesPages.devices.card.action.decommission')}
                     color="red"
                     loading={transferLoading === 'decommission'}
                     disabled={device.status === 'retired'}
@@ -1276,14 +1280,14 @@ function DeviceCard({ device, onMutate }: { device: any; onMutate: () => void })
               {/* Edit */}
               <ActionIcon
                 icon={<Edit2 className="w-4 h-4" />}
-                label="Edit Device"
+                label={t('devicesPages.devices.card.action.edit')}
                 color="gray"
                 onClick={() => { setEditForm({ device_name: device.device_name || '', location: device.location || '', role_label: device.role_label || '' }); setEditing(true); }}
               />
               {/* Delete */}
               <ActionIcon
                 icon={deleting ? <Loader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                label="Remove Device"
+                label={t('devicesPages.devices.card.action.remove')}
                 color="red"
                 loading={deleting}
                 onClick={handleDelete}
