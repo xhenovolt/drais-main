@@ -6843,6 +6843,118 @@
       "ackedAt": "acked {{when}}",
       "ack": "Ack",
       "counter": "{{label}} (open)"
+    },
+    "logs": {
+      "ago": {
+        "s": "{{n}}s ago",
+        "m": "{{n}}m ago",
+        "h": "{{n}}h ago"
+      },
+      "failed": "Failed",
+      "ok": "OK",
+      "matched": "Matched",
+      "unmatched": "Unmatched",
+      "tab": {
+        "raw": "Raw Logs",
+        "parsed": "Parsed Logs",
+        "errors": "Errors"
+      },
+      "desc": {
+        "raw": "Every HTTP exchange — forensic evidence, never modified",
+        "parsed": "Per-record interpretation with matching status",
+        "errors": "Failed records — parsing failures, missing fields, save errors"
+      },
+      "exported": "Exported CSV",
+      "chooseDate": "Choose a cut-off date first.",
+      "deleteFailed": "Delete failed ({{status}}).",
+      "deleted": "Device logs deleted",
+      "unreachable": "Could not reach the server: {{error}}",
+      "networkError": "network error",
+      "title": "Device Observability",
+      "subtitle": "Raw-first pipeline — every byte captured, every record tracked • {{n}} records",
+      "live": "Live",
+      "paused": "Paused",
+      "deleteLogs": "Delete logs",
+      "export": "Export",
+      "refresh": "Refresh",
+      "purgeTitle": "Delete device logs",
+      "purge": {
+        "tab": "Tab:",
+        "tabRaw": "Raw Logs (and the parsed rows belonging to them)",
+        "tabErrors": "Errors only",
+        "tabParsed": "Parsed Logs",
+        "device": "Device:",
+        "allDevices": "all devices in this school",
+        "scope": "Scope:",
+        "thisSchool": "this school only",
+        "before": "Delete everything recorded BEFORE this date",
+        "reasonPh": "Reason (optional, recorded in the audit trail)",
+        "note": "This removes device diagnostics only. {{safe}} — no punch, no arrival time and no report changes. The deletion is permanent and is written to the audit trail.",
+        "safe": "Attendance records are not touched"
+      },
+      "cancel": "Cancel",
+      "deleting": "Deleting…",
+      "deletePerm": "Delete permanently",
+      "stat": {
+        "total": "Total (24h)",
+        "get": "GET",
+        "post": "POST",
+        "devices": "Devices",
+        "success": "Success",
+        "failed": "Failed",
+        "matched": "Matched",
+        "unmatched": "Unmatched"
+      },
+      "filters": "Filters",
+      "reset": "Reset",
+      "allDevices": "All Devices",
+      "allTables": "All Tables",
+      "searchPh": "Search…",
+      "loading": "Loading…",
+      "none": {
+        "raw": "No raw logs found",
+        "parsed": "No parsed logs found",
+        "errors": "No errors logs found"
+      },
+      "noFailures": "No processing failures — that's a good sign!",
+      "adjust": "Try adjusting the filters or date range",
+      "pageOf": "Page {{page}} of {{pages}} • {{total}} total",
+      "col": {
+        "time": "Time",
+        "method": "Method",
+        "device": "Device",
+        "ip": "IP",
+        "body": "Body",
+        "size": "Size",
+        "id": "ID",
+        "table": "Table",
+        "user": "User / Name",
+        "checkTime": "Check Time",
+        "status": "Status",
+        "error": "Error",
+        "rawLog": "Raw Log"
+      },
+      "empty": "empty",
+      "bytes": "{{n}}B",
+      "d": {
+        "rawId": "Raw Log ID:",
+        "device": "Device:",
+        "ip": "IP:",
+        "endpoint": "Endpoint:",
+        "query": "Query:",
+        "ua": "UA:",
+        "error": "Error:",
+        "parsedId": "Parsed ID:",
+        "rawLog": "Raw Log:",
+        "table": "Table:",
+        "userId": "User ID:",
+        "student": "Student:",
+        "staff": "Staff:",
+        "verify": "Verify:",
+        "rawLine": "Raw line:"
+      },
+      "unknown": "unknown",
+      "toRaw": "→ raw #{{id}}"
     }
   }
 }

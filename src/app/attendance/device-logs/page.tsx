@@ -25,6 +25,7 @@ import { showToast } from '@/lib/toast';
 import { apiErrorMessage } from '@/lib/errorMessage';
 import { toLocalDateStr } from '@/lib/datetime/local-date';
 import clsx from 'clsx';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,20 +78,20 @@ interface ApiResponse {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtTime(ts: string) {
+function fmtTime(ts: string, lang = 'en') {
   try {
-    return new Date(ts).toLocaleString(undefined, {
+    return new Date(ts).toLocaleString(lang === 'ar' ? 'ar-u-nu-arab-ca-gregory' : undefined, {
       month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
   } catch { return ts; }
 }
 
-function timeAgo(ts: string) {
+function timeAgo(t: (k: string, v?: any) => string, ts: string) {
   const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 60_000)  return `${Math.floor(diff / 1000)}s ago`;
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  return `${Math.floor(diff / 3600_000)}h ago`;
+  if (diff < 60_000)  return t('devicesPages.logs.ago.s', { n: Math.floor(diff / 1000) });
+  if (diff < 3600_000) return t('devicesPages.logs.ago.m', { n: Math.floor(diff / 60_000) });
+  return t('devicesPages.logs.ago.h', { n: Math.floor(diff / 3600_000) });
 }
 
 function MethodBadge({ method }: { method: string }) {
@@ -101,36 +102,39 @@ function MethodBadge({ method }: { method: string }) {
 }
 
 function StatusPill({ status }: { status: string }) {
+  const { t } = useI18n();
   return status === 'failed' ? (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-      <XCircle className="w-3 h-3" /> Failed
+      <XCircle className="w-3 h-3" /> {t('devicesPages.logs.failed')}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-      <CheckCircle className="w-3 h-3" /> OK
+      <CheckCircle className="w-3 h-3" /> {t('devicesPages.logs.ok')}
     </span>
   );
 }
 
 function MatchBadge({ matched, status }: { matched: number; status: string }) {
+  const { t } = useI18n();
   if (status === 'failed') return <StatusPill status="failed" />;
   return matched ? (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-      <CheckCircle className="w-3 h-3" /> Matched
+      <CheckCircle className="w-3 h-3" /> {t('devicesPages.logs.matched')}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
-      <AlertTriangle className="w-3 h-3" /> Unmatched
+      <AlertTriangle className="w-3 h-3" /> {t('devicesPages.logs.unmatched')}
     </span>
   );
 }
 
 function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
+  const { formatNumber } = useI18n();
   return (
     <div className={clsx('rounded-xl border p-4 flex items-center gap-3', 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700')}>
       <div className={clsx('p-2 rounded-lg', color)}>{icon}</div>
       <div>
-        <div className="text-2xl font-bold text-gray-900 dark:text-white">{value.toLocaleString()}</div>
+        <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(value)}</div>
         <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</div>
       </div>
     </div>
@@ -146,6 +150,7 @@ const TAB_CONFIG: { key: Tab; label: string; icon: React.ReactNode; desc: string
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DeviceObservabilityPage() {
+  const { t, rich, lang, formatNumber } = useI18n();
   const today = toLocalDateStr();
 
   const [tab, setTab]             = useState<Tab>('raw');
@@ -200,7 +205,7 @@ export default function DeviceObservabilityPage() {
     const blob = new Blob([[header, ...csv].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `pipeline-${tab}-${dateFrom}.csv`; a.click();
-    showToast('success', 'Exported CSV');
+    showToast('success', t('devicesPages.logs.exported'));
   };
 
   // Delete telemetry for the scope currently on screen. Scoped server-side to
@@ -208,7 +213,7 @@ export default function DeviceObservabilityPage() {
   // tenants — and it can only reach the three device-log tables, never a
   // punch.
   const runPurge = async () => {
-    if (!purgeBefore) { showToast('error', 'Choose a cut-off date first.'); return; }
+    if (!purgeBefore) { showToast('error', t('devicesPages.logs.chooseDate')); return; }
     setPurgeBusy(true);
     try {
       const res = await fetch('/api/zk/pipeline', {
@@ -223,14 +228,14 @@ export default function DeviceObservabilityPage() {
       });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j?.success) {
-        showToast('error', apiErrorMessage(j, `Delete failed (${res.status}).`));
+        showToast('error', lang === 'ar' ? t('devicesPages.logs.deleteFailed', { status: res.status }) : apiErrorMessage(j, `Delete failed (${res.status}).`));
       } else {
-        showToast('success', j.message);
+        showToast('success', lang === 'ar' ? t('devicesPages.logs.deleted') : j.message);
         setPurgeOpen(false); setPurgeReason('');
         mutate();
       }
     } catch (e: any) {
-      showToast('error', `Could not reach the server: ${e?.message ?? 'network error'}`);
+      showToast('error', t('devicesPages.logs.unreachable', { error: lang === 'ar' ? t('devicesPages.logs.networkError') : (e?.message ?? 'network error') }));
     } finally {
       setPurgeBusy(false);
     }
@@ -244,10 +249,10 @@ export default function DeviceObservabilityPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <Activity className="w-7 h-7 text-blue-600" />
-            Device Observability
+            {t('devicesPages.logs.title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-            Raw-first pipeline &mdash; every byte captured, every record tracked &bull; {pagMeta.total.toLocaleString()} records
+            {t('devicesPages.logs.subtitle', { n: formatNumber(pagMeta.total) })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -256,36 +261,36 @@ export default function DeviceObservabilityPage() {
               liveMode ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700'
                        : 'bg-gray-100 text-gray-600 border border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600')}>
             <Radio className={clsx('w-4 h-4', liveMode && 'animate-pulse')} />
-            {liveMode ? 'Live' : 'Paused'}
+            {liveMode ? t('devicesPages.logs.live') : t('devicesPages.logs.paused')}
           </button>
           <button onClick={() => setPurgeOpen(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20">
-            <Trash2 className="w-4 h-4" /> Delete logs
+            <Trash2 className="w-4 h-4" /> {t('devicesPages.logs.deleteLogs')}
           </button>
           <button onClick={handleExport}
             className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
-            <Download className="w-4 h-4" /> Export
+            <Download className="w-4 h-4" /> {t('devicesPages.logs.export')}
           </button>
           <button onClick={() => mutate()}
             className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <RefreshCw className={clsx('w-4 h-4', isLoading && 'animate-spin')} /> Refresh
+            <RefreshCw className={clsx('w-4 h-4', isLoading && 'animate-spin')} /> {t('devicesPages.logs.refresh')}
           </button>
         </div>
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────────────────── */}
       <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
-        {TAB_CONFIG.map(t => (
-          <button key={t.key} onClick={() => switchTab(t.key)}
+        {TAB_CONFIG.map(tc => (
+          <button key={tc.key} onClick={() => switchTab(tc.key)}
             className={clsx(
               'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
-              tab === t.key
+              tab === tc.key
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300',
             )}>
-            {t.icon} {t.label}
-            {t.key === 'errors' && (summary as any).failed_24h > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">{(summary as any).failed_24h}</span>
+            {tc.icon} {t(`devicesPages.logs.tab.${tc.key}`)}
+            {tc.key === 'errors' && (summary as any).failed_24h > 0 && (
+              <span className="ms-1 px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">{formatNumber((summary as any).failed_24h)}</span>
             )}
           </button>
         ))}
@@ -302,34 +307,34 @@ export default function DeviceObservabilityPage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
               <Trash2 className="w-5 h-5 text-rose-600" />
-              <h2 className="font-bold text-gray-900 dark:text-white">Delete device logs</h2>
+              <h2 className="font-bold text-gray-900 dark:text-white">{t('devicesPages.logs.purgeTitle')}</h2>
             </div>
 
             <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 px-3 py-2 text-xs text-gray-600 dark:text-gray-300 mb-3 space-y-0.5">
-              <div><span className="font-medium">Tab:</span> {tab === 'raw' ? 'Raw Logs (and the parsed rows belonging to them)' : tab === 'errors' ? 'Errors only' : 'Parsed Logs'}</div>
-              <div><span className="font-medium">Device:</span> {deviceSn || 'all devices in this school'}</div>
-              <div><span className="font-medium">Scope:</span> this school only</div>
+              <div><span className="font-medium">{t('devicesPages.logs.purge.tab')}</span> {tab === 'raw' ? t('devicesPages.logs.purge.tabRaw') : tab === 'errors' ? t('devicesPages.logs.purge.tabErrors') : t('devicesPages.logs.purge.tabParsed')}</div>
+              <div><span className="font-medium">{t('devicesPages.logs.purge.device')}</span> {deviceSn || t('devicesPages.logs.purge.allDevices')}</div>
+              <div><span className="font-medium">{t('devicesPages.logs.purge.scope')}</span> {t('devicesPages.logs.purge.thisSchool')}</div>
             </div>
 
             <label className="block mb-2">
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">Delete everything recorded BEFORE this date <span className="text-rose-600">*</span></span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">{t('devicesPages.logs.purge.before')} <span className="text-rose-600">*</span></span>
               <input type="date" value={purgeBefore} max={today} onChange={e => setPurgeBefore(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white" />
             </label>
 
-            <input value={purgeReason} onChange={e => setPurgeReason(e.target.value)} placeholder="Reason (optional, recorded in the audit trail)"
+            <input value={purgeReason} onChange={e => setPurgeReason(e.target.value)} placeholder={t('devicesPages.logs.purge.reasonPh')}
               className="w-full mb-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white" />
 
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
-              This removes device diagnostics only. <span className="font-medium text-gray-700 dark:text-gray-200">Attendance records are not touched</span> — no punch, no arrival time and no report changes. The deletion is permanent and is written to the audit trail.
+              {rich('devicesPages.logs.purge.note', { safe: <span className="font-medium text-gray-700 dark:text-gray-200">{t('devicesPages.logs.purge.safe')}</span> })}
             </p>
 
             <div className="flex gap-2">
               <button onClick={() => setPurgeOpen(false)}
-                className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300">Cancel</button>
+                className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('devicesPages.logs.cancel')}</button>
               <button onClick={runPurge} disabled={purgeBusy || !purgeBefore}
                 className="flex-1 rounded-lg bg-rose-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50">
-                {purgeBusy ? 'Deleting…' : 'Delete permanently'}
+                {purgeBusy ? t('devicesPages.logs.deleting') : t('devicesPages.logs.deletePerm')}
               </button>
             </div>
           </div>
@@ -339,20 +344,20 @@ export default function DeviceObservabilityPage() {
       {/* ── Summary Stats (tab-specific) ───────────────────────────────── */}
       {tab === 'raw' && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Total (24h)" value={summary.total_24h ?? 0}   color="bg-blue-100 dark:bg-blue-900/30"   icon={<Activity className="w-4 h-4 text-blue-600" />} />
-          <StatCard label="GET"         value={summary.gets_24h ?? 0}    color="bg-gray-100 dark:bg-gray-700"       icon={<Wifi className="w-4 h-4 text-gray-600" />} />
-          <StatCard label="POST"        value={summary.posts_24h ?? 0}   color="bg-blue-100 dark:bg-blue-900/30"   icon={<Database className="w-4 h-4 text-blue-600" />} />
-          <StatCard label="Devices"     value={summary.devices_24h ?? 0} color="bg-purple-100 dark:bg-purple-900/30" icon={<Radio className="w-4 h-4 text-purple-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.total')} value={summary.total_24h ?? 0}   color="bg-blue-100 dark:bg-blue-900/30"   icon={<Activity className="w-4 h-4 text-blue-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.get')}         value={summary.gets_24h ?? 0}    color="bg-gray-100 dark:bg-gray-700"       icon={<Wifi className="w-4 h-4 text-gray-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.post')}        value={summary.posts_24h ?? 0}   color="bg-blue-100 dark:bg-blue-900/30"   icon={<Database className="w-4 h-4 text-blue-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.devices')}     value={summary.devices_24h ?? 0} color="bg-purple-100 dark:bg-purple-900/30" icon={<Radio className="w-4 h-4 text-purple-600" />} />
         </div>
       )}
       {(tab === 'parsed' || tab === 'errors') && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Total (24h)"  value={summary.total_24h ?? 0}     color="bg-blue-100 dark:bg-blue-900/30"     icon={<Activity className="w-4 h-4 text-blue-600" />} />
-          <StatCard label="Success"      value={summary.success_24h ?? 0}   color="bg-green-100 dark:bg-green-900/30"   icon={<CheckCircle className="w-4 h-4 text-green-600" />} />
-          <StatCard label="Failed"       value={summary.failed_24h ?? 0}    color="bg-red-100 dark:bg-red-900/30"       icon={<XCircle className="w-4 h-4 text-red-600" />} />
-          <StatCard label="Matched"      value={summary.matched_24h ?? 0}   color="bg-green-100 dark:bg-green-900/30"   icon={<Fingerprint className="w-4 h-4 text-green-600" />} />
-          <StatCard label="Unmatched"    value={summary.unmatched_24h ?? 0} color="bg-yellow-100 dark:bg-yellow-900/30" icon={<AlertTriangle className="w-4 h-4 text-yellow-600" />} />
-          <StatCard label="Devices"      value={summary.devices_24h ?? 0}   color="bg-purple-100 dark:bg-purple-900/30" icon={<Radio className="w-4 h-4 text-purple-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.total')}  value={summary.total_24h ?? 0}     color="bg-blue-100 dark:bg-blue-900/30"     icon={<Activity className="w-4 h-4 text-blue-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.success')}      value={summary.success_24h ?? 0}   color="bg-green-100 dark:bg-green-900/30"   icon={<CheckCircle className="w-4 h-4 text-green-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.failed')}       value={summary.failed_24h ?? 0}    color="bg-red-100 dark:bg-red-900/30"       icon={<XCircle className="w-4 h-4 text-red-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.matched')}      value={summary.matched_24h ?? 0}   color="bg-green-100 dark:bg-green-900/30"   icon={<Fingerprint className="w-4 h-4 text-green-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.unmatched')}    value={summary.unmatched_24h ?? 0} color="bg-yellow-100 dark:bg-yellow-900/30" icon={<AlertTriangle className="w-4 h-4 text-yellow-600" />} />
+          <StatCard label={t('devicesPages.logs.stat.devices')}      value={summary.devices_24h ?? 0}   color="bg-purple-100 dark:bg-purple-900/30" icon={<Radio className="w-4 h-4 text-purple-600" />} />
         </div>
       )}
 
@@ -360,9 +365,9 @@ export default function DeviceObservabilityPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between mb-3">
           <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-            <Filter className="w-4 h-4" /> Filters
+            <Filter className="w-4 h-4" /> {t('devicesPages.logs.filters')}
           </span>
-          <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Reset</button>
+          <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">{t('devicesPages.logs.reset')}</button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }}
@@ -371,19 +376,19 @@ export default function DeviceObservabilityPage() {
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white" />
           <select value={deviceSn} onChange={e => { setDeviceSn(e.target.value); setPage(1); }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white">
-            <option value="">All Devices</option>
+            <option value="">{t('devicesPages.logs.allDevices')}</option>
             {deviceOptions.map((d: any) => <option key={d.sn} value={d.sn}>{d.device_name || d.sn}</option>)}
           </select>
           {tab !== 'raw' && (
             <select value={tableName} onChange={e => { setTableName(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white">
-              <option value="">All Tables</option>
+              <option value="">{t('devicesPages.logs.allTables')}</option>
               <option value="ATTLOG">ATTLOG</option>
               <option value="OPERLOG">OPERLOG</option>
               <option value="USERINFO">USERINFO</option>
             </select>
           )}
-          <input type="text" placeholder="Search…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+          <input type="text" placeholder={t('devicesPages.logs.searchPh')} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white" />
         </div>
       </div>
@@ -393,14 +398,14 @@ export default function DeviceObservabilityPage() {
         {isLoading && rows.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-gray-500 dark:text-gray-400 mt-3 text-sm">Loading…</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-3 text-sm">{t('devicesPages.logs.loading')}</p>
           </div>
         ) : rows.length === 0 ? (
           <div className="text-center py-16">
             <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto" />
-            <p className="text-gray-500 dark:text-gray-400 mt-3 font-medium">No {tab} logs found</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-3 font-medium">{t(`devicesPages.logs.none.${tab}`)}</p>
             <p className="text-gray-400 dark:text-gray-500 mt-1 text-sm">
-              {tab === 'errors' ? 'No processing failures — that\'s a good sign!' : 'Try adjusting the filters or date range'}
+              {tab === 'errors' ? t('devicesPages.logs.noFailures') : t('devicesPages.logs.adjust')}
             </p>
           </div>
         ) : tab === 'raw' ? (
@@ -414,16 +419,16 @@ export default function DeviceObservabilityPage() {
       {pagMeta.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Page {pagMeta.page} of {pagMeta.totalPages} &bull; {pagMeta.total.toLocaleString()} total
+            {t('devicesPages.logs.pageOf', { page: pagMeta.page, pages: pagMeta.totalPages, total: formatNumber(pagMeta.total) })}
           </p>
           <div className="flex items-center gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700">
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 rtl-flip" />
             </button>
             <button onClick={() => setPage(p => p + 1)} disabled={page >= pagMeta.totalPages}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700">
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 rtl-flip" />
             </button>
           </div>
         </div>
@@ -431,7 +436,7 @@ export default function DeviceObservabilityPage() {
 
       {/* ── Tab description ────────────────────────────────────────────── */}
       <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-        {TAB_CONFIG.find(t => t.key === tab)?.desc}
+        {t(`devicesPages.logs.desc.${tab}`)}
       </p>
     </div>
   );
@@ -440,18 +445,14 @@ export default function DeviceObservabilityPage() {
 // ─── Raw Logs Table ───────────────────────────────────────────────────────────
 
 function RawTable({ rows, expandedId, setExpandedId }: { rows: RawRow[]; expandedId: number | null; setExpandedId: (id: number | null) => void }) {
+  const { t, lang, digits } = useI18n();
+  const th = 'px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wide';
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-900/50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Time</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Method</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Device</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">IP</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Body</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Size</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">ID</th>
+            {['time', 'method', 'device', 'ip', 'body', 'size', 'id'].map((c) => <th key={c} className={th}>{t(`devicesPages.logs.col.${c}`)}</th>)}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -460,8 +461,8 @@ function RawTable({ rows, expandedId, setExpandedId }: { rows: RawRow[]; expande
               <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 text-sm cursor-pointer transition-colors"
                 onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-gray-900 dark:text-white text-xs font-mono">{fmtTime(r.created_at)}</div>
-                  <div className="text-gray-400 text-xs">{timeAgo(r.created_at)}</div>
+                  <div className="text-gray-900 dark:text-white text-xs font-mono">{fmtTime(r.created_at, lang)}</div>
+                  <div className="text-gray-400 text-xs">{timeAgo(t, r.created_at)}</div>
                 </td>
                 <td className="px-4 py-3"><MethodBadge method={r.http_method} /></td>
                 <td className="px-4 py-3">
@@ -470,27 +471,27 @@ function RawTable({ rows, expandedId, setExpandedId }: { rows: RawRow[]; expande
                 <td className="px-4 py-3 text-xs text-gray-500 font-mono">{r.source_ip || '—'}</td>
                 <td className="px-4 py-3">
                   <div className="text-xs text-gray-600 dark:text-gray-400 font-mono max-w-[300px] truncate">
-                    {r.raw_body_preview || <span className="text-gray-300 italic">empty</span>}
+                    {r.raw_body_preview || <span className="text-gray-300 italic">{t('devicesPages.logs.empty')}</span>}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
-                  {r.body_length > 0 ? `${r.body_length}B` : '—'}
+                  {r.body_length > 0 ? t('devicesPages.logs.bytes', { n: r.body_length }) : '—'}
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-300 dark:text-gray-600 font-mono">#{r.id}</td>
+                <td className="px-4 py-3 text-xs text-gray-300 dark:text-gray-600 font-mono">#{digits(r.id)}</td>
               </tr>
               {expandedId === r.id && (
                 <tr className="bg-gray-50 dark:bg-gray-900/30">
                   <td colSpan={7} className="px-6 py-4">
                     <div className="space-y-3 text-xs">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-gray-600 dark:text-gray-400">
-                        <div><span className="font-medium">Raw Log ID:</span> #{r.id}</div>
-                        <div><span className="font-medium">Device:</span> {r.device_sn || 'unknown'}</div>
-                        <div><span className="font-medium">IP:</span> {r.source_ip || '—'}</div>
-                        <div><span className="font-medium">Endpoint:</span> {r.endpoint || '—'}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.rawId')}</span> #{digits(r.id)}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.device')}</span> {r.device_sn || t('devicesPages.logs.unknown')}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.ip')}</span> {r.source_ip || '—'}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.endpoint')}</span> {r.endpoint || '—'}</div>
                       </div>
                       {r.query_string && (
                         <div>
-                          <span className="font-medium text-gray-600 dark:text-gray-400">Query: </span>
+                          <span className="font-medium text-gray-600 dark:text-gray-400">{t('devicesPages.logs.d.query')} </span>
                           <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">{r.query_string}</code>
                         </div>
                       )}
@@ -500,7 +501,7 @@ function RawTable({ rows, expandedId, setExpandedId }: { rows: RawRow[]; expande
                         </div>
                       )}
                       {r.user_agent && (
-                        <div className="text-gray-400 truncate"><span className="font-medium">UA:</span> {r.user_agent}</div>
+                        <div className="text-gray-400 truncate"><span className="font-medium">{t('devicesPages.logs.d.ua')}</span> {r.user_agent}</div>
                       )}
                     </div>
                   </td>
@@ -519,19 +520,16 @@ function RawTable({ rows, expandedId, setExpandedId }: { rows: RawRow[]; expande
 function ParsedTable({ rows, expandedId, setExpandedId, isErrors }: {
   rows: ParsedRow[]; expandedId: number | null; setExpandedId: (id: number | null) => void; isErrors: boolean;
 }) {
+  const { t, lang, digits, formatDate } = useI18n();
+  const th = 'px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wide';
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-900/50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Time</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Device</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Table</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">User / Name</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Check Time</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-            {isErrors && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Error</th>}
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Raw Log</th>
+            {['time', 'device', 'table', 'user', 'checkTime', 'status'].map((c) => <th key={c} className={th}>{t(`devicesPages.logs.col.${c}`)}</th>)}
+            {isErrors && <th className={th}>{t('devicesPages.logs.col.error')}</th>}
+            <th className={th}>{t('devicesPages.logs.col.rawLog')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -543,8 +541,8 @@ function ParsedTable({ rows, expandedId, setExpandedId, isErrors }: {
                 )}
                 onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-gray-900 dark:text-white text-xs font-mono">{fmtTime(r.created_at)}</div>
-                  <div className="text-gray-400 text-xs">{timeAgo(r.created_at)}</div>
+                  <div className="text-gray-900 dark:text-white text-xs font-mono">{fmtTime(r.created_at, lang)}</div>
+                  <div className="text-gray-400 text-xs">{timeAgo(t, r.created_at)}</div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-mono text-xs text-gray-800 dark:text-gray-200">{r.device_sn || '—'}</div>
@@ -562,7 +560,7 @@ function ParsedTable({ rows, expandedId, setExpandedId, isErrors }: {
                   {r.user_id ? (
                     <>
                       <div className="flex items-center gap-1 font-mono text-xs text-gray-800 dark:text-gray-200">
-                        <Fingerprint className="w-3 h-3 text-gray-400" /> {r.user_id}
+                        <Fingerprint className="w-3 h-3 text-gray-400" /> {digits(r.user_id)}
                       </div>
                       {(r.student_name || r.staff_name) && (
                         <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 font-medium">
@@ -576,7 +574,7 @@ function ParsedTable({ rows, expandedId, setExpandedId, isErrors }: {
                   {r.check_time ? (
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {new Date(r.check_time).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(r.check_time).toLocaleString(lang === 'ar' ? 'ar-u-nu-arab-ca-gregory' : undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   ) : '—'}
                 </td>
@@ -587,8 +585,8 @@ function ParsedTable({ rows, expandedId, setExpandedId, isErrors }: {
                   </td>
                 )}
                 <td className="px-4 py-3 text-xs text-gray-400 font-mono">
-                  <span className="text-gray-300 dark:text-gray-600">#{r.id}</span>
-                  {r.raw_log_id && <span className="ml-1 text-gray-400">→ raw #{r.raw_log_id}</span>}
+                  <span className="text-gray-300 dark:text-gray-600">#{digits(r.id)}</span>
+                  {r.raw_log_id && <span className="ms-1 text-gray-400">{t('devicesPages.logs.toRaw', { id: r.raw_log_id })}</span>}
                 </td>
               </tr>
               {expandedId === r.id && (
@@ -597,23 +595,23 @@ function ParsedTable({ rows, expandedId, setExpandedId, isErrors }: {
                     <div className="space-y-2 text-xs">
                       {r.error_message && (
                         <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                          <span className="font-semibold text-red-700 dark:text-red-400">Error: </span>
+                          <span className="font-semibold text-red-700 dark:text-red-400">{t('devicesPages.logs.d.error')} </span>
                           <span className="text-red-600 dark:text-red-300 font-mono">{r.error_message}</span>
                         </div>
                       )}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-gray-600 dark:text-gray-400">
-                        <div><span className="font-medium">Parsed ID:</span> #{r.id}</div>
-                        <div><span className="font-medium">Raw Log:</span> #{r.raw_log_id}</div>
-                        <div><span className="font-medium">Device:</span> {r.device_sn || '—'}</div>
-                        <div><span className="font-medium">Table:</span> {r.table_name || '—'}</div>
-                        <div><span className="font-medium">User ID:</span> {r.user_id || '—'}</div>
-                        <div><span className="font-medium">Student:</span> {r.student_name || (r.student_id ? `#${r.student_id}` : '—')}</div>
-                        <div><span className="font-medium">Staff:</span> {r.staff_name || (r.staff_id ? `#${r.staff_id}` : '—')}</div>
-                        <div><span className="font-medium">Verify:</span> {r.verify_type ?? '—'}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.parsedId')}</span> #{digits(r.id)}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.rawLog')}</span> #{digits(r.raw_log_id)}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.device')}</span> {r.device_sn || '—'}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.table')}</span> {r.table_name || '—'}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.userId')}</span> {r.user_id ? digits(r.user_id) : '—'}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.student')}</span> {r.student_name || (r.student_id ? `#${digits(r.student_id)}` : '—')}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.staff')}</span> {r.staff_name || (r.staff_id ? `#${digits(r.staff_id)}` : '—')}</div>
+                        <div><span className="font-medium">{t('devicesPages.logs.d.verify')}</span> {r.verify_type != null ? digits(r.verify_type) : '—'}</div>
                       </div>
                       {r.raw_line && (
                         <div>
-                          <span className="font-medium text-gray-600 dark:text-gray-400">Raw line: </span>
+                          <span className="font-medium text-gray-600 dark:text-gray-400">{t('devicesPages.logs.d.rawLine')} </span>
                           <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono break-all">{r.raw_line}</code>
                         </div>
                       )}

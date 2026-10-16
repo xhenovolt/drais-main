@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T17:42:50.514Z",
-  "last_commit": "9ca7743e392cdf93a91157ec569a8f1eabb8da48",
+  "generated_at": "2026-10-16T17:45:46.794Z",
+  "last_commit": "ec28b3905c943310ba216840e72766bc78f59c6b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9839,7 +9839,20 @@
         }
       ],
       "commit": "9ca7743e39"
+    },
+    {
+      "version": "2.50.94",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "Command Monitor and Device Alerts fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Command Monitor and Device Alerts fully Arabic"
+        }
+      ],
+      "commit": "ec28b3905c"
     }
   ],
-  "app_version": "2.50.94"
+  "app_version": "2.50.95"
 }
