@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T18:17:25.058Z",
-  "last_commit": "c7019414989a30e339b6e39329bff1769f6c145b",
+  "generated_at": "2026-10-16T18:24:33.220Z",
+  "last_commit": "fcce5386d08a1585ee4957ec02d310612b6dbf68",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9878,7 +9878,20 @@
         }
       ],
       "commit": "c701941498"
+    },
+    {
+      "version": "2.50.97",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "Language is per school, never browser-wide; app shell fully Arabic",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Language is per school, never browser-wide; app shell fully Arabic"
+        }
+      ],
+      "commit": "fcce5386d0"
     }
   ],
-  "app_version": "2.50.97"
+  "app_version": "2.50.98"
 }
