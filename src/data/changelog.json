@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-18T08:19:53.226Z",
-  "last_commit": "ad359dcea258c434670ccc7fa81e6effa01ab46d",
+  "generated_at": "2026-10-18T08:39:05.762Z",
+  "last_commit": "344a5a78ff87dab7f2c4c43f20621b2910ea94d7",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9904,7 +9904,20 @@
         }
       ],
       "commit": "ad359dcea2"
+    },
+    {
+      "version": "2.50.99",
+      "date": "2026-10-18",
+      "release_type": "patch",
+      "title": "Harden Tahfiz loading and control layout",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Harden Tahfiz loading and control layout"
+        }
+      ],
+      "commit": "344a5a78ff"
     }
   ],
-  "app_version": "2.50.99"
+  "app_version": "2.50.100"
 }

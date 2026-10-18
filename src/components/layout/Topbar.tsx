@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Menu, Bell, Cloud, CloudOff, Wifi, WifiOff, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2, Globe } from 'lucide-react';
+import { Menu, Bell, Cloud, CloudOff, Fingerprint, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2, Globe } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -59,7 +59,7 @@ function CloudinaryBadge() {
       }`}
     >
       {connected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
-      <span>{connected ? t('topbar.cloudOk', 'Cloud ✓') : t('topbar.cloudFail', 'Cloud ✗')}</span>
+      <span>{connected ? t('topbar.cloudOk', 'Cloud Storage ✓') : t('topbar.cloudFail', 'Cloud Storage ✗')}</span>
     </div>
   );
 }
@@ -82,11 +82,11 @@ function DeviceStatusBadge() {
   if (total === 0) {
     return (
       <Link
-        href="/attendance/devices/monitor"
+        href="/attendance/devices/"
         title={t('topbar.noDevicesTitle', 'No devices registered')}
         className="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
       >
-        <WifiOff className="w-3 h-3" />
+        <Fingerprint className="w-3 h-3" />
         <span>{t('topbar.noDevices', 'No Devices')}</span>
       </Link>
     );
@@ -96,7 +96,7 @@ function DeviceStatusBadge() {
 
   return (
     <Link
-      href="/attendance/devices/monitor"
+      href="/attendance/devices/"
       title={t('shell.devicesOnline', { online, total, count: total })}
       className={`hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
         anyOnline
@@ -104,7 +104,7 @@ function DeviceStatusBadge() {
           : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
       }`}
     >
-      {anyOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+      <Fingerprint className="w-3 h-3" />
       <span>{anyOnline ? `${digits(online)} ${t('topbar.live', 'Live')}` : t('topbar.offline', 'Offline')}</span>
     </Link>
   );
