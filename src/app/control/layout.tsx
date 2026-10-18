@@ -280,7 +280,8 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
             Exactly one screen tall (self-start stops the flex row stretching it to the
             page's height): a sidebar as tall as a long page has nowhere to stick and
             scrolls away with the content. */}
-        <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100dvh-3.5rem)] overflow-y-auto">
+        <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 min-h-screen overflow-y-auto">
+        {/* <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100dvh-3.5rem)] overflow-y-auto"> */}
           <NavLinks pathname={pathname} groups={groups} />
         </aside>
 
@@ -290,7 +291,7 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
               <div className="max-w-md mx-auto mt-16 text-center rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
                 <ShieldOff className="w-10 h-10 mx-auto text-slate-500" />
                 <h1 className="mt-3 text-lg font-semibold">You do not have access to this page</h1>
-                <p className="mt-1 text-sm text-slate-400">A super admin can grant it from Operators.</p>
+                <p className="mt-1 text-sm text-slate-400">Contact the SuperAdmin for more clarity.</p>
                 <Link href={firstAllowed} className="inline-block mt-5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm text-white">Go to an area you can use</Link>
               </div>
             ) : children}

@@ -18,10 +18,26 @@ export default function TahfizBooksPage() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [selectorBook, setSelectorBook] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
-    const d = await j('/api/tahfiz/books/catalog').catch(() => null);
-    setCatalog(d || { global: [], custom: [] });
+    try {
+      const response = await fetch('/api/tahfiz/books/catalog');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Request failed (${response.status})`);
+      }
+      if (!Array.isArray(data?.global) || !Array.isArray(data?.custom)) {
+        throw new Error('Unexpected catalog response');
+      }
+
+      setCatalog(data);
+      setLoadError('');
+    } catch (error) {
+      setCatalog(null);
+      setLoadError(error instanceof Error ? error.message : 'Could not load books');
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
 

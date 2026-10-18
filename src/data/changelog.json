@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-16T18:24:33.220Z",
-  "last_commit": "fcce5386d08a1585ee4957ec02d310612b6dbf68",
+  "generated_at": "2026-10-18T08:19:53.226Z",
+  "last_commit": "ad359dcea258c434670ccc7fa81e6effa01ab46d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9891,7 +9891,20 @@
         }
       ],
       "commit": "fcce5386d0"
+    },
+    {
+      "version": "2.50.98",
+      "date": "2026-10-16",
+      "release_type": "patch",
+      "title": "/admin/communications fully Arabic (send, settings, templates, rules, dispatch log)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/admin/communications fully Arabic (send, settings, templates, rules, dispatch log)"
+        }
+      ],
+      "commit": "ad359dcea2"
     }
   ],
-  "app_version": "2.50.98"
+  "app_version": "2.50.99"
 }
