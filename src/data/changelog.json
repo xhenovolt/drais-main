@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T09:33:52.783Z",
-  "last_commit": "a1b041f56d69a80505c0f2abb4b163312247f0c6",
+  "generated_at": "2026-10-19T09:38:00.184Z",
+  "last_commit": "0b226a0985dd6174a178e49fe9450337648588ee",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9956,7 +9956,20 @@
         }
       ],
       "commit": "a1b041f56d"
+    },
+    {
+      "version": "2.50.103",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/sms/buy fully Arabic — completes the Communication section",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/admin/sms/buy fully Arabic — completes the Communication section"
+        }
+      ],
+      "commit": "0b226a0985"
     }
   ],
-  "app_version": "2.50.103"
+  "app_version": "2.50.104"
 }

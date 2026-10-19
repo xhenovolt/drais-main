@@ -16,6 +16,12 @@ import {
 import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/apiClient';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { roleLabel } from '@/lib/i18n/roles';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+
+const P = 'staffPages.users';
+/** Server English: kept in English, the page's own message in Arabic. */
+const serverText = (s: string | null | undefined, fallback: string) => (s && !(uiIsArabic() && isEnglishText(s)) ? s : fallback);
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -55,22 +61,23 @@ interface DeviceTooltipState {
 // ────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+// Arabic dates use ar-EG (Arabic month names, Arabic-Indic digits); English keeps en-GB.
+const fmtDate = (iso: string | null, lang = 'en') =>
+  iso ? new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-const fmtTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+const fmtTime = (iso: string | null, lang = 'en') =>
+  iso ? new Date(iso).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
 
-function sessionDuration(startedAt: string | null): string {
+function sessionDuration(startedAt: string | null, t: (k: string, v?: any) => string): string {
   if (!startedAt) return '—';
   const ms  = Date.now() - new Date(startedAt).getTime();
   const sec = Math.floor(ms / 1000);
-  if (sec < 60)   return `${sec}s`;
+  if (sec < 60)   return t(`${P}.d.s`, { n: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60)   return `${min}m`;
+  if (min < 60)   return t(`${P}.d.m`, { n: min });
   const hr  = Math.floor(min / 60);
   const rem = min % 60;
-  return rem ? `${hr}h ${rem}m` : `${hr}h`;
+  return rem ? t(`${P}.d.hm`, { h: hr, m: rem }) : t(`${P}.d.h`, { n: hr });
 }
 
 function parseDevice(deviceInfo: string | null): { browser: string; os: string; type: 'mobile' | 'desktop' } {
@@ -94,6 +101,7 @@ function parseDevice(deviceInfo: string | null): { browser: string; os: string; 
 // Sub-components
 // ────────────────────────────────────────────────────────────────
 function OnlineBadge({ online }: { online: boolean }) {
+  const { t } = useI18n();
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
       online
@@ -101,14 +109,15 @@ function OnlineBadge({ online }: { online: boolean }) {
         : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
     }`}>
       {online
-        ? <><Wifi className="w-3 h-3" />Online</>
-        : <><WifiOff className="w-3 h-3" />Offline</>
+        ? <><Wifi className="w-3 h-3" />{t('staffPages.users.online', "Online")}</>
+        : <><WifiOff className="w-3 h-3" />{t('staffPages.users.offline', "Offline")}</>
       }
     </span>
   );
 }
 
 function RoleBadge({ role, onClick }: { role: string; onClick: (role: string) => void }) {
+  const { t, lang } = useI18n();
   const colors: Record<string, string> = {
     super_admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
     admin:       'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
@@ -119,11 +128,11 @@ function RoleBadge({ role, onClick }: { role: string; onClick: (role: string) =>
   return (
     <button
       onClick={() => onClick(role)}
-      title="Click to view permissions"
+      title={t('staffPages.users.viewPerms', "Click to view permissions")}
       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${cls}`}
     >
       <Shield className="w-3 h-3" />
-      {role}
+      {roleLabel(t, lang, role)}
     </button>
   );
 }
@@ -135,6 +144,7 @@ function ActionMenu({
   user: UserRow;
   onAction: (userId: number, action: string, name: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref  = useRef<HTMLDivElement>(null);
 
@@ -153,35 +163,35 @@ function ActionMenu({
       <button
         onClick={() => setOpen(o => !o)}
         className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 transition-colors"
-        aria-label="Actions"
+        aria-label={t('staffPages.users.actions', "Actions")}
       >
         <MoreVertical className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+        <div className="absolute end-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
           {user.is_active ? (
             <button onClick={() => { setOpen(false); onAction(user.id, 'suspend', name); }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">
-              <UserX className="w-4 h-4" />Suspend
+              <UserX className="w-4 h-4" />{t('staffPages.users.suspend', "Suspend")}
             </button>
           ) : (
             <button onClick={() => { setOpen(false); onAction(user.id, 'activate', name); }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
-              <UserCheck className="w-4 h-4" />Activate
+              <UserCheck className="w-4 h-4" />{t('staffPages.users.activate', "Activate")}
             </button>
           )}
           <button onClick={() => { setOpen(false); onAction(user.id, 'deactivate', name); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-            <Power className="w-4 h-4" />Deactivate + Kick
+            <Power className="w-4 h-4" />{t('staffPages.users.deactivateKick', "Deactivate + Kick")}
           </button>
           <button onClick={() => { setOpen(false); onAction(user.id, 'reset_password', name); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-            <Lock className="w-4 h-4" />Reset Password
+            <Lock className="w-4 h-4" />{t('staffPages.users.resetPassword', "Reset Password")}
           </button>
           <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
           <button onClick={() => { setOpen(false); onAction(user.id, 'remove', name); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
-            <Trash2 className="w-4 h-4" />Remove User
+            <Trash2 className="w-4 h-4" />{t('staffPages.users.removeUser', "Remove User")}
           </button>
         </div>
       )}
@@ -193,6 +203,7 @@ function ActionMenu({
 // Permissions Modal
 // ────────────────────────────────────────────────────────────────
 function PermissionsModal({ roleName, onClose }: { roleName: string; onClose: () => void }) {
+  const { t, lang } = useI18n();
   const [role, setRole]   = useState<RoleDetail | null>(null);
   const [busy, setBusy]   = useState(true);
   const [err,  setErr]    = useState<string | null>(null);
@@ -207,7 +218,7 @@ function PermissionsModal({ roleName, onClose }: { roleName: string; onClose: ()
         return apiFetch<{ data: any }>(`/api/admin/roles/${found.id}`, { silent: true });
       })
       .then(d => setRole(d.data ?? null))
-      .catch(() => setErr('Failed to load permissions'))
+      .catch(() => setErr('load'))
       .finally(() => setBusy(false));
   }, [roleName]);
 
@@ -217,26 +228,26 @@ function PermissionsModal({ roleName, onClose }: { roleName: string; onClose: ()
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-blue-500" />
-            <h2 className="font-semibold text-gray-900 dark:text-white">{roleName} — Permissions</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-white">{t(`${P}.permsTitle`, { role: roleLabel(t, lang, roleName) })}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="overflow-y-auto flex-1 p-5">
-          {busy && <div className="text-sm text-gray-500 text-center py-8">Loading…</div>}
-          {err  && <div className="text-sm text-red-500 text-center py-8">{err}</div>}
-          {!busy && !err && !role && <div className="text-sm text-gray-500 text-center py-8">Role not found.</div>}
+          {busy && <div className="text-sm text-gray-500 text-center py-8">{t('staffPages.users.loading', "Loading…")}</div>}
+          {err  && <div className="text-sm text-red-500 text-center py-8">{t('staffPages.users.permsFailed', "Failed to load permissions")}</div>}
+          {!busy && !err && !role && <div className="text-sm text-gray-500 text-center py-8">{t('staffPages.users.roleNotFoundDot', "Role not found.")}</div>}
           {role && (
             <div className="grid grid-cols-1 gap-2">
               {role.permissions.length === 0
-                ? <p className="text-sm text-gray-400">No permissions assigned.</p>
+                ? <p className="text-sm text-gray-400">{t('staffPages.users.noPerms', "No permissions assigned.")}</p>
                 : role.permissions.map(p => (
                   <div key={p.id} className="flex items-start gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
                     <Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</p>
-                      {p.description && <p className="text-xs text-gray-500">{p.description}</p>}
+                      <p dir="ltr" className="text-sm font-medium text-gray-900 dark:text-white font-mono text-start rtl:text-end">{p.name}</p>
+                      {p.description && !(lang === 'ar' && isEnglishText(p.description)) && <p className="text-xs text-gray-500">{p.description}</p>}
                     </div>
                   </div>
                 ))
@@ -255,6 +266,7 @@ function PermissionsModal({ roleName, onClose }: { roleName: string; onClose: ()
 function ConfirmDialog({
   message, onConfirm, onCancel, dangerous,
 }: { message: string; onConfirm: () => void; onCancel: () => void; dangerous?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
@@ -262,11 +274,11 @@ function ConfirmDialog({
         <div className="flex gap-3 justify-end">
           <button onClick={onCancel}
             className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
-            Cancel
+            {t('staffPages.users.cancel', "Cancel")}
           </button>
           <button onClick={onConfirm}
             className={`px-4 py-2 text-sm rounded-lg font-medium text-white ${dangerous ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-            Confirm
+            {t('staffPages.users.confirm', "Confirm")}
           </button>
         </div>
       </div>
@@ -278,6 +290,7 @@ function ConfirmDialog({
 // Temp Password Dialog
 // ────────────────────────────────────────────────────────────────
 function TempPasswordDialog({ password, onClose }: { password: string; onClose: () => void }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(password).then(() => {
@@ -288,17 +301,17 @@ function TempPasswordDialog({ password, onClose }: { password: string; onClose: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Temporary Password</h3>
-        <p className="text-xs text-gray-500 mb-4">Share this securely — user must change it on next login.</p>
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('staffPages.users.tempTitle', "Temporary Password")}</h3>
+        <p className="text-xs text-gray-500 mb-4">{t('staffPages.users.tempHelp', "Share this securely — user must change it on next login.")}</p>
         <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 font-mono text-sm">
-          <span className="flex-1 select-all">{password}</span>
+          <span dir="ltr" className="flex-1 select-all">{password}</span>
           <button onClick={handleCopy} className="shrink-0 text-gray-400 hover:text-gray-600">
             {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
           </button>
         </div>
         <button onClick={onClose}
           className="mt-4 w-full px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">
-          Done
+          {t('staffPages.users.doneBtn', "Done")}
         </button>
       </div>
     </div>
@@ -309,7 +322,7 @@ function TempPasswordDialog({ password, onClose }: { password: string; onClose: 
 // Main Page
 // ────────────────────────────────────────────────────────────────
 export default function AdminUsersPage() {
-  const { t } = useI18n();
+  const { t, rich, lang, digits } = useI18n();
   const { showToast } = useToast();
 
   const [users,     setUsers]     = useState<UserRow[]>([]);
@@ -344,7 +357,7 @@ export default function AdminUsersPage() {
       if (statusF) params.set('status', statusF);
       const res  = await fetch(`/api/admin/users?${params}`);
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error ?? 'Failed to load users');
+      if (!res.ok || !data.success) throw new Error(serverText(data.error, t('staffPages.users.loadFailed', "Failed to load users")));
       const rows: UserRow[] = data.data ?? [];
       setUsers(rows);
       // Seed online map
@@ -352,7 +365,7 @@ export default function AdminUsersPage() {
       rows.forEach(u => map.set(u.id, u.is_online));
       setOnlineMap(map);
     } catch (e: any) {
-      setError(e.message);
+      setError(serverText(e.message, t('staffPages.users.loadFailed', "Failed to load users")));
     } finally {
       setLoading(false);
     }
@@ -386,17 +399,17 @@ export default function AdminUsersPage() {
   const handleAction = useCallback(async (userId: number, action: string, name: string) => {
     if (action === 'remove') {
       setConfirm({
-        message: `Permanently remove "${name}"? This cannot be undone.`,
+        message: t(`${P}.confirmRemove`, { name }),
         dangerous: true,
         onConfirm: async () => {
           setConfirm(null);
           const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
           const d   = await res.json();
           if (res.ok && d.success) {
-            showToast({ type: 'success', title: 'User removed', description: name });
+            showToast({ type: 'success', title: t('staffPages.users.removed', "User removed"), description: name });
             fetchUsers();
           } else {
-            showToast({ type: 'error', title: 'Failed to remove', description: d.error ?? 'Unknown error' });
+            showToast({ type: 'error', title: t('staffPages.users.removeFailed', "Failed to remove"), description: serverText(d.error, t('staffPages.users.unknownError', "Unknown error")) });
           }
         },
       });
@@ -411,23 +424,23 @@ export default function AdminUsersPage() {
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      showToast({ type: 'error', title: `Action failed`, description: data.error ?? 'Unknown error' });
+      showToast({ type: 'error', title: t('staffPages.users.actionFailed', "Action failed"), description: serverText(data.error, t('staffPages.users.unknownError', "Unknown error")) });
       return;
     }
 
     const labels: Record<string, string> = {
-      suspend:        'User suspended',
-      activate:       'User activated',
-      deactivate:     'User deactivated',
-      reset_password: 'Password reset',
+      suspend:        t('staffPages.users.done.suspend', "User suspended"),
+      activate:       t('staffPages.users.done.activate', "User activated"),
+      deactivate:     t('staffPages.users.done.deactivate', "User deactivated"),
+      reset_password: t('staffPages.users.done.reset_password', "Password reset"),
     };
-    showToast({ type: 'success', title: labels[action] ?? 'Done', description: name });
+    showToast({ type: 'success', title: labels[action] ?? t('staffPages.users.doneGeneric', "Done"), description: name });
 
     if (action === 'reset_password' && data.temp_password) {
       setTempPwd(data.temp_password);
     }
     fetchUsers();
-  }, [fetchUsers, showToast]);
+  }, [fetchUsers, showToast, t]);
 
   // ── Derived filter lists ───────────────────────────────────────
   const allRoles  = Array.from(new Set(users.flatMap(u => u.roles))).sort();
@@ -481,14 +494,14 @@ export default function AdminUsersPage() {
             {t('identity.users')}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {filtered.length} users · <span className="text-emerald-600 dark:text-emerald-400 font-medium">{onlineCount} online</span>
+            {rich(`${P}.countLine`, { n: digits(filtered.length), online: <span className="text-emerald-600 dark:text-emerald-400 font-medium">{t(`${P}.onlineCount`, { n: onlineCount })}</span> })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowAddUser(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
             <UserPlus className="w-4 h-4" />
-            Add User
+            {t('staffPages.users.addUser', "Add User")}
           </button>
           <button
             onClick={() => {
@@ -498,14 +511,14 @@ export default function AdminUsersPage() {
               if (statusF) p.set('status', statusF);
               window.open(`/api/admin/users?${p}`, '_blank');
             }}
-            title="Export the current view to CSV (audited)"
+            title={t('staffPages.users.exportTitle', "Export the current view to CSV (audited)")}
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-            <Download className="w-4 h-4" /> Export
+            <Download className="w-4 h-4" /> {t('staffPages.users.export', "Export")}
           </button>
           <button onClick={fetchUsers} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('staffPages.users.refresh', "Refresh")}
           </button>
         </div>
       </div>
@@ -513,76 +526,75 @@ export default function AdminUsersPage() {
       {/* ── Account lifecycle vs Online — SEPARATE axes ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {([
-          { label: 'Total users', value: stats.total, tone: 'text-gray-900 dark:text-white', hint: null },
-          { label: 'Active', value: stats.active, tone: 'text-emerald-600 dark:text-emerald-400', hint: 'can sign in' },
-          { label: 'Online now', value: stats.online, tone: 'text-sky-600 dark:text-sky-400', hint: 'live session' },
-          { label: 'Suspended', value: stats.suspended, tone: 'text-orange-600 dark:text-orange-400', hint: 'temporary hold' },
-          { label: 'Deactivated', value: stats.deactivated, tone: 'text-rose-600 dark:text-rose-400', hint: 'offboarded' },
-          { label: 'Pending', value: stats.pending, tone: 'text-slate-500', hint: 'never signed in' },
-        ] as const).map(s => (
+          { label: t('staffPages.users.stat.total', "Total users"), value: stats.total, tone: 'text-gray-900 dark:text-white', hint: null },
+          { label: t('staffPages.users.stat.active', "Active"), value: stats.active, tone: 'text-emerald-600 dark:text-emerald-400', hint: t('staffPages.users.hint.active', "can sign in") },
+          { label: t('staffPages.users.stat.online', "Online now"), value: stats.online, tone: 'text-sky-600 dark:text-sky-400', hint: t('staffPages.users.hint.online', "live session") },
+          { label: t('staffPages.users.stat.suspended', "Suspended"), value: stats.suspended, tone: 'text-orange-600 dark:text-orange-400', hint: t('staffPages.users.hint.suspended', "temporary hold") },
+          { label: t('staffPages.users.stat.deactivated', "Deactivated"), value: stats.deactivated, tone: 'text-rose-600 dark:text-rose-400', hint: t('staffPages.users.hint.deactivated', "offboarded") },
+          { label: t('staffPages.users.stat.pending', "Pending"), value: stats.pending, tone: 'text-slate-500', hint: t('staffPages.users.hint.pending', "never signed in") },
+        ]).map(s => (
           <div key={s.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2">
-            <div className={`text-lg font-bold tabular-nums ${s.tone}`}>{s.value}</div>
+            <div className={`text-lg font-bold tabular-nums ${s.tone}`}>{digits(s.value)}</div>
             <div className="text-[11px] text-gray-500">{s.label}{s.hint ? ` · ${s.hint}` : ''}</div>
           </div>
         ))}
       </div>
       <p className="text-[11px] text-gray-400 -mt-2">
-        An <b>active account</b> can authenticate — it is usually <b>offline</b> unless the person is signed in right now.
-        “Online” means a live session in the last 2 minutes; it is a session state, not an account state.
+        {rich(`${P}.explainer`, { active: <b>{t(`${P}.activeAccount`, 'active account')}</b>, offline: <b>{t(`${P}.offlineLower`, 'offline')}</b> })}
       </p>
 
       {/* ── Filters ── */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+          <Search className="absolute start-2.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search name or email…"
-            className="pl-8 pr-3 py-2 text-sm w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={t('staffPages.users.searchPh', "Search name or email…")}
+            className="ps-8 pe-3 py-2 text-sm w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         <div className="relative">
           <select value={roleF} onChange={e => setRoleF(e.target.value)}
-            className="appearance-none pl-3 pr-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Roles</option>
-            {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
+            className="appearance-none ps-3 pe-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">{t('staffPages.users.allRoles', "All Roles")}</option>
+            {allRoles.map(r => <option key={r} value={r}>{roleLabel(t, lang, r)}</option>)}
           </select>
-          <ChevronDown className="absolute right-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute end-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
 
         <div className="relative">
           <select value={deptF} onChange={e => setDeptF(e.target.value)}
-            className="appearance-none pl-3 pr-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Departments</option>
+            className="appearance-none ps-3 pe-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">{t('staffPages.users.allDepts', "All Departments")}</option>
             {allDepts.map(([id, name]) => <option key={id} value={String(id)}>{name}</option>)}
           </select>
-          <ChevronDown className="absolute right-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute end-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
 
         <div className="relative">
           <select value={statusF} onChange={e => setStatusF(e.target.value)}
-            title="Account status — whether the account can authenticate (persistent)"
-            className="appearance-none pl-3 pr-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All accounts</option>
-            <option value="active">Active</option>
-            <option value="suspended">Suspended (temporary)</option>
-            <option value="deactivated">Deactivated (offboarded)</option>
-            <option value="pending">Pending (never signed in)</option>
+            title={t('staffPages.users.statusTitle', "Account status — whether the account can authenticate (persistent)")}
+            className="appearance-none ps-3 pe-7 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">{t('staffPages.users.allAccounts', "All accounts")}</option>
+            <option value="active">{t('staffPages.users.opt.active', "Active")}</option>
+            <option value="suspended">{t('staffPages.users.opt.suspended', "Suspended (temporary)")}</option>
+            <option value="deactivated">{t('staffPages.users.opt.deactivated', "Deactivated (offboarded)")}</option>
+            <option value="pending">{t('staffPages.users.opt.pending', "Pending (never signed in)")}</option>
           </select>
-          <ChevronDown className="absolute right-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute end-1.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
 
         {/* Online is a SEPARATE axis (session state), not an account status. */}
         <button
           onClick={() => setOnlineOnly(v => !v)}
-          title="Show only users with a live session right now"
+          title={t('staffPages.users.onlineOnlyTitle', "Show only users with a live session right now")}
           className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
             onlineOnly
               ? 'border-sky-400 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300'
               : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
-          <Wifi className="w-4 h-4" /> Online now
+          <Wifi className="w-4 h-4" /> {t('staffPages.users.stat.online', "Online now")}
         </button>
       </div>
 
@@ -598,29 +610,29 @@ export default function AdminUsersPage() {
         <table className="min-w-full text-sm divide-y divide-gray-100 dark:divide-gray-800">
           <thead className="bg-gray-50 dark:bg-gray-800/60">
             <tr>
-              {['Name', 'Email', 'Roles', 'Department', 'Manager',
-                'Account', 'Verified', 'Online', 'Device', 'Duration',
-                'IP', 'Last Login', 'Joined', ''].map(h => (
+              {['name', 'email', 'roles', 'department', 'manager',
+                'account', 'verified', 'online', 'device', 'duration',
+                'ip', 'lastLogin', 'joined', ''].map(h => (
                 <th key={h}
-                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">
-                  {h}
+                  className="px-3 py-2.5 text-start text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                  {h ? t(`${P}.col.${h}`) : ''}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-50 dark:divide-gray-800">
             {loading && (
-              <tr><td colSpan={14} className="text-center py-12 text-gray-400 text-sm">Loading…</td></tr>
+              <tr><td colSpan={14} className="text-center py-12 text-gray-400 text-sm">{t('staffPages.users.loading', "Loading…")}</td></tr>
             )}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={14} className="text-center py-12 text-gray-400 text-sm">No users found.</td></tr>
+              <tr><td colSpan={14} className="text-center py-12 text-gray-400 text-sm">{t('staffPages.users.noUsers', "No users found.")}</td></tr>
             )}
             {!loading && filtered.map(user => {
               const isOnline  = onlineMap.get(user.id) ?? user.is_online;
               const device    = parseDevice(user.device_info);
-              const duration  = sessionDuration(user.session_started_at);
-              const lastLogin = fmtDate(user.last_login_at);
-              const loginTime = fmtTime(user.last_login_at);
+              const duration  = sessionDuration(user.session_started_at, t);
+              const lastLogin = fmtDate(user.last_login_at, lang);
+              const loginTime = fmtTime(user.last_login_at, lang);
 
               return (
                 <tr key={user.id}
@@ -632,7 +644,7 @@ export default function AdminUsersPage() {
                       {user.first_name} {user.last_name}
                     </div>
                     {user.must_change_password && (
-                      <span className="text-xs text-amber-500">Must change pw</span>
+                      <span className="text-xs text-amber-500">{t('staffPages.users.mustChange', "Must change pw")}</span>
                     )}
                   </td>
 
@@ -673,15 +685,15 @@ export default function AdminUsersPage() {
                         deactivated: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
                         pending: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
                       };
-                      return <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${tone[s] || tone.deactivated}`}>{s}</span>;
+                      return <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${tone[s] || tone.deactivated}`}>{t(`${P}.acct.${s}`, s)}</span>;
                     })()}
                   </td>
 
                   {/* Verified */}
                   <td className="px-3 py-2.5 text-center">
                     {user.is_verified
-                      ? <span className="w-2 h-2 bg-blue-500 rounded-full inline-block" title="Verified" />
-                      : <span className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full inline-block" title="Unverified" />
+                      ? <span className="w-2 h-2 bg-blue-500 rounded-full inline-block" title={t('staffPages.users.verified', "Verified")} />
+                      : <span className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full inline-block" title={t('staffPages.users.unverified', "Unverified")} />
                     }
                   </td>
 
@@ -705,7 +717,7 @@ export default function AdminUsersPage() {
                           ? <Smartphone className="w-4 h-4" />
                           : <Monitor className="w-4 h-4" />
                         }
-                        <span className="text-xs">{device.browser}</span>
+                        <span className="text-xs">{device.browser === 'Browser' ? t('staffPages.users.browser', "Browser") : device.browser}</span>
                       </button>
                     ) : (
                       <span className="text-gray-400 text-xs">—</span>
@@ -719,7 +731,7 @@ export default function AdminUsersPage() {
 
                   {/* IP */}
                   <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap text-xs font-mono">
-                    {user.ip_address ?? <span className="text-gray-400">—</span>}
+                    {user.ip_address ? <span dir="ltr">{user.ip_address}</span> : <span className="text-gray-400">—</span>}
                   </td>
 
                   {/* Last Login */}
@@ -730,11 +742,11 @@ export default function AdminUsersPage() {
 
                   {/* Joined */}
                   <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                    {fmtDate(user.created_at)}
+                    {fmtDate(user.created_at, lang)}
                   </td>
 
                   {/* Actions */}
-                  <td className="px-3 py-2.5 text-right">
+                  <td className="px-3 py-2.5 text-end">
                     <ActionMenu user={user} onAction={handleAction} />
                   </td>
                 </tr>
@@ -747,17 +759,18 @@ export default function AdminUsersPage() {
       {/* ── Device Tooltip ── */}
       {deviceTip.open && deviceTip.user && (() => {
         const d = parseDevice(deviceTip.user.device_info);
+        const word = (v: string) => (v === 'Unknown' ? t('staffPages.users.unknown', "Unknown") : v === 'Browser' ? t('staffPages.users.browser', "Browser") : v);
         return (
           <div
             style={{ position: 'fixed', left: deviceTip.x, top: deviceTip.y, zIndex: 9999 }}
             className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 shadow-xl pointer-events-none min-w-40"
           >
-            <div className="font-medium mb-1 text-gray-300">{d.type === 'mobile' ? '📱' : '🖥️'} Device Info</div>
-            <div>Browser: <span className="text-white">{d.browser}</span></div>
-            <div>OS: <span className="text-white">{d.os}</span></div>
-            <div>IP: <span className="text-white font-mono">{deviceTip.user.ip_address ?? '—'}</span></div>
+            <div className="font-medium mb-1 text-gray-300">{d.type === 'mobile' ? '📱' : '🖥️'} {t('staffPages.users.deviceInfo', "Device Info")}</div>
+            <div>{t(`${P}.tipBrowser`, { v: word(d.browser) })}</div>
+            <div>{t(`${P}.tipOs`, { v: word(d.os) })}</div>
+            <div>{t(`${P}.tipIp`, { v: deviceTip.user.ip_address ?? '—' })}</div>
             {deviceTip.user.session_started_at && (
-              <div>Session: <span className="text-white">{sessionDuration(deviceTip.user.session_started_at)}</span></div>
+              <div>{t(`${P}.tipSession`, { v: sessionDuration(deviceTip.user.session_started_at, t) })}</div>
             )}
           </div>
         );
@@ -794,7 +807,7 @@ export default function AdminUsersPage() {
 // Add User Modal
 // ────────────────────────────────────────────────────────────────
 function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', role_id: '' });
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState<string | null>(null);
@@ -810,7 +823,7 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
   async function submit() {
     if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || !form.password || !form.role_id) {
-      setErr('All fields are required.'); return;
+      setErr(t('staffPages.users.allRequired', "All fields are required.")); return;
     }
     setSaving(true);
     setErr(null);
@@ -819,10 +832,10 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, role_id: Number(form.role_id) }),
-        successMessage: 'User created',
+        successMessage: t('staffPages.users.created', "User created"),
       });
       onCreated();
-    } catch (e: any) { setErr(e.message); }
+    } catch (e: any) { setErr(serverText(e.message, t('staffPages.users.actionFailed', "Action failed"))); }
     finally { setSaving(false); }
   }
 
@@ -841,42 +854,42 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         {err && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{err}</div>}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">First Name <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.users.firstName', "First Name")} <span className="text-red-500">*</span></label>
             <input value={form.first_name} onChange={e => set('first_name', e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.users.lastName', "Last Name")} <span className="text-red-500">*</span></label>
             <input value={form.last_name} onChange={e => set('last_name', e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email <span className="text-red-500">*</span></label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.users.email', "Email")} <span className="text-red-500">*</span></label>
           <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Password <span className="text-red-500">*</span></label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.users.password', "Password")} <span className="text-red-500">*</span></label>
           <input type="password" value={form.password} onChange={e => set('password', e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Role <span className="text-red-500">*</span></label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.users.role', "Role")} <span className="text-red-500">*</span></label>
           <select value={form.role_id} onChange={e => set('role_id', e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Select a role…</option>
-            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            <option value="">{t('staffPages.users.selectRole', "Select a role…")}</option>
+            {roles.map(r => <option key={r.id} value={r.id}>{roleLabel(t, lang, r.name)}</option>)}
           </select>
         </div>
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-            Cancel
+            {t('staffPages.users.cancel', "Cancel")}
           </button>
           <button onClick={submit} disabled={saving}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-            {saving ? 'Creating…' : 'Create User'}
+            {saving ? t('staffPages.users.creating', "Creating…") : t('staffPages.users.createUser', "Create User")}
           </button>
         </div>
       </div>
