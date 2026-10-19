@@ -9679,6 +9679,45 @@
         "first_name": "First Name",
         "last_name": "Last Name"
       }
+    },
+    "reportCards": {
+      "back": "Report Cards",
+      "secularTitle": "Secular Report Cards",
+      "secularSub": "Generate a snapshot once per term — preview and print without rerunning live queries.",
+      "theologyTitle": "Theology Report Cards",
+      "theologySub": "Snapshot-driven theology reports — Arabic numerals (٠–٩) and RTL layout, mirroring the proven emergency strategy.",
+      "loadFailed": "Failed to load snapshots",
+      "network": "Network error",
+      "loading": "Loading snapshots…",
+      "empty": {
+        "secular": "No secular snapshots yet. Click {{btn}} to create one.",
+        "theology": "No theology snapshots yet. Click {{btn}} to create one."
+      },
+      "col": {
+        "snapshot": "Snapshot",
+        "status": "Status",
+        "term": "Term & assessment",
+        "classes": "Classes",
+        "students": "Students",
+        "results": "Results",
+        "generated": "Generated",
+        "open": "Open"
+      },
+      "legacy": "legacy",
+      "termN": "Term #{{id}}",
+      "typeN": "Type #{{id}}",
+      "allAssessments": "All assessments",
+      "more": "+{{n}} more",
+      "classes": {
+        "one": "{{count}} class",
+        "other": "{{count}} classes"
+      },
+      "view": "View",
+      "st": {
+        "ready": "ready",
+        "failed": "failed",
+        "generating": "generating"
+      }
     }
   }
 }

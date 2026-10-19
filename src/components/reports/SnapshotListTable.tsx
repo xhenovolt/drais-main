@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Loader2, XCircle, FileText, ArrowRight } from 'lucide-react';
 import type { SnapshotRow, SnapshotType } from '@/lib/snapshots/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 export interface SnapshotListTableProps {
   type: SnapshotType;
 }
 
 export function SnapshotListTable({ type }: SnapshotListTableProps) {
+  const { t, rich, digits, formatDate } = useI18n();
+  const when = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? s : formatDate(d, 'datetime'); };
   const [rows, setRows]   = useState<SnapshotRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +24,8 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
       .then(json => {
         if (cancelled) return;
         if (!json?.success) {
-          setError(json?.error || 'Failed to load snapshots');
+          const m = json?.error;
+          setError(m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.reportCards.loadFailed', "Failed to load snapshots"));
           setRows([]);
           return;
         }
@@ -28,7 +33,7 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
       })
       .catch(e => {
         if (cancelled) return;
-        setError(e?.message || 'Network error');
+        setError(t('academicsPages.reportCards.network', "Network error"));
         setRows([]);
       });
     return () => { cancelled = true; };
@@ -37,7 +42,7 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
   if (rows === null) {
     return (
       <div className="flex items-center gap-2 text-sm text-slate-500 py-6">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading snapshots…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('academicsPages.reportCards.loading', "Loading snapshots…")}
       </div>
     );
   }
@@ -47,7 +52,7 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-sm text-slate-500">
-        No {type} snapshots yet. Click <b>Generate Report Snapshot</b> to create one.
+        {rich(type === 'theology' ? 'academicsPages.reportCards.empty.theology' : 'academicsPages.reportCards.empty.secular', { btn: <b>{t('academicsPages.results.snapshot', 'Generate Report Snapshot')}</b> })}
       </div>
     );
   }
@@ -57,34 +62,34 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
       <table className="w-full text-sm">
         <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
           <tr>
-            <th className="text-left px-3 py-2">Snapshot</th>
-            <th className="text-left px-3 py-2">Status</th>
-            <th className="text-left px-3 py-2">Term &amp; assessment</th>
-            <th className="text-left px-3 py-2">Classes</th>
-            <th className="text-right px-3 py-2">Students</th>
-            <th className="text-right px-3 py-2">Results</th>
-            <th className="text-left px-3 py-2">Generated</th>
-            <th className="text-left px-3 py-2">Open</th>
+            <th className="text-start px-3 py-2">{t('academicsPages.reportCards.col.snapshot', "Snapshot")}</th>
+            <th className="text-start px-3 py-2">{t('academicsPages.reportCards.col.status', "Status")}</th>
+            <th className="text-start px-3 py-2">{t('academicsPages.reportCards.col.term', "Term & assessment")}</th>
+            <th className="text-start px-3 py-2">{t('academicsPages.reportCards.col.classes', "Classes")}</th>
+            <th className="text-end px-3 py-2">{t('academicsPages.reportCards.col.students', "Students")}</th>
+            <th className="text-end px-3 py-2">{t('academicsPages.reportCards.col.results', "Results")}</th>
+            <th className="text-start px-3 py-2">{t('academicsPages.reportCards.col.generated', "Generated")}</th>
+            <th className="text-start px-3 py-2">{t('academicsPages.reportCards.col.open', "Open")}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(r => (
             <tr key={r.snapshotId} className="border-t border-slate-200 dark:border-slate-700">
               <td className="px-3 py-2 font-mono text-xs">
-                <FileText className="inline w-3.5 h-3.5 mr-1 text-slate-400" />
+                <FileText className="inline w-3.5 h-3.5 me-1 text-slate-400" />
                 {r.snapshotId.slice(0, 8)}…
-                {r.isLegacyFallback && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800">legacy</span>}
+                {r.isLegacyFallback && <span className="ms-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800">{t('academicsPages.reportCards.legacy', "legacy")}</span>}
               </td>
-              <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
+              <td className="px-3 py-2"><StatusBadge status={r.status} t={t} /></td>
               {/* Term + assessment. Without these, every ALBAYAN snapshot in
                   this table reads "secular · ready" with no way to tell Term II
                   Mid Term from Term III End of Term — different documents, both
                   of which go home to parents. */}
               <td className="px-3 py-2">
-                <div>{r.termName ?? `Term #${r.termId}`}</div>
+                <div>{r.termName ?? t('academicsPages.reportCards.termN', { id: r.termId })}</div>
                 <div className="text-xs text-slate-500">
-                  {r.resultTypeName ?? (r.resultTypeId ? `Type #${r.resultTypeId}` : 'All assessments')}
-                  {r.yearName ? ` · ${r.yearName}` : ''}
+                  {r.resultTypeName ?? (r.resultTypeId ? t('academicsPages.reportCards.typeN', { id: r.resultTypeId }) : t('academicsPages.reportCards.allAssessments', "All assessments"))}
+                  {r.yearName ? ` · ${digits(String(r.yearName))}` : ''}
                 </div>
               </td>
               {/* The NAMES, not just the count. Five ALBAYAN snapshots read
@@ -96,23 +101,23 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
                   <span title={r.classNames.join(', ')}>
                     {r.classNames.slice(0, 2).join(', ')}
                     {r.classNames.length > 2 && (
-                      <span className="text-slate-500"> +{r.classNames.length - 2} more</span>
+                      <span className="text-slate-500"> {t('academicsPages.reportCards.more', { n: r.classNames.length - 2 })}</span>
                     )}
                   </span>
                 ) : (
-                  <span className="text-slate-400">{r.classCount} class{r.classCount === 1 ? '' : 'es'}</span>
+                  <span className="text-slate-400">{t('academicsPages.reportCards.classes', { count: r.classCount ?? 0 })}</span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right">{r.studentCount}</td>
-              <td className="px-3 py-2 text-right">{r.resultCount}</td>
-              <td className="px-3 py-2 text-slate-500">{formatDate(r.generatedAt)}</td>
+              <td className="px-3 py-2 text-end">{digits(r.studentCount ?? 0)}</td>
+              <td className="px-3 py-2 text-end">{digits(r.resultCount ?? 0)}</td>
+              <td className="px-3 py-2 text-slate-500">{when(r.generatedAt)}</td>
               <td className="px-3 py-2">
                 {r.status === 'ready' ? (
                   <Link
                     href={`/academics/report-cards/${type}/${r.snapshotId}`}
                     className="inline-flex items-center gap-1 text-blue-600 hover:underline"
                   >
-                    View <ArrowRight className="w-3.5 h-3.5" />
+                    {t('academicsPages.reportCards.view', "View")} <ArrowRight className="w-3.5 h-3.5 rtl:-scale-x-100" />
                   </Link>
                 ) : <span className="text-xs text-slate-400">—</span>}
               </td>
@@ -124,20 +129,12 @@ export function SnapshotListTable({ type }: SnapshotListTableProps) {
   );
 }
 
-function StatusBadge({ status }: { status: SnapshotRow['status'] }) {
+function StatusBadge({ status, t }: { status: SnapshotRow['status']; t: (k: string, f?: string) => string }) {
   if (status === 'ready') {
-    return <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 className="w-3.5 h-3.5" /> ready</span>;
+    return <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 className="w-3.5 h-3.5" /> {t('academicsPages.reportCards.st.ready', 'ready')}</span>;
   }
   if (status === 'failed') {
-    return <span className="inline-flex items-center gap-1 text-xs text-rose-600"><XCircle className="w-3.5 h-3.5" /> failed</span>;
+    return <span className="inline-flex items-center gap-1 text-xs text-rose-600"><XCircle className="w-3.5 h-3.5" /> {t('academicsPages.reportCards.st.failed', 'failed')}</span>;
   }
-  return <span className="inline-flex items-center gap-1 text-xs text-amber-600"><Loader2 className="w-3.5 h-3.5 animate-spin" /> generating</span>;
-}
-
-function formatDate(s: string): string {
-  try {
-    return new Date(s).toLocaleString();
-  } catch {
-    return s;
-  }
+  return <span className="inline-flex items-center gap-1 text-xs text-amber-600"><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('academicsPages.reportCards.st.generating', 'generating')}</span>;
 }
