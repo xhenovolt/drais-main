@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:09:58.800Z",
-  "last_commit": "c35f5b99b5861b45876bff59037c31860578866d",
+  "generated_at": "2026-10-19T17:14:18.214Z",
+  "last_commit": "5988d1110abb08e4358f1d8008a87b16fca486e9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10385,7 +10385,20 @@
         }
       ],
       "commit": "c35f5b99b5"
+    },
+    {
+      "version": "2.50.136",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Migrate Results wizard fully Arabic; fix: preview showed no marks and never flagged conflicts",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Migrate Results wizard fully Arabic; fix: preview showed no marks and never flagged conflicts"
+        }
+      ],
+      "commit": "5988d1110a"
     }
   ],
-  "app_version": "2.50.136"
+  "app_version": "2.50.137"
 }

@@ -9572,6 +9572,113 @@
       "continue": "Continue",
       "execute": "Execute",
       "done": "Done"
+    },
+    "resultsImport": {
+      "needYear": "Create an academic year first.",
+      "termFailed": "Could not create term",
+      "termReady": "Term \"{{name}}\" ready.",
+      "rtFailed": "Could not create result type",
+      "rtReady": "Result type \"{{name}}\" ready.",
+      "created": {
+        "one": "Created {{count}} subject. Mapped to your columns.",
+        "other": "Created {{count}} subjects. Mapped to your columns."
+      },
+      "noData": "No data found in file",
+      "fileError": "Error processing file: {{msg}}",
+      "unreadable": "The file could not be read.",
+      "v": {
+        "student": "At least one student identifier (admission number, first name, or last name) must be mapped",
+        "subject": "At least one subject column must be mapped",
+        "year": "Academic year must be selected",
+        "term": "Term must be selected",
+        "class": "Class must be selected",
+        "type": "Result type must be selected"
+      },
+      "importFailed": "Import failed: {{msg}}",
+      "unknown": "Unknown error",
+      "rowsFailed": {
+        "one": "{{count}} row could not be imported. Fix it and try again — nothing was saved.",
+        "other": "{{count}} rows could not be imported. Fix them and try again — nothing was saved."
+      },
+      "rowError": "Row {{row}}: {{msg}}",
+      "studentNotFound": "Student not found: {{who}}",
+      "notAllocated": "Subject {{name}} not allocated to class",
+      "title": "Import Academic Results",
+      "subtitle": "Upload Excel or CSV files to bulk import student results",
+      "template": "Download Template",
+      "step": {
+        "upload": "Upload File",
+        "mapping": "Map Columns",
+        "preview": "Preview & Validate",
+        "import": "Import Results"
+      },
+      "uploadTitle": "Upload your results file",
+      "support": "Support for Excel (.xlsx, .xls) and CSV files",
+      "processing": "Processing...",
+      "choose": "Choose File",
+      "kb": "{{n}} KB",
+      "continue": "Continue",
+      "mapTitle": "Map Columns to Fields",
+      "program": "Program",
+      "secular": "Secular",
+      "theology": "Theology",
+      "programHelp": "Any subjects DRAIS creates from your file will be filed under this program.",
+      "year": "Academic Year",
+      "selectYear": "Select Year",
+      "term": "Term",
+      "class": "Class",
+      "selectClass": "Select Class",
+      "resultType": "Result Type",
+      "ph": {
+        "firstTerm": "Type to create your first term…",
+        "pick": "Pick or type to create",
+        "firstType": "Type to create e.g. End-of-Term…"
+      },
+      "entity": {
+        "term": "term",
+        "resultType": "result type"
+      },
+      "missingTitle": {
+        "one": "{{count}} subject in your file doesn't exist in DRAIS yet",
+        "other": "{{count}} subjects in your file don't exist in DRAIS yet"
+      },
+      "missingHelp": "DRAIS will create them first, then import the marks. Adjust syllabus codes later from the Subjects tab.",
+      "creating": "Creating…",
+      "createN": {
+        "one": "Create {{count}} subject now",
+        "other": "Create {{count}} subjects now"
+      },
+      "updateExisting": "Update existing marks if found",
+      "updateHelp": "When off (the legacy behaviour), rows that already exist for the same student + subject + term + result-type are skipped silently. When on, DRAIS treats the file as the source of truth and refactors them in place.",
+      "mappings": "Column Mappings",
+      "sample": "Sample: {{v}}",
+      "na": "N/A",
+      "dontImport": "Don't import",
+      "studentNumber": "Student Number",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "subjectOpt": "Subject: {{name}}",
+      "validationErrors": "Validation Errors",
+      "back": "Back",
+      "createMissingFirst": "Create the missing subjects first",
+      "previewImport": "Preview Import",
+      "previewTitle": "Preview Import Data",
+      "notMapped": "Not mapped",
+      "showing": "Showing {{shown}} of {{total}} rows",
+      "importing": "Importing...",
+      "start": "Start Import",
+      "completeTitle": "Import Complete",
+      "success": "Import Successful!",
+      "imported": "Imported: {{n}} records",
+      "refactored": "Refactored (updated in place): {{n}} records",
+      "skipped": "Skipped: {{n}} records",
+      "warnings": "Warnings:",
+      "another": "Import Another File",
+      "field": {
+        "admission_no": "Student Number",
+        "first_name": "First Name",
+        "last_name": "Last Name"
+      }
     }
   }
 }

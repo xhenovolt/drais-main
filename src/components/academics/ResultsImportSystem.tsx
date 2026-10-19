@@ -7,6 +7,8 @@ import { Progress } from '@/components/ui/loading/Progress';
 // xlsx dynamically imported where used (below) — keeps it out of the eager graph.
 import { EntityTypeahead, type TypeaheadOption } from './EntityTypeahead';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 interface Option { id: number; name: string; }
 
@@ -28,6 +30,16 @@ interface ValidationResult {
 }
 
 export default function ResultsImportSystem() {
+  const { t, digits } = useI18n();
+  // Server row errors / warnings are fixed English sentences — show them in the reader's language.
+  const rowMsg = (m: string) => {
+    const nf = /^Student not found: (.*)$/.exec(m || '');
+    if (nf) return t('academicsPages.resultsImport.studentNotFound', { who: nf[1] });
+    const na = /^Subject (.*) not allocated to class$/.exec(m || '');
+    if (na) return t('academicsPages.resultsImport.notAllocated', { name: na[1] });
+    return uiIsArabic() && isEnglishText(m) ? t('academicsPages.resultsImport.unknown', "Unknown error") : m;
+  };
+  const [importErrors, setImportErrors] = useState<{ row: number; message: string }[]>([]);
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'import'>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -101,7 +113,7 @@ export default function ResultsImportSystem() {
 
   async function createTerm(name: string): Promise<Option | null> {
     if (academicYears.length === 0) {
-      toast.error('Create an academic year first.');
+      toast.error(t('academicsPages.resultsImport.needYear', "Create an academic year first."));
       return null;
     }
     const yearId = selectedAcademicYear || String(academicYears[0].id);
@@ -110,14 +122,14 @@ export default function ResultsImportSystem() {
       body: JSON.stringify({ name, academic_year_id: yearId, status: 'active' }),
     });
     if (!res.ok && res.status !== 409) {
-      toast.error('Could not create term');
+      toast.error(t('academicsPages.resultsImport.termFailed', "Could not create term"));
       return null;
     }
     const fresh = await fetch('/api/terms').then(r => r.json()).catch(() => ({ data: [] }));
     const list = (fresh.data || []) as Option[];
     setTerms(list);
-    const made = list.find(t => t.name.toLowerCase() === name.toLowerCase()) || null;
-    if (made) toast.success(`Term "${name}" ready.`);
+    const made = list.find(tm => tm.name.toLowerCase() === name.toLowerCase()) || null;
+    if (made) toast.success(t('academicsPages.resultsImport.termReady', { name }));
     return made;
   }
 
@@ -129,14 +141,14 @@ export default function ResultsImportSystem() {
       body: JSON.stringify({ name, code, weight: 100 }),
     });
     if (!res.ok && res.status !== 409) {
-      toast.error('Could not create result type');
+      toast.error(t('academicsPages.resultsImport.rtFailed', "Could not create result type"));
       return null;
     }
     const fresh = await fetch('/api/result_types').then(r => r.json()).catch(() => ({ data: [] }));
     const list = (fresh.data || []) as Option[];
     setResultTypes(list);
     const made = list.find(rt => rt.name.toLowerCase() === name.toLowerCase()) || null;
-    if (made) toast.success(`Result type "${name}" ready.`);
+    if (made) toast.success(t('academicsPages.resultsImport.rtReady', { name }));
     return made;
   }
 
@@ -171,7 +183,7 @@ export default function ResultsImportSystem() {
     });
     setMissingSubjects([]);
     setCreatingSubjects(false);
-    toast.success(`Created ${ok} subject${ok === 1 ? '' : 's'}. Mapped to your columns.`);
+    toast.success(t('academicsPages.resultsImport.created', { count: ok }));
   }
 
   const handleFileSelect = async (selectedFile: File) => {
@@ -196,7 +208,7 @@ export default function ResultsImportSystem() {
       }
 
       if (rows.length === 0) {
-        throw new Error('No data found in file');
+        throw new Error(t('academicsPages.resultsImport.noData', "No data found in file"));
       }
 
       const headers = rows[0];
@@ -256,7 +268,8 @@ export default function ResultsImportSystem() {
       setStep('mapping');
     } catch (error) {
       console.error('Error processing file:', error);
-      alert('Error processing file: ' + error.message);
+      const raw = (error as any)?.message;
+      toast.error(t('academicsPages.resultsImport.fileError', { msg: (raw && !(uiIsArabic() && isEnglishText(raw)) ? raw : t('academicsPages.resultsImport.unreadable', "The file could not be read.")) }));
     } finally {
       setLoading(false);
     }
@@ -279,38 +292,44 @@ export default function ResultsImportSystem() {
     );
 
     if (!hasStudentId) {
-      errors.push('At least one student identifier (admission number, first name, or last name) must be mapped');
+      errors.push(t('academicsPages.resultsImport.v.student', "At least one student identifier (admission number, first name, or last name) must be mapped"));
     }
 
     // Check if at least one subject is mapped
     const hasSubjects = Object.values(mappings).some(field => field.startsWith('subject_'));
 
     if (!hasSubjects) {
-      errors.push('At least one subject column must be mapped');
+      errors.push(t('academicsPages.resultsImport.v.subject', "At least one subject column must be mapped"));
     }
 
     // Check for required selections
     if (!selectedAcademicYear) {
-      errors.push('Academic year must be selected');
+      errors.push(t('academicsPages.resultsImport.v.year', "Academic year must be selected"));
     }
     if (!selectedTerm) {
-      errors.push('Term must be selected');
+      errors.push(t('academicsPages.resultsImport.v.term', "Term must be selected"));
     }
     if (!selectedClass) {
-      errors.push('Class must be selected');
+      errors.push(t('academicsPages.resultsImport.v.class', "Class must be selected"));
     }
     if (!selectedResultType) {
-      errors.push('Result type must be selected');
+      errors.push(t('academicsPages.resultsImport.v.type', "Result type must be selected"));
     }
 
     setValidation({ isValid: errors.length === 0, errors, warnings });
     return errors.length === 0;
   };
 
+  useEffect(() => {
+    if (step === 'mapping') validateMappings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, mappings, selectedAcademicYear, selectedTerm, selectedClass, selectedResultType]);
+
   const handleImport = async () => {
     if (!validateMappings() || !file) return;
 
     setImporting(true);
+    setImportErrors([]);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -331,12 +350,16 @@ export default function ResultsImportSystem() {
       if (response.ok && result.success) {
         setImportResult(result);
         setStep('import');
+      } else if (Array.isArray(result.errors) && result.errors.length > 0) {
+        // Row-level problems (e.g. unknown admission numbers): nothing was saved; list them.
+        setImportErrors(result.errors);
+        toast.error(t('academicsPages.resultsImport.rowsFailed', { count: result.errors.length }));
       } else {
-        alert('Import failed: ' + (result.error || 'Unknown error'));
+        toast.error(t('academicsPages.resultsImport.importFailed', { msg: (result.error && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.resultsImport.unknown', "Unknown error")) }));
       }
     } catch (error) {
       console.error('Import error:', error);
-      alert('Import failed: ' + error.message);
+      toast.error(t('academicsPages.resultsImport.importFailed', { msg: t('academicsPages.resultsImport.unknown', "Unknown error") }));
     } finally {
       setImporting(false);
     }
@@ -374,22 +397,22 @@ export default function ResultsImportSystem() {
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Import Academic Results</h1>
-          <p className="text-gray-600 mt-1">Upload Excel or CSV files to bulk import student results</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('academicsPages.resultsImport.title', "Import Academic Results")}</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{t('academicsPages.resultsImport.subtitle', "Upload Excel or CSV files to bulk import student results")}</p>
         </div>
         <Button onClick={downloadTemplate} variant="outline" className="flex items-center gap-2">
           <Download className="w-4 h-4" />
-          Download Template
+          {t('academicsPages.resultsImport.template', "Download Template")}
         </Button>
       </div>
 
       {/* Progress Steps */}
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-wrap items-center gap-y-2">
         {[
-          { key: 'upload', label: 'Upload File', icon: Upload },
-          { key: 'mapping', label: 'Map Columns', icon: FileText },
-          { key: 'preview', label: 'Preview & Validate', icon: Eye },
-          { key: 'import', label: 'Import Results', icon: CheckCircle }
+          { key: 'upload', label: t('academicsPages.resultsImport.step.upload', "Upload File"), icon: Upload },
+          { key: 'mapping', label: t('academicsPages.resultsImport.step.mapping', "Map Columns"), icon: FileText },
+          { key: 'preview', label: t('academicsPages.resultsImport.step.preview', "Preview & Validate"), icon: Eye },
+          { key: 'import', label: t('academicsPages.resultsImport.step.import', "Import Results"), icon: CheckCircle }
         ].map(({ key, label, icon: Icon }, index) => (
           <div key={key} className="flex items-center">
             <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
@@ -399,12 +422,12 @@ export default function ResultsImportSystem() {
             }`}>
               <Icon className="w-4 h-4" />
             </div>
-            <span className={`ml-2 text-sm font-medium ${
+            <span className={`ms-2 text-sm font-medium ${
               step === key ? 'text-blue-600' : 'text-gray-600'
             }`}>
               {label}
             </span>
-            {index < 3 && <ArrowRight className="w-4 h-4 mx-4 text-gray-400" />}
+            {index < 3 && <ArrowRight className="w-4 h-4 mx-4 text-gray-400 rtl:-scale-x-100" />}
           </div>
         ))}
       </div>
@@ -413,13 +436,13 @@ export default function ResultsImportSystem() {
       {step === 'upload' && (
         <Card>
           <CardHeader>
-            <CardTitle>Upload File</CardTitle>
+            <CardTitle>{t('academicsPages.resultsImport.step.upload', "Upload File")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
               <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Upload your results file</h3>
-              <p className="text-gray-600 mb-4">Support for Excel (.xlsx, .xls) and CSV files</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('academicsPages.resultsImport.uploadTitle', "Upload your results file")}</h3>
+              <p className="text-gray-600 mb-4">{t('academicsPages.resultsImport.support', "Support for Excel (.xlsx, .xls) and CSV files")}</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -428,21 +451,21 @@ export default function ResultsImportSystem() {
                 className="hidden"
               />
               <Button onClick={() => fileInputRef.current?.click()} disabled={loading}>
-                {loading ? 'Processing...' : 'Choose File'}
+                {loading ? t('academicsPages.resultsImport.processing', "Processing...") : t('academicsPages.resultsImport.choose', "Choose File")}
               </Button>
             </div>
 
             {file && (
               <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-green-600" />
                   <div>
                     <p className="font-medium text-green-900">{file.name}</p>
-                    <p className="text-sm text-green-700">{(file.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-sm text-green-700">{t('academicsPages.resultsImport.kb', { n: (file.size / 1024).toFixed(1) })}</p>
                   </div>
                 </div>
                 <Button onClick={() => setStep('mapping')} variant="outline" size="sm">
-                  Continue
+                  {t('academicsPages.resultsImport.continue', "Continue")}
                 </Button>
               </div>
             )}
@@ -453,65 +476,65 @@ export default function ResultsImportSystem() {
       {step === 'mapping' && preview && (
         <Card>
           <CardHeader>
-            <CardTitle>Map Columns to Fields</CardTitle>
+            <CardTitle>{t('academicsPages.resultsImport.mapTitle', "Map Columns to Fields")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Academic type — secular vs theology. Drives which program
                 newly batch-created subjects land in. Default secular. */}
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 flex items-center gap-4">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Program</span>
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t('academicsPages.resultsImport.program', "Program")}</span>
               <label className="inline-flex items-center gap-1.5 text-xs">
                 <input type="radio" name="academic_type" value="secular"
                   checked={academicType === 'secular'}
                   onChange={() => setAcademicType('secular')} />
-                Secular
+                {t('academicsPages.resultsImport.secular', "Secular")}
               </label>
               <label className="inline-flex items-center gap-1.5 text-xs">
                 <input type="radio" name="academic_type" value="theology"
                   checked={academicType === 'theology'}
                   onChange={() => setAcademicType('theology')} />
-                Theology
+                {t('academicsPages.resultsImport.theology', "Theology")}
               </label>
-              <span className="ml-auto text-[10px] text-slate-400">
-                Any subjects DRAIS creates from your file will be filed under this program.
+              <span className="ms-auto text-[10px] text-slate-400">
+                {t('academicsPages.resultsImport.programHelp', "Any subjects DRAIS creates from your file will be filed under this program.")}
               </span>
             </div>
 
             {/* Target Selection */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Academic Year</label>
+                <label className="block text-sm font-medium mb-2">{t('academicsPages.resultsImport.year', "Academic Year")}</label>
                 <select
                   value={selectedAcademicYear}
                   onChange={(e) => setSelectedAcademicYear(e.target.value)}
                   className="w-full p-2 border rounded-lg"
                 >
-                  <option value="">Select Year</option>
+                  <option value="">{t('academicsPages.resultsImport.selectYear', "Select Year")}</option>
                   {academicYears.map(year => (
-                    <option key={year.id} value={year.id}>{year.name}</option>
+                    <option key={year.id} value={year.id}>{digits(year.name)}</option>
                   ))}
                 </select>
               </div>
               <div>
                 <EntityTypeahead
-                  label="Term"
+                  label={t('academicsPages.resultsImport.term', "Term")}
                   variant="plain"
-                  value={terms.find(t => String(t.id) === selectedTerm) as TypeaheadOption || null}
+                  value={terms.find(tm => String(tm.id) === selectedTerm) as TypeaheadOption || null}
                   onChange={(v) => setSelectedTerm(v ? String(v.id) : '')}
                   items={terms as TypeaheadOption[]}
-                  placeholder={terms.length === 0 ? 'Type to create your first term…' : 'Pick or type to create'}
-                  entityLabel="term"
+                  placeholder={terms.length === 0 ? t('academicsPages.resultsImport.ph.firstTerm', "Type to create your first term…") : t('academicsPages.resultsImport.ph.pick', "Pick or type to create")}
+                  entityLabel={t('academicsPages.resultsImport.entity.term', "term")}
                   onCreate={createTerm}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Class</label>
+                <label className="block text-sm font-medium mb-2">{t('academicsPages.resultsImport.class', "Class")}</label>
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
                   className="w-full p-2 border rounded-lg"
                 >
-                  <option value="">Select Class</option>
+                  <option value="">{t('academicsPages.resultsImport.selectClass', "Select Class")}</option>
                   {classes.map(cls => (
                     <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
@@ -519,13 +542,13 @@ export default function ResultsImportSystem() {
               </div>
               <div>
                 <EntityTypeahead
-                  label="Result Type"
+                  label={t('academicsPages.resultsImport.resultType', "Result Type")}
                   variant="plain"
                   value={resultTypes.find(rt => String(rt.id) === selectedResultType) as TypeaheadOption || null}
                   onChange={(v) => setSelectedResultType(v ? String(v.id) : '')}
                   items={resultTypes as TypeaheadOption[]}
-                  placeholder={resultTypes.length === 0 ? 'Type to create e.g. End-of-Term…' : 'Pick or type to create'}
-                  entityLabel="result type"
+                  placeholder={resultTypes.length === 0 ? t('academicsPages.resultsImport.ph.firstType', "Type to create e.g. End-of-Term…") : t('academicsPages.resultsImport.ph.pick', "Pick or type to create")}
+                  entityLabel={t('academicsPages.resultsImport.entity.resultType', "result type")}
                   onCreate={createResultType}
                 />
               </div>
@@ -540,10 +563,10 @@ export default function ResultsImportSystem() {
                   <Sparkles className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-bold text-orange-900 dark:text-orange-200">
-                      {missingSubjects.length} subject{missingSubjects.length === 1 ? '' : 's'} in your file don&apos;t exist in DRAIS yet
+                      {t('academicsPages.resultsImport.missingTitle', { count: missingSubjects.length })}
                     </h4>
                     <p className="text-xs text-orange-800 dark:text-orange-300 mt-1">
-                      DRAIS will create them first, then import the marks. Adjust syllabus codes later from the Subjects tab.
+                      {t('academicsPages.resultsImport.missingHelp', "DRAIS will create them first, then import the marks. Adjust syllabus codes later from the Subjects tab.")}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {missingSubjects.map(s => (
@@ -557,9 +580,9 @@ export default function ResultsImportSystem() {
                     className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-1.5 whitespace-nowrap"
                   >
                     {creatingSubjects ? (
-                      <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Creating…</span>
+                      <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> {t('academicsPages.resultsImport.creating', "Creating…")}</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Create {missingSubjects.length} subject{missingSubjects.length === 1 ? '' : 's'} now</span>
+                      <span className="inline-flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> {t('academicsPages.resultsImport.createN', { count: missingSubjects.length })}</span>
                     )}
                   </Button>
                 </div>
@@ -578,23 +601,23 @@ export default function ResultsImportSystem() {
                 className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="update_existing_toggle" className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-                <span className="font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Update existing marks if found</span>
+                <span className="font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {t('academicsPages.resultsImport.updateExisting', "Update existing marks if found")}</span>
                 <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  When off (the legacy behaviour), rows that already exist for the same student + subject + term + result-type are skipped silently. When on, DRAIS treats the file as the source of truth and refactors them in place.
+                  {t('academicsPages.resultsImport.updateHelp', "When off (the legacy behaviour), rows that already exist for the same student + subject + term + result-type are skipped silently. When on, DRAIS treats the file as the source of truth and refactors them in place.")}
                 </span>
               </label>
             </div>
 
             {/* Column Mappings */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Column Mappings</h3>
+              <h3 className="text-lg font-medium">{t('academicsPages.resultsImport.mappings', "Column Mappings")}</h3>
               <div className="grid gap-4">
                 {preview.headers.map((header, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg">
+                  <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
                     <div className="flex-1">
                       <span className="font-medium">{header}</span>
                       <div className="text-sm text-gray-500 mt-1">
-                        Sample: {preview.sampleRows[0]?.[index] || 'N/A'}
+                        {t('academicsPages.resultsImport.sample', { v: preview.sampleRows[0]?.[index] ?? t('academicsPages.resultsImport.na', "N/A") })}
                       </div>
                     </div>
                     <select
@@ -602,13 +625,13 @@ export default function ResultsImportSystem() {
                       onChange={(e) => handleMappingChange(header, e.target.value)}
                       className="flex-1 p-2 border rounded-lg"
                     >
-                      <option value="">Don't import</option>
-                      <option value="admission_no">Student Number</option>
-                      <option value="first_name">First Name</option>
-                      <option value="last_name">Last Name</option>
+                      <option value="">{t('academicsPages.resultsImport.dontImport', "Don't import")}</option>
+                      <option value="admission_no">{t('academicsPages.resultsImport.studentNumber', "Student Number")}</option>
+                      <option value="first_name">{t('academicsPages.resultsImport.firstName', "First Name")}</option>
+                      <option value="last_name">{t('academicsPages.resultsImport.lastName', "Last Name")}</option>
                       {subjects.map(subject => (
                         <option key={subject.id} value={`subject_${subject.id}`}>
-                          Subject: {subject.name}
+                          {t('academicsPages.resultsImport.subjectOpt', { name: subject.name })}
                         </option>
                       ))}
                     </select>
@@ -620,9 +643,9 @@ export default function ResultsImportSystem() {
             {/* Validation Errors */}
             {validation.errors.length > 0 && (
               <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600" />
-                  <h4 className="text-sm font-medium text-red-800">Validation Errors</h4>
+                  <h4 className="text-sm font-medium text-red-800">{t('academicsPages.resultsImport.validationErrors', "Validation Errors")}</h4>
                 </div>
                 <ul className="mt-2 list-disc list-inside text-sm text-red-700">
                   {validation.errors.map((error, index) => (
@@ -634,11 +657,11 @@ export default function ResultsImportSystem() {
 
             <div className="flex justify-between">
               <Button onClick={() => setStep('upload')} variant="outline">
-                Back
+                {t('academicsPages.resultsImport.back', "Back")}
               </Button>
               <Button onClick={() => setStep('preview')} disabled={!validation.isValid || missingSubjects.length > 0}
-                title={missingSubjects.length > 0 ? 'Create the missing subjects first' : undefined}>
-                Preview Import
+                title={missingSubjects.length > 0 ? t('academicsPages.resultsImport.createMissingFirst', "Create the missing subjects first") : undefined}>
+                {t('academicsPages.resultsImport.previewImport', "Preview Import")}
               </Button>
             </div>
           </CardContent>
@@ -648,7 +671,7 @@ export default function ResultsImportSystem() {
       {step === 'preview' && preview && (
         <Card>
           <CardHeader>
-            <CardTitle>Preview Import Data</CardTitle>
+            <CardTitle>{t('academicsPages.resultsImport.previewTitle', "Preview Import Data")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-x-auto">
@@ -656,10 +679,10 @@ export default function ResultsImportSystem() {
                 <thead>
                   <tr className="bg-gray-50">
                     {preview.headers.map((header, index) => (
-                      <th key={index} className="border border-gray-300 p-2 text-left">
+                      <th key={index} className="border border-gray-300 p-2 text-start">
                         {header}
                         <div className="text-xs text-gray-500">
-                          → {mappings[header] || 'Not mapped'}
+                          <span className="rtl:hidden">→</span><span className="ltr:hidden">←</span> {(() => { const m = mappings[header]; if (!m) return t('academicsPages.resultsImport.notMapped', "Not mapped"); if (m.startsWith('subject_')) return subjects.find(s => `subject_${s.id}` === m)?.name ?? m; return t(`academicsPages.resultsImport.field.${m}`, m); })()}
                         </div>
                       </th>
                     ))}
@@ -680,15 +703,26 @@ export default function ResultsImportSystem() {
             </div>
 
             <div className="text-sm text-gray-600">
-              Showing {preview.sampleRows.length} of {preview.totalRows} rows
+              {t('academicsPages.resultsImport.showing', { shown: preview.sampleRows.length, total: preview.totalRows })}
             </div>
+
+            {importErrors.length > 0 && (
+              <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
+                <h4 className="text-sm font-medium text-red-800">{t('academicsPages.resultsImport.rowsFailed', { count: importErrors.length })}</h4>
+                <ul className="mt-2 list-disc list-inside text-sm text-red-700 max-h-48 overflow-y-auto">
+                  {importErrors.slice(0, 50).map((er, i) => (
+                    <li key={i}>{t('academicsPages.resultsImport.rowError', { row: er.row, msg: rowMsg(er.message) })}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="flex justify-between">
               <Button onClick={() => setStep('mapping')} variant="outline">
-                Back
+                {t('academicsPages.resultsImport.back', "Back")}
               </Button>
               <Button onClick={handleImport} disabled={importing}>
-                {importing ? 'Importing...' : 'Start Import'}
+                {importing ? t('academicsPages.resultsImport.importing', "Importing...") : t('academicsPages.resultsImport.start', "Start Import")}
               </Button>
             </div>
           </CardContent>
@@ -698,24 +732,24 @@ export default function ResultsImportSystem() {
       {step === 'import' && importResult && (
         <Card>
           <CardHeader>
-            <CardTitle>Import Complete</CardTitle>
+            <CardTitle>{t('academicsPages.resultsImport.completeTitle', "Import Complete")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
               <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-green-900 mb-2">Import Successful!</h3>
+              <h3 className="text-xl font-semibold text-green-900 mb-2">{t('academicsPages.resultsImport.success', "Import Successful!")}</h3>
               <div className="space-y-2 text-gray-600">
-                <p>Imported: {importResult.imported} records</p>
+                <p>{t('academicsPages.resultsImport.imported', { n: importResult.imported ?? 0 })}</p>
                 {typeof importResult.updated === 'number' && importResult.updated > 0 && (
-                  <p className="text-blue-700 font-medium">Refactored (updated in place): {importResult.updated} records</p>
+                  <p className="text-blue-700 font-medium">{t('academicsPages.resultsImport.refactored', { n: importResult.updated })}</p>
                 )}
-                <p>Skipped: {importResult.skipped} records</p>
-                {importResult.warnings.length > 0 && (
+                <p>{t('academicsPages.resultsImport.skipped', { n: importResult.skipped ?? 0 })}</p>
+                {Array.isArray(importResult.warnings) && importResult.warnings.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="font-medium text-yellow-800">Warnings:</h4>
+                    <h4 className="font-medium text-yellow-800">{t('academicsPages.resultsImport.warnings', "Warnings:")}</h4>
                     <ul className="list-disc list-inside text-yellow-700">
                       {importResult.warnings.map((warning: string, index: number) => (
-                        <li key={index}>{warning}</li>
+                        <li key={index}>{rowMsg(warning)}</li>
                       ))}
                     </ul>
                   </div>
@@ -725,7 +759,7 @@ export default function ResultsImportSystem() {
 
             <div className="flex justify-center">
               <Button onClick={resetImport}>
-                Import Another File
+                {t('academicsPages.resultsImport.another', "Import Another File")}
               </Button>
             </div>
           </CardContent>
