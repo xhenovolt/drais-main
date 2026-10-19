@@ -8008,6 +8008,45 @@
       "adding": "Adding...",
       "addStaff": "Add Staff",
       "next": "Next"
+    },
+    "workPlans": {
+      "title": "📋 Work Plans",
+      "count": "{{n}} work plans",
+      "create": "Create Work Plan",
+      "searchPh": "Search work plans...",
+      "allStatus": "All Status",
+      "allPriority": "All Priority",
+      "st": {
+        "pending": "Pending",
+        "in_progress": "In Progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "pr": {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "clearFilters": "Clear Filters",
+      "loading": "Loading work plans...",
+      "assignedTo": "Assigned to: {{name}}",
+      "due": "Due: {{when}}",
+      "complete": "{{n}}% Complete",
+      "none": "No work plans found",
+      "titleRequired": "Title is required.",
+      "created": "Work plan created",
+      "titleLabel": "Title",
+      "titlePh": "Enter work plan title…",
+      "description": "Description",
+      "descriptionPh": "Optional description…",
+      "priority": "Priority",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "cancel": "Cancel",
+      "creating": "Creating…",
+      "createBtn": "Create",
+      "failed": "Could not create the work plan."
     }
   }
 }

@@ -21,6 +21,9 @@ import useSWR from 'swr';
 import { swrFetcher, apiFetch } from '@/lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 import NewBadge from '@/components/ui/NewBadge';
+import { ar as arLocale } from 'date-fns/locale';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 interface WorkPlan {
   id: number;
@@ -40,6 +43,7 @@ interface WorkPlan {
 }
 
 const WorkPlansPage: React.FC = () => {
+  const { t, lang, digits } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -114,12 +118,12 @@ const WorkPlansPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                📋 Work Plans
+                {t('staffPages.workPlans.title', "📋 Work Plans")}
               </h1>
               <NewBadge size="sm" animated />
             </div>
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredWorkPlans.length} work plans
+              {t('staffPages.workPlans.count', { n: filteredWorkPlans.length })}
             </p>
           </div>
           <button
@@ -127,7 +131,7 @@ const WorkPlansPage: React.FC = () => {
             className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all duration-200"
           >
             <Plus className="w-5 h-5" />
-            Create Work Plan
+            {t('staffPages.workPlans.create', "Create Work Plan")}
           </button>
         </div>
 
@@ -135,13 +139,13 @@ const WorkPlansPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search work plans..."
+                placeholder={t('staffPages.workPlans.searchPh', "Search work plans...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                className="w-full ps-10 pe-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
               />
             </div>
 
@@ -150,11 +154,11 @@ const WorkPlansPage: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="">{t('staffPages.workPlans.allStatus', "All Status")}</option>
+              <option value="pending">{t('staffPages.workPlans.st.pending', "Pending")}</option>
+              <option value="in_progress">{t('staffPages.workPlans.st.in_progress', "In Progress")}</option>
+              <option value="completed">{t('staffPages.workPlans.st.completed', "Completed")}</option>
+              <option value="cancelled">{t('staffPages.workPlans.st.cancelled', "Cancelled")}</option>
             </select>
 
             <select
@@ -162,11 +166,11 @@ const WorkPlansPage: React.FC = () => {
               onChange={(e) => setPriorityFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
             >
-              <option value="">All Priority</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="">{t('staffPages.workPlans.allPriority', "All Priority")}</option>
+              <option value="critical">{t('staffPages.workPlans.pr.critical', "Critical")}</option>
+              <option value="high">{t('staffPages.workPlans.pr.high', "High")}</option>
+              <option value="medium">{t('staffPages.workPlans.pr.medium', "Medium")}</option>
+              <option value="low">{t('staffPages.workPlans.pr.low', "Low")}</option>
             </select>
 
             <button
@@ -177,7 +181,7 @@ const WorkPlansPage: React.FC = () => {
               }}
               className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
-              Clear Filters
+              {t('staffPages.workPlans.clearFilters', "Clear Filters")}
             </button>
           </div>
         </div>
@@ -186,7 +190,7 @@ const WorkPlansPage: React.FC = () => {
         {isLoading ? (
           <div className="text-center py-12">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-gray-500 dark:text-gray-400">Loading work plans...</p>
+            <p className="text-gray-500 dark:text-gray-400">{t('staffPages.workPlans.loading', "Loading work plans...")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -215,10 +219,10 @@ const WorkPlansPage: React.FC = () => {
                           <div className="flex items-center gap-2 mt-1">
                             {getStatusIcon(plan.status)}
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(plan.status)}`}>
-                              {plan.status.replace('_', ' ').toUpperCase()}
+                              {lang === 'ar' ? t(`staffPages.workPlans.st.${plan.status}`, plan.status) : plan.status.replace('_', ' ').toUpperCase()}
                             </span>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(plan.priority)}`}>
-                              {plan.priority.toUpperCase()}
+                              {lang === 'ar' ? t(`staffPages.workPlans.pr.${plan.priority}`, plan.priority) : plan.priority.toUpperCase()}
                             </span>
                           </div>
                         </div>
@@ -236,7 +240,7 @@ const WorkPlansPage: React.FC = () => {
                         {plan.assignee_name && (
                           <div className="flex items-center gap-1">
                             <Users className="w-4 h-4" />
-                            <span>Assigned to: {plan.assignee_name}</span>
+                            <span>{t('staffPages.workPlans.assignedTo', { name: plan.assignee_name })}</span>
                           </div>
                         )}
                         {plan.department_name && (
@@ -248,7 +252,7 @@ const WorkPlansPage: React.FC = () => {
                         {plan.start_datetime && (
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
-                            <span>Due: {formatDistanceToNow(new Date(plan.start_datetime), { addSuffix: true })}</span>
+                            <span>{t('staffPages.workPlans.due', { when: lang === 'ar' ? digits(formatDistanceToNow(new Date(plan.start_datetime), { addSuffix: true, locale: arLocale })) : formatDistanceToNow(new Date(plan.start_datetime), { addSuffix: true }) })}</span>
                           </div>
                         )}
                       </div>
@@ -256,9 +260,9 @@ const WorkPlansPage: React.FC = () => {
 
                     {/* Right Section - Progress */}
                     <div className="flex flex-col items-end gap-2">
-                      <div className="text-right">
+                      <div className="text-end">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {plan.progress}% Complete
+                          {lang === 'ar' ? t('staffPages.workPlans.complete', { n: plan.progress }) : `${plan.progress}% Complete`}
                         </div>
                         <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
                           <div 
@@ -285,7 +289,7 @@ const WorkPlansPage: React.FC = () => {
             {filteredWorkPlans.length === 0 && (
               <div className="text-center py-12">
                 <Clipboard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">No work plans found</p>
+                <p className="text-gray-500 dark:text-gray-400">{t('staffPages.workPlans.none', "No work plans found")}</p>
               </div>
             )}
           </div>
@@ -309,6 +313,7 @@ export default WorkPlansPage;
 // Add Work Plan Modal
 // ────────────────────────────────────────────────────────────────
 function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -322,7 +327,7 @@ function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreat
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
 
   async function submit() {
-    if (!form.title.trim()) { setErr('Title is required.'); return; }
+    if (!form.title.trim()) { setErr(t('staffPages.workPlans.titleRequired', "Title is required.")); return; }
     setSaving(true);
     setErr(null);
     try {
@@ -337,10 +342,10 @@ function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreat
           end_datetime: form.end_datetime || null,
           owner_type: 'school',
         }),
-        successMessage: 'Work plan created',
+        successMessage: t('staffPages.workPlans.created', "Work plan created"),
       });
       onCreated();
-    } catch (e: any) { setErr(e.message); }
+    } catch (e: any) { setErr(e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.workPlans.failed', "Could not create the work plan.")); }
     finally { setSaving(false); }
   }
 
@@ -350,7 +355,7 @@ function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clipboard className="w-5 h-5 text-blue-500" />
-            <h2 className="font-semibold text-gray-900 dark:text-white">Create Work Plan</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-white">{t('staffPages.workPlans.create', "Create Work Plan")}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
             <X className="w-4 h-4" />
@@ -364,39 +369,39 @@ function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Title <span className="text-red-500">*</span>
+              {t('staffPages.workPlans.titleLabel', "Title")} <span className="text-red-500">*</span>
             </label>
             <input value={form.title} onChange={e => set('title', e.target.value)}
-              placeholder="Enter work plan title…"
+              placeholder={t('staffPages.workPlans.titlePh', "Enter work plan title…")}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.workPlans.description', "Description")}</label>
             <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)}
-              placeholder="Optional description…"
+              placeholder={t('staffPages.workPlans.descriptionPh', "Optional description…")}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.workPlans.priority', "Priority")}</label>
             <select value={form.priority} onChange={e => set('priority', e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
+              <option value="low">{t('staffPages.workPlans.pr.low', "Low")}</option>
+              <option value="medium">{t('staffPages.workPlans.pr.medium', "Medium")}</option>
+              <option value="high">{t('staffPages.workPlans.pr.high', "High")}</option>
+              <option value="critical">{t('staffPages.workPlans.pr.critical', "Critical")}</option>
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.workPlans.startDate', "Start Date")}</label>
               <input type="datetime-local" value={form.start_datetime} onChange={e => set('start_datetime', e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('staffPages.workPlans.endDate', "End Date")}</label>
               <input type="datetime-local" value={form.end_datetime} onChange={e => set('end_datetime', e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -405,12 +410,12 @@ function AddWorkPlanModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800">
-            Cancel
+            {t('staffPages.workPlans.cancel', "Cancel")}
           </button>
           <button onClick={submit} disabled={saving}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {saving ? 'Creating…' : 'Create'}
+            {saving ? t('staffPages.workPlans.creating', "Creating…") : t('staffPages.workPlans.createBtn', "Create")}
           </button>
         </div>
       </div>

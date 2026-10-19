@@ -8243,6 +8243,45 @@
       "adding": "جارٍ الإضافة...",
       "addStaff": "إضافة موظف",
       "next": "التالي"
+    },
+    "workPlans": {
+      "title": "📋 خطط العمل",
+      "count": "{{n}} خطة عمل",
+      "create": "إنشاء خطة عمل",
+      "searchPh": "ابحث في خطط العمل...",
+      "allStatus": "كل الحالات",
+      "allPriority": "كل الأولويات",
+      "st": {
+        "pending": "قيد الانتظار",
+        "in_progress": "قيد التنفيذ",
+        "completed": "مكتملة",
+        "cancelled": "ملغاة"
+      },
+      "pr": {
+        "critical": "حرجة",
+        "high": "عالية",
+        "medium": "متوسطة",
+        "low": "منخفضة"
+      },
+      "clearFilters": "مسح عوامل التصفية",
+      "loading": "جارٍ تحميل خطط العمل...",
+      "assignedTo": "مسندة إلى: {{name}}",
+      "due": "الموعد: {{when}}",
+      "complete": "مكتملة بنسبة {{n}}٪",
+      "none": "لم يُعثر على خطط عمل",
+      "titleRequired": "العنوان مطلوب.",
+      "created": "تم إنشاء خطة العمل",
+      "titleLabel": "العنوان",
+      "titlePh": "أدخل عنوان خطة العمل…",
+      "description": "الوصف",
+      "descriptionPh": "وصف اختياري…",
+      "priority": "الأولوية",
+      "startDate": "تاريخ البدء",
+      "endDate": "تاريخ الانتهاء",
+      "cancel": "إلغاء",
+      "creating": "جارٍ الإنشاء…",
+      "createBtn": "إنشاء",
+      "failed": "تعذّر إنشاء خطة العمل."
     }
   }
 }
