@@ -3,6 +3,8 @@ import React from 'react';
 import useSWR from 'swr';
 import { Workflow, CheckCircle2, AlertTriangle, Zap, GitBranch, ShieldAlert } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 const fetcher = async (u: string) => {
   const r = await fetch(u, { credentials: 'same-origin' });
@@ -14,6 +16,8 @@ const fetcher = async (u: string) => {
 type Mode = 'flexible' | 'structured';
 
 export default function AdmissionModePage() {
+  const { t, rich } = useI18n();
+  const modeName = (m: Mode) => (m === 'flexible' ? t('staffPages.admMode.flex.title', "Flexible (MVP)") : t('staffPages.admMode.struct.title', "Structured (Enterprise)"));
   const { data, mutate, isLoading, error } = useSWR<{ mode: Mode }>('/api/admin/admission-mode', fetcher);
   const [saving, setSaving] = React.useState(false);
 
@@ -26,9 +30,9 @@ export default function AdmissionModePage() {
       });
       const j = await r.json();
       if (!r.ok || !j.success) throw new Error(j.error || 'Failed');
-      toast.success(`Admission mode switched to ${mode}`);
+      toast.success(t('staffPages.admMode.switched', { mode: modeName(mode) }));
       mutate();
-    } catch (e: any) { toast.error(e?.message); }
+    } catch (e: any) { toast.error(e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.admMode.failed', "Failed")); }
     finally { setSaving(false); }
   }
 
@@ -40,9 +44,9 @@ export default function AdmissionModePage() {
         <div className="rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-4 text-sm text-rose-700 flex items-start gap-3">
           {isAuth ? <ShieldAlert className="w-4 h-4 mt-0.5" /> : <AlertTriangle className="w-4 h-4 mt-0.5" />}
           <div>
-            <p className="font-semibold">{isAuth ? 'Access denied' : 'Failed to load'}</p>
-            <p className="text-xs opacity-90">{error.message}</p>
-            {isAuth && <p className="text-xs mt-1">Needs <code>admissions.mode.manage</code>.</p>}
+            <p className="font-semibold">{isAuth ? t('staffPages.admMode.accessDenied', "Access denied") : t('staffPages.admMode.failedToLoad', "Failed to load")}</p>
+            {!(uiIsArabic() && isEnglishText(error.message)) && <p className="text-xs opacity-90">{error.message}</p>}
+            {isAuth && <p className="text-xs mt-1">{rich('staffPages.admMode.needs', { perm: <code>admissions.mode.manage</code> })}</p>}
           </div>
         </div>
       </div>
@@ -56,8 +60,8 @@ export default function AdmissionModePage() {
       <div className="flex items-center gap-3">
         <Workflow className="w-6 h-6 text-indigo-500" />
         <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-white">Admission Mode</h1>
-          <p className="text-xs text-slate-400">Pick how this school takes in new learners.</p>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('staffPages.admMode.title', "Admission Mode")}</h1>
+          <p className="text-xs text-slate-400">{t('staffPages.admMode.subtitle', "Pick how this school takes in new learners.")}</p>
         </div>
       </div>
 
@@ -68,14 +72,9 @@ export default function AdmissionModePage() {
           onSelect={set}
           saving={saving}
           icon={Zap}
-          title="Flexible (MVP)"
-          subtitle="The current DRAIS workflow — rapid admit then enroll. No state machine, no review pipeline."
-          bullets={[
-            'Admin opens /students/admit and creates a learner directly',
-            '/students/enroll picks a class + term, and the learner is active',
-            'Best for small schools and rapid onboarding',
-            'No staged review or document verification',
-          ]}
+          title={t('staffPages.admMode.flex.title', "Flexible (MVP)")}
+          subtitle={t('staffPages.admMode.flex.subtitle', "The current DRAIS workflow — rapid admit then enroll. No state machine, no review pipeline.")}
+          bullets={[t('staffPages.admMode.flex.b1', "Admin opens /students/admit and creates a learner directly"), t('staffPages.admMode.flex.b2', "/students/enroll picks a class + term, and the learner is active"), t('staffPages.admMode.flex.b3', "Best for small schools and rapid onboarding"), t('staffPages.admMode.flex.b4', "No staged review or document verification")]}
           accent="emerald"
         />
         <ModeCard
@@ -84,24 +83,17 @@ export default function AdmissionModePage() {
           onSelect={set}
           saving={saving}
           icon={GitBranch}
-          title="Structured (Enterprise)"
-          subtitle="Staged pipeline with review, approval, document checks, and audit trail."
-          bullets={[
-            'Applicant intake → Review → Approved → Enrolled / Rejected',
-            'Approve action auto-creates the student + active enrollment',
-            'Per-status audit log + permissioned transitions',
-            'Best for schools with admission boards and document verification',
-          ]}
+          title={t('staffPages.admMode.struct.title', "Structured (Enterprise)")}
+          subtitle={t('staffPages.admMode.struct.subtitle', "Staged pipeline with review, approval, document checks, and audit trail.")}
+          bullets={[t('staffPages.admMode.struct.b1', "Applicant intake → Review → Approved → Enrolled / Rejected"), t('staffPages.admMode.struct.b2', "Approve action auto-creates the student + active enrollment"), t('staffPages.admMode.struct.b3', "Per-status audit log + permissioned transitions"), t('staffPages.admMode.struct.b4', "Best for schools with admission boards and document verification")]}
           accent="indigo"
         />
       </div>
 
       <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm">
-        <p className="font-semibold text-amber-700 dark:text-amber-300">Both modes coexist system-wide.</p>
+        <p className="font-semibold text-amber-700 dark:text-amber-300">{t('staffPages.admMode.coexist', "Both modes coexist system-wide.")}</p>
         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-          Switching does NOT delete existing students, enrollments, or admissions records.
-          The Flexible-mode pages remain accessible regardless — Structured mode just enables
-          the additional /admissions pipeline.
+          {t('staffPages.admMode.coexistHelp', "Switching does NOT delete existing students, enrollments, or admissions records. The Flexible-mode pages remain accessible regardless — Structured mode just enables the additional /admissions pipeline.")}
         </p>
       </div>
     </div>
@@ -118,6 +110,7 @@ function ModeCard({
   icon: any; title: string; subtitle: string; bullets: string[];
   accent: 'emerald' | 'indigo';
 }) {
+  const { t } = useI18n();
   const isCurrent = current === mode;
   const accentClass = accent === 'emerald'
     ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20'
@@ -133,7 +126,7 @@ function ModeCard({
             <h3 className="text-base font-bold">{title}</h3>
             {isCurrent && (
               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
-                <CheckCircle2 className="w-3 h-3" /> Current
+                <CheckCircle2 className="w-3 h-3" /> {t('staffPages.admMode.current', "Current")}
               </span>
             )}
           </div>
@@ -150,7 +143,7 @@ function ModeCard({
       {!isCurrent && (
         <button onClick={() => onSelect(mode)} disabled={saving}
           className="mt-4 w-full px-3 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
-          {saving ? 'Switching…' : `Switch to ${title}`}
+          {saving ? t('staffPages.admMode.switching', "Switching…") : t('staffPages.admMode.switchTo', { title })}
         </button>
       )}
     </div>

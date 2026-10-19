@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:48:39.666Z",
-  "last_commit": "6d7fe49eac5f777164b081269037a87981c67728",
+  "generated_at": "2026-10-19T15:49:41.467Z",
+  "last_commit": "5b6a8d3edf75aec2966e189d1341a62d96d15660",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10151,7 +10151,20 @@
         }
       ],
       "commit": "6d7fe49eac"
+    },
+    {
+      "version": "2.50.118",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/parents (Parents & Guardians) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/parents (Parents & Guardians) fully Arabic"
+        }
+      ],
+      "commit": "5b6a8d3edf"
     }
   ],
-  "app_version": "2.50.118"
+  "app_version": "2.50.119"
 }

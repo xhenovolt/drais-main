@@ -8630,6 +8630,36 @@
         "sponsor": "sponsor",
         "other": "other"
       }
+    },
+    "admMode": {
+      "failed": "Failed",
+      "switched": "Admission mode switched to {{mode}}",
+      "accessDenied": "Access denied",
+      "failedToLoad": "Failed to load",
+      "needs": "Needs {{perm}}.",
+      "title": "Admission Mode",
+      "subtitle": "Pick how this school takes in new learners.",
+      "flex": {
+        "title": "Flexible (MVP)",
+        "subtitle": "The current DRAIS workflow — rapid admit then enroll. No state machine, no review pipeline.",
+        "b1": "Admin opens /students/admit and creates a learner directly",
+        "b2": "/students/enroll picks a class + term, and the learner is active",
+        "b3": "Best for small schools and rapid onboarding",
+        "b4": "No staged review or document verification"
+      },
+      "struct": {
+        "title": "Structured (Enterprise)",
+        "subtitle": "Staged pipeline with review, approval, document checks, and audit trail.",
+        "b1": "Applicant intake → Review → Approved → Enrolled / Rejected",
+        "b2": "Approve action auto-creates the student + active enrollment",
+        "b3": "Per-status audit log + permissioned transitions",
+        "b4": "Best for schools with admission boards and document verification"
+      },
+      "coexist": "Both modes coexist system-wide.",
+      "coexistHelp": "Switching does NOT delete existing students, enrollments, or admissions records. The Flexible-mode pages remain accessible regardless — Structured mode just enables the additional /admissions pipeline.",
+      "current": "Current",
+      "switching": "Switching…",
+      "switchTo": "Switch to {{title}}"
     }
   },
   "tahfizPages": {
