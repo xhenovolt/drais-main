@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:16:57.027Z",
-  "last_commit": "9e2971b73d64cee7e5752580582b46a34474c6ca",
+  "generated_at": "2026-10-19T17:19:03.051Z",
+  "last_commit": "6c9ad1ab60d48e8b095e149958e2982c225bc76a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10411,7 +10411,20 @@
         }
       ],
       "commit": "9e2971b73d"
+    },
+    {
+      "version": "2.50.138",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Report-card snapshot lists (secular/theology) fully Arabic, localized dates",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Report-card snapshot lists (secular/theology) fully Arabic, localized dates"
+        }
+      ],
+      "commit": "6c9ad1ab60"
     }
   ],
-  "app_version": "2.50.138"
+  "app_version": "2.50.139"
 }

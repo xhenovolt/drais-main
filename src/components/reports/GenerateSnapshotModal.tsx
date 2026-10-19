@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal, { ModalBody, ModalFooter, ModalHeader } from '@/components/ui/Modal';
-import { showToast } from '@/lib/toast';
+import { showToast, uiIsArabic, isEnglishText } from '@/lib/toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+const STATUSES = ['generating', 'ready', 'failed', 'cancelled', 'stale'];
 import { Loader2, Wand2, AlertTriangle } from 'lucide-react';
 import type { SnapshotRow, SnapshotType } from '@/lib/snapshots/types';
 
@@ -30,6 +33,17 @@ interface ChoiceContext {
 export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
   const { isOpen, onClose, defaultType = 'secular' } = props;
   const router = useRouter();
+  const { t, digits, formatDate } = useI18n();
+  const when = (s?: string | null) => { if (!s) return '—'; const d = new Date(s); return isNaN(d.getTime()) ? s : formatDate(d, 'datetime'); };
+  const statusText = (s: string) => (STATUSES.includes(s) ? t(`academicsPages.snapshotModal.st.${s}`, s) : s);
+  const age = (ms: number) => {
+    if (!Number.isFinite(ms) || ms < 0) return '—';
+    const s = Math.round(ms / 1000);
+    if (s < 60) return t('academicsPages.snapshotModal.age.s', { n: s });
+    const m = Math.round(s / 60);
+    if (m < 60) return t('academicsPages.snapshotModal.age.m', { n: m });
+    return t('academicsPages.snapshotModal.age.h', { n: Math.round(m / 60) });
+  };
 
   const [years, setYears]               = useState<YearRow[]>([]);
   const [terms, setTerms]               = useState<TermRow[]>([]);
@@ -86,7 +100,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
 
   const filteredTerms = useMemo(() => {
     if (yearId === '') return terms;
-    return terms.filter(t => !t.academic_year_id || t.academic_year_id === yearId);
+    return terms.filter(tm => !tm.academic_year_id || tm.academic_year_id === yearId);
   }, [terms, yearId]);
 
   const canSubmit = yearId !== '' && termId !== '' && step === 'form';
@@ -123,7 +137,8 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
 
       if (!res.ok) {
         setStep('error');
-        setErrorMsg(json?.message || json?.error || `Generation failed (${res.status})`);
+        const m = json?.message || json?.error;
+        setErrorMsg((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.snapshotModal.failedStatus', { status: res.status })));
         if (json?.stack) setErrorStack(String(json.stack));
         return;
       }
@@ -137,16 +152,16 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
         // optimistic counts when available
         if (json.counts) setGenerated({ snapshotId: json.snapshotId, counts: json.counts });
         setStep('generating');
-        showToast('success', 'Generation started — inspecting progress');
+        showToast('success', t('academicsPages.snapshotModal.started', "Generation started — inspecting progress"));
         return;
       }
 
       setGenerated({ snapshotId: json.snapshotId, counts: json.counts });
       setStep('success');
-      showToast('success', 'Snapshot generated');
+      showToast('success', t('academicsPages.snapshotModal.generatedToast', "Snapshot generated"));
     } catch (e: any) {
       setStep('error');
-      setErrorMsg(e?.message || 'Network error');
+      setErrorMsg(t('academicsPages.snapshotModal.network', "Network error"));
     }
   }
 
@@ -174,7 +189,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
             setStep('success');
           } else {
             setStep('error');
-            setErrorMsg(`Generation ended with status ${status}`);
+            setErrorMsg(t('academicsPages.snapshotModal.endedWith', { status: statusText(status) }));
           }
           setInflightSnapshotId(null);
           return;
@@ -200,7 +215,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
 
   async function flushAndRegenerate() {
     if (!choice) return;
-    if (!confirm('Delete all existing report snapshots for this term/type and regenerate? This cannot be undone.')) return;
+    if (!confirm(t('academicsPages.snapshotModal.confirmFlush', "Delete all existing report snapshots for this term/type and regenerate? This cannot be undone."))) return;
     setFlushing(true);
     try {
       const res = await fetch('/api/snapshots/flush', {
@@ -218,14 +233,15 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
       const json = await res.json();
       if (!res.ok) {
         setStep('error');
-        setErrorMsg(json?.error || json?.message || `Flush failed (${res.status})`);
+        const m = json?.error || json?.message;
+        setErrorMsg((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.snapshotModal.flushFailedStatus', { status: res.status })));
         return;
       }
-      showToast('success', `Flushed ${json.removed ?? 0} snapshot(s)`);
+      showToast('success', t('academicsPages.snapshotModal.flushed', { count: json.removed ?? 0 }));
       await runGenerate({ force: true });
     } catch (e: any) {
       setStep('error');
-      setErrorMsg(e?.message || 'Flush failed');
+      setErrorMsg(t('academicsPages.snapshotModal.flushFailed', "Flush failed"));
     } finally {
       setFlushing(false);
     }
@@ -236,67 +252,67 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
       <ModalHeader>
         <div className="flex items-center gap-2">
           <Wand2 className="w-5 h-5" />
-          <span>Generate Report Snapshot</span>
+          <span>{t('academicsPages.snapshotModal.title', "Generate Report Snapshot")}</span>
         </div>
       </ModalHeader>
       <ModalBody>
         {step === 'form' && (
           <div className="space-y-3">
-            <Field label="Curriculum">
+            <Field label={t('academicsPages.snapshotModal.curriculum', "Curriculum")}>
               <select
                 className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm"
                 value={type}
                 onChange={e => setType(e.target.value as SnapshotType)}
               >
-                <option value="secular">Secular</option>
-                <option value="theology">Theology</option>
-                <option value="mixed">Mixed (all subjects)</option>
+                <option value="secular">{t('academicsPages.snapshotModal.secular', "Secular")}</option>
+                <option value="theology">{t('academicsPages.snapshotModal.theology', "Theology")}</option>
+                <option value="mixed">{t('academicsPages.snapshotModal.mixed', "Mixed (all subjects)")}</option>
               </select>
             </Field>
 
-            <Field label="Academic Year">
+            <Field label={t('academicsPages.snapshotModal.year', "Academic Year")}>
               <select
                 className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm"
                 value={yearId}
                 onChange={e => setYearId(e.target.value ? Number(e.target.value) : '')}
                 disabled={loadingFacets}
               >
-                <option value="">Select year…</option>
+                <option value="">{t('academicsPages.snapshotModal.selectYear', "Select year…")}</option>
                 {years.map(y => (
-                  <option key={y.id} value={y.id}>{y.name}</option>
+                  <option key={y.id} value={y.id}>{digits(y.name)}</option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Term">
+            <Field label={t('academicsPages.snapshotModal.term', "Term")}>
               <select
                 className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm"
                 value={termId}
                 onChange={e => setTermId(e.target.value ? Number(e.target.value) : '')}
                 disabled={loadingFacets}
               >
-                <option value="">Select term…</option>
-                {filteredTerms.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                <option value="">{t('academicsPages.snapshotModal.selectTerm', "Select term…")}</option>
+                {filteredTerms.map(tm => (
+                  <option key={tm.id} value={tm.id}>{tm.name}</option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Result Type (optional)">
+            <Field label={t('academicsPages.snapshotModal.resultType', "Result Type (optional)")}>
               <select
                 className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm"
                 value={resultTypeId}
                 onChange={e => setResultTypeId(e.target.value ? Number(e.target.value) : '')}
                 disabled={loadingFacets}
               >
-                <option value="">All result types</option>
+                <option value="">{t('academicsPages.snapshotModal.allTypes', "All result types")}</option>
                 {resultTypes.map(r => (
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
             </Field>
 
-            <Field label={`Classes (${classIds.length === 0 ? 'all' : classIds.length} selected)`}>
+            <Field label={classIds.length === 0 ? t('academicsPages.snapshotModal.classesAll', "Classes (all selected)") : t('academicsPages.snapshotModal.classesN', { n: classIds.length })}>
               <div className="max-h-40 overflow-y-auto rounded border border-slate-300 dark:border-slate-700 p-2 grid grid-cols-2 gap-1 bg-white dark:bg-slate-800">
                 {classes.map(c => {
                   const checked = classIds.includes(c.id);
@@ -319,7 +335,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
                 })}
               </div>
               <div className="mt-1 text-xs text-slate-500">
-                Leave empty to include every class with results in this term.
+                {t('academicsPages.snapshotModal.classesHelp', "Leave empty to include every class with results in this term.")}
               </div>
             </Field>
           </div>
@@ -330,19 +346,19 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
             <div className="flex items-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin" />
               <div>
-                <div className="font-medium">Generating snapshot — fetching learners, computing rankings…</div>
-                <div className="text-xs text-slate-500">This may take a minute for large schools. You can cancel or wait to inspect progress.</div>
+                <div className="font-medium">{t('academicsPages.snapshotModal.generating', "Generating snapshot — fetching learners, computing rankings…")}</div>
+                <div className="text-xs text-slate-500">{t('academicsPages.snapshotModal.generatingHelp', "This may take a minute for large schools. You can cancel or wait to inspect progress.")}</div>
               </div>
             </div>
 
             {polledRow && (
               <div className="mt-4 rounded border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-800 text-xs">
-                <div className="mb-2">Status: <span className="font-medium">{polledRow.status}</span></div>
+                <div className="mb-2">{t('academicsPages.snapshotModal.status', "Status:")} <span className="font-medium">{statusText(polledRow.status)}</span></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><b>Snapshot</b><div className="font-mono text-[12px] break-all">{polledRow.snapshotId}</div></div>
-                  <div><b>Generated</b><div>{polledRow.generatedAt ? new Date(polledRow.generatedAt).toLocaleString() : '—'}</div></div>
-                  <div><b>Classes</b><div>{polledRow.classCount}</div></div>
-                  <div><b>Students</b><div>{polledRow.studentCount}</div></div>
+                  <div><b>{t('academicsPages.snapshotModal.snapshot', "Snapshot")}</b><div className="font-mono text-[12px] break-all" dir="ltr">{polledRow.snapshotId}</div></div>
+                  <div><b>{t('academicsPages.snapshotModal.generated', "Generated")}</b><div>{when(polledRow.generatedAt)}</div></div>
+                  <div><b>{t('academicsPages.snapshotModal.classes', "Classes")}</b><div>{digits(polledRow.classCount ?? 0)}</div></div>
+                  <div><b>{t('academicsPages.snapshotModal.students', "Students")}</b><div>{digits(polledRow.studentCount ?? 0)}</div></div>
                 </div>
                 <div className="mt-3 flex gap-2">
                   {polledRow.status === 'generating' && (
@@ -352,16 +368,16 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
                           const r = await fetch(`/api/snapshots/${encodeURIComponent(polledRow.snapshotId)}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'cancelled via UI' }) });
                           if (r.ok) {
                             setStep('error');
-                            setErrorMsg('Generation cancelled');
+                            setErrorMsg(t('academicsPages.snapshotModal.cancelled', "Generation cancelled"));
                             setInflightSnapshotId(null);
                           } else {
-                            showToast('error', 'Failed to cancel');
+                            showToast('error', t('academicsPages.snapshotModal.cancelFailed', "Failed to cancel"));
                           }
-                        } catch (e) { showToast('error', 'Network error'); }
+                        } catch (e) { showToast('error', t('academicsPages.snapshotModal.network', "Network error")); }
                       }}
                       className="px-3 py-1.5 rounded border text-sm bg-rose-600 text-white hover:bg-rose-700"
                     >
-                      Cancel generation
+                      {t('academicsPages.snapshotModal.cancelGen', "Cancel generation")}
                     </button>
                   )}
                   <button
@@ -372,7 +388,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
                     }}
                     className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm"
                   >
-                    Inspect snapshot
+                    {t('academicsPages.snapshotModal.inspect', "Inspect snapshot")}
                   </button>
                 </div>
               </div>
@@ -387,19 +403,19 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
               <div className="text-sm text-amber-900 dark:text-amber-200">
                 {choice.code === 'GENERATION_IN_PROGRESS' && (
                   <>
-                    <div className="font-semibold">A generation is already in progress</div>
+                    <div className="font-semibold">{t('academicsPages.snapshotModal.inProgress', "A generation is already in progress")}</div>
                     {choice.inflight ? (
                       <div className="mt-1 text-xs">
-                        Started {formatAge(choice.inflight.ageMs)} ago by user #{choice.inflight.generatedBy}.
+                        {t('academicsPages.snapshotModal.startedAgo', { age: age(choice.inflight.ageMs), user: choice.inflight.generatedBy })}
                       </div>
                     ) : null}
                   </>
                 )}
                 {choice.code === 'READY_SNAPSHOT_EXISTS' && (
                   <>
-                    <div className="font-semibold">Reports already exist for this term/type</div>
+                    <div className="font-semibold">{t('academicsPages.snapshotModal.exists', "Reports already exist for this term/type")}</div>
                     <div className="mt-1 text-xs">
-                      {choice.existing?.length ?? 0} ready snapshot(s) already generated.
+                      {t('academicsPages.snapshotModal.readyN', { count: choice.existing?.length ?? 0 })}
                     </div>
                   </>
                 )}
@@ -409,21 +425,21 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
             {choice.existing && choice.existing.length > 0 && (
               <div className="rounded border border-slate-300 dark:border-slate-700 max-h-40 overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-slate-100 dark:bg-slate-800 text-left">
+                  <thead className="bg-slate-100 dark:bg-slate-800 text-start">
                     <tr>
-                      <th className="px-2 py-1">Snapshot</th>
-                      <th className="px-2 py-1">Generated</th>
-                      <th className="px-2 py-1">Classes</th>
-                      <th className="px-2 py-1">Students</th>
+                      <th className="px-2 py-1 text-start">{t('academicsPages.snapshotModal.snapshot', "Snapshot")}</th>
+                      <th className="px-2 py-1 text-start">{t('academicsPages.snapshotModal.generated', "Generated")}</th>
+                      <th className="px-2 py-1 text-start">{t('academicsPages.snapshotModal.classes', "Classes")}</th>
+                      <th className="px-2 py-1 text-start">{t('academicsPages.snapshotModal.students', "Students")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {choice.existing.slice(0, 10).map(r => (
                       <tr key={r.snapshotId} className="border-t border-slate-200 dark:border-slate-700">
                         <td className="px-2 py-1 font-mono truncate max-w-[140px]" title={r.snapshotId}>{r.snapshotId.slice(0, 8)}…</td>
-                        <td className="px-2 py-1">{new Date(r.generatedAt).toLocaleString()}</td>
-                        <td className="px-2 py-1">{r.classCount}</td>
-                        <td className="px-2 py-1">{r.studentCount}</td>
+                        <td className="px-2 py-1">{when(r.generatedAt)}</td>
+                        <td className="px-2 py-1">{digits(r.classCount ?? 0)}</td>
+                        <td className="px-2 py-1">{digits(r.studentCount ?? 0)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -432,7 +448,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
             )}
 
             <div className="text-sm text-slate-600 dark:text-slate-300">
-              Choose how to proceed:
+              {t('academicsPages.snapshotModal.choose', "Choose how to proceed:")}
             </div>
             {choice.code === 'GENERATION_IN_PROGRESS' && choice.inflight?.snapshotId && (
               <div className="mt-2">
@@ -443,7 +459,7 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
                   }}
                   className="px-3 py-1.5 text-sm rounded bg-emerald-600 text-white"
                 >
-                  Wait & Inspect
+                  {t('academicsPages.snapshotModal.waitInspect', "Wait & Inspect")}
                 </button>
               </div>
             )}
@@ -452,25 +468,25 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
 
         {step === 'success' && generated && (
           <div className="py-6 space-y-3">
-            <div className="text-emerald-600 font-semibold">Snapshot ready ✓</div>
+            <div className="text-emerald-600 font-semibold">{t('academicsPages.snapshotModal.ready', "Snapshot ready ✓")}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
-              <div><b>Classes:</b> {generated.counts.classes}</div>
-              <div><b>Students:</b> {generated.counts.students}</div>
-              <div><b>Subjects:</b> {generated.counts.subjects}</div>
-              <div><b>Result rows:</b> {generated.counts.results}</div>
+              <div><b>{t('academicsPages.snapshotModal.cClasses', "Classes:")}</b> {digits(generated.counts?.classes ?? 0)}</div>
+              <div><b>{t('academicsPages.snapshotModal.cStudents', "Students:")}</b> {digits(generated.counts?.students ?? 0)}</div>
+              <div><b>{t('academicsPages.snapshotModal.cSubjects', "Subjects:")}</b> {digits(generated.counts?.subjects ?? 0)}</div>
+              <div><b>{t('academicsPages.snapshotModal.cResults', "Result rows:")}</b> {digits(generated.counts?.results ?? 0)}</div>
             </div>
-            <div className="text-xs font-mono text-slate-500 break-all">{generated.snapshotId}</div>
+            <div className="text-xs font-mono text-slate-500 break-all" dir="ltr">{generated.snapshotId}</div>
           </div>
         )}
 
         {step === 'error' && (
           <div className="py-6 space-y-2">
-            <div className="text-rose-600 font-semibold">Generation failed</div>
+            <div className="text-rose-600 font-semibold">{t('academicsPages.snapshotModal.failed', "Generation failed")}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{errorMsg}</div>
             {errorStack && (
               <details className="mt-2">
-                <summary className="text-xs text-slate-500 cursor-pointer">Stack trace (dev only)</summary>
-                <pre className="mt-1 text-[11px] font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded overflow-x-auto">{errorStack}</pre>
+                <summary className="text-xs text-slate-500 cursor-pointer">{t('academicsPages.snapshotModal.stack', "Stack trace (dev only)")}</summary>
+                <pre dir="ltr" className="mt-1 text-[11px] font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded overflow-x-auto">{errorStack}</pre>
               </details>
             )}
           </div>
@@ -483,26 +499,26 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
               onClick={onClose}
               className="px-3 py-1.5 text-sm rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
             >
-              Cancel
+              {t('academicsPages.snapshotModal.cancel', "Cancel")}
             </button>
             <button
               onClick={() => runGenerate({ force: false })}
               disabled={!canSubmit || loadingFacets}
               className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generate
+              {t('academicsPages.snapshotModal.generate', "Generate")}
             </button>
           </>
         )}
         {step === 'generating' && (
-          <button disabled className="px-3 py-1.5 text-sm rounded bg-slate-300 text-white">Working…</button>
+          <button disabled className="px-3 py-1.5 text-sm rounded bg-slate-300 text-white">{t('academicsPages.snapshotModal.working', "Working…")}</button>
         )}
         {step === 'choice' && choice && (
           <>
-            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border">Cancel</button>
+            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border">{t('academicsPages.snapshotModal.cancel', "Cancel")}</button>
             {(choice.existing?.length || choice.inflight) ? (
               <button onClick={viewExisting} className="px-3 py-1.5 text-sm rounded border border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40">
-                View Existing
+                {t('academicsPages.snapshotModal.viewExisting', "View Existing")}
               </button>
             ) : null}
             <button
@@ -510,19 +526,19 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
               disabled={flushing}
               className="px-3 py-1.5 text-sm rounded border border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-50"
             >
-              {flushing ? 'Flushing…' : 'Flush & Regenerate'}
+              {flushing ? t('academicsPages.snapshotModal.flushing', "Flushing…") : t('academicsPages.snapshotModal.flushRegen', "Flush & Regenerate")}
             </button>
             <button
               onClick={() => runGenerate({ force: true })}
               className="px-3 py-1.5 text-sm rounded bg-amber-600 text-white hover:bg-amber-700"
             >
-              {choice.code === 'GENERATION_IN_PROGRESS' ? 'Cancel & Regenerate' : 'Regenerate'}
+              {choice.code === 'GENERATION_IN_PROGRESS' ? t('academicsPages.snapshotModal.cancelRegen', "Cancel & Regenerate") : t('academicsPages.snapshotModal.regen', "Regenerate")}
             </button>
           </>
         )}
         {step === 'success' && generated && (
           <>
-            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border">Close</button>
+            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border">{t('academicsPages.snapshotModal.close', "Close")}</button>
             <button
               onClick={() => {
                 router.push(`/academics/report-cards/${type}/${generated.snapshotId}`);
@@ -530,29 +546,19 @@ export function GenerateSnapshotModal(props: GenerateSnapshotModalProps) {
               }}
               className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white"
             >
-              Open snapshot
+              {t('academicsPages.snapshotModal.open', "Open snapshot")}
             </button>
           </>
         )}
         {step === 'error' && (
           <>
-            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border">Close</button>
-            <button onClick={() => setStep('form')} className="px-3 py-1.5 text-sm rounded bg-slate-700 text-white">Retry</button>
+            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border">{t('academicsPages.snapshotModal.close', "Close")}</button>
+            <button onClick={() => setStep('form')} className="px-3 py-1.5 text-sm rounded bg-slate-700 text-white">{t('academicsPages.snapshotModal.retry', "Retry")}</button>
           </>
         )}
       </ModalFooter>
     </Modal>
   );
-}
-
-function formatAge(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return '—';
-  const s = Math.round(ms / 1000);
-  if (s < 60)   return `${s}s`;
-  const m = Math.round(s / 60);
-  if (m < 60)   return `${m}m`;
-  const h = Math.round(m / 60);
-  return `${h}h`;
 }
 
 function Field(props: { label: string; children: React.ReactNode }) {
