@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:41:26.825Z",
-  "last_commit": "81ed24f52f1951015dbb2b6e470de309e1909270",
+  "generated_at": "2026-10-19T16:43:42.062Z",
+  "last_commit": "bc283aff0def9b70d1a4b29610eb3d487788d6bc",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10268,7 +10268,20 @@
         }
       ],
       "commit": "81ed24f52f"
+    },
+    {
+      "version": "2.50.127",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/allocations fully Arabic (matrix, multiple teachers, groups, warnings)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/allocations fully Arabic (matrix, multiple teachers, groups, warnings)"
+        }
+      ],
+      "commit": "bc283aff0d"
     }
   ],
-  "app_version": "2.50.127"
+  "app_version": "2.50.128"
 }

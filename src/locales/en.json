@@ -9068,6 +9068,27 @@
         },
         "primaries": "{{n}} primaries"
       }
+    },
+    "allocHistory": {
+      "title": "Allocation History",
+      "back": "Back to current allocations",
+      "byPair": "By Class × Subject",
+      "byTerm": "Snapshot at Term",
+      "class": "Class",
+      "subject": "Subject",
+      "term": "Term",
+      "selectClass": "Select class…",
+      "selectSubject": "Select subject…",
+      "selectTerm": "Select term…",
+      "pickPair": "Pick a class and subject to see its full timeline.",
+      "pickTerm": "Pick a term to see who taught what on that term's start date.",
+      "none": "No allocations match.",
+      "current": "current",
+      "present": "present",
+      "teacher": "Teacher",
+      "initials": "Initials",
+      "validFrom": "Valid From",
+      "validTo": "Valid To"
     }
   }
 }

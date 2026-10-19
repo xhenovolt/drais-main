@@ -3,6 +3,18 @@ import React, { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { History, Calendar, ChevronRight, Loader2, ArrowLeft, Clock } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+// Allocation dates arrive as YYYY-MM-DD or ISO strings; show them in the reader's language.
+function useDay() {
+  const { formatDate } = useI18n();
+  return (d: string | null | undefined) => {
+    if (!d) return '';
+    const x = new Date(String(d).length === 10 ? `${d}T00:00:00` : d);
+    return isNaN(x.getTime()) ? String(d) : formatDate(x, 'medium');
+  };
+}
+const list = (x: any): any[] => (Array.isArray(x?.data) ? x.data : Array.isArray(x) ? x : []);
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -29,6 +41,8 @@ interface Term { id: number; name: string; start_date: string; end_date: string;
  * windows. Or pick a term to see the entire roster as it stood then.
  */
 export default function AllocationHistoryPage() {
+  const { t } = useI18n();
+  const day = useDay();
   const [mode, setMode] = useState<'pair' | 'term'>('pair');
   const [classId,   setClassId]   = useState('');
   const [subjectId, setSubjectId] = useState('');
@@ -38,9 +52,9 @@ export default function AllocationHistoryPage() {
   const { data: subjectsRes } = useSWR('/api/subjects', fetcher);
   const { data: termsRes    } = useSWR('/api/terms',    fetcher);
 
-  const classes:  any[]  = (classesRes  as any)?.data ?? classesRes  ?? [];
-  const subjects: any[]  = (subjectsRes as any)?.data ?? subjectsRes ?? [];
-  const terms:    Term[] = (termsRes    as any)?.data ?? termsRes    ?? [];
+  const classes:  any[]  = list(classesRes);
+  const subjects: any[]  = list(subjectsRes);
+  const terms:    Term[] = list(termsRes);
 
   const qs = useMemo(() => {
     const p = new URLSearchParams();
@@ -60,18 +74,18 @@ export default function AllocationHistoryPage() {
     qs ? `/api/academics/allocations?${qs}` : null,
     fetcher
   );
-  const allocations = allocRes?.data ?? [];
+  const allocations: Allocation[] = list(allocRes);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <History className="w-6 h-6 text-indigo-500" />
-          <h1 className="text-xl font-bold text-slate-800 dark:text-white">Allocation History</h1>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('academicsPages.allocHistory.title', "Allocation History")}</h1>
         </div>
         <Link href="/academics/allocations"
           className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to current allocations
+          <ArrowLeft className="w-3.5 h-3.5 rtl:-scale-x-100" /> {t('academicsPages.allocHistory.back', "Back to current allocations")}
         </Link>
       </div>
 
@@ -83,7 +97,7 @@ export default function AllocationHistoryPage() {
               ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
           }`}>
-          By Class × Subject
+          {t('academicsPages.allocHistory.byPair', "By Class × Subject")}
         </button>
         <button onClick={() => setMode('term')}
           className={`px-4 py-2 text-sm font-semibold ${
@@ -91,7 +105,7 @@ export default function AllocationHistoryPage() {
               ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400'
               : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
           }`}>
-          Snapshot at Term
+          {t('academicsPages.allocHistory.byTerm', "Snapshot at Term")}
         </button>
       </div>
 
@@ -99,13 +113,13 @@ export default function AllocationHistoryPage() {
       <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
         {mode === 'pair' ? (
           <div className="grid sm:grid-cols-2 gap-3">
-            <Picker label="Class" value={classId} onChange={setClassId} options={classes} placeholder="Select class…" />
-            <Picker label="Subject" value={subjectId} onChange={setSubjectId} options={subjects} placeholder="Select subject…" />
+            <Picker label={t('academicsPages.allocHistory.class', "Class")} value={classId} onChange={setClassId} options={classes} placeholder={t('academicsPages.allocHistory.selectClass', "Select class…")} />
+            <Picker label={t('academicsPages.allocHistory.subject', "Subject")} value={subjectId} onChange={setSubjectId} options={subjects} placeholder={t('academicsPages.allocHistory.selectSubject', "Select subject…")} />
           </div>
         ) : (
-          <Picker label="Term" value={termId} onChange={setTermId}
-            options={terms.map(t => ({ id: t.id, name: `${t.name}  ·  ${t.start_date} → ${t.end_date}` }))}
-            placeholder="Select term…" />
+          <Picker label={t('academicsPages.allocHistory.term', "Term")} value={termId} onChange={setTermId}
+            options={terms.map(tm => ({ id: tm.id, name: `${tm.name}  ·  ${day(tm.start_date)} – ${day(tm.end_date)}` }))}
+            placeholder={t('academicsPages.allocHistory.selectTerm', "Select term…")} />
         )}
       </div>
 
@@ -114,15 +128,13 @@ export default function AllocationHistoryPage() {
         <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
           <Clock className="w-10 h-10" />
           <p className="text-sm">
-            {mode === 'pair'
-              ? 'Pick a class and subject to see its full timeline.'
-              : 'Pick a term to see who taught what on that term\'s start date.'}
+            {mode === 'pair' ? t('academicsPages.allocHistory.pickPair', "Pick a class and subject to see its full timeline.") : t('academicsPages.allocHistory.pickTerm', "Pick a term to see who taught what on that term's start date.")}
           </p>
         </div>
       ) : isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-500" /></div>
       ) : allocations.length === 0 ? (
-        <p className="text-sm text-slate-400 text-center py-10">No allocations match.</p>
+        <p className="text-sm text-slate-400 text-center py-10">{t('academicsPages.allocHistory.none', "No allocations match.")}</p>
       ) : mode === 'pair' ? (
         <Timeline allocations={allocations} />
       ) : (
@@ -133,6 +145,8 @@ export default function AllocationHistoryPage() {
 }
 
 function Timeline({ allocations }: { allocations: Allocation[] }) {
+  const { t } = useI18n();
+  const day = useDay();
   // Sort newest first; mark the active (valid_to IS NULL) one.
   const sorted = [...allocations].sort((a, b) => {
     if (!a.valid_to && b.valid_to) return -1;
@@ -141,12 +155,12 @@ function Timeline({ allocations }: { allocations: Allocation[] }) {
   });
 
   return (
-    <div className="relative pl-6 space-y-4 border-l-2 border-slate-200 dark:border-slate-700">
+    <div className="relative ps-6 space-y-4 border-s-2 border-slate-200 dark:border-slate-700">
       {sorted.map((a, idx) => {
         const isActive = !a.valid_to;
         return (
           <div key={a.id} className="relative">
-            <span className={`absolute -left-[31px] top-2 w-4 h-4 rounded-full border-4 ${
+            <span className={`absolute -start-[31px] top-2 w-4 h-4 rounded-full border-4 ${
               isActive
                 ? 'bg-emerald-500 border-emerald-100 dark:border-emerald-900'
                 : 'bg-slate-300 dark:bg-slate-600 border-slate-100 dark:border-slate-800'
@@ -171,16 +185,16 @@ function Timeline({ allocations }: { allocations: Allocation[] }) {
                   )}
                   {isActive && (
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
-                      current
+                      {t('academicsPages.allocHistory.current', "current")}
                     </span>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
                 <Calendar className="w-3 h-3" />
-                <span className="font-mono">{a.valid_from}</span>
-                <ChevronRight className="w-3 h-3" />
-                <span className="font-mono">{a.valid_to ?? 'present'}</span>
+                <span>{day(a.valid_from)}</span>
+                <ChevronRight className="w-3 h-3 rtl:-scale-x-100" />
+                <span>{a.valid_to ? day(a.valid_to) : t('academicsPages.allocHistory.present', "present")}</span>
               </div>
             </div>
           </div>
@@ -191,17 +205,19 @@ function Timeline({ allocations }: { allocations: Allocation[] }) {
 }
 
 function SnapshotTable({ allocations }: { allocations: Allocation[] }) {
+  const { t } = useI18n();
+  const day = useDay();
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 dark:bg-slate-800">
-          <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500">
-            <th className="px-4 py-3">Class</th>
-            <th className="px-4 py-3">Subject</th>
-            <th className="px-4 py-3">Teacher</th>
-            <th className="px-4 py-3">Initials</th>
-            <th className="px-4 py-3">Valid From</th>
-            <th className="px-4 py-3">Valid To</th>
+          <tr className="text-start text-[11px] uppercase tracking-wide text-slate-500">
+            <th className="px-4 py-3 text-start">{t('academicsPages.allocHistory.class', "Class")}</th>
+            <th className="px-4 py-3 text-start">{t('academicsPages.allocHistory.subject', "Subject")}</th>
+            <th className="px-4 py-3 text-start">{t('academicsPages.allocHistory.teacher', "Teacher")}</th>
+            <th className="px-4 py-3 text-start">{t('academicsPages.allocHistory.initials', "Initials")}</th>
+            <th className="px-4 py-3 text-start">{t('academicsPages.allocHistory.validFrom', "Valid From")}</th>
+            <th className="px-4 py-3 text-start">{t('academicsPages.allocHistory.validTo', "Valid To")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -211,8 +227,8 @@ function SnapshotTable({ allocations }: { allocations: Allocation[] }) {
               <td className="px-4 py-3">{a.subject_name}</td>
               <td className="px-4 py-3 font-semibold">{a.teacher_name}</td>
               <td className="px-4 py-3 font-mono text-xs">{a.display_initials || '—'}</td>
-              <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.valid_from}</td>
-              <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.valid_to ?? '—'}</td>
+              <td className="px-4 py-3 text-xs text-slate-500">{day(a.valid_from)}</td>
+              <td className="px-4 py-3 text-xs text-slate-500">{a.valid_to ? day(a.valid_to) : '—'}</td>
             </tr>
           ))}
         </tbody>
