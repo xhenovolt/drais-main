@@ -9019,6 +9019,40 @@
         "all": "الكل"
       },
       "close": "إغلاق"
+    },
+    "streams": {
+      "required": "الاسم والفصل مطلوبان",
+      "saved": "تم الحفظ",
+      "failed": "حدث خطأ ما.",
+      "sure": "هل أنت متأكد؟",
+      "noRevert": "لن تتمكن من التراجع عن ذلك!",
+      "yesDelete": "نعم، احذفه!",
+      "cancel": "إلغاء",
+      "deletedTitle": "تم الحذف!",
+      "deletedText": "تم حذف الشعبة بنجاح.",
+      "errorTitle": "خطأ!",
+      "deleteFailed": "تعذّر حذف الشعبة",
+      "deleteError": "حدث خطأ أثناء حذف الشعبة",
+      "title": "الشعب",
+      "loading": "جارٍ التحميل",
+      "reload": "إعادة التحميل",
+      "new": "جديد",
+      "name": "الاسم",
+      "class": "الفصل",
+      "editStream": "تعديل الشعبة",
+      "deleteStream": "حذف الشعبة",
+      "none": "لا توجد شعب",
+      "loadingDots": "جارٍ التحميل...",
+      "editTitle": "تعديل الشعبة",
+      "newTitle": "شعبة جديدة",
+      "selectClass": "اختر الفصل",
+      "reset": "إعادة تعيين",
+      "saving": "جارٍ الحفظ...",
+      "save": "حفظ",
+      "addStream": "إضافة شعبة",
+      "streamName": "اسم الشعبة",
+      "selectAClass": "اختر فصلًا",
+      "close": "إغلاق"
     }
   }
 }

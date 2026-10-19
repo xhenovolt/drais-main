@@ -8772,6 +8772,40 @@
         "all": "all"
       },
       "close": "Close"
+    },
+    "streams": {
+      "required": "Name and Class required",
+      "saved": "Saved",
+      "failed": "Something went wrong.",
+      "sure": "Are you sure?",
+      "noRevert": "You won't be able to revert this!",
+      "yesDelete": "Yes, delete it!",
+      "cancel": "Cancel",
+      "deletedTitle": "Deleted!",
+      "deletedText": "Stream deleted successfully.",
+      "errorTitle": "Error!",
+      "deleteFailed": "Failed to delete stream",
+      "deleteError": "An error occurred while deleting the stream",
+      "title": "Streams",
+      "loading": "Loading",
+      "reload": "Reload",
+      "new": "New",
+      "name": "Name",
+      "class": "Class",
+      "editStream": "Edit stream",
+      "deleteStream": "Delete stream",
+      "none": "No streams",
+      "loadingDots": "Loading...",
+      "editTitle": "Edit Stream",
+      "newTitle": "New Stream",
+      "selectClass": "Select Class",
+      "reset": "Reset",
+      "saving": "Saving...",
+      "save": "Save",
+      "addStream": "Add Stream",
+      "streamName": "Stream Name",
+      "selectAClass": "Select a class",
+      "close": "Close"
     }
   }
 }

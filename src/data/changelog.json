@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:58:49.269Z",
-  "last_commit": "fa3e40c25b731d979c9aa788242ca63ecf57f4f8",
+  "generated_at": "2026-10-19T16:00:15.469Z",
+  "last_commit": "d8376f0c54cdf9c0096526666dbf35f1fe841bae",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10190,7 +10190,20 @@
         }
       ],
       "commit": "fa3e40c25b"
+    },
+    {
+      "version": "2.50.121",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/classes (classes, programs, curriculums, class-teacher modal) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/classes (classes, programs, curriculums, class-teacher modal) fully Arabic"
+        }
+      ],
+      "commit": "d8376f0c54"
     }
   ],
-  "app_version": "2.50.121"
+  "app_version": "2.50.122"
 }
