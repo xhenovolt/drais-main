@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:00:15.469Z",
-  "last_commit": "d8376f0c54cdf9c0096526666dbf35f1fe841bae",
+  "generated_at": "2026-10-19T16:08:12.359Z",
+  "last_commit": "af919a4d0351f4e37d319ab48d35e70115b3c0c3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10203,7 +10203,20 @@
         }
       ],
       "commit": "d8376f0c54"
+    },
+    {
+      "version": "2.50.122",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/streams fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/streams fully Arabic"
+        }
+      ],
+      "commit": "af919a4d03"
     }
   ],
-  "app_version": "2.50.122"
+  "app_version": "2.50.123"
 }

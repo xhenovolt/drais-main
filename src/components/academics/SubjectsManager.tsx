@@ -9,6 +9,8 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 const API_BASE = '/api';
 const fetcher = (u: string) => fetch(u).then(r => r.json());
@@ -36,8 +38,10 @@ interface AllocationData {
 }
 
 export const SubjectsManager: React.FC = () => {
+  const { t, rich, digits } = useI18n();
+  const typeLabel = (v?: string) => t(`academicsPages.subjects.type.${v || 'core'}`, v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Core');
   const { mutate } = useSWR(`${API_BASE}/subjects`, fetcher);
-  
+
   const [items, setItems] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -46,14 +50,14 @@ export const SubjectsManager: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    code: '', 
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
     subject_type: 'core',
     academic_type: 'secular'
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
+
   // Allocation modal state
   const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false);
   const [allocationSubjectId, setAllocationSubjectId] = useState<number | null>(null);
@@ -62,7 +66,7 @@ export const SubjectsManager: React.FC = () => {
   const [allocationSubmitting, setAllocationSubmitting] = useState(false);
   const [allClasses, setAllClasses] = useState<ClassOption[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<Set<number>>(new Set());
-  
+
   const perPage = 10;
 
   // Load subject allocations
@@ -71,21 +75,21 @@ export const SubjectsManager: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE}/class-subjects?subject_id=${subjectId}`);
       const result = await response.json();
-      
+
       if (response.ok && result.success) {
-        setAllClasses(result.data.allClasses || []);
-        
+        setAllClasses(Array.isArray(result.data?.allClasses) ? result.data.allClasses : []);
+
         // Mark which classes already have this subject
         const allocatedClassIds = new Set(
           (result.data.allocations || []).map((a: any) => a.class_id)
         );
         setSelectedClasses(allocatedClassIds);
       } else {
-        toast.error(result.error || 'Failed to load class options');
+        toast.error(((result.error) && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.subjects.loadClassesFailed', "Failed to load class options")));
       }
     } catch (error) {
       console.error('Error loading allocations:', error);
-      toast.error('Network error: Failed to load class options');
+      toast.error(t('academicsPages.subjects.netLoadClasses', "Network error: Failed to load class options"));
     } finally {
       setAllocationLoading(false);
     }
@@ -94,10 +98,10 @@ export const SubjectsManager: React.FC = () => {
   // Open allocation modal
   const openAllocationModal = (subject: Subject) => {
     if (!subject || !subject.id) {
-      toast.error('Invalid subject data');
+      toast.error(t('academicsPages.subjects.invalidSubject', "Invalid subject data"));
       return;
     }
-    
+
     setAllocationSubjectId(subject.id);
     setAllocationSubjectName(subject.name);
     setSelectedClasses(new Set());
@@ -134,14 +138,14 @@ export const SubjectsManager: React.FC = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        toast.success(result.message || 'Allocations updated successfully');
+        toast.success(((result.message) && !(uiIsArabic() && isEnglishText(result.message)) ? result.message : t('academicsPages.subjects.allocUpdated', "Allocations updated successfully")));
         setIsAllocationModalOpen(false);
       } else {
-        toast.error(result.error || 'Failed to save allocations');
+        toast.error(((result.error) && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.subjects.allocFailed', "Failed to save allocations")));
       }
     } catch (error) {
       console.error('Error saving allocations:', error);
-      toast.error('Network error: Failed to save allocations');
+      toast.error(t('academicsPages.subjects.netAlloc', "Network error: Failed to save allocations"));
     } finally {
       setAllocationSubmitting(false);
     }
@@ -154,22 +158,22 @@ export const SubjectsManager: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE}/subjects?search=${encodeURIComponent(search)}&page=${page}&limit=${perPage}`);
       const result = await response.json();
-      
+
       if (response.ok) {
         // Handle the actual API response format: { data: [...] }
-        const subjects = result.data || [];
+        const subjects = Array.isArray(result.data) ? result.data : [];
         setItems(subjects);
         setTotal(result.total || subjects.length);
-        
+
         console.log('Loaded subjects:', subjects.length, 'items');
       } else {
-        toast.error(result.error || 'Failed to load subjects');
+        toast.error(((result.error) && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.subjects.loadFailed', "Failed to load subjects")));
         setItems([]);
         setTotal(0);
       }
     } catch (error) {
       console.error('Error loading subjects:', error);
-      toast.error('Network error: Failed to load subjects');
+      toast.error(t('academicsPages.subjects.netLoad', "Network error: Failed to load subjects"));
       setItems([]);
       setTotal(0);
     } finally {
@@ -180,22 +184,22 @@ export const SubjectsManager: React.FC = () => {
   // Validate form data
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!formData.name.trim()) {
-      errors.name = 'Subject name is required';
+      errors.name = t('academicsPages.subjects.nameRequired', "Subject name is required");
     } else if (formData.name.trim().length > 100) {
-      errors.name = 'Subject name must not exceed 100 characters';
+      errors.name = t('academicsPages.subjects.nameTooLong', "Subject name must not exceed 100 characters");
     }
-    
+
     if (formData.code && formData.code.length > 20) {
-      errors.code = 'Subject code must not exceed 20 characters';
+      errors.code = t('academicsPages.subjects.codeTooLong', "Subject code must not exceed 20 characters");
     }
-    
+
     const validTypes = ['core', 'elective', 'tahfiz', 'extra'];
     if (formData.subject_type && !validTypes.includes(formData.subject_type)) {
-      errors.subject_type = 'Invalid subject type';
+      errors.subject_type = t('academicsPages.subjects.invalidType', "Invalid subject type");
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -205,63 +209,64 @@ export const SubjectsManager: React.FC = () => {
     if (!validateForm()) {
       return;
     }
-    
+
     setSubmitting(true);
     const tempId = Date.now(); // Temporary ID for optimistic update
     const optimisticSubject = { id: tempId, ...formData };
-    
+
     // Optimistic update
     setItems(prev => [optimisticSubject, ...prev]);
     setTotal(prev => prev + 1);
-    
+
     try {
       const response = await fetch(`${API_BASE}/subjects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok && result.success === true) {
-        toast.success('Subject added successfully');
+        toast.success(t('academicsPages.subjects.added', "Subject added successfully"));
         resetForm();
-        
+
         // Replace optimistic item with real data using returned ID
         const newSubject = { id: result.id, ...formData };
-        setItems(prev => prev.map(item => 
+        setItems(prev => prev.map(item =>
           item.id === tempId ? newSubject : item
         ));
-        
+
         // Refresh data to ensure consistency
         await load();
       } else {
         // Revert optimistic update
         setItems(prev => prev.filter(item => item.id !== tempId));
         setTotal(prev => prev - 1);
-        
+
         if (result.error) {
-          toast.error(result.error);
-          
+          const shown = ((result.error) && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.subjects.addFailed', "Failed to add subject"));
+          toast.error(shown);
+
           // Handle specific field errors
           if (result.error.includes('name')) {
-            setFormErrors(prev => ({ ...prev, name: result.error }));
+            setFormErrors(prev => ({ ...prev, name: shown }));
           } else if (result.error.includes('code')) {
-            setFormErrors(prev => ({ ...prev, code: result.error }));
+            setFormErrors(prev => ({ ...prev, code: shown }));
           }
         } else {
-          toast.error('Failed to add subject');
+          toast.error(t('academicsPages.subjects.addFailed', "Failed to add subject"));
         }
       }
     } catch (error) {
       console.error('Error adding subject:', error);
       console.error('Network error details:', error);
-      
+
       // Revert optimistic update
       setItems(prev => prev.filter(item => item.id !== tempId));
       setTotal(prev => prev - 1);
-      
-      toast.error('Network error: Failed to add subject');
+
+      toast.error(t('academicsPages.subjects.netAdd', "Network error: Failed to add subject"));
     } finally {
       setSubmitting(false);
     }
@@ -272,74 +277,75 @@ export const SubjectsManager: React.FC = () => {
     if (!validateForm()) {
       return;
     }
-    
+
     if (!id || id <= 0) {
-      toast.error('Invalid subject ID');
+      toast.error(t('academicsPages.subjects.invalidId', "Invalid subject ID"));
       return;
     }
-    
+
     setSubmitting(true);
     const originalItem = items.find(item => item.id === id);
-    
+
     // Optimistic update
-    setItems(prev => prev.map(item => 
+    setItems(prev => prev.map(item =>
       item.id === id ? { ...item, ...formData } : item
     ));
-    
+
     try {
       const response = await fetch(`${API_BASE}/subjects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...formData }),
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok && result.success === true) {
-        toast.success('Subject updated successfully');
+        toast.success(t('academicsPages.subjects.updated', "Subject updated successfully"));
         resetForm();
-        
+
         // Update with form data since API only returns {success: true, id}
         const updatedSubject = { id, ...formData };
-        setItems(prev => prev.map(item => 
+        setItems(prev => prev.map(item =>
           item.id === id ? updatedSubject : item
         ));
-        
+
         // Refresh data to ensure consistency
         await load();
       } else {
         // Revert optimistic update
         if (originalItem) {
-          setItems(prev => prev.map(item => 
+          setItems(prev => prev.map(item =>
             item.id === id ? originalItem : item
           ));
         }
-        
+
         if (result.error) {
-          toast.error(result.error);
-          
+          const shown = ((result.error) && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.subjects.updateFailed', "Failed to update subject"));
+          toast.error(shown);
+
           // Handle specific field errors
           if (result.error.includes('name')) {
-            setFormErrors(prev => ({ ...prev, name: result.error }));
+            setFormErrors(prev => ({ ...prev, name: shown }));
           } else if (result.error.includes('code')) {
-            setFormErrors(prev => ({ ...prev, code: result.error }));
+            setFormErrors(prev => ({ ...prev, code: shown }));
           }
         } else {
-          toast.error('Failed to update subject');
+          toast.error(t('academicsPages.subjects.updateFailed', "Failed to update subject"));
         }
       }
     } catch (error) {
       console.error('Error updating subject:', error);
       console.error('Response received:', error);
-      
+
       // Revert optimistic update
       if (originalItem) {
-        setItems(prev => prev.map(item => 
+        setItems(prev => prev.map(item =>
           item.id === id ? originalItem : item
         ));
       }
-      
-      toast.error('Network error: Failed to update subject');
+
+      toast.error(t('academicsPages.subjects.netUpdate', "Network error: Failed to update subject"));
     } finally {
       setSubmitting(false);
     }
@@ -348,42 +354,43 @@ export const SubjectsManager: React.FC = () => {
   // Delete subject with optimistic updates
   const deleteSubject = async (id: number) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You won\'t be able to revert this!',
+      title: t('academicsPages.subjects.sure', "Are you sure?"),
+      text: t('academicsPages.subjects.noRevert', "You won't be able to revert this!"),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#3085d6',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!',
+      confirmButtonText: t('academicsPages.subjects.yesDelete', "Yes, delete it!"),
+      cancelButtonText: t('academicsPages.subjects.cancel', "Cancel"),
       showLoaderOnConfirm: true,
       preConfirm: async () => {
         try {
           const response = await fetch(`${API_BASE}/subjects?id=${id}`, {
             method: 'DELETE',
           });
-          
+
           const result = await response.json();
-          
+
           if (!response.ok || result.success !== true) {
-            throw new Error(result.error || 'Failed to delete subject');
+            throw new Error(((result.error) && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.subjects.deleteFailed', "Failed to delete subject")));
           }
-          
+
           return result;
         } catch (error) {
-          Swal.showValidationMessage(`Request failed: ${error}`);
+          Swal.showValidationMessage(t('academicsPages.subjects.requestFailed', { error: error instanceof Error ? error.message : String(error) }));
         }
       },
       allowOutsideClick: () => !Swal.isLoading()
     });
-    
+
     if (result.isConfirmed && result.value) {
       // Optimistic update
       const deletedItem = items.find(item => item.id === id);
       setItems(prev => prev.filter(item => item.id !== id));
       setTotal(prev => prev - 1);
-      
-      toast.success('Subject deleted successfully');
-      
+
+      toast.success(t('academicsPages.subjects.deleted', "Subject deleted successfully"));
+
       // Refresh data to ensure consistency
       await load();
     }
@@ -406,10 +413,10 @@ export const SubjectsManager: React.FC = () => {
   // Open modal for editing
   const openEditModal = (subject: Subject) => {
     if (!subject || !subject.id) {
-      toast.error('Invalid subject data');
+      toast.error(t('academicsPages.subjects.invalidSubject', "Invalid subject data"));
       return;
     }
-    
+
     setFormData({
       name: subject.name || '',
       code: subject.code || '',
@@ -424,9 +431,9 @@ export const SubjectsManager: React.FC = () => {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (submitting) return; // Prevent double submission
-    
+
     if (editingId) {
       await editSubject(editingId);
     } else {
@@ -438,7 +445,7 @@ export const SubjectsManager: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
+
     // Clear specific field error when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => {
@@ -465,28 +472,28 @@ export const SubjectsManager: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Subjects Management
+            {t('academicsPages.subjects.title', "Subjects Management")}
           </h1>
           <div className="relative">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && load()}
-              placeholder="Search subjects..."
-              className="w-80 px-4 py-2 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder={t('academicsPages.subjects.searchPh', "Search subjects...")}
+              className="w-80 px-4 py-2 ps-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <a
             href="/academics/subjects/order"
             className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 transition-all text-sm font-medium text-gray-700 dark:text-gray-200"
-            title="Set the order subjects appear on report cards"
+            title={t('academicsPages.subjects.orderTitle', "Set the order subjects appear on report cards")}
           >
             <ArrowUpDown className="w-4 h-4" />
-            Report Order
+            {t('academicsPages.subjects.reportOrder', "Report Order")}
           </a>
           <button
             onClick={load}
@@ -494,15 +501,15 @@ export const SubjectsManager: React.FC = () => {
             className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-2 transition-all"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Loading...' : 'Refresh'}
+            {loading ? t('academicsPages.subjects.loading', "Loading...") : t('academicsPages.subjects.refresh', "Refresh")}
           </button>
 
-          <button 
-            onClick={openAddModal} 
+          <button
+            onClick={openAddModal}
             className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add Subject
+            {t('academicsPages.subjects.addSubject', "Add Subject")}
           </button>
         </div>
       </div>
@@ -513,12 +520,12 @@ export const SubjectsManager: React.FC = () => {
           <table className="w-full text-sm">
             <thead className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white">
               <tr>
-                <th className="text-left px-6 py-4 font-semibold">Subject Name</th>
-                <th className="text-left px-6 py-4 font-semibold">Code</th>
-                <th className="text-left px-6 py-4 font-semibold">Type</th>
-                <th className="text-left px-6 py-4 font-semibold">Scope (Classes)</th>
-                <th className="text-left px-6 py-4 font-semibold">Teachers</th>
-                <th className="text-center px-6 py-4 font-semibold">Actions</th>
+                <th className="text-start px-6 py-4 font-semibold">{t('academicsPages.subjects.col.name', "Subject Name")}</th>
+                <th className="text-start px-6 py-4 font-semibold">{t('academicsPages.subjects.col.code', "Code")}</th>
+                <th className="text-start px-6 py-4 font-semibold">{t('academicsPages.subjects.col.type', "Type")}</th>
+                <th className="text-start px-6 py-4 font-semibold">{t('academicsPages.subjects.col.scope', "Scope (Classes)")}</th>
+                <th className="text-start px-6 py-4 font-semibold">{t('academicsPages.subjects.col.teachers', "Teachers")}</th>
+                <th className="text-center px-6 py-4 font-semibold">{t('academicsPages.subjects.col.actions', "Actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -532,13 +539,13 @@ export const SubjectsManager: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      item.subject_type === 'core' 
+                      item.subject_type === 'core'
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                         : item.subject_type === 'tahfiz'
                         ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                         : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                     }`}>
-                      {item.subject_type ? item.subject_type.charAt(0).toUpperCase() + item.subject_type.slice(1) : 'Core'}
+                      {typeLabel(item.subject_type)}
                     </span>
                     {' '}
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -546,7 +553,7 @@ export const SubjectsManager: React.FC = () => {
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
                         : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                     }`}>
-                      {item.academic_type === 'theology' ? 'Theology' : 'Secular'}
+                      {item.academic_type === 'theology' ? t('academicsPages.subjects.theology', "Theology") : t('academicsPages.subjects.secular', "Secular")}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
@@ -554,14 +561,14 @@ export const SubjectsManager: React.FC = () => {
                       <div className="space-y-1">
                         <div className="text-sm font-medium">
                           {(item.allocation_count || 0) > 0 && (
-                            <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-semibold mr-2">
-                              {item.allocation_count} classes
+                            <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-semibold me-2">
+                              {t('academicsPages.subjects.classCount', { count: item.allocation_count || 0 })}
                             </span>
                           )}
                         </div>
                         <div className="text-xs text-gray-600 dark:text-gray-400">
                           {item.allocated_classes.split(', ').map((cls, idx) => (
-                            <div key={idx} className="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded mr-2 mb-1">
+                            <div key={idx} className="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded me-2 mb-1">
                               {cls}
                             </div>
                           ))}
@@ -569,20 +576,20 @@ export const SubjectsManager: React.FC = () => {
                       </div>
                     ) : (
                       <span className="text-orange-600 dark:text-orange-400 text-sm font-semibold">
-                        ⚠️ No classes assigned
+                        {t('academicsPages.subjects.noClasses', "⚠️ No classes assigned")}
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                     {item.allocated_teachers && item.allocated_teachers.length > 0 ? (
                       item.allocated_teachers.split(', ').map((teacher, idx) => (
-                        <div key={idx} className="inline-block bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-2 py-1 rounded mr-2 mb-1 text-xs font-semibold">
+                        <div key={idx} className="inline-block bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-2 py-1 rounded me-2 mb-1 text-xs font-semibold">
                           {teacher}
                         </div>
                       ))
                     ) : (
                       <span className="text-orange-600 dark:text-orange-400 text-sm font-semibold">
-                        ⚠️ No teacher assigned
+                        {t('academicsPages.subjects.noTeacher', "⚠️ No teacher assigned")}
                       </span>
                     )}
                   </td>
@@ -591,21 +598,21 @@ export const SubjectsManager: React.FC = () => {
                       <button
                         onClick={() => openAllocationModal(item)}
                         className="p-2 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors"
-                        title="Manage Class Allocations"
+                        title={t('academicsPages.subjects.manageAlloc', "Manage Class Allocations")}
                       >
                         <Settings className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => openEditModal(item)}
                         className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
-                        title="Edit Subject"
+                        title={t('academicsPages.subjects.editSubject', "Edit Subject")}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => deleteSubject(item.id)}
                         className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
-                        title="Delete Subject"
+                        title={t('academicsPages.subjects.deleteSubject', "Delete Subject")}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -613,18 +620,18 @@ export const SubjectsManager: React.FC = () => {
                   </td>
                 </tr>
               ))}
-              
+
               {!loading && items.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                       <Search className="w-8 h-8 text-gray-300" />
-                      <p>No subjects found</p>
-                      <button 
+                      <p>{t('academicsPages.subjects.none', "No subjects found")}</p>
+                      <button
                         onClick={openAddModal}
                         className="mt-2 text-blue-600 hover:text-blue-800 transition-colors"
                       >
-                        Add your first subject
+                        {t('academicsPages.subjects.addFirst', "Add your first subject")}
                       </button>
                     </div>
                   </td>
@@ -632,11 +639,11 @@ export const SubjectsManager: React.FC = () => {
               )}
             </tbody>
           </table>
-          
+
           {loading && (
             <div className="flex items-center justify-center py-8 text-gray-500">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Loading subjects...
+              <Loader2 className="w-6 h-6 animate-spin me-2" />
+              {t('academicsPages.subjects.loadingSubjects', "Loading subjects...")}
             </div>
           )}
         </div>
@@ -645,25 +652,25 @@ export const SubjectsManager: React.FC = () => {
       {/* Pagination */}
       <div className="flex items-center justify-between bg-white dark:bg-gray-800 px-6 py-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
         <span className="text-sm text-gray-600 dark:text-gray-400">
-          Showing {items.length} of {total} subjects
+          {t('academicsPages.subjects.showing', { n: items.length, total })}
         </span>
         <div className="flex items-center gap-2">
           <button
             disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => setPage((p) => p - 1)} aria-label={t('academicsPages.subjects.prev', "Previous page")}
             className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:-scale-x-100" />
           </button>
           <span className="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300">
-            Page {page} of {Math.ceil(total / perPage)}
+            {t('academicsPages.subjects.pageOf', { page, pages: Math.ceil(total / perPage) })}
           </span>
           <button
             disabled={page >= Math.ceil(total / perPage)}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage((p) => p + 1)} aria-label={t('academicsPages.subjects.next', "Next page")}
             className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:-scale-x-100" />
           </button>
         </div>
       </div>
@@ -697,10 +704,10 @@ export const SubjectsManager: React.FC = () => {
                 <Dialog.Panel className="w-full max-w-md p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl backdrop-saturate-150 rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 max-h-[80vh] overflow-y-auto overflow-x-hidden">
                   <div className="flex items-center justify-between mb-8">
                     <Dialog.Title className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {editingId ? 'Edit Subject' : 'Add New Subject'}
+                      {editingId ? t('academicsPages.subjects.editSubject', "Edit Subject") : t('academicsPages.subjects.addNew', "Add New Subject")}
                     </Dialog.Title>
-                    <button 
-                      onClick={resetForm} 
+                    <button
+                      onClick={resetForm} aria-label={t('academicsPages.subjects.close', "Close")}
                       disabled={submitting}
                       className="p-3 rounded-full hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
                     >
@@ -711,7 +718,7 @@ export const SubjectsManager: React.FC = () => {
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                        Subject Name *
+                        {t('academicsPages.subjects.nameReq', "Subject Name *")}
                       </label>
                       <input
                         id="name"
@@ -722,11 +729,11 @@ export const SubjectsManager: React.FC = () => {
                         onChange={handleInputChange}
                         disabled={submitting}
                         className={`w-full px-4 py-3 rounded-xl border ${
-                          formErrors.name 
-                            ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60' 
+                          formErrors.name
+                            ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60'
                             : 'border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60'
                         } bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50`}
-                        placeholder="Enter subject name"
+                        placeholder={t('academicsPages.subjects.namePh', "Enter subject name")}
                       />
                       {formErrors.name && (
                         <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
@@ -735,7 +742,7 @@ export const SubjectsManager: React.FC = () => {
 
                     <div>
                       <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                        Subject Code
+                        {t('academicsPages.subjects.code', "Subject Code")}
                       </label>
                       <input
                         id="code"
@@ -745,11 +752,11 @@ export const SubjectsManager: React.FC = () => {
                         onChange={handleInputChange}
                         disabled={submitting}
                         className={`w-full px-4 py-3 rounded-xl border ${
-                          formErrors.code 
-                            ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60' 
+                          formErrors.code
+                            ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60'
                             : 'border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60'
                         } bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50`}
-                        placeholder="Enter subject code"
+                        placeholder={t('academicsPages.subjects.codePh', "Enter subject code")}
                       />
                       {formErrors.code && (
                         <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
@@ -758,7 +765,7 @@ export const SubjectsManager: React.FC = () => {
 
                     <div>
                       <label htmlFor="subject_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                        Subject Type
+                        {t('academicsPages.subjects.subjectType', "Subject Type")}
                       </label>
                       <Select
                         value={formData.subject_type}
@@ -770,13 +777,13 @@ export const SubjectsManager: React.FC = () => {
                             ? 'border-red-500/60 focus:ring-red-500/60 focus:border-red-500/60'
                             : 'border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60'
                         } bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50`}>
-                          <SelectValue placeholder="Select subject type" />
+                          <SelectValue placeholder={t('academicsPages.subjects.selectType', "Select subject type")} />
                         </SelectTrigger>
                         <SelectContent className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
-                          <SelectItem value="core" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Core</SelectItem>
-                          <SelectItem value="elective" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Elective</SelectItem>
-                          <SelectItem value="tahfiz" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Tahfiz</SelectItem>
-                          <SelectItem value="extra" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Extra-curricular</SelectItem>
+                          <SelectItem value="core" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">{t('academicsPages.subjects.type.core', "Core")}</SelectItem>
+                          <SelectItem value="elective" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">{t('academicsPages.subjects.type.elective', "Elective")}</SelectItem>
+                          <SelectItem value="tahfiz" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">{t('academicsPages.subjects.type.tahfiz', "Tahfiz")}</SelectItem>
+                          <SelectItem value="extra" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">{t('academicsPages.subjects.extraCurricular', "Extra-curricular")}</SelectItem>
                         </SelectContent>
                       </Select>
                       {formErrors.subject_type && (
@@ -786,7 +793,7 @@ export const SubjectsManager: React.FC = () => {
 
                     <div>
                       <label htmlFor="academic_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                        Academic Stream
+                        {t('academicsPages.subjects.academicStream', "Academic Stream")}
                       </label>
                       <Select
                         value={formData.academic_type}
@@ -794,33 +801,33 @@ export const SubjectsManager: React.FC = () => {
                         disabled={submitting}
                       >
                         <SelectTrigger className="w-full px-4 py-3 rounded-xl border border-gray-300/60 dark:border-gray-600/60 focus:ring-blue-500/60 focus:border-blue-500/60 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50">
-                          <SelectValue placeholder="Select academic stream" />
+                          <SelectValue placeholder={t('academicsPages.subjects.selectStream', "Select academic stream")} />
                         </SelectTrigger>
                         <SelectContent className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
-                          <SelectItem value="secular" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Secular</SelectItem>
-                          <SelectItem value="theology" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">Theology</SelectItem>
+                          <SelectItem value="secular" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">{t('academicsPages.subjects.secular', "Secular")}</SelectItem>
+                          <SelectItem value="theology" className="text-gray-900 dark:text-gray-100 focus:bg-gray-100 dark:focus:bg-gray-700">{t('academicsPages.subjects.theology', "Theology")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="flex justify-end gap-4 pt-6">
-                      <button 
+                      <button
                         type="button"
                         onClick={resetForm}
                         disabled={submitting}
                         className="px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
                       >
-                        Cancel
+                        {t('academicsPages.subjects.cancel', "Cancel")}
                       </button>
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         disabled={submitting}
                         className="px-8 py-3 bg-gradient-to-r from-blue-500/90 to-purple-600/90 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] backdrop-blur-sm disabled:opacity-50 disabled:transform-none disabled:hover:shadow-lg flex items-center gap-2"
                       >
                         {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {submitting 
-                          ? (editingId ? 'Updating...' : 'Adding...') 
-                          : (editingId ? 'Update Subject' : 'Add Subject')
+                        {submitting
+                          ? (editingId ? t('academicsPages.subjects.updating', "Updating...") : t('academicsPages.subjects.adding', "Adding..."))
+                          : (editingId ? t('academicsPages.subjects.updateSubject', "Update Subject") : t('academicsPages.subjects.addSubject', "Add Subject"))
                         }
                       </button>
                     </div>
@@ -862,14 +869,14 @@ export const SubjectsManager: React.FC = () => {
                   <div className="flex items-center justify-between mb-8">
                     <div>
                       <Dialog.Title className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        Manage Subject Scope
+                        {t('academicsPages.subjects.scopeTitle', "Manage Subject Scope")}
                       </Dialog.Title>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                        <strong>{allocationSubjectName}</strong> — Select which classes this subject is taught in
+                        {rich('academicsPages.subjects.scopeSub', { name: <strong>{allocationSubjectName}</strong> })}
                       </p>
                     </div>
-                    <button 
-                      onClick={() => setIsAllocationModalOpen(false)}
+                    <button
+                      onClick={() => setIsAllocationModalOpen(false)} aria-label={t('academicsPages.subjects.close', "Close")}
                       disabled={allocationSubmitting}
                       className="p-3 rounded-full hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
                     >
@@ -879,8 +886,8 @@ export const SubjectsManager: React.FC = () => {
 
                   {allocationLoading ? (
                     <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-500 mr-2" />
-                      <span className="text-gray-600 dark:text-gray-400">Loading classes...</span>
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-500 me-2" />
+                      <span className="text-gray-600 dark:text-gray-400">{t('academicsPages.subjects.loadingClasses', "Loading classes...")}</span>
                     </div>
                   ) : (
                     <>
@@ -905,7 +912,7 @@ export const SubjectsManager: React.FC = () => {
                                   </div>
                                   {cls.class_level && (
                                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      Level: {cls.class_level}
+                                      {t('academicsPages.subjects.level', { n: cls.class_level })}
                                     </div>
                                   )}
                                 </div>
@@ -913,7 +920,7 @@ export const SubjectsManager: React.FC = () => {
                             ))
                           ) : (
                             <div className="col-span-2 text-center py-8 text-gray-500 dark:text-gray-400">
-                              No classes available
+                              {t('academicsPages.subjects.noClassesAvail', "No classes available")}
                             </div>
                           )}
                         </div>
@@ -921,27 +928,27 @@ export const SubjectsManager: React.FC = () => {
 
                       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-8">
                         <p className="text-sm text-blue-800 dark:text-blue-200">
-                          <strong>Scope Definition:</strong> When a subject is marked for specific classes, it will only appear on reports for students in those classes. This prevents learners from seeing results for subjects they don't take.
+                          {rich('academicsPages.subjects.scopeHelp', { label: <strong>{t('academicsPages.subjects.scopeLabel', 'Scope Definition:')}</strong> })}
                         </p>
                       </div>
 
                       <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <button 
+                        <button
                           type="button"
                           onClick={() => setIsAllocationModalOpen(false)}
                           disabled={allocationSubmitting}
                           className="px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
                         >
-                          Cancel
+                          {t('academicsPages.subjects.cancel', "Cancel")}
                         </button>
-                        <button 
+                        <button
                           type="button"
                           onClick={saveAllocations}
                           disabled={allocationSubmitting}
                           className="px-8 py-3 bg-gradient-to-r from-purple-500/90 to-pink-600/90 hover:from-purple-600 hover:to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] backdrop-blur-sm disabled:opacity-50 disabled:transform-none disabled:hover:shadow-lg flex items-center gap-2"
                         >
                           {allocationSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                          {allocationSubmitting ? 'Saving...' : `Save Allocation (${selectedClasses.size})`}
+                          {allocationSubmitting ? t('academicsPages.subjects.saving', "Saving...") : t('academicsPages.subjects.saveAlloc', { n: selectedClasses.size })}
                         </button>
                       </div>
                     </>
