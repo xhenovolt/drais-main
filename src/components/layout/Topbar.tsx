@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Menu, Bell, Cloud, CloudOff, Fingerprint, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2, Globe } from 'lucide-react';
+import { Menu, Bell, HardDrive, CloudOff, Fingerprint, Check, CheckCheck, Loader, AlertCircle, Trash2, Loader2, Globe } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -58,7 +58,7 @@ function CloudinaryBadge() {
           : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400'
       }`}
     >
-      {connected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
+      {connected ? <HardDrive className="w-3 h-3" aria-hidden /> : <CloudOff className="w-3 h-3" aria-hidden />}
       <span>{connected ? t('topbar.cloudOk', 'Cloud Storage ✓') : t('topbar.cloudFail', 'Cloud Storage ✗')}</span>
     </div>
   );
@@ -312,17 +312,17 @@ interface TopbarProps {
 
 /**
  * TOPBAR - Professional Header with Search & Profile
- * 
+ *
  * DESKTOP LAYOUT:
  * - Left: Menu (hidden lg+) + Logo
  * - Center: Global Search Bar
  * - Right: Notifications + Profile Dropdown
- * 
+ *
  * MOBILE LAYOUT:
  * - Left: Menu icon + Logo
  * - Center: Search icon (opens modal)
  * - Right: Profile circle (compact)
- * 
+ *
  * DESIGN RULES:
  * - 56px height
  * - Visible simplicity, hidden power

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:10:52.350Z",
-  "last_commit": "4813d08bad2d581fb09ca793a2ea508b9963b35e",
+  "generated_at": "2026-10-19T16:12:26.333Z",
+  "last_commit": "ed97d2338e627e9b5b9ef5058b688844626cfc6a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10229,7 +10229,20 @@
         }
       ],
       "commit": "4813d08bad"
+    },
+    {
+      "version": "2.50.124",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/subjects/order and subject detail fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/subjects/order and subject detail fully Arabic"
+        }
+      ],
+      "commit": "ed97d2338e"
     }
   ],
-  "app_version": "2.50.124"
+  "app_version": "2.50.125"
 }

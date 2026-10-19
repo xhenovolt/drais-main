@@ -974,8 +974,8 @@
     "colStatus": "الحالة"
   },
   "topbar": {
-    "cloudOk": "السحابة ✓",
-    "cloudFail": "السحابة ✗",
+    "cloudOk": "التخزين السحابي ✓",
+    "cloudFail": "التخزين السحابي ✗",
     "cloudConnected": "كلاوديناري متصل",
     "cloudNotConnected": "كلاوديناري غير متصل",
     "noDevices": "لا أجهزة",

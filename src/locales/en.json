@@ -2519,8 +2519,8 @@
     "colStatus": "Status"
   },
   "topbar": {
-    "cloudOk": "Cloud ✓",
-    "cloudFail": "Cloud ✗",
+    "cloudOk": "Cloud Storage ✓",
+    "cloudFail": "Cloud Storage ✗",
     "cloudConnected": "Cloudinary connected",
     "cloudNotConnected": "Cloudinary not connected",
     "noDevices": "No Devices",
