@@ -6,12 +6,33 @@
  * release / reassign, suspend / activate / retire, and read its ownership
  * timeline. Ownership lives here now, not at the school level.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { HardDrive, Loader2, Search, History, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { HardDrive, Loader2, Search, History, X, ChevronLeft, ChevronRight, FilterX, AlertTriangle } from 'lucide-react';
 import { ExportButtons } from '@/app/control/_components/ExportButtons';
 
-const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
+// A failed request must surface as an error, never as an empty fleet.
+const fetcher = async (u: string) => {
+  const r = await fetch(u, { cache: 'no-store' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error || `Request failed (${r.status})`);
+  return j;
+};
+const VIEWS = [
+  { key: 'all', label: 'All devices' },
+  { key: 'in_service', label: 'In service' },
+  { key: 'retired', label: 'Retired' },
+] as const;
+const STATUS_OPTIONS = [
+  { key: '', label: 'Any status' },
+  { key: 'online', label: 'Online' },
+  { key: 'offline', label: 'Offline' },
+  { key: 'suspended', label: 'Suspended' },
+  { key: 'released', label: 'Released' },
+  { key: 'retired', label: 'Retired' },
+] as const;
+const LIFECYCLE_LABEL: Record<string, string> = { in_service: 'in service', suspended: 'suspended', released: 'released', retired: 'retired' };
 const ago = (d: string | null) => {
   if (!d) return 'never';
   const min = Math.round((Date.now() - new Date(d).getTime()) / 60000);
@@ -26,23 +47,44 @@ const STATUS_STYLE: Record<string, string> = {
   suspended: 'bg-orange-500/20 text-orange-300',
   retired: 'bg-rose-500/20 text-rose-300',
   inactive: 'bg-slate-600/30 text-slate-300',
+  in_service: 'bg-emerald-500/20 text-emerald-300',
 };
 
-export default function ControlDevices() {
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
+export default function ControlDevicesPage() {
+  // useSearchParams needs a Suspense boundary in the app router.
+  return <Suspense fallback={<div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}><ControlDevices /></Suspense>;
+}
+
+function ControlDevices() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  // Filters live in the URL so dashboard cards can open a pre-filtered list (?status=offline, ?view=retired).
+  const [q, setQ] = useState(sp.get('q') || '');
+  const [status, setStatus] = useState((sp.get('status') || '').toLowerCase());
+  const [view, setView] = useState((sp.get('view') || 'all').toLowerCase());
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState<string | null>(null);
   const [timelineSn, setTimelineSn] = useState<string | null>(null);
-  // Any filter change resets to the first page.
-  useEffect(() => { setPage(1); }, [q, status]);
+  // Any filter change resets to the first page and is mirrored into the URL.
+  useEffect(() => {
+    setPage(1);
+    const u = new URLSearchParams();
+    if (q) u.set('q', q);
+    if (status) u.set('status', status);
+    if (view && view !== 'all') u.set('view', view);
+    router.replace(`/control/devices${u.toString() ? `?${u}` : ''}`, { scroll: false });
+  }, [q, status, view, router]);
   const params = new URLSearchParams({ page: String(page), limit: '50' });
   if (q) params.set('q', q);
   if (status) params.set('status', status);
-  const { data, isLoading, mutate } = useSWR<any>(`/api/control-center/devices?${params}`, fetcher, { keepPreviousData: true });
+  if (view && view !== 'all') params.set('view', view);
+  const { data, error, isLoading, mutate } = useSWR<any>(`/api/control-center/devices?${params}`, fetcher, { keepPreviousData: true });
   const devices = data?.devices || [];
   const schools = data?.schools || [];
+  const counts = data?.counts;
   const pg = data?.pagination || { page: 1, total: 0, totalPages: 1, limit: 50 };
+  const filtered = !!(q || status || (view && view !== 'all'));
+  const clearFilters = () => { setQ(''); setStatus(''); setView('all'); };
   const unassigned = useMemo(() => devices.filter((d: any) => d.school_id == null).length, [devices]);
 
   const act = useCallback(async (sn: string, action: string, extra: Record<string, unknown> = {}) => {
@@ -71,7 +113,12 @@ export default function ControlDevices() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-slate-400">
-          {Number(pg.total).toLocaleString()} device{pg.total === 1 ? '' : 's'} on the platform
+          {counts
+            ? <>{counts.in_service.toLocaleString()} in service · {counts.retired.toLocaleString()} retired
+                {counts.suspended + counts.released > 0 && <> · {(counts.suspended + counts.released).toLocaleString()} suspended/released</>}
+                <span className="text-slate-500"> · {counts.online} online, {counts.offline} offline</span></>
+            : <>{Number(pg.total).toLocaleString()} device{pg.total === 1 ? '' : 's'}</>}
+          {filtered && <span className="ml-2 text-indigo-300">· showing {Number(pg.total).toLocaleString()} matching</span>}
           {unassigned > 0 && <span className="ml-2 text-amber-300">· {unassigned} unassigned on this page</span>}
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -82,9 +129,13 @@ export default function ControlDevices() {
           </div>
           <select value={status} onChange={e => setStatus(e.target.value)}
             className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-300">
-            <option value="">All statuses</option>
-            {['active', 'released', 'suspended', 'retired', 'inactive'].map(s => <option key={s} value={s}>{s}</option>)}
+            {STATUS_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
+          {filtered && (
+            <button onClick={clearFilters} className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">
+              <FilterX className="w-3.5 h-3.5" /> Clear filters
+            </button>
+          )}
           <ExportButtons filename="drais-devices" rows={devices} columns={[
             { key: 'sn', label: 'Serial' }, { key: 'device_name', label: 'Name' },
             { key: 'school_name', label: 'School', value: (r) => r.school_name || 'UNASSIGNED' },
@@ -97,21 +148,59 @@ export default function ControlDevices() {
         </div>
       </div>
 
-      {isLoading && <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}
-      {data && devices.length === 0 && <p className="text-sm text-slate-500 text-center py-10">No devices match.</p>}
+      {/* Lifecycle tabs — retired devices are kept and viewable, never silently hidden. */}
+      <div className="flex gap-1 border-b border-slate-800">
+        {VIEWS.map(v => {
+          const n = counts ? (v.key === 'all' ? counts.all : v.key === 'in_service' ? counts.all - counts.retired : counts.retired) : null;
+          return (
+            <button key={v.key} onClick={() => setView(v.key)}
+              className={`px-3 py-2 text-xs font-semibold border-b-2 -mb-px ${view === v.key ? 'border-indigo-400 text-indigo-300' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              {v.label}{n != null && <span className="ml-1 text-slate-500">({n})</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {isLoading && !data && <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}
+      {error && (
+        <div className="rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-sm text-rose-200 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">The device list could not be loaded — this is an error, not an empty fleet.</p>
+            <p className="text-xs opacity-80 mt-0.5">{String(error.message || error)}</p>
+            <button onClick={() => mutate()} className="mt-2 text-xs underline">Try again</button>
+          </div>
+        </div>
+      )}
+      {!error && data && devices.length === 0 && (
+        <div className="rounded-xl border border-dashed border-slate-700 py-10 text-center">
+          <p className="text-sm text-slate-300">{filtered || (counts?.all ?? 0) > 0 ? 'No devices match these filters' : 'No devices registered yet'}</p>
+          {filtered && counts && <p className="text-xs text-slate-500 mt-1">The platform has {counts.all} device{counts.all === 1 ? '' : 's'} in total — they are only hidden by the filters.</p>}
+          {filtered && (
+            <button onClick={clearFilters} className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-semibold">
+              <FilterX className="w-3.5 h-3.5" /> Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         {devices.map((d: any) => {
           const b = (a: string) => busy === `${d.sn}:${a}`;
+          const lifecycle: string = d.lifecycle || d.status;
+          const retired = lifecycle === 'retired';
           return (
-            <div key={d.sn} className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+            <div key={d.sn} className={`bg-slate-900 border border-slate-800 rounded-xl p-3.5 ${retired ? 'opacity-70' : ''}`}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <HardDrive className={`w-4 h-4 ${d.is_online ? 'text-emerald-400' : 'text-slate-600'}`} />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <HardDrive className={`w-4 h-4 ${d.is_online && !retired ? 'text-emerald-400' : 'text-slate-600'}`} />
                     <span className="font-mono text-sm font-semibold text-slate-100">{d.sn}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${STATUS_STYLE[d.status] || 'bg-slate-700 text-slate-300'}`}>{d.status}</span>
-                    {!d.is_online && <span className="text-[10px] text-slate-500">seen {ago(d.last_seen)} ago</span>}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${STATUS_STYLE[lifecycle] || 'bg-slate-700 text-slate-300'}`}>{LIFECYCLE_LABEL[lifecycle] || lifecycle}</span>
+                    {!retired && (d.is_online
+                      ? <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase bg-emerald-500/20 text-emerald-300">online</span>
+                      : <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase bg-slate-700 text-slate-300">offline · seen {ago(d.last_seen)} ago</span>)}
+                    {retired && d.deleted_at && <span className="text-[10px] text-slate-500">retired {new Date(d.deleted_at).toLocaleDateString()} · last seen {ago(d.last_seen)} ago</span>}
                   </div>
                   <div className="text-xs text-slate-400 mt-1">
                     {d.device_name || '—'} · {d.model_name || 'unknown model'} · {d.location || 'no location'}
@@ -128,7 +217,7 @@ export default function ControlDevices() {
                     {d.created_at && <span>reg {new Date(d.created_at).toLocaleDateString()}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
+                {!retired && <div className="flex items-center gap-1.5 flex-wrap">
                   <button onClick={() => assign(d.sn)} disabled={!!busy}
                     className="text-[11px] px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-50">
                     {b('assign') ? '…' : d.school_id == null ? 'Assign' : 'Reassign'}
@@ -150,7 +239,11 @@ export default function ControlDevices() {
                   )}
                   <button onClick={() => setTimelineSn(d.sn)} title="Device details & timeline"
                     className="text-[11px] p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"><History className="w-3.5 h-3.5" /></button>
-                </div>
+                </div>}
+                {retired && (
+                  <button onClick={() => setTimelineSn(d.sn)} title="Device details & timeline"
+                    className="text-[11px] p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"><History className="w-3.5 h-3.5" /></button>
+                )}
               </div>
             </div>
           );

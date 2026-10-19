@@ -3,36 +3,47 @@
 /** Control dashboard — the DRAIS platform at a glance. */
 import React, { useState } from 'react';
 import useSWR from 'swr';
-import { School, Users, Briefcase, HardDrive, MessageSquare, Activity, AlertTriangle, CheckCircle, UserCog, Ban } from 'lucide-react';
+import Link from 'next/link';
+import { School, Users, Briefcase, HardDrive, MessageSquare, Activity, AlertTriangle, CheckCircle, UserCog, Ban, WifiOff, Archive, ChevronRight } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 
 export default function ControlDashboard() {
   const { data } = useSWR<any>('/api/control-center/overview', fetcher, { refreshInterval: 60_000 });
 
+  const dv = data?.devices;
+  // Every card opens the list behind its number, with the matching filter already applied.
   const tiles = [
-    { label: 'Schools', value: data?.schools?.total, sub: `${data?.schools?.active ?? 0} active · ${data?.schools?.suspended ?? 0} suspended`, icon: School },
-    { label: 'Active Learners', value: data?.learners, sub: 'across all schools', icon: Users },
-    { label: 'Active Staff', value: data?.staff, sub: 'across all schools', icon: Briefcase },
-    { label: 'Devices Online', value: data ? `${data.devices?.online ?? 0}/${data.devices?.total ?? 0}` : undefined, sub: 'biometric devices', icon: HardDrive },
-    { label: 'SMS (24h)', value: data?.sms_24h?.sent, sub: `${data?.sms_24h?.failed ?? 0} failed`, icon: MessageSquare },
-    { label: 'Clock Anomalies Today', value: data?.clock_anomalies_today, sub: 'device time drift', icon: Activity },
+    { label: 'Schools', value: data?.schools?.total, sub: `${data?.schools?.active ?? 0} active · ${data?.schools?.suspended ?? 0} suspended`, icon: School, href: '/control/schools' },
+    { label: 'Active Learners', value: data?.learners, sub: 'across all schools', icon: Users, href: '/control/bi' },
+    { label: 'Active Staff', value: data?.staff, sub: 'across all schools', icon: Briefcase, href: '/control/bi' },
+    { label: 'Devices Online', value: dv ? `${dv.online ?? 0}/${dv.total ?? 0}` : undefined,
+      sub: dv ? `${dv.total} active · ${dv.retired} retired` : 'biometric devices', icon: HardDrive, href: '/control/devices?status=online' },
+    { label: 'Devices Offline', value: dv?.offline, sub: 'in service, not heard from in 2 min', icon: WifiOff, href: '/control/devices?status=offline',
+      alert: (dv?.offline ?? 0) > 0 },
+    { label: 'Retired Devices', value: dv?.retired, sub: 'kept for history · not in health figures', icon: Archive, href: '/control/devices?view=retired' },
+    { label: 'SMS (24h)', value: data?.sms_24h?.sent, sub: `${data?.sms_24h?.failed ?? 0} failed`, icon: MessageSquare, href: '/control/sms' },
+    { label: 'Clock Anomalies Today', value: data?.clock_anomalies_today, sub: 'device time drift', icon: Activity, href: '/control/system-health' },
   ];
 
   const healthy = data && data.problems?.length === 0;
   return (
     <div className="space-y-5">
       <ImpersonationsPanel />
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {tiles.map(({ label, value, sub, icon: Icon }) => (
-          <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {tiles.map(({ label, value, sub, icon: Icon, href, alert }) => (
+          <Link key={label} href={href}
+            className={`group block bg-slate-900 border rounded-xl p-4 transition-colors hover:border-indigo-500 hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${alert ? 'border-amber-700' : 'border-slate-800'}`}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-slate-400">{label}</span>
-              <Icon className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs text-slate-400 group-hover:text-slate-200">{label}</span>
+              <Icon className={`w-4 h-4 ${alert ? 'text-amber-400' : 'text-indigo-400'}`} />
             </div>
             <div className="text-2xl font-bold text-slate-100 tabular-nums">{value == null ? '—' : typeof value === 'number' ? value.toLocaleString() : value}</div>
-            <div className="text-[11px] text-slate-500">{sub}</div>
-          </div>
+            <div className="text-[11px] text-slate-500 flex items-center justify-between gap-1">
+              <span>{sub}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-300 flex-shrink-0" />
+            </div>
+          </Link>
         ))}
       </div>
 

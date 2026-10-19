@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T13:46:09.743Z",
-  "last_commit": "180cdc6ad7c2e5fb0a76fc1d5b476402bcb438d3",
+  "generated_at": "2026-10-19T14:50:28.495Z",
+  "last_commit": "e24b52b21df46fa127803420ec32b24e83d335ef",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10034,7 +10034,20 @@
         }
       ],
       "commit": "180cdc6ad7"
+    },
+    {
+      "version": "2.50.109",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Devices stuck re-sending a user-directory batch — ACK OPERLOG first, process after",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Devices stuck re-sending a user-directory batch — ACK OPERLOG first, process after"
+        }
+      ],
+      "commit": "e24b52b21d"
     }
   ],
-  "app_version": "2.50.109"
+  "app_version": "2.50.110"
 }

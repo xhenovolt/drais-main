@@ -36,23 +36,93 @@ const controlActor = (operatorId: number | null, schoolId: number | null): Trans
   userId: operatorId, schoolId: schoolId ?? 0, ip: null, userAgent: 'xhenvolt-control', fromSuperAdmin: true,
 });
 
+/**
+ * ONE definition of a device's state, used by the device list AND the dashboard (they used to disagree:
+ * the list hid every retired device, the dashboard counted them as part of the fleet).
+ *
+ *   lifecycle — retired (status 'retired' or soft-deleted) | suspended | released | in_service (anything else;
+ *               the legacy `status` column also holds connectivity words like 'active'/'offline')
+ *   online    — heard from in the last ONLINE_WINDOW_MINUTES. Only in-service devices count towards
+ *               fleet health; retired ones are never "offline".
+ */
+export const ONLINE_WINDOW_MINUTES = 2;
+export const DEVICE_LIFECYCLE_SQL =
+  `CASE WHEN d.deleted_at IS NOT NULL OR LOWER(d.status) = 'retired' THEN 'retired'
+        WHEN LOWER(d.status) IN ('suspended', 'released') THEN LOWER(d.status)
+        ELSE 'in_service' END`;
+export const DEVICE_ONLINE_SQL = `(d.last_seen IS NOT NULL AND d.last_seen > DATE_SUB(NOW(), INTERVAL ${ONLINE_WINDOW_MINUTES} MINUTE))`;
+
+/** Filter values the list accepts (lower-case). Legacy values are mapped, unknown ones are rejected. */
+export const DEVICE_STATUS_FILTERS = ['online', 'offline', 'in_service', 'suspended', 'released', 'retired'] as const;
+export type DeviceStatusFilter = typeof DEVICE_STATUS_FILTERS[number];
+export const DEVICE_VIEWS = ['all', 'in_service', 'retired'] as const;
+export type DeviceView = typeof DEVICE_VIEWS[number];
+
+/** PURE: normalise a ?status= value. 'active' → in_service, 'inactive' → offline; '' → no filter; unknown → null. */
+export function normalizeDeviceStatusFilter(raw: string | null | undefined): DeviceStatusFilter | '' | null {
+  const v = String(raw ?? '').trim().toLowerCase();
+  if (!v || v === 'all' || v === 'any') return '';
+  if (v === 'active') return 'in_service';
+  if (v === 'inactive') return 'offline';
+  return (DEVICE_STATUS_FILTERS as readonly string[]).includes(v) ? (v as DeviceStatusFilter) : null;
+}
+
+/** PURE: the SQL condition for one status filter (combined with the others by AND). */
+export function deviceStatusCondition(f: DeviceStatusFilter): string {
+  switch (f) {
+    case 'online': return `(${DEVICE_LIFECYCLE_SQL}) = 'in_service' AND ${DEVICE_ONLINE_SQL}`;
+    case 'offline': return `(${DEVICE_LIFECYCLE_SQL}) = 'in_service' AND NOT ${DEVICE_ONLINE_SQL}`;
+    default: return `(${DEVICE_LIFECYCLE_SQL}) = '${f}'`;
+  }
+}
+
 export interface PlatformDeviceFilter {
-  q?: string; schoolId?: number | 'unassigned' | null; status?: string | null;
+  q?: string; schoolId?: number | 'unassigned' | null; status?: DeviceStatusFilter | '' | null;
+  /** all (default) | in_service | retired */
+  view?: DeviceView | null;
+  /** Restrict to these schools (a school-scoped operator). [] = nothing. */
+  schoolScope?: number[] | null;
   /** Bounded slice (P21). Omit for the legacy unbounded list. */
   limit?: number; offset?: number;
 }
 
+export interface DeviceCounts { all: number; in_service: number; online: number; offline: number; suspended: number; released: number; retired: number }
+
+/** Whole-fleet counts by lifecycle/connectivity (optionally scoped). Feeds the list tabs and the dashboard. */
+export async function deviceCounts(schoolScope?: number[] | null): Promise<DeviceCounts> {
+  const scoped = Array.isArray(schoolScope);
+  const where = scoped ? (schoolScope!.length ? `WHERE d.school_id IN (${schoolScope!.map(() => '?').join(',')})` : 'WHERE 1 = 0') : '';
+  const rows = (await query(
+    `SELECT COUNT(*) AS all_n,
+            SUM(lc = 'in_service') AS in_service, SUM(lc = 'in_service' AND online = 1) AS online,
+            SUM(lc = 'in_service' AND online = 0) AS offline, SUM(lc = 'suspended') AS suspended,
+            SUM(lc = 'released') AS released, SUM(lc = 'retired') AS retired
+       FROM (SELECT ${DEVICE_LIFECYCLE_SQL} AS lc, ${DEVICE_ONLINE_SQL} AS online FROM devices d ${where}) x`,
+    scoped ? schoolScope! : [],
+  )) as any[];
+  const r = rows[0] || {};
+  const n = (v: unknown) => Number(v || 0);
+  return { all: n(r.all_n), in_service: n(r.in_service), online: n(r.online), offline: n(r.offline), suspended: n(r.suspended), released: n(r.released), retired: n(r.retired) };
+}
+
 /**
- * Every device (across every school) matching the filter, with owner name +
- * computed online flag. Returns { rows, total }; when `limit` is given the
- * query is bounded (P21 scale hardening) and `total` reflects the full match.
+ * Every device (across every school) matching the filter, with owner name, lifecycle and
+ * computed online flag. Filters combine with AND. Returns { rows, total }; when `limit` is given
+ * the query is bounded (P21 scale hardening) and `total` reflects the full match.
+ * Errors are thrown, never turned into an empty list (an empty fleet must mean an empty fleet).
  */
 export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
-  const cond: string[] = ['d.deleted_at IS NULL'];
+  const cond: string[] = ['1 = 1'];
   const params: any[] = [];
   if (filter.schoolId === 'unassigned') cond.push('d.school_id IS NULL');
   else if (Number.isFinite(filter.schoolId as number)) { cond.push('d.school_id = ?'); params.push(filter.schoolId); }
-  if (filter.status) { cond.push('d.status = ?'); params.push(filter.status); }
+  if (Array.isArray(filter.schoolScope)) {
+    if (filter.schoolScope.length === 0) cond.push('1 = 0');
+    else { cond.push(`d.school_id IN (${filter.schoolScope.map(() => '?').join(',')})`); params.push(...filter.schoolScope); }
+  }
+  if (filter.view === 'in_service') cond.push(`(${DEVICE_LIFECYCLE_SQL}) <> 'retired'`);
+  else if (filter.view === 'retired') cond.push(`(${DEVICE_LIFECYCLE_SQL}) = 'retired'`);
+  if (filter.status) cond.push(deviceStatusCondition(filter.status));
   if (filter.q) {
     cond.push('(d.sn LIKE ? OR d.device_name LIKE ? OR d.location LIKE ?)');
     const like = `%${filter.q}%`; params.push(like, like, like);
@@ -67,13 +137,14 @@ export async function listPlatformDevices(filter: PlatformDeviceFilter = {}) {
   const rows = (await query(
     `SELECT d.id, d.sn, d.device_name, d.model_name, d.device_type, d.location, d.status, d.school_id,
             d.last_seen, d.last_activity, d.firmware_version, d.push_version, d.ip_address, d.lan_ip,
-            d.device_user_count, d.created_at,
-            (d.last_seen > DATE_SUB(NOW(), INTERVAL 2 MINUTE)) AS is_online,
+            d.device_user_count, d.created_at, d.deleted_at,
+            ${DEVICE_LIFECYCLE_SQL} AS lifecycle,
+            ${DEVICE_ONLINE_SQL} AS is_online,
             s.name AS school_name
        FROM devices d
        LEFT JOIN schools s ON s.id = d.school_id
       WHERE ${where}
-      ORDER BY (d.school_id IS NULL) DESC, d.last_seen DESC
+      ORDER BY ((${DEVICE_LIFECYCLE_SQL}) = 'retired') ASC, (d.school_id IS NULL) DESC, d.last_seen DESC
       ${pageClause}`,
     params,
   )) as any[];
