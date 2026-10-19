@@ -7,12 +7,37 @@
  * authoritative reference data.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Check, Plus, X, ToggleLeft, ToggleRight, BookMarked, Pencil, Trash2 } from 'lucide-react';
+import { BookOpen, Check, Plus, X, ToggleLeft, ToggleRight, BookMarked, Pencil, Trash2, AlertTriangle, RotateCcw } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const j = (u, opts?) => fetch(u, opts).then(r => r.json());
 
+/** Load-state panel: loading, or an error the user can act on — never an endless "Loading…". */
+function LoadState({ error, code, onRetry, className = '' }) {
+  const { t } = useI18n();
+  if (!error) return <p className={`text-sm text-slate-400 ${className}`}>{t('tahfizPages.books.loading', 'Loading…')}</p>;
+  return (
+    <div className={`rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300 flex items-start gap-2 ${className}`}>
+      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+      <div className="flex-1">
+        <p className="font-medium">
+          {code === 'MODULE_DISABLED'
+            ? t('tahfizPages.books.moduleDisabled', 'Tahfiz is not enabled for this school.')
+            : t('tahfizPages.books.loadFailed', 'The books could not be loaded.')}
+        </p>
+        {code !== 'MODULE_DISABLED' && (
+          <button onClick={onRetry} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold underline">
+            <RotateCcw className="w-3 h-3" /> {t('tahfizPages.books.retry', 'Try again')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TahfizBooksPage() {
   const [catalog, setCatalog] = useState(null);
+  const [loadCode, setLoadCode] = useState('');
   const [msg, setMsg] = useState('');
   const [addingCustom, setAddingCustom] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -21,20 +46,19 @@ export default function TahfizBooksPage() {
   const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
+    setLoadError('');
     try {
       const response = await fetch('/api/tahfiz/books/catalog');
-      const data = await response.json();
-
-      if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.success === false || !Array.isArray(data?.global) || !Array.isArray(data?.custom)) {
+        setLoadCode(data?.code || '');
         throw new Error(data?.error || `Request failed (${response.status})`);
       }
-      if (!Array.isArray(data?.global) || !Array.isArray(data?.custom)) {
-        throw new Error('Unexpected catalog response');
-      }
-
-      setCatalog(data);
-      setLoadError('');
+      // Only arrays ever reach state (an error body used to, and crashed on .length).
+      setCatalog({ global: data.global, custom: data.custom });
+      setLoadCode('');
     } catch (error) {
+      console.error('[tahfiz/books] catalog load failed', error);
       setCatalog(null);
       setLoadError(error instanceof Error ? error.message : 'Could not load books');
     }
@@ -55,7 +79,7 @@ export default function TahfizBooksPage() {
       {/* Global books */}
       <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Global books</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-        {!catalog ? <p className="text-sm text-slate-400">Loading…</p> : catalog.global.length === 0 ? <p className="text-sm text-slate-400">No global books.</p> :
+        {!catalog ? <LoadState error={loadError} code={loadCode} onRetry={load} className="md:col-span-2" /> : catalog.global.length === 0 ? <p className="text-sm text-slate-400">No global books.</p> :
           catalog.global.map(b => (
             <div key={b.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <div className="flex items-start justify-between gap-2">
@@ -81,7 +105,7 @@ export default function TahfizBooksPage() {
         <button onClick={() => setAddingCustom(true)} className="flex items-center gap-1 text-xs font-semibold text-indigo-600"><Plus className="w-3.5 h-3.5" /> Add custom book</button>
       </div>
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
-        {!catalog ? <p className="text-sm text-slate-400 p-4">Loading…</p> : catalog.custom.length === 0 ? <p className="text-sm text-slate-400 p-4">No custom books yet.</p> :
+        {!catalog ? (loadError ? null : <LoadState error="" code="" onRetry={load} className="p-4" />) : catalog.custom.length === 0 ? <p className="text-sm text-slate-400 p-4">No custom books yet.</p> :
           catalog.custom.map(b => (
             <div key={b.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <span className="font-medium text-slate-700 dark:text-slate-200 min-w-0 truncate">{b.title}</span>
@@ -269,7 +293,24 @@ function QuranSelector({ onClose }) {
   const [juz, setJuz] = useState(1);
   const [hizb, setHizb] = useState(1);
 
-  useEffect(() => { j('/api/tahfiz/quran/reference').then(setRef).catch(() => {}); }, []);
+  const { t } = useI18n();
+  const [refError, setRefError] = useState('');
+  const [refCode, setRefCode] = useState('');
+  const loadRef = useCallback(() => {
+    setRefError('');
+    fetch('/api/tahfiz/quran/reference')
+      .then(async (r) => {
+        const d = await r.json().catch(() => null);
+        // Only a complete reference reaches state; an error body used to, and `ref.juz[...]` then threw.
+        if (!r.ok || d?.success === false || !Array.isArray(d?.surahs) || !Array.isArray(d?.juz) || !Array.isArray(d?.hizb)) {
+          setRefCode(d?.code || '');
+          throw new Error(d?.error || `Request failed (${r.status})`);
+        }
+        setRef({ surahs: d.surahs, juz: d.juz, hizb: d.hizb });
+      })
+      .catch((e) => { console.error('[tahfiz/books] reference load failed', e); setRefError(String(e?.message || e)); });
+  }, []);
+  useEffect(() => { loadRef(); }, [loadRef]);
   const surahs = ref?.surahs ?? [];
   const sName = (n) => surahs.find(s => s.number === Number(n))?.name_translit || `Surah ${n}`;
   const sAyahs = (n) => surahs.find(s => s.number === Number(n))?.ayah_count || 1;
@@ -284,7 +325,7 @@ function QuranSelector({ onClose }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3"><h2 className="font-bold text-slate-800 dark:text-white">Qur'an portion selector</h2><button onClick={onClose} className="p-1 text-slate-400"><X className="w-5 h-5" /></button></div>
-        {!ref ? <p className="text-sm text-slate-400">Loading reference…</p> : (
+        {!ref ? (refError ? <LoadState error={refError} code={refCode} onRetry={loadRef} /> : <p className="text-sm text-slate-400">{t('tahfizPages.books.loadingReference', 'Loading reference…')}</p>) : (
           <>
             <div className="flex gap-1 mb-3">
               {['surah','page','juz','hizb'].map(m => (

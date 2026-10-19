@@ -228,8 +228,11 @@ const ReportsPage = () => {
         })
     ])
       .then(([reportsData, schoolConfigData]) => {
-        const students = reportsData?.students || [];
-        const results = reportsData?.results || reportsData?.data || (Array.isArray(reportsData) ? reportsData as Result[] : []);
+        // Arrays only — an error body must not reach state (Tahfiz pages crashed on `.length` of one).
+        const students = Array.isArray(reportsData?.students) ? reportsData.students : [];
+        const results = Array.isArray(reportsData?.results) ? reportsData.results
+          : Array.isArray(reportsData?.data) ? reportsData.data
+          : Array.isArray(reportsData) ? reportsData as Result[] : [];
         setAllStudents(students);
         setAllResults(results);
         

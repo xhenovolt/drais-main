@@ -29,7 +29,7 @@ export default function TahfizRecords() {
         const res = await fetch('/api/tahfiz/records'); // Replace 1 with the actual school_id
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to fetch records');
-        setRecords(data.data);
+        setRecords(Array.isArray(data?.data) ? data.data : []);
       } catch (err: any) {
         setError(err.message);
       } finally {

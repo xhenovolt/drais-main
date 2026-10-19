@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T14:50:28.495Z",
-  "last_commit": "e24b52b21df46fa127803420ec32b24e83d335ef",
+  "generated_at": "2026-10-19T15:24:05.576Z",
+  "last_commit": "1a2c94ebbeba8ba2f46868f8a2162d244d0766d4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10047,7 +10047,20 @@
         }
       ],
       "commit": "e24b52b21d"
+    },
+    {
+      "version": "2.50.110",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Devices list hid retired devices and filters emptied the fleet; dashboard cards clickable",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Devices list hid retired devices and filters emptied the fleet; dashboard cards clickable"
+        }
+      ],
+      "commit": "1a2c94ebbe"
     }
   ],
-  "app_version": "2.50.110"
+  "app_version": "2.50.111"
 }

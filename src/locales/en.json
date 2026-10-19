@@ -8133,5 +8133,14 @@
         "users": "users"
       }
     }
+  },
+  "tahfizPages": {
+    "books": {
+      "loading": "Loading…",
+      "loadingReference": "Loading reference…",
+      "moduleDisabled": "Tahfiz is not enabled for this school.",
+      "loadFailed": "The books could not be loaded.",
+      "retry": "Try again"
+    }
   }
 }
