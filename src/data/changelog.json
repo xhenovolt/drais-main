@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:43:52.213Z",
-  "last_commit": "cb0b012b1d9cf52a91ba61c4f6c7db8d20ab59f2",
+  "generated_at": "2026-10-19T15:45:51.168Z",
+  "last_commit": "ffdbe496eb4ab545536de62745d64e98a0f9694e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10112,7 +10112,20 @@
         }
       ],
       "commit": "cb0b012b1d"
+    },
+    {
+      "version": "2.50.115",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/trash fully Arabic (incl. purge dialog, entity + dependency names)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/trash fully Arabic (incl. purge dialog, entity + dependency names)"
+        }
+      ],
+      "commit": "ffdbe496eb"
     }
   ],
-  "app_version": "2.50.115"
+  "app_version": "2.50.116"
 }

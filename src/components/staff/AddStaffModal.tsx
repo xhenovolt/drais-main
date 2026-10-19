@@ -431,7 +431,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
                 >
                   {inCat.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name}{p.isTeaching ? t('staffPages.add.teaching', " · teaching") : ''}
+                      {(p as any).schoolId == null ? t(`staffPages.positions.name.${p.code}`, p.name) : p.name}{p.isTeaching ? t('staffPages.add.teaching', " · teaching") : ''}
                     </option>
                   ))}
                 </optgroup>

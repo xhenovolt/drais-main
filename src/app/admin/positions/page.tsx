@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { Briefcase, Plus, Edit, Loader2, X, Lock, BookOpen, Building2, Coins, Heart, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -27,11 +28,14 @@ const CATEGORIES = [
 ];
 
 export default function PositionsAdminPage() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
+  /** Platform catalog positions have Arabic names by code; a school's own position keeps its typed name. */
+  const posName = (p: Position) => (p.schoolId === null ? t(`staffPages.positions.name.${p.code}`, p.name) : p.name);
+  const catLabel = (v: string) => t(`staffPages.positions.cat.${v}`, CATEGORIES.find(c => c.value === v)?.label ?? v);
   const { data, mutate, isLoading } = useSWR<{ positions: Position[] }>(
     '/api/admin/positions?active_only=0', fetcher
   );
-  const positions = data?.positions ?? [];
+  const positions = Array.isArray(data?.positions) ? data!.positions : [];
 
   const [filter, setFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -55,7 +59,7 @@ export default function PositionsAdminPage() {
   }
   function openEdit(p: Position) {
     if (p.schoolId === null) {
-      toast.error('Global catalog positions are read-only.'); return;
+      toast.error(t('staffPages.positions.globalReadOnly', "Global catalog positions are read-only.")); return;
     }
     setEditing(p);
     setForm({
@@ -66,7 +70,7 @@ export default function PositionsAdminPage() {
   }
 
   async function save() {
-    if (!form.name || !form.code) { toast.error('Code and name required'); return; }
+    if (!form.name || !form.code) { toast.error(t('staffPages.positions.codeNameRequired', "Code and name required")); return; }
     setSaving(true);
     try {
       const payload: any = {
@@ -81,16 +85,16 @@ export default function PositionsAdminPage() {
       });
       const j = await res.json();
       if (!res.ok || !j.success) throw new Error(j.error || 'Save failed');
-      toast.success(editing ? 'Position updated' : 'Position created');
+      toast.success(editing ? t('staffPages.positions.updated', "Position updated") : t('staffPages.positions.created', "Position created"));
       setModalOpen(false);
       mutate();
-    } catch (e: any) { toast.error(e?.message || 'Save failed'); }
+    } catch (e: any) { toast.error((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.positions.saveFailed', "Save failed"))); }
     finally { setSaving(false); }
   }
 
   async function toggleActive(p: Position) {
     if (p.schoolId === null) {
-      toast.error('Global catalog positions cannot be deactivated here.'); return;
+      toast.error(t('staffPages.positions.globalNoDeactivate', "Global catalog positions cannot be deactivated here.")); return;
     }
     try {
       const res = await fetch('/api/admin/positions', {
@@ -101,7 +105,7 @@ export default function PositionsAdminPage() {
       const j = await res.json();
       if (!res.ok || !j.success) throw new Error(j.error || 'Failed');
       mutate();
-    } catch (e: any) { toast.error(e?.message || 'Failed'); }
+    } catch (e: any) { toast.error((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.positions.failed', "Failed"))); }
   }
 
   return (
@@ -111,12 +115,12 @@ export default function PositionsAdminPage() {
           <Briefcase className="w-6 h-6 text-indigo-500" />
           <div>
             <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('nav.staff.positions')}</h1>
-            <p className="text-xs text-slate-400">Catalog of staff job titles. Global rows are read-only.</p>
+            <p className="text-xs text-slate-400">{t('staffPages.positions.subtitle', "Catalog of staff job titles. Global rows are read-only.")}</p>
           </div>
         </div>
         <button onClick={openCreate}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-          <Plus className="w-4 h-4" /> New Position
+          <Plus className="w-4 h-4" /> {t('staffPages.positions.newPosition', "New Position")}
         </button>
       </div>
 
@@ -128,7 +132,7 @@ export default function PositionsAdminPage() {
               ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
           }`}>
-          All ({positions.length})
+          {t('staffPages.positions.allCount', { n: positions.length })}
         </button>
         {CATEGORIES.map(c => {
           const Icon = c.icon;
@@ -139,7 +143,7 @@ export default function PositionsAdminPage() {
                   ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
               }`}>
-              <Icon className="w-3 h-3" /> {c.label} ({counts[c.value] ?? 0})
+              <Icon className="w-3 h-3" /> {catLabel(c.value)} ({digits(counts[c.value] ?? 0)})
             </button>
           );
         })}
@@ -151,32 +155,32 @@ export default function PositionsAdminPage() {
         <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800">
-              <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Teaching</th>
-                <th className="px-4 py-3">Scope</th>
-                <th className="px-4 py-3">Active</th>
+              <tr className="text-start text-[11px] uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-start">{t('staffPages.positions.col.name', "Name")}</th>
+                <th className="px-4 py-3 text-start">{t('staffPages.positions.col.code', "Code")}</th>
+                <th className="px-4 py-3 text-start">{t('staffPages.positions.col.category', "Category")}</th>
+                <th className="px-4 py-3 text-start">{t('staffPages.positions.col.teaching', "Teaching")}</th>
+                <th className="px-4 py-3 text-start">{t('staffPages.positions.col.scope', "Scope")}</th>
+                <th className="px-4 py-3 text-start">{t('staffPages.positions.col.active', "Active")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filtered.map(p => (
                 <tr key={p.id} className="bg-white dark:bg-slate-900">
-                  <td className="px-4 py-3 font-semibold">{p.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.code}</td>
-                  <td className="px-4 py-3 text-slate-500 capitalize">{p.category}</td>
+                  <td className="px-4 py-3 font-semibold">{posName(p)}</td>
+                  <td dir="ltr" className="px-4 py-3 font-mono text-xs text-slate-500 text-start rtl:text-end">{p.code}</td>
+                  <td className="px-4 py-3 text-slate-500 capitalize">{catLabel(p.category)}</td>
                   <td className="px-4 py-3">
-                    {p.isTeaching ? <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">Yes</span> : <span className="text-slate-400 text-xs">No</span>}
+                    {p.isTeaching ? <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">{t('staffPages.positions.yes', "Yes")}</span> : <span className="text-slate-400 text-xs">{t('staffPages.positions.no', "No")}</span>}
                   </td>
                   <td className="px-4 py-3">
                     {p.schoolId === null ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500">
-                        <Lock className="w-3 h-3" /> Global
+                        <Lock className="w-3 h-3" /> {t('staffPages.positions.global', "Global")}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">School</span>
+                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{t('staffPages.positions.school', "School")}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -191,13 +195,13 @@ export default function PositionsAdminPage() {
                           : 'bg-slate-300 dark:bg-slate-600'
                       } ${p.schoolId === null ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition ${
-                          p.isActive ? 'left-4' : 'left-0.5'
+                          p.isActive ? 'start-4' : 'start-0.5'
                         }`} />
                       </div>
                     </label>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => openEdit(p)}
+                  <td className="px-4 py-3 text-end">
+                    <button onClick={() => openEdit(p)} title={t('staffPages.positions.edit', "Edit")} aria-label={t('staffPages.positions.edit', "Edit")}
                       disabled={p.schoolId === null}
                       className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed">
                       <Edit className="w-3.5 h-3.5" />
@@ -215,43 +219,43 @@ export default function PositionsAdminPage() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{editing ? 'Edit Position' : 'New Position'}</h3>
+              <h3 className="text-lg font-semibold">{editing ? t('staffPages.positions.editPosition', "Edit Position") : t('staffPages.positions.newPosition', "New Position")}</h3>
               <button onClick={() => setModalOpen(false)} className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-3">
-              <F label="Name *">
+              <F label={t('staffPages.positions.nameReq', "Name *")}>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} />
               </F>
-              <F label="Code * (lowercase, no spaces)">
+              <F label={t('staffPages.positions.codeReq', "Code * (lowercase, no spaces)")}>
                 <input value={form.code}
                   onChange={e => setForm({ ...form, code: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
-                  className={`${inputCls} font-mono`} />
+                  dir="ltr" className={`${inputCls} font-mono`} />
               </F>
-              <F label="Category *">
+              <F label={t('staffPages.positions.categoryReq', "Category *")}>
                 <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as any })} className={inputCls}>
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{catLabel(c.value)}</option>)}
                 </select>
               </F>
-              <F label="Display Order">
+              <F label={t('staffPages.positions.displayOrder', "Display Order")}>
                 <input type="number" value={form.display_order}
                   onChange={e => setForm({ ...form, display_order: e.target.value })} className={inputCls} />
               </F>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.is_teaching}
                   onChange={e => setForm({ ...form, is_teaching: e.target.checked })} />
-                <span className="text-sm">This is a teaching position</span>
+                <span className="text-sm">{t('staffPages.positions.isTeaching', "This is a teaching position")}</span>
               </label>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-                Cancel
+                {t('staffPages.positions.cancel', "Cancel")}
               </button>
               <button onClick={save} disabled={saving}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {editing ? 'Update' : 'Create'}
+                {editing ? t('staffPages.positions.update', "Update") : t('staffPages.positions.create', "Create")}
               </button>
             </div>
           </div>
