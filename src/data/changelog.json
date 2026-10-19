@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:19:03.051Z",
-  "last_commit": "6c9ad1ab60d48e8b095e149958e2982c225bc76a",
+  "generated_at": "2026-10-19T17:21:59.220Z",
+  "last_commit": "8515a49efbc9514680bd73c96ff6a56b8d07b80c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10424,7 +10424,20 @@
         }
       ],
       "commit": "6c9ad1ab60"
+    },
+    {
+      "version": "2.50.139",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Generate Report Snapshot modal fully Arabic (form, progress, existing-snapshot choice, results)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Generate Report Snapshot modal fully Arabic (form, progress, existing-snapshot choice, results)"
+        }
+      ],
+      "commit": "8515a49efb"
     }
   ],
-  "app_version": "2.50.139"
+  "app_version": "2.50.140"
 }

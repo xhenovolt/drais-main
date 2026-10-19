@@ -9796,6 +9796,93 @@
         "cancelled": "cancelled",
         "stale": "stale"
       }
+    },
+    "snapshotManage": {
+      "loadFailed": "Load failed",
+      "cancelled": "Generation cancelled",
+      "cancelFailed": "Cancel failed",
+      "confirmDelete": "Permanently delete this snapshot? This cannot be undone.",
+      "deleted": "Snapshot deleted",
+      "deleteFailed": "Delete failed",
+      "back": "Back to Report Cards",
+      "title": "Snapshot Management",
+      "subtitle": "Operational view across all snapshot states. Cancel stuck generations, delete superseded snapshots, or flush a whole term/type at once.",
+      "refresh": "Refresh",
+      "st": {
+        "all": "all",
+        "generating": "Generating",
+        "ready": "Ready",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "stale": "Stale"
+      },
+      "type": {
+        "all": "all",
+        "secular": "secular",
+        "theology": "theology",
+        "mixed": "mixed"
+      },
+      "filter": "Filter:",
+      "typeLabel": "Type",
+      "status": "Status",
+      "autoRefresh": "Auto-refresh while in-flight",
+      "flushBy": "Flush by criteria…",
+      "col": {
+        "status": "Status",
+        "snapshot": "Snapshot",
+        "type": "Type",
+        "term": "Term / Year",
+        "generated": "Generated",
+        "counts": "Counts",
+        "duration": "Duration",
+        "actions": "Actions"
+      },
+      "none": "No snapshots match these filters.",
+      "termN": "Term #{{id}}",
+      "typeN": "Type #{{id}}",
+      "allAssessments": "All assessments",
+      "byUser": "by user #{{id}}",
+      "classes": {
+        "one": "{{count}} class",
+        "other": "{{count}} classes"
+      },
+      "learners": {
+        "one": "{{count}} learner",
+        "other": "{{count}} learners"
+      },
+      "rows": {
+        "one": "{{count}} row",
+        "other": "{{count}} rows"
+      },
+      "seconds": "{{n}}s",
+      "cancelTitle": "Cancel this in-flight generation",
+      "cancel": "Cancel",
+      "deleteTitle": "Permanently delete this snapshot",
+      "delete": "Delete",
+      "f": {
+        "needFilter": "Select at least one filter (type / term / year).",
+        "needStatus": "Select at least one status to flush, or enable \"Cancel in-flight\".",
+        "confirm": "Permanently delete all matching snapshots? This cannot be undone.",
+        "failed": "Flush failed",
+        "flushed": {
+          "one": "Flushed {{count}} snapshot",
+          "other": "Flushed {{count}} snapshots"
+        },
+        "andCancelled": ", cancelled {{n}} in-flight",
+        "title": "Flush snapshots",
+        "close": "Close",
+        "warning": "This permanently deletes snapshot rows from your school. Source marks/results are not affected.",
+        "type": "Type",
+        "any": "— any —",
+        "termId": "Term ID",
+        "yearId": "Year ID",
+        "rtId": "Result Type ID (or 'null')",
+        "anyPh": "any",
+        "statuses": "Statuses to flush",
+        "alsoCancel": "Also cancel any in-flight generation for the same key",
+        "flushing": "Flushing…",
+        "flush": "Flush"
+      }
     }
   }
 }
