@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:39:26.336Z",
-  "last_commit": "2a769ec97ad8da4dda7c383c9e9c24ac0841f550",
+  "generated_at": "2026-10-19T15:41:00.503Z",
+  "last_commit": "47e2031ef42f77a182ff365c57b070f788086bda",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10086,7 +10086,20 @@
         }
       ],
       "commit": "2a769ec97a"
+    },
+    {
+      "version": "2.50.113",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/user-sessions (User Monitoring) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/user-sessions (User Monitoring) fully Arabic"
+        }
+      ],
+      "commit": "47e2031ef4"
     }
   ],
-  "app_version": "2.50.113"
+  "app_version": "2.50.114"
 }
