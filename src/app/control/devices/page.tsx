@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HardDrive, Loader2, Search, History, X, ChevronLeft, ChevronRight, FilterX, AlertTriangle } from 'lucide-react';
 import { ExportButtons } from '@/app/control/_components/ExportButtons';
+import DeviceUptimeTable from '@/app/control/_components/DeviceUptimeTable';
 
 // A failed request must surface as an error, never as an empty fleet.
 const fetcher = async (u: string) => {
@@ -23,6 +24,7 @@ const VIEWS = [
   { key: 'all', label: 'All devices' },
   { key: 'in_service', label: 'In service' },
   { key: 'retired', label: 'Retired' },
+  { key: 'uptime', label: 'Uptime' },
 ] as const;
 const STATUS_OPTIONS = [
   { key: '', label: 'Any status' },
@@ -77,7 +79,7 @@ function ControlDevices() {
   const params = new URLSearchParams({ page: String(page), limit: '50' });
   if (q) params.set('q', q);
   if (status) params.set('status', status);
-  if (view && view !== 'all') params.set('view', view);
+  if (view && view !== 'all' && view !== 'uptime') params.set('view', view);
   const { data, error, isLoading, mutate } = useSWR<any>(`/api/control-center/devices?${params}`, fetcher, { keepPreviousData: true });
   const devices = data?.devices || [];
   const schools = data?.schools || [];
@@ -151,7 +153,7 @@ function ControlDevices() {
       {/* Lifecycle tabs — retired devices are kept and viewable, never silently hidden. */}
       <div className="flex gap-1 border-b border-slate-800">
         {VIEWS.map(v => {
-          const n = counts ? (v.key === 'all' ? counts.all : v.key === 'in_service' ? counts.all - counts.retired : counts.retired) : null;
+          const n = counts && v.key !== 'uptime' ? (v.key === 'all' ? counts.all : v.key === 'in_service' ? counts.all - counts.retired : counts.retired) : null;
           return (
             <button key={v.key} onClick={() => setView(v.key)}
               className={`px-3 py-2 text-xs font-semibold border-b-2 -mb-px ${view === v.key ? 'border-indigo-400 text-indigo-300' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
@@ -161,6 +163,8 @@ function ControlDevices() {
         })}
       </div>
 
+      {view === 'uptime' && <DeviceUptimeTable />}
+      {view !== 'uptime' && <>
       {isLoading && !data && <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400 inline" /></div>}
       {error && (
         <div className="rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-sm text-rose-200 flex items-start gap-2">
@@ -266,6 +270,8 @@ function ControlDevices() {
           >Next <ChevronRight className="w-3.5 h-3.5" /></button>
         </div>
       )}
+
+      </>}
 
       {timelineSn && <TimelineDrawer sn={timelineSn} onClose={() => setTimelineSn(null)} />}
     </div>

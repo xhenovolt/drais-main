@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:24:05.576Z",
-  "last_commit": "1a2c94ebbeba8ba2f46868f8a2162d244d0766d4",
+  "generated_at": "2026-10-19T15:31:22.701Z",
+  "last_commit": "3b21e575f481b3f3342f3cd7772ad41e04eadf09",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10060,7 +10060,20 @@
         }
       ],
       "commit": "1a2c94ebbe"
+    },
+    {
+      "version": "2.50.111",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/tahfiz/books \"Cannot read properties of undefined (reading 'length')\" — fixed at the source",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "/tahfiz/books \"Cannot read properties of undefined (reading 'length')\" — fixed at the source"
+        }
+      ],
+      "commit": "3b21e575f4"
     }
   ],
-  "app_version": "2.50.111"
+  "app_version": "2.50.112"
 }

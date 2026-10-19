@@ -26,6 +26,7 @@
  */
 import { query } from '@/lib/db';
 import { ensureDeviceOwnershipSchema } from '@/lib/devices/migrations/devices-ownership-schema';
+import { syncDeviceStatusEventsOpportunistically } from '@/lib/devices/uptime';
 
 export interface DeviceStatusSweepResult {
   devices_marked_offline: number;
@@ -157,12 +158,14 @@ let lastOpportunisticSweep = 0;
 let sweepInFlight = false;
 const OPPORTUNISTIC_INTERVAL_MS = 90_000;
 
-export function runDeviceStatusSweepOpportunistically(): void {
+// Returns the work's promise so a caller's after() keeps the function alive until it finishes
+// (it used to return void, so after() could not wait for it).
+export function runDeviceStatusSweepOpportunistically(): Promise<void> {
   const now = Date.now();
-  if (sweepInFlight || now - lastOpportunisticSweep < OPPORTUNISTIC_INTERVAL_MS) return;
+  if (sweepInFlight || now - lastOpportunisticSweep < OPPORTUNISTIC_INTERVAL_MS) return Promise.resolve();
   lastOpportunisticSweep = now;
   sweepInFlight = true;
-  runDeviceStatusSweep()
+  return runDeviceStatusSweep()
     .then((r) => {
       if (r.devices_marked_offline > 0 || r.alerts_opened > 0) {
         console.log(JSON.stringify({
@@ -172,5 +175,7 @@ export function runDeviceStatusSweepOpportunistically(): void {
       }
     })
     .catch((err) => console.warn('[device-status-sweep] opportunistic sweep failed:', err))
+    // Uptime history (device_status_events) rides on the same trigger.
+    .then(() => syncDeviceStatusEventsOpportunistically())
     .finally(() => { sweepInFlight = false; });
 }

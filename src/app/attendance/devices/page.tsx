@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DeviceReconciliationModal from '@/components/attendance/DeviceReconciliationModal';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import PushTemplatesModal from '@/components/attendance/PushTemplatesModal';
+import DeviceUptimePanel from '@/components/attendance/DeviceUptimePanel';
 
 function formatTimeAgo(t: (k: string, v?: any) => string, seconds: number): string {
   if (seconds <= 0) return t('devicesPages.devices.ago.now');
@@ -184,6 +185,9 @@ export default function DevicesPage() {
             </div>
           </div>
         </div>
+
+        {/* Uptime — how long each device has been online / offline (lib/devices/uptime.ts) */}
+        <DeviceUptimePanel />
 
         {/* Out-of-sync banner */}
         {outOfSync > 0 && (

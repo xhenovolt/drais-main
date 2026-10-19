@@ -7090,6 +7090,41 @@
       "foot2": "Device heartbeats via GET → Commands delivered as C:id:command → Device acknowledges via POST path=devicecmd",
       "foot3": "Tested on K40 Pro · Firmware 8.0.4.3-20230515 · Push Protocol v2.4.1",
       "autoCmd": "(automatic — device POSTs table={{table}})"
+    },
+    "uptime": {
+      "title": "Device uptime",
+      "thresholdNote": "Offline = not heard from for {{n}} min",
+      "loading": "Loading uptime…",
+      "loadFailed": "Uptime could not be loaded.",
+      "retry": "Try again",
+      "none": "No devices to report on.",
+      "col": {
+        "device": "Device",
+        "status": "Status",
+        "lastSeen": "Last seen",
+        "today": "Today",
+        "d7": "7 days",
+        "d30": "30 days",
+        "gaps": "Offline gaps"
+      },
+      "onlineFor": "Online for {{d}}",
+      "offlineFor": "Offline for {{d}}",
+      "never": "Never",
+      "noData": "No contact recorded in this period",
+      "gapCount": {
+        "one": "{{count}} gap",
+        "other": "{{count}} gaps"
+      },
+      "noGaps": "None",
+      "gapsTitle": "Offline periods in the last 7 days (newest first)",
+      "gapRange": "{{from}} → {{to}}",
+      "gapOngoing": "since {{from}} (still offline)",
+      "trackedNote": "Uptime history since {{date}}; earlier time is not counted.",
+      "dur": {
+        "m": "{{m}}m",
+        "hm": "{{h}}h {{m}}m",
+        "dh": "{{d}}d {{h}}h"
+      }
     }
   },
   "commPages": {
