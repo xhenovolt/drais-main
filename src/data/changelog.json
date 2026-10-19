@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:43:42.062Z",
-  "last_commit": "bc283aff0def9b70d1a4b29610eb3d487788d6bc",
+  "generated_at": "2026-10-19T16:47:12.167Z",
+  "last_commit": "48db4c4ed65e1b01f943f51bb0d38c0f9cb236f0",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10281,7 +10281,20 @@
         }
       ],
       "commit": "bc283aff0d"
+    },
+    {
+      "version": "2.50.128",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/allocations/history fully Arabic, localized dates",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/allocations/history fully Arabic, localized dates"
+        }
+      ],
+      "commit": "48db4c4ed6"
     }
   ],
-  "app_version": "2.50.128"
+  "app_version": "2.50.129"
 }
