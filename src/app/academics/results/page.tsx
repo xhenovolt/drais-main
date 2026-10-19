@@ -128,8 +128,8 @@ export default function ResultsPage() {
         {activeTab === 1 && (
           <div className="flex items-center gap-2">
             <div className="text-xs text-gray-500">
-              Wizard data: {wizardData.academicYears.length} years loaded
-              {loadingWizardData && ' (loading...)'}
+              {t('academicsPages.results.wizardData', { count: wizardData.academicYears.length })}
+              {loadingWizardData && t('academicsPages.results.loadingSuffix', " (loading...)")}
             </div>
             <Button
               onClick={() => {
@@ -144,12 +144,12 @@ export default function ResultsPage() {
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
-              <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
-              Migrate Results
+              <ArrowRightLeft className="w-3.5 h-3.5 me-1.5" />
+              {t('academicsPages.results.migrate', "Migrate Results")}
             </Button>
             <GenerateSnapshotButton
               defaultType="secular"
-              label="Generate Report Snapshot"
+              label={t('academicsPages.results.snapshot', "Generate Report Snapshot")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700"
             />
           </div>
@@ -233,20 +233,20 @@ function CAFEBridgeBanner() {
         <Sparkles className="w-4 h-4 text-indigo-600 flex-shrink-0" />
         <div className="flex-1 min-w-0 text-xs">
           <strong className="text-indigo-800 dark:text-indigo-200">
-            CAFE is active for your school
+            {t('academicsPages.results.cafe.active', "CAFE is active for your school")}
           </strong>
-          <span className="text-indigo-700 dark:text-indigo-300 ml-1">
-            ({frameworkCount} framework{frameworkCount === 1 ? '' : 's'}).
-            Enter component-level scores — AoI, rubrics, descriptors — in the new entry grid.
+          <span className="text-indigo-700 dark:text-indigo-300 ms-1">
+            {t('academicsPages.results.cafe.frameworks', { count: frameworkCount })}{' '}
+            {t('academicsPages.results.cafe.enter', "Enter component-level scores — AoI, rubrics, descriptors — in the new entry grid.")}
           </span>
         </div>
         <Link
           href="/academics/results-cafe"
           className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 whitespace-nowrap"
         >
-          {`CAFE — ${t('academic.results')}`} <ArrowRight className="w-3 h-3" />
+          {`CAFE — ${t('academic.results')}`} <ArrowRight className="w-3 h-3 rtl:-scale-x-100" />
         </Link>
-        <button onClick={dismiss} title={t('common.close')}
+        <button onClick={dismiss} title={t('common.close')} aria-label={t('common.close')}
           className="p-1 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded">
           <X className="w-3 h-3" />
         </button>
@@ -258,17 +258,16 @@ function CAFEBridgeBanner() {
     <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/60">
       <Sparkles className="w-4 h-4 text-amber-700 dark:text-amber-400 flex-shrink-0" />
       <div className="flex-1 min-w-0 text-xs text-amber-800 dark:text-amber-200">
-        <strong>CAFE (Configurable Assessment Framework Engine)</strong> is available for
-        competency-based entry — Activities of Integration, rubrics, generic skills, projects.
-        <span className="ml-1 opacity-80">Not needed for traditional percentage workflows.</span>
+        <strong>{t('academicsPages.results.cafe.name', "CAFE (Configurable Assessment Framework Engine)")}</strong> {t('academicsPages.results.cafe.available', "is available for competency-based entry — Activities of Integration, rubrics, generic skills, projects.")}
+        <span className="ms-1 opacity-80">{t('academicsPages.results.cafe.notNeeded', "Not needed for traditional percentage workflows.")}</span>
       </div>
       <Link
         href="/admin/cafe"
         className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-amber-300 text-amber-800 dark:text-amber-200 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 whitespace-nowrap"
       >
-        {`CAFE — ${t('common.confirm')}`} <ArrowRight className="w-3 h-3" />
+        {`CAFE — ${t('common.confirm')}`} <ArrowRight className="w-3 h-3 rtl:-scale-x-100" />
       </Link>
-      <button onClick={dismiss} title="Dismiss for this session"
+      <button onClick={dismiss} title={t('academicsPages.results.cafe.dismiss', "Dismiss for this session")} aria-label={t('academicsPages.results.cafe.dismiss', "Dismiss for this session")}
         className="p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded">
         <X className="w-3 h-3" />
       </button>

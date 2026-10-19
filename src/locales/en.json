@@ -9371,6 +9371,54 @@
       "startTime": "Start Time",
       "endTime": "End Time",
       "save": "Save"
+    },
+    "results": {
+      "wizardData": {
+        "one": "Wizard data: {{count}} year loaded",
+        "other": "Wizard data: {{count}} years loaded"
+      },
+      "loadingSuffix": " (loading...)",
+      "migrate": "Migrate Results",
+      "snapshot": "Generate Report Snapshot",
+      "cafe": {
+        "active": "CAFE is active for your school",
+        "frameworks": {
+          "one": "({{count}} framework).",
+          "other": "({{count}} frameworks)."
+        },
+        "enter": "Enter component-level scores — AoI, rubrics, descriptors — in the new entry grid.",
+        "name": "CAFE (Configurable Assessment Framework Engine)",
+        "available": "is available for competency-based entry — Activities of Integration, rubrics, generic skills, projects.",
+        "notNeeded": "Not needed for traditional percentage workflows.",
+        "dismiss": "Dismiss for this session"
+      },
+      "rt": {
+        "loading": "Loading...",
+        "title": "Result Types Management",
+        "add": "Add Result Type",
+        "name": "Name",
+        "code": "Code",
+        "weightPct": "Weight (%)",
+        "deadline": "Deadline",
+        "description": "Description",
+        "update": "Update",
+        "create": "Create",
+        "cancel": "Cancel",
+        "weight": "Weight",
+        "status": "Status",
+        "actions": "Actions",
+        "noDeadline": "No deadline",
+        "st": {
+          "active": "active",
+          "inactive": "inactive"
+        },
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirmDelete": "Are you sure you want to delete this result type?",
+        "saveFailed": "The result type could not be saved.",
+        "deleteFailed": "The result type could not be deleted.",
+        "none": "No result types yet."
+      }
     }
   }
 }

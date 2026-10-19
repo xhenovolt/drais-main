@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { GenerateSnapshotModal } from './GenerateSnapshotModal';
 import type { SnapshotType } from '@/lib/snapshots/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export interface GenerateSnapshotButtonProps {
   defaultType?: SnapshotType;
@@ -12,6 +13,7 @@ export interface GenerateSnapshotButtonProps {
 }
 
 export function GenerateSnapshotButton({ defaultType = 'secular', className, label }: GenerateSnapshotButtonProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -23,7 +25,7 @@ export function GenerateSnapshotButton({ defaultType = 'secular', className, lab
         }
       >
         <Wand2 className="w-4 h-4" />
-        {label ?? 'Generate Report Snapshot'}
+        {label ?? t('academicsPages.results.snapshot', "Generate Report Snapshot")}
       </button>
       <GenerateSnapshotModal isOpen={open} onClose={() => setOpen(false)} defaultType={defaultType} />
     </>

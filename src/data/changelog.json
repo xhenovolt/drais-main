@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:02:11.554Z",
-  "last_commit": "3cd0a6aa9242c4b7410695bf936c8104e29705b7",
+  "generated_at": "2026-10-19T17:04:07.769Z",
+  "last_commit": "211cb612d210f09aa9f43bb502a02e03e4c3cdaf",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10346,7 +10346,20 @@
         }
       ],
       "commit": "3cd0a6aa92"
+    },
+    {
+      "version": "2.50.133",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/exams fully Arabic; no crash when the exams API returns an error body",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/exams fully Arabic; no crash when the exams API returns an error body"
+        }
+      ],
+      "commit": "211cb612d2"
     }
   ],
-  "app_version": "2.50.133"
+  "app_version": "2.50.134"
 }
