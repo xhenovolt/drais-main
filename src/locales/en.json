@@ -9341,6 +9341,36 @@
         "type_context": "Enrollment type: {{type}} — has progression context",
         "review": "No definitive classification — included for manual review"
       }
+    },
+    "exams": {
+      "sure": "Are you sure?",
+      "noRevert": "You won't be able to revert this!",
+      "yesDelete": "Yes, delete it!",
+      "cancel": "Cancel",
+      "deleted": "Deleted!",
+      "deletedText": "Exam deleted successfully",
+      "error": "Error!",
+      "deleteFailed": "Failed to delete exam",
+      "deleteError": "An error occurred while deleting the exam",
+      "addExam": "Add Exam",
+      "name": "Name",
+      "class": "Class",
+      "subject": "Subject",
+      "date": "Date",
+      "start": "Start",
+      "end": "End",
+      "actions": "Actions",
+      "delete": "Delete",
+      "none": "No exams found",
+      "close": "Close",
+      "term": "Term",
+      "selectTerm": "Select Term",
+      "selectClass": "Select Class",
+      "selectSubject": "Select Subject",
+      "examName": "Exam Name",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "save": "Save"
     }
   }
 }

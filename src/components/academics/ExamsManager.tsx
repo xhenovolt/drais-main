@@ -6,10 +6,19 @@ import { Dialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 const API_BASE = '/api';
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 export const ExamsManager: React.FC = () => {
-  const { t } = useI18n();
+  const { t, digits, formatDate } = useI18n();
+  const list = (x: any): any[] => (Array.isArray(x?.data) ? x.data : []);
+  const day = (d: any) => {
+    const s = String(d || '').slice(0, 10);
+    if (!s) return '-';
+    const x = new Date(`${s}T00:00:00`);
+    return isNaN(x.getTime()) ? s : formatDate(x, 'medium');
+  };
+  const clock = (v: any) => (v ? digits(String(v).slice(0, 5)) : '-');
   const { data: classes } = useSWR(`${API_BASE}/classes`, fetcher);
   const { data: subjects } = useSWR(`${API_BASE}/subjects`, fetcher);
   const { data: terms } = useSWR(`${API_BASE}/terms`, fetcher);
@@ -46,30 +55,31 @@ export const ExamsManager: React.FC = () => {
   };
   const deleteExam = async (id: number) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You won\'t be able to revert this!',
+      title: t('academicsPages.exams.sure', "Are you sure?"),
+      text: t('academicsPages.exams.noRevert', "You won't be able to revert this!"),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#3085d6',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonText: t('academicsPages.exams.yesDelete', "Yes, delete it!"),
+      cancelButtonText: t('academicsPages.exams.cancel', "Cancel"),
     });
-  
+
     if (!result.isConfirmed) return;
-  
+
     try {
       const response = await fetch(`${API_BASE}/exams?id=${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();
       if (result.success) {
-        Swal.fire('Deleted!', 'Exam deleted successfully', 'success');
+        Swal.fire(t('academicsPages.exams.deleted', "Deleted!"), t('academicsPages.exams.deletedText', "Exam deleted successfully"), 'success');
         exams.mutate();
       } else {
-        Swal.fire('Error!', result.error || 'Failed to delete exam', 'error');
+        Swal.fire(t('academicsPages.exams.error', "Error!"), result.error && !(uiIsArabic() && isEnglishText(result.error)) ? result.error : t('academicsPages.exams.deleteFailed', "Failed to delete exam"), 'error');
       }
     } catch (error) {
-      Swal.fire('Error!', 'An error occurred while deleting the exam', 'error');
+      Swal.fire(t('academicsPages.exams.error', "Error!"), t('academicsPages.exams.deleteError', "An error occurred while deleting the exam"), 'error');
     }
   };
   return (
@@ -78,44 +88,44 @@ export const ExamsManager: React.FC = () => {
       <div className="flex gap-3 mb-2">
         <select value={filters.term_id} onChange={e=>setFilters({...filters,term_id:e.target.value})} className="px-3 py-2 rounded-xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur text-sm">
           <option value="">{t('academics.term')}</option>
-          {terms?.data?.map((t:any)=>(<option key={t.id} value={t.id}>{t.name}</option>))}
+          {list(terms).map((tm:any)=>(<option key={tm.id} value={tm.id}>{tm.name}</option>))}
         </select>
         <select value={filters.class_id} onChange={e=>setFilters({...filters,class_id:e.target.value})} className="px-3 py-2 rounded-xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur text-sm">
           <option value="">{t('academics.class')}</option>
-          {classes?.data?.map((c:any)=>(<option key={c.id} value={c.id}>{c.name}</option>))}
+          {list(classes).map((c:any)=>(<option key={c.id} value={c.id}>{c.name}</option>))}
         </select>
-        <button onClick={openModal} className="ml-auto px-4 py-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-transform transform hover:scale-105">Add Exam</button>
+        <button onClick={openModal} className="ms-auto px-4 py-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-transform transform hover:scale-105">{t('academicsPages.exams.addExam', "Add Exam")}</button>
       </div>
       <div className="overflow-hidden rounded-xl border border-white/30 dark:border-white/10 shadow-lg">
         <table className="w-full text-sm">
           <thead className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white">
             <tr>
-              <th className="text-left px-4 py-3">Name</th>
-              <th className="text-left px-4 py-3">Class</th>
-              <th className="text-left px-4 py-3">Subject</th>
-              <th className="text-left px-4 py-3">Date</th>
-              <th className="text-left px-4 py-3">Start</th>
-              <th className="text-left px-4 py-3">End</th>
-              <th className="text-left px-4 py-3">Actions</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.name', "Name")}</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.class', "Class")}</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.subject', "Subject")}</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.date', "Date")}</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.start', "Start")}</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.end', "End")}</th>
+              <th className="text-start px-4 py-3">{t('academicsPages.exams.actions', "Actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {exams.data?.data?.map((r:any)=>(
+            {list(exams.data).map((r:any)=>(
               <tr key={r.id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{r.name}</td>
-                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{classes?.data?.find((c:any)=>c.id===r.class_id)?.name||r.class_id}</td>
-                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{subjects?.data?.find((s:any)=>s.id===r.subject_id)?.name||r.subject_id}</td>
-                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.date||'-'}</td>
-                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.start_time||'-'}</td>
-                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.end_time||'-'}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{list(classes).find((c:any)=>c.id===r.class_id)?.name||digits(r.class_id)}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{list(subjects).find((s:any)=>s.id===r.subject_id)?.name||digits(r.subject_id)}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{day(r.date)}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{clock(r.start_time)}</td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{clock(r.end_time)}</td>
                 <td className="px-4 py-3 flex gap-2">
-                  <button onClick={() => deleteExam(r.id)} className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">Delete</button>
+                  <button onClick={() => deleteExam(r.id)} className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">{t('academicsPages.exams.delete', "Delete")}</button>
                 </td>
               </tr>
             ))}
-            {!exams.data || exams.data.data.length === 0 && (
+            {list(exams.data).length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No exams found</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">{t('academicsPages.exams.none', "No exams found")}</td>
               </tr>
             )}
           </tbody>
@@ -127,50 +137,50 @@ export const ExamsManager: React.FC = () => {
           <div className="fixed inset-0 overflow-y-auto">
             <div className="flex items-center justify-center min-h-full p-4">
               <Dialog.Panel className="w-full max-w-lg p-6 bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white rounded-2xl shadow-2xl backdrop-blur-md">
-                <Dialog.Title className="text-xl font-bold text-center mb-4">Add Exam</Dialog.Title>
-                <button onClick={closeModal} className="absolute top-4 right-4 p-2 rounded-full bg-gray-700 hover:bg-gray-600">
+                <Dialog.Title className="text-xl font-bold text-center mb-4">{t('academicsPages.exams.addExam', "Add Exam")}</Dialog.Title>
+                <button onClick={closeModal} title={t('academicsPages.exams.close', "Close")} aria-label={t('academicsPages.exams.close', "Close")} className="absolute top-4 end-4 p-2 rounded-full bg-gray-700 hover:bg-gray-600">
                   <X className="w-5 h-5 text-white" />
                 </button>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label htmlFor="term_id" className="block text-sm font-medium">Term</label>
+                    <label htmlFor="term_id" className="block text-sm font-medium">{t('academicsPages.exams.term', "Term")}</label>
                     <select id="term_id" value={formData.term_id} onChange={e=>setFormData({...formData,term_id:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <option value="">Select Term</option>
-                      {terms?.data?.map((t:any)=>(<option key={t.id} value={t.id}>{t.name}</option>))}
+                      <option value="">{t('academicsPages.exams.selectTerm', "Select Term")}</option>
+                      {list(terms).map((tm:any)=>(<option key={tm.id} value={tm.id}>{tm.name}</option>))}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="class_id" className="block text-sm font-medium">Class</label>
+                    <label htmlFor="class_id" className="block text-sm font-medium">{t('academicsPages.exams.class', "Class")}</label>
                     <select id="class_id" value={formData.class_id} onChange={e=>setFormData({...formData,class_id:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <option value="">Select Class</option>
-                      {classes?.data?.map((c:any)=>(<option key={c.id} value={c.id}>{c.name}</option>))}
+                      <option value="">{t('academicsPages.exams.selectClass', "Select Class")}</option>
+                      {list(classes).map((c:any)=>(<option key={c.id} value={c.id}>{c.name}</option>))}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="subject_id" className="block text-sm font-medium">Subject</label>
+                    <label htmlFor="subject_id" className="block text-sm font-medium">{t('academicsPages.exams.subject', "Subject")}</label>
                     <select id="subject_id" value={formData.subject_id} onChange={e=>setFormData({...formData,subject_id:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <option value="">Select Subject</option>
-                      {subjects?.data?.map((s:any)=>(<option key={s.id} value={s.id}>{s.name}</option>))}
+                      <option value="">{t('academicsPages.exams.selectSubject', "Select Subject")}</option>
+                      {list(subjects).map((s:any)=>(<option key={s.id} value={s.id}>{s.name}</option>))}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium">Exam Name</label>
+                    <label htmlFor="name" className="block text-sm font-medium">{t('academicsPages.exams.examName', "Exam Name")}</label>
                     <input id="name" type="text" value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div>
-                    <label htmlFor="date" className="block text-sm font-medium">Date</label>
+                    <label htmlFor="date" className="block text-sm font-medium">{t('academicsPages.exams.date', "Date")}</label>
                     <input id="date" type="date" value={formData.date} onChange={e=>setFormData({...formData,date:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div>
-                    <label htmlFor="start_time" className="block text-sm font-medium">Start Time</label>
+                    <label htmlFor="start_time" className="block text-sm font-medium">{t('academicsPages.exams.startTime', "Start Time")}</label>
                     <input id="start_time" type="time" value={formData.start_time} onChange={e=>setFormData({...formData,start_time:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div>
-                    <label htmlFor="end_time" className="block text-sm font-medium">End Time</label>
+                    <label htmlFor="end_time" className="block text-sm font-medium">{t('academicsPages.exams.endTime', "End Time")}</label>
                     <input id="end_time" type="time" value={formData.end_time} onChange={e=>setFormData({...formData,end_time:e.target.value})} className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div className="flex justify-end">
-                    <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-lg shadow-md hover:shadow-lg transition-transform transform hover:scale-105">Save</button>
+                    <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-lg shadow-md hover:shadow-lg transition-transform transform hover:scale-105">{t('academicsPages.exams.save', "Save")}</button>
                   </div>
                 </form>
               </Dialog.Panel>
