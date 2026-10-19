@@ -12,6 +12,16 @@ import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(r => r.json());
 
+// Dates arrive as YYYY-MM-DD (or ISO); show them in the reader's language.
+function useDay() {
+  const { formatDate } = useI18n();
+  return (d: string | null | undefined) => {
+    if (!d) return '—';
+    const x = new Date(String(d).length === 10 ? `${d}T00:00:00` : d);
+    return isNaN(x.getTime()) ? String(d) : formatDate(x, 'medium');
+  };
+}
+
 interface AcademicYear {
   id: number;
   name: string;
@@ -45,7 +55,7 @@ function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(form),
-        successMessage: 'Academic year created',
+        successMessage: t('academicsPages.years.yearCreated', "Academic year created"),
       });
       onSaved();
     } catch {
@@ -60,47 +70,47 @@ function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <h2 className="font-bold text-slate-900 dark:text-white text-lg">{`${t('actions.addNew')} — ${t('academicTime.academicYear')}`}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <button onClick={onClose} title={t('academicsPages.years.close', "Close")} aria-label={t('academicsPages.years.close', "Close")} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
         <form onSubmit={submit} className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Year name <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.yearName', "Year name")} <span className="text-red-500">*</span></label>
             <input
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. 2025/2026"
+              placeholder={t('academicsPages.years.yearPh', "e.g. 2025/2026")}
               required
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.start', "Start date")}</label>
               <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.end', "End date")}</label>
               <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.status', "Status")}</label>
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
+              <option value="draft">{t('academicsPages.years.st.draft', "Draft")}</option>
+              <option value="active">{t('academicsPages.years.st.active', "Active")}</option>
+              <option value="closed">{t('academicsPages.years.st.closed', "Closed")}</option>
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('academicsPages.years.cancel', "Cancel")}</button>
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm rounded-lg bg-[var(--color-primary)] text-white hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              {saving ? 'Saving…' : 'Create Year'}
+              {saving ? t('academicsPages.years.saving', "Saving…") : t('academicsPages.years.createYear', "Create Year")}
             </button>
           </div>
         </form>
@@ -110,7 +120,7 @@ function YearModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
 }
 
 function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yearName: string; onClose: () => void; onSaved: () => void }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [form, setForm] = useState({ name: '', start_date: '', end_date: '', status: 'draft' });
   const [saving, setSaving] = useState(false);
 
@@ -123,7 +133,7 @@ function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yea
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ ...form, academic_year_id: yearId }),
-        successMessage: 'Term created',
+        successMessage: t('academicsPages.years.termCreated', "Term created"),
       });
       onSaved();
     } catch {
@@ -139,49 +149,49 @@ function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yea
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="font-bold text-slate-900 dark:text-white text-lg">{`${t('common.add')} — ${t('academicTime.term')}`}</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{yearName}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{digits(yearName)}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <button onClick={onClose} title={t('academicsPages.years.close', "Close")} aria-label={t('academicsPages.years.close', "Close")} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
         <form onSubmit={submit} className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Term name <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.termName', "Term name")} <span className="text-red-500">*</span></label>
             <input
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Term 1"
+              placeholder={t('academicsPages.years.termPh', "e.g. Term 1")}
               required
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.start', "Start date")}</label>
               <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.end', "End date")}</label>
               <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('academicsPages.years.status', "Status")}</label>
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
+              <option value="draft">{t('academicsPages.years.st.draft', "Draft")}</option>
+              <option value="active">{t('academicsPages.years.st.active', "Active")}</option>
+              <option value="closed">{t('academicsPages.years.st.closed', "Closed")}</option>
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('academicsPages.years.cancel', "Cancel")}</button>
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm rounded-lg bg-[var(--color-primary)] text-white hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              {saving ? 'Saving…' : 'Add Term'}
+              {saving ? t('academicsPages.years.saving', "Saving…") : t('academicsPages.years.addTermBtn', "Add Term")}
             </button>
           </div>
         </form>
@@ -193,11 +203,12 @@ function TermModal({ yearId, yearName, onClose, onSaved }: { yearId: number; yea
 // ─── Status badge ────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
   const cfg: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-    active:  { label: 'Active',  cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: <CheckCircle2 className="w-3 h-3" /> },
-    draft:   { label: 'Draft',   cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',            icon: <Clock className="w-3 h-3" /> },
-    closed:  { label: 'Closed',  cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',         icon: <Archive className="w-3 h-3" /> },
-    scheduled: { label: 'Scheduled', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         icon: <CalendarDays className="w-3 h-3" /> },
+    active:  { label: t('academicsPages.years.st.active', "Active"),  cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: <CheckCircle2 className="w-3 h-3" /> },
+    draft:   { label: t('academicsPages.years.st.draft', "Draft"),   cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',            icon: <Clock className="w-3 h-3" /> },
+    closed:  { label: t('academicsPages.years.st.closed', "Closed"),  cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',         icon: <Archive className="w-3 h-3" /> },
+    scheduled: { label: t('academicsPages.years.st.scheduled', "Scheduled"), cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         icon: <CalendarDays className="w-3 h-3" /> },
   };
   const { label, cls, icon } = cfg[status] ?? { label: status, cls: 'bg-slate-100 text-slate-500', icon: null };
   return (
@@ -210,12 +221,13 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function AcademicYearsPage() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
+  const day = useDay();
   const { data: yearsData, isLoading: yearsLoading, mutate: mutateYears } = useSWR('/api/academic_years', fetcher);
   const { data: termsData, mutate: mutateTerms } = useSWR('/api/terms', fetcher);
 
-  const years: AcademicYear[] = yearsData?.data ?? [];
-  const allTerms: Term[] = termsData?.data ?? [];
+  const years: AcademicYear[] = Array.isArray(yearsData?.data) ? yearsData.data : [];
+  const allTerms: Term[] = Array.isArray(termsData?.data) ? termsData.data : [];
 
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [addYear, setAddYear] = useState(false);
@@ -234,17 +246,17 @@ export default function AcademicYearsPage() {
   }
 
   function termsForYear(yearId: number) {
-    return allTerms.filter((t: any) => {
+    return allTerms.filter((tm: any) => {
       // Terms reference academic_year by name in the GET response so we need to
       // match by joining data — use term's academic_year name vs year name
       const year = years.find(y => y.id === yearId);
-      return year && (t.academic_year === year.name);
+      return year && (tm.academic_year === year.name);
     });
   }
 
   async function setActiveYear(year: AcademicYear) {
     if (year.status === 'active') return;
-    const confirmed = window.confirm(`Set "${year.name}" as the active academic year?`);
+    const confirmed = window.confirm(t('academicsPages.years.confirmActive', { name: year.name }));
     if (!confirmed) return;
     try {
       await apiFetch(`/api/academic_years/${year.id}`, {
@@ -252,7 +264,7 @@ export default function AcademicYearsPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ status: 'active' }),
-        successMessage: `${year.name} is now active`,
+        successMessage: t('academicsPages.years.nowActive', { name: year.name }),
       });
       mutateYears();
     } catch {
@@ -280,7 +292,7 @@ export default function AcademicYearsPage() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold shadow-md hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
-            New Year
+            {t('academicsPages.years.newYear', "New Year")}
           </button>
         </div>
 
@@ -288,7 +300,7 @@ export default function AcademicYearsPage() {
         {yearsLoading && (
           <div className="flex items-center justify-center py-16 gap-3 text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin" />
-            Loading academic years…
+            {t('academicsPages.years.loading', "Loading academic years…")}
           </div>
         )}
 
@@ -296,14 +308,14 @@ export default function AcademicYearsPage() {
         {!yearsLoading && years.length === 0 && (
           <div className="text-center py-20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
             <CalendarDays className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">No academic years yet</p>
-            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 mb-4">Create your first year to get started</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">{t('academicsPages.years.emptyTitle', "No academic years yet")}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 mb-4">{t('academicsPages.years.emptyText', "Create your first year to get started")}</p>
             <button
               onClick={() => setAddYear(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
             >
               <Plus className="w-4 h-4" />
-              Create Academic Year
+              {t('academicsPages.years.createAcademicYear', "Create Academic Year")}
             </button>
           </div>
         )}
@@ -327,21 +339,21 @@ export default function AcademicYearsPage() {
                 <div className="flex items-center gap-3 px-5 py-4">
                   <button
                     onClick={() => toggleYear(year.id)}
-                    className="flex-1 flex items-center gap-3 min-w-0 text-left"
+                    className="flex-1 flex items-center gap-3 min-w-0 text-start"
                     aria-expanded={isExpanded}
                   >
                     {isExpanded
                       ? <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      : <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      : <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 rtl:-scale-x-100" />
                     }
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-900 dark:text-white">{year.name}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{digits(year.name)}</span>
                         <StatusBadge status={year.status} />
                       </div>
                       {(year.start_date || year.end_date) && (
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {year.start_date ?? '—'} → {year.end_date ?? '—'}
+                          {day(year.start_date)} – {day(year.end_date)}
                         </p>
                       )}
                     </div>
@@ -349,14 +361,14 @@ export default function AcademicYearsPage() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs text-slate-400 dark:text-slate-500">
-                      {terms.length} term{terms.length !== 1 ? 's' : ''}
+                      {t('academicsPages.years.terms', { count: terms.length })}
                     </span>
                     {!isActive && (
                       <button
                         onClick={() => setActiveYear(year)}
                         className="px-3 py-1 text-xs rounded-lg border border-emerald-300 text-emerald-700 dark:border-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
                       >
-                        Set active
+                        {t('academicsPages.years.setActive', "Set active")}
                       </button>
                     )}
                     <button
@@ -364,7 +376,7 @@ export default function AcademicYearsPage() {
                       className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                     >
                       <Plus className="w-3 h-3" />
-                      Add term
+                      {t('academicsPages.years.addTerm', "Add term")}
                     </button>
                   </div>
                 </div>
@@ -375,13 +387,13 @@ export default function AcademicYearsPage() {
                     {terms.length === 0 ? (
                       <div className="px-5 py-6 text-center">
                         <BookOpen className="w-6 h-6 text-slate-300 dark:text-slate-600 mx-auto mb-1.5" />
-                        <p className="text-sm text-slate-400 dark:text-slate-500">No terms yet</p>
+                        <p className="text-sm text-slate-400 dark:text-slate-500">{t('academicsPages.years.noTerms', "No terms yet")}</p>
                         <button
                           onClick={() => setAddTerm({ id: year.id, name: year.name })}
                           className="mt-2 text-xs text-[var(--color-primary)] hover:underline inline-flex items-center gap-1 font-semibold"
                         >
                           <Plus className="w-3 h-3" />
-                          Add first term
+                          {t('academicsPages.years.addFirstTerm', "Add first term")}
                         </button>
                       </div>
                     ) : (
@@ -391,8 +403,8 @@ export default function AcademicYearsPage() {
                           <div className="flex-1 min-w-0">
                             <span className="font-medium text-sm text-slate-800 dark:text-slate-200">{term.name}</span>
                             {(term.start_date || term.end_date) && (
-                              <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">
-                                {term.start_date ?? '—'} → {term.end_date ?? '—'}
+                              <span className="text-xs text-slate-400 dark:text-slate-500 ms-2">
+                                {day(term.start_date)} – {day(term.end_date)}
                               </span>
                             )}
                           </div>

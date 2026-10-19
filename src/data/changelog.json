@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:47:12.167Z",
-  "last_commit": "48db4c4ed65e1b01f943f51bb0d38c0f9cb236f0",
+  "generated_at": "2026-10-19T16:49:25.551Z",
+  "last_commit": "99e6990dffd2456989df75890b23724925caf3b9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10294,7 +10294,20 @@
         }
       ],
       "commit": "48db4c4ed6"
+    },
+    {
+      "version": "2.50.129",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/timetable fully Arabic incl. conflict messages and Arabic-Indic period times",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/timetable fully Arabic incl. conflict messages and Arabic-Indic period times"
+        }
+      ],
+      "commit": "99e6990dff"
     }
   ],
-  "app_version": "2.50.129"
+  "app_version": "2.50.130"
 }

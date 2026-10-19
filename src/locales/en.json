@@ -9151,6 +9151,43 @@
         "room": "Room \"{{room}}\" already in use by {{class}} ({{subject}}) during this period."
       },
       "listSep": ", "
+    },
+    "years": {
+      "yearCreated": "Academic year created",
+      "termCreated": "Term created",
+      "yearName": "Year name",
+      "yearPh": "e.g. 2025/2026",
+      "termName": "Term name",
+      "termPh": "e.g. Term 1",
+      "start": "Start date",
+      "end": "End date",
+      "status": "Status",
+      "st": {
+        "draft": "Draft",
+        "active": "Active",
+        "closed": "Closed",
+        "scheduled": "Scheduled"
+      },
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "createYear": "Create Year",
+      "addTermBtn": "Add Term",
+      "close": "Close",
+      "confirmActive": "Set \"{{name}}\" as the active academic year?",
+      "nowActive": "{{name}} is now active",
+      "newYear": "New Year",
+      "loading": "Loading academic years…",
+      "emptyTitle": "No academic years yet",
+      "emptyText": "Create your first year to get started",
+      "createAcademicYear": "Create Academic Year",
+      "terms": {
+        "one": "{{count}} term",
+        "other": "{{count}} terms"
+      },
+      "setActive": "Set active",
+      "addTerm": "Add term",
+      "noTerms": "No terms yet",
+      "addFirstTerm": "Add first term"
     }
   }
 }
