@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:41:00.503Z",
-  "last_commit": "47e2031ef42f77a182ff365c57b070f788086bda",
+  "generated_at": "2026-10-19T15:43:52.213Z",
+  "last_commit": "cb0b012b1d9cf52a91ba61c4f6c7db8d20ab59f2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10099,7 +10099,20 @@
         }
       ],
       "commit": "47e2031ef4"
+    },
+    {
+      "version": "2.50.114",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/audit-logs (Audit Trail) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/audit-logs (Audit Trail) fully Arabic"
+        }
+      ],
+      "commit": "cb0b012b1d"
     }
   ],
-  "app_version": "2.50.114"
+  "app_version": "2.50.115"
 }

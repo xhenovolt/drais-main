@@ -8254,6 +8254,194 @@
       "close": "Close",
       "deleting": "Deleting…",
       "deletePermanently": "Delete permanently"
+    },
+    "trash": {
+      "ent": {
+        "student": {
+          "one": "Learner",
+          "plural": "Learners"
+        },
+        "staff": {
+          "one": "Staff member",
+          "plural": "Staff"
+        },
+        "class": {
+          "one": "Class",
+          "plural": "Classes"
+        },
+        "stream": {
+          "one": "Stream",
+          "plural": "Streams"
+        },
+        "subject": {
+          "one": "Subject",
+          "plural": "Subjects"
+        },
+        "department": {
+          "one": "Department",
+          "plural": "Departments"
+        },
+        "term": {
+          "one": "Term",
+          "plural": "Terms"
+        },
+        "academic_year": {
+          "one": "Academic year",
+          "plural": "Academic years"
+        },
+        "result_type": {
+          "one": "Result type",
+          "plural": "Result types"
+        },
+        "exam": {
+          "one": "Exam",
+          "plural": "Exams"
+        },
+        "role": {
+          "one": "Role",
+          "plural": "Roles"
+        },
+        "user": {
+          "one": "User account",
+          "plural": "User accounts"
+        },
+        "contact": {
+          "one": "Contact",
+          "plural": "Contacts"
+        },
+        "inventory_item": {
+          "one": "Inventory Item",
+          "plural": "Inventory Items"
+        },
+        "store": {
+          "one": "Store",
+          "plural": "Stores"
+        },
+        "payroll_definition": {
+          "one": "Payroll Definition",
+          "plural": "Payroll Definitions"
+        },
+        "document": {
+          "one": "Document",
+          "plural": "Documents"
+        },
+        "notification": {
+          "one": "Notification",
+          "plural": "Notifications"
+        },
+        "workplan": {
+          "one": "Work Plan",
+          "plural": "Work Plans"
+        },
+        "expenditure": {
+          "one": "Expenditure",
+          "plural": "Expenditures"
+        },
+        "waiver": {
+          "one": "Waiver / Discount",
+          "plural": "Waivers & Discounts"
+        },
+        "promotion": {
+          "one": "Promotion",
+          "plural": "Promotions"
+        },
+        "device": {
+          "one": "Device",
+          "plural": "Devices"
+        },
+        "biometric_device": {
+          "one": "Biometric Device",
+          "plural": "Biometric Devices"
+        },
+        "tahfiz_result": {
+          "one": "Tahfiz Result",
+          "plural": "Tahfiz Results"
+        },
+        "salary_payment": {
+          "one": "Salary Payment",
+          "plural": "Salary Payments"
+        }
+      },
+      "dep": {
+        "enrollment_records": "enrollment records",
+        "result_records": "result records",
+        "promotion_records": "promotion records",
+        "class_teacher_assignments": "class-teacher assignments",
+        "employment_events": "employment events",
+        "subject_allocations": "subject allocations",
+        "enrollments": "enrollments",
+        "streams": "streams",
+        "class_allocations": "class allocations",
+        "staff_members": "staff members",
+        "report_snapshots": "report snapshots",
+        "terms": "terms",
+        "user_assignments": "user assignments",
+        "permission_grants": "permission grants",
+        "role_assignments": "role assignments",
+        "active_sessions": "active sessions"
+      },
+      "permDelete": "⚠️ Permanently delete",
+      "confirmBulk": "Permanently delete {{n}} {{noun}}? This CANNOT be undone. Items with blocking dependencies are skipped.",
+      "deleteForever": "Delete Forever",
+      "purging": "Purging",
+      "restoring": "Restoring",
+      "purgedResult": "Purged {{n}}",
+      "blockedPart": ", {{n}} blocked by dependencies",
+      "failedPart": ", {{n}} failed",
+      "restoredResult": "Restored {{n}}",
+      "nounItems": "item(s)",
+      "nounCategory": "{{entity}} item(s)",
+      "nounAll": "items across ALL categories",
+      "nounSelected": "selected item(s)",
+      "restored": "{{entity}} restored",
+      "restoreFailed": "Restore failed",
+      "title": "Trash",
+      "intro": "Archived items across DRAIS. Restore returns the item to active state. Purge permanently deletes it (super-admin only).",
+      "all": "All",
+      "searchPh": "Search archived items by name…",
+      "progress": "{{verb}} {{done}}/{{total}}…",
+      "selectedN": "{{n}} selected",
+      "restoreSelected": "Restore selected",
+      "purgeSelected": "Purge selected ({{n}})",
+      "purgeAllOf": "Purge all {{entity}} ({{n}})",
+      "items": "items",
+      "purgeEverything": "Purge everything ({{n}})",
+      "failedToLoad": "Failed to load trash",
+      "accessDenied": "Access denied",
+      "needsPerm": "Your role needs the {{perm}} permission. Ask an administrator to grant it from {{page}}.",
+      "retry": "Retry",
+      "loading": "Loading trash…",
+      "empty": "Trash is empty",
+      "emptyHelp": "Archived items appear here. Active data is unaffected.",
+      "selectAll": "Select all on this page",
+      "selectOne": "Select {{name}}",
+      "col": {
+        "name": "Name",
+        "type": "Type",
+        "archived": "Archived on",
+        "by": "By",
+        "reason": "Reason",
+        "actions": "Actions"
+      },
+      "previouslyRestored": "previously restored",
+      "userNo": "user #{{id}}",
+      "restore": "Restore",
+      "purge": "Purge",
+      "rangeOf": "{{from}}–{{to}} of {{total}}",
+      "prev": "Prev",
+      "next": "Next",
+      "depsFailed": "Failed to load dependencies",
+      "purgeFailed": "Purge failed",
+      "purged": "{{entity}} permanently deleted",
+      "modalTitle": "Permanently delete",
+      "modalWarn": "This permanently removes {{name}} ({{entity}}) from the database. The action is irreversible. Source records will remain audited in the audit log.",
+      "checkingDeps": "Checking dependencies…",
+      "noDeps": "No referencing records found.",
+      "affected": "Affected records ({{n}} total):",
+      "blocking": " (blocking)",
+      "blockersHelp": "Blocking dependencies must be cleared before purge.",
+      "ack": "I understand this action is irreversible.",
+      "cancel": "Cancel"
     }
   },
   "tahfizPages": {

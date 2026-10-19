@@ -8497,6 +8497,194 @@
       "close": "إغلاق",
       "deleting": "جارٍ الحذف…",
       "deletePermanently": "حذف نهائي"
+    },
+    "trash": {
+      "ent": {
+        "student": {
+          "one": "متعلم",
+          "plural": "المتعلمون"
+        },
+        "staff": {
+          "one": "موظف",
+          "plural": "الموظفون"
+        },
+        "class": {
+          "one": "فصل",
+          "plural": "الفصول"
+        },
+        "stream": {
+          "one": "شعبة",
+          "plural": "الشعب"
+        },
+        "subject": {
+          "one": "مادة",
+          "plural": "المواد"
+        },
+        "department": {
+          "one": "قسم",
+          "plural": "الأقسام"
+        },
+        "term": {
+          "one": "فصل دراسي",
+          "plural": "الفصول الدراسية"
+        },
+        "academic_year": {
+          "one": "سنة دراسية",
+          "plural": "السنوات الدراسية"
+        },
+        "result_type": {
+          "one": "نوع نتيجة",
+          "plural": "أنواع النتائج"
+        },
+        "exam": {
+          "one": "امتحان",
+          "plural": "الامتحانات"
+        },
+        "role": {
+          "one": "دور",
+          "plural": "الأدوار"
+        },
+        "user": {
+          "one": "حساب مستخدم",
+          "plural": "حسابات المستخدمين"
+        },
+        "contact": {
+          "one": "جهة اتصال",
+          "plural": "جهات الاتصال"
+        },
+        "inventory_item": {
+          "one": "صنف مخزون",
+          "plural": "أصناف المخزون"
+        },
+        "store": {
+          "one": "مخزن",
+          "plural": "المخازن"
+        },
+        "payroll_definition": {
+          "one": "تعريف رواتب",
+          "plural": "تعريفات الرواتب"
+        },
+        "document": {
+          "one": "مستند",
+          "plural": "المستندات"
+        },
+        "notification": {
+          "one": "إشعار",
+          "plural": "الإشعارات"
+        },
+        "workplan": {
+          "one": "خطة عمل",
+          "plural": "خطط العمل"
+        },
+        "expenditure": {
+          "one": "مصروف",
+          "plural": "المصروفات"
+        },
+        "waiver": {
+          "one": "إعفاء / خصم",
+          "plural": "الإعفاءات والخصومات"
+        },
+        "promotion": {
+          "one": "ترفيع",
+          "plural": "الترفيعات"
+        },
+        "device": {
+          "one": "جهاز",
+          "plural": "الأجهزة"
+        },
+        "biometric_device": {
+          "one": "جهاز بصمة",
+          "plural": "أجهزة البصمة"
+        },
+        "tahfiz_result": {
+          "one": "نتيجة تحفيظ",
+          "plural": "نتائج التحفيظ"
+        },
+        "salary_payment": {
+          "one": "دفعة راتب",
+          "plural": "دفعات الرواتب"
+        }
+      },
+      "dep": {
+        "enrollment_records": "سجلات القيد",
+        "result_records": "سجلات النتائج",
+        "promotion_records": "سجلات الترفيع",
+        "class_teacher_assignments": "إسنادات معلم الفصل",
+        "employment_events": "أحداث التوظيف",
+        "subject_allocations": "توزيعات المواد",
+        "enrollments": "القيود",
+        "streams": "الشعب",
+        "class_allocations": "توزيعات الفصول",
+        "staff_members": "الموظفون",
+        "report_snapshots": "لقطات التقارير",
+        "terms": "الفصول الدراسية",
+        "user_assignments": "إسنادات المستخدمين",
+        "permission_grants": "منح الصلاحيات",
+        "role_assignments": "إسنادات الأدوار",
+        "active_sessions": "الجلسات النشطة"
+      },
+      "permDelete": "⚠️ حذف نهائي",
+      "confirmBulk": "حذف {{n}} {{noun}} نهائيًا؟ «لا يمكن» التراجع عن ذلك. تُتخطّى العناصر ذات الارتباطات المانعة.",
+      "deleteForever": "حذف إلى الأبد",
+      "purging": "جارٍ الحذف النهائي",
+      "restoring": "جارٍ الاستعادة",
+      "purgedResult": "حُذف نهائيًا {{n}}",
+      "blockedPart": "، {{n}} محجوب بسبب الارتباطات",
+      "failedPart": "، {{n}} فشل",
+      "restoredResult": "استُعيد {{n}}",
+      "nounItems": "عنصر",
+      "nounCategory": "عنصر من {{entity}}",
+      "nounAll": "عنصر في «كل» الفئات",
+      "nounSelected": "عنصر محدد",
+      "restored": "تمت استعادة {{entity}}",
+      "restoreFailed": "فشلت الاستعادة",
+      "title": "سلة المهملات",
+      "intro": "العناصر المؤرشفة في DRAIS. الاستعادة تعيد العنصر إلى الحالة النشطة. الحذف النهائي يزيله نهائيًا (للمشرف العام فقط).",
+      "all": "الكل",
+      "searchPh": "ابحث في العناصر المؤرشفة بالاسم…",
+      "progress": "{{verb}}: {{done}} من {{total}}…",
+      "selectedN": "محدد: {{n}}",
+      "restoreSelected": "استعادة المحدد",
+      "purgeSelected": "حذف المحدد نهائيًا ({{n}})",
+      "purgeAllOf": "حذف كل {{entity}} نهائيًا ({{n}})",
+      "items": "العناصر",
+      "purgeEverything": "حذف كل شيء نهائيًا ({{n}})",
+      "failedToLoad": "تعذّر تحميل سلة المهملات",
+      "accessDenied": "تم رفض الوصول",
+      "needsPerm": "يحتاج دورك إلى صلاحية {{perm}}. اطلب من المسؤول منحها من {{page}}.",
+      "retry": "إعادة المحاولة",
+      "loading": "جارٍ تحميل سلة المهملات…",
+      "empty": "سلة المهملات فارغة",
+      "emptyHelp": "تظهر العناصر المؤرشفة هنا. البيانات النشطة لا تتأثر.",
+      "selectAll": "تحديد الكل في هذه الصفحة",
+      "selectOne": "تحديد {{name}}",
+      "col": {
+        "name": "الاسم",
+        "type": "النوع",
+        "archived": "تاريخ الأرشفة",
+        "by": "بواسطة",
+        "reason": "السبب",
+        "actions": "الإجراءات"
+      },
+      "previouslyRestored": "استُعيد سابقًا",
+      "userNo": "المستخدم رقم {{id}}",
+      "restore": "استعادة",
+      "purge": "حذف نهائي",
+      "rangeOf": "{{from}}–{{to}} من {{total}}",
+      "prev": "السابق",
+      "next": "التالي",
+      "depsFailed": "تعذّر تحميل الارتباطات",
+      "purgeFailed": "فشل الحذف النهائي",
+      "purged": "تم حذف {{entity}} نهائيًا",
+      "modalTitle": "حذف نهائي",
+      "modalWarn": "يزيل هذا {{name}} ({{entity}}) من قاعدة البيانات نهائيًا. لا يمكن التراجع عن الإجراء. تبقى السجلات المصدرية مدققة في سجل التدقيق.",
+      "checkingDeps": "جارٍ فحص الارتباطات…",
+      "noDeps": "لم يُعثر على سجلات مرتبطة.",
+      "affected": "السجلات المتأثرة ({{n}} إجمالًا):",
+      "blocking": " (مانع)",
+      "blockersHelp": "يجب إزالة الارتباطات المانعة قبل الحذف النهائي.",
+      "ack": "أدرك أن هذا الإجراء لا يمكن التراجع عنه.",
+      "cancel": "إلغاء"
     }
   },
   "tahfizPages": {
