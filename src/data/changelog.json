@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:52:53.018Z",
-  "last_commit": "8dade743b0038267b6bcfa1f3e9a704aacd250c3",
+  "generated_at": "2026-10-19T15:58:49.269Z",
+  "last_commit": "fa3e40c25b731d979c9aa788242ca63ecf57f4f8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10177,7 +10177,20 @@
         }
       ],
       "commit": "8dade743b0"
+    },
+    {
+      "version": "2.50.120",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Language is one person's choice on one device — keyed by school + person",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Language is one person's choice on one device — keyed by school + person"
+        }
+      ],
+      "commit": "fa3e40c25b"
     }
   ],
-  "app_version": "2.50.120"
+  "app_version": "2.50.121"
 }
