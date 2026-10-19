@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:08:12.359Z",
-  "last_commit": "af919a4d0351f4e37d319ab48d35e70115b3c0c3",
+  "generated_at": "2026-10-19T16:10:52.350Z",
+  "last_commit": "4813d08bad2d581fb09ca793a2ea508b9963b35e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10216,7 +10216,20 @@
         }
       ],
       "commit": "af919a4d03"
+    },
+    {
+      "version": "2.50.123",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/subjects fully Arabic; l10n editor ignores trailing whitespace",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/subjects fully Arabic; l10n editor ignores trailing whitespace"
+        }
+      ],
+      "commit": "4813d08bad"
     }
   ],
-  "app_version": "2.50.123"
+  "app_version": "2.50.124"
 }

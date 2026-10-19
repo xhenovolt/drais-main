@@ -17,6 +17,9 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+import { subjectTypeLabel } from '@/lib/i18n/subjects';
 
 interface SubjectRow { id: number; name: string; subjectType: string | null; }
 interface ScopeOption { id: number; name: string; }
@@ -24,20 +27,22 @@ interface ScopeOption { id: number; name: string; }
 function SortableSubjectRow({ subject, index, configured }: { subject: SubjectRow; index: number; configured: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: subject.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const { t, digits } = useI18n();
   return (
     <div ref={setNodeRef} style={style} className={`flex items-center gap-3 px-3 py-2.5 border-b border-gray-100 dark:border-gray-700/50 ${isDragging ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'bg-white dark:bg-gray-800'}`}>
       <span {...attributes} {...listeners} className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0">
         <GripVertical className="w-4 h-4" />
       </span>
-      <span className="w-7 text-xs font-mono text-gray-400 flex-shrink-0">{index + 1}</span>
+      <span className="w-7 text-xs font-mono text-gray-400 flex-shrink-0">{digits(index + 1)}</span>
       <span className="flex-1 font-medium text-gray-800 dark:text-gray-100 truncate">{subject.name}</span>
-      {subject.subjectType && <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 flex-shrink-0">{subject.subjectType}</span>}
-      {!configured && <span className="text-[10px] text-gray-400 italic flex-shrink-0">unconfigured</span>}
+      {subject.subjectType && <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 flex-shrink-0">{subjectTypeLabel(t, subject.subjectType)}</span>}
+      {!configured && <span className="text-[10px] text-gray-400 italic flex-shrink-0">{t('academicsPages.subjects.order.unconfigured', "unconfigured")}</span>}
     </div>
   );
 }
 
 export default function SubjectOrderPage() {
+  const { t, rich } = useI18n();
   const [subjects, setSubjects] = useState<SubjectRow[] | null>(null);
   const [configuredIds, setConfiguredIds] = useState<Set<number>>(new Set());
   const [classes, setClasses] = useState<ScopeOption[]>([]);
@@ -62,7 +67,7 @@ export default function SubjectOrderPage() {
       const r = await fetch(`/api/subjects/order?${scopeQuery}`, { cache: 'no-store' });
       const j = await r.json();
       if (j.success) {
-        setSubjects(j.subjects);
+        setSubjects(Array.isArray(j.subjects) ? j.subjects : []);
         const configured = new Set<number>(
           (j.rules || [])
             .filter((rule: any) => (rule.classId ?? null) === (classId ? Number(classId) : null) && (rule.resultTypeId ?? null) === (resultTypeId ? Number(resultTypeId) : null))
@@ -108,38 +113,38 @@ export default function SubjectOrderPage() {
         }),
       });
       const j = await r.json();
-      if (j.success) { toast.success('Order saved'); load(); }
-      else toast.error(j.error || 'Failed to save');
+      if (j.success) { toast.success(t('academicsPages.subjects.order.saved', "Order saved")); load(); }
+      else toast.error(j.error && !(uiIsArabic() && isEnglishText(j.error)) ? j.error : t('academicsPages.subjects.order.saveFailed', "Failed to save"));
     } finally { setSaving(false); }
-  }, [subjects, classId, resultTypeId, load]);
+  }, [subjects, classId, resultTypeId, load, t]);
 
   const scopeLabel = classId || resultTypeId
-    ? [classId && `class: ${classes.find((c) => String(c.id) === classId)?.name || classId}`, resultTypeId && `exam: ${resultTypes.find((r) => String(r.id) === resultTypeId)?.name || resultTypeId}`].filter(Boolean).join(', ')
-    : 'school-wide default';
+    ? [classId && t('academicsPages.subjects.order.scopeClass', { name: classes.find((c) => String(c.id) === classId)?.name || classId }), resultTypeId && t('academicsPages.subjects.order.scopeExam', { name: resultTypes.find((r) => String(r.id) === resultTypeId)?.name || resultTypeId })].filter(Boolean).join('، ')
+    : t('academicsPages.subjects.order.schoolDefault', "school-wide default");
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30"><ArrowUpDown className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /></div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Subject Order on Reports</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Drag to set the order subjects appear on report cards — no more random database order.</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('academicsPages.subjects.order.title', "Subject Order on Reports")}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('academicsPages.subjects.order.subtitle', "Drag to set the order subjects appear on report cards — no more random database order.")}</p>
         </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <p className="text-xs font-medium text-gray-500">Scope — set a default for everyone, or override for one class / one exam type</p>
+        <p className="text-xs font-medium text-gray-500">{t('academicsPages.subjects.order.scopeHelp', "Scope — set a default for everyone, or override for one class / one exam type")}</p>
         <div className="flex flex-wrap gap-2">
           <select value={classId} onChange={(e) => setClassId(e.target.value)} className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm">
-            <option value="">All classes (school default)</option>
+            <option value="">{t('academicsPages.subjects.order.allClasses', "All classes (school default)")}</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={resultTypeId} onChange={(e) => setResultTypeId(e.target.value)} className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm">
-            <option value="">All exam types</option>
+            <option value="">{t('academicsPages.subjects.order.allExams', "All exam types")}</option>
             {resultTypes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </div>
-        <p className="text-[11px] text-gray-400">Editing order for: <span className="font-medium text-indigo-600 dark:text-indigo-400">{scopeLabel}</span>. A class/exam-specific order overrides the school default only for that scope.</p>
+        <p className="text-[11px] text-gray-400">{rich('academicsPages.subjects.order.editingFor', { scope: <span className="font-medium text-indigo-600 dark:text-indigo-400">{scopeLabel}</span> })}</p>
       </div>
 
       {loading && <div className="py-16 text-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-600 inline" /></div>}
@@ -158,10 +163,10 @@ export default function SubjectOrderPage() {
 
           <div className="flex items-center justify-between">
             <button onClick={() => { setClassId(''); setResultTypeId(''); }} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-              <RotateCcw className="w-3.5 h-3.5" /> Back to school default
+              <RotateCcw className="w-3.5 h-3.5" /> {t('academicsPages.subjects.order.back', "Back to school default")}
             </button>
             <button onClick={save} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Save order
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} {t('academicsPages.subjects.order.save', "Save order")}
             </button>
           </div>
         </>

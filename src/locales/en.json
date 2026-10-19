@@ -8895,7 +8895,50 @@
       "scopeHelp": "{{label}} When a subject is marked for specific classes, it will only appear on reports for students in those classes. This prevents learners from seeing results for subjects they don't take.",
       "scopeLabel": "Scope Definition:",
       "saving": "Saving...",
-      "saveAlloc": "Save Allocation ({{n}})"
+      "saveAlloc": "Save Allocation ({{n}})",
+      "order": {
+        "unconfigured": "unconfigured",
+        "saved": "Order saved",
+        "saveFailed": "Failed to save",
+        "scopeClass": "class: {{name}}",
+        "scopeExam": "exam: {{name}}",
+        "schoolDefault": "school-wide default",
+        "title": "Subject Order on Reports",
+        "subtitle": "Drag to set the order subjects appear on report cards — no more random database order.",
+        "scopeHelp": "Scope — set a default for everyone, or override for one class / one exam type",
+        "allClasses": "All classes (school default)",
+        "allExams": "All exam types",
+        "editingFor": "Editing order for: {{scope}}. A class/exam-specific order overrides the school default only for that scope.",
+        "back": "Back to school default",
+        "save": "Save order"
+      },
+      "detail": {
+        "loading": "Loading…",
+        "loadFailed": "Could not load subject",
+        "unknown": "Unknown error",
+        "all": "All subjects",
+        "code": "Code {{v}}",
+        "type": "Type {{v}}",
+        "program": "Program {{v}}",
+        "classes": {
+          "one": "{{count}} class",
+          "other": "{{count}} classes"
+        },
+        "teachers": {
+          "one": "{{count}} teacher",
+          "other": "{{count}} teachers"
+        },
+        "taughtIn": "Taught in",
+        "notAllocated": "This subject is not currently allocated to any class.",
+        "col": {
+          "class": "Class",
+          "level": "Level",
+          "program": "Program",
+          "teacher": "Teacher",
+          "initials": "Initials"
+        },
+        "unassigned": "unassigned"
+      }
     }
   }
 }
