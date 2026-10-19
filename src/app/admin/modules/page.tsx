@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { Boxes, Loader2, BookOpen, Coins, Wrench, BarChart3, Star, Lock, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
 
@@ -38,12 +39,13 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ElementType; 
 };
 
 export default function ModulesAdminPage() {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
+  const modLabel = (d: ModuleDescriptor) => t(`staffPages.modules.m.${d.code}.label`, d.label);
   const { data, mutate, isLoading } = useSWR<ApiResponse>('/api/admin/school-modules', fetcher);
   const [pending, setPending] = useState<string | null>(null);
 
-  const catalog = data?.catalog ?? [];
-  const modules = data?.modules ?? [];
+  const catalog = Array.isArray(data?.catalog) ? data!.catalog : [];
+  const modules = Array.isArray(data?.modules) ? data!.modules : [];
   const byCode = new Map(modules.map(m => [m.code, m]));
 
   // Group by category
@@ -63,9 +65,10 @@ export default function ModulesAdminPage() {
       });
       const j = await res.json();
       if (!res.ok || !j.success) throw new Error(j.error || 'Toggle failed');
-      toast.success(`${code}: ${enable ? 'enabled' : 'disabled'}`);
+      const name = catalog.find(d => d.code === code); const label = name ? modLabel(name) : code;
+      toast.success(enable ? t('staffPages.modules.enabled', { module: label }) : t('staffPages.modules.disabled', { module: label }));
       mutate();
-    } catch (e: any) { toast.error(e?.message || 'Toggle failed'); }
+    } catch (e: any) { toast.error(e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.modules.toggleFailed', "Toggle failed")); }
     finally { setPending(null); }
   }
 
@@ -75,15 +78,14 @@ export default function ModulesAdminPage() {
         <Boxes className="w-6 h-6 text-indigo-500" />
         <div>
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('nav.admin.schoolModules')}</h1>
-          <p className="text-xs text-slate-400">Toggle features for this school. Super-admin only.</p>
+          <p className="text-xs text-slate-400">{t('staffPages.modules.subtitle', "Toggle features for this school. Super-admin only.")}</p>
         </div>
       </div>
 
       <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-start gap-2">
         <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-amber-700 dark:text-amber-300">
-          Disabling a module hides its sidebar entries and blocks its API routes
-          with HTTP 403. Existing data is preserved — re-enabling restores access.
+          {t('staffPages.modules.warning', "Disabling a module hides its sidebar entries and blocks its API routes with HTTP 403. Existing data is preserved — re-enabling restores access.")}
         </p>
       </div>
 
@@ -97,7 +99,7 @@ export default function ModulesAdminPage() {
             <section key={cat} className="space-y-3">
               <div className="flex items-center gap-2">
                 <Icon className="w-4 h-4 text-slate-500" />
-                <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">{meta.label}</h2>
+                <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">{t(`staffPages.modules.cat.${cat}`, meta.label)}</h2>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 {mods.map(d => {
@@ -113,9 +115,9 @@ export default function ModulesAdminPage() {
                       }`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 dark:text-white">{d.label}</p>
-                          <p className="text-xs text-slate-500 mt-1 line-clamp-2">{d.description}</p>
-                          <p className="text-[10px] font-mono text-slate-400 mt-2">{d.code}</p>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-white">{modLabel(d)}</p>
+                          <p className="text-xs text-slate-500 mt-1 line-clamp-2">{t(`staffPages.modules.m.${d.code}.desc`, d.description)}</p>
+                          <p dir="ltr" className="text-[10px] font-mono text-slate-400 mt-2 text-start rtl:text-end">{d.code}</p>
                         </div>
                         <label className="flex items-center cursor-pointer flex-shrink-0">
                           <input type="checkbox" checked={enabled}
@@ -126,14 +128,14 @@ export default function ModulesAdminPage() {
                             enabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
                           } ${isPending ? 'opacity-50' : ''}`}>
                             <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition shadow ${
-                              enabled ? 'left-[22px]' : 'left-0.5'
+                              enabled ? 'start-[22px]' : 'start-0.5'
                             }`} />
                           </div>
                         </label>
                       </div>
                       {row?.expiresAt && (
                         <p className="text-[10px] text-slate-400 mt-2">
-                          Expires: {new Date(row.expiresAt).toLocaleDateString()}
+                          {t('staffPages.modules.expires', { date: formatDate(row.expiresAt, 'medium') })}
                         </p>
                       )}
                     </div>

@@ -8512,6 +8512,68 @@
         "cleaner": "Cleaner",
         "other_staff": "Other Staff"
       }
+    },
+    "modules": {
+      "m": {
+        "academics": {
+          "label": "Academics",
+          "desc": "Classes, subjects, results, report cards."
+        },
+        "examinations": {
+          "label": "Examinations",
+          "desc": "Exam scheduling and results recording."
+        },
+        "attendance": {
+          "label": "Attendance",
+          "desc": "Daily attendance, biometric devices, reconciliation."
+        },
+        "fingerprint_auth": {
+          "label": "Fingerprint Auth",
+          "desc": "WebAuthn / biometric login flow."
+        },
+        "finance": {
+          "label": "Finance",
+          "desc": "Fees, ledger, invoices."
+        },
+        "payroll": {
+          "label": "Payroll",
+          "desc": "Staff salary computation and payments."
+        },
+        "inventory": {
+          "label": "Inventory",
+          "desc": "School assets and consumables tracking."
+        },
+        "tahfiz": {
+          "label": "Tahfiz",
+          "desc": "Qur'an memorization program: books, groups, reports."
+        },
+        "intelligence": {
+          "label": "Intelligence",
+          "desc": "AI-driven analytics and risk dashboards."
+        },
+        "analytics": {
+          "label": "Analytics",
+          "desc": "Reports, predictive insights, KPI dashboards."
+        },
+        "work_plans": {
+          "label": "Work Plans",
+          "desc": "Staff workplans and task tracking."
+        }
+      },
+      "cat": {
+        "core": "Core",
+        "academics": "Academics",
+        "finance": "Finance",
+        "operations": "Operations",
+        "analytics": "Analytics",
+        "spiritual": "Spiritual"
+      },
+      "toggleFailed": "Toggle failed",
+      "enabled": "{{module}}: enabled",
+      "disabled": "{{module}}: disabled",
+      "subtitle": "Toggle features for this school. Super-admin only.",
+      "warning": "Disabling a module hides its sidebar entries and blocks its API routes with HTTP 403. Existing data is preserved — re-enabling restores access.",
+      "expires": "Expires: {{date}}"
     }
   },
   "tahfizPages": {
