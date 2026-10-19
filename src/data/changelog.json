@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T09:26:39.354Z",
-  "last_commit": "fc10e0fc15cade81c08685071d78145c2a2c44aa",
+  "generated_at": "2026-10-19T09:31:50.441Z",
+  "last_commit": "cd5cb34e605f501558ab000d04dc1f7ec95de18a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9930,7 +9930,20 @@
         }
       ],
       "commit": "fc10e0fc15"
+    },
+    {
+      "version": "2.50.101",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/notifications/policies fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/admin/notifications/policies fully Arabic"
+        }
+      ],
+      "commit": "cd5cb34e60"
     }
   ],
-  "app_version": "2.50.101"
+  "app_version": "2.50.102"
 }

@@ -82,13 +82,14 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const onNetwork = reports.find((e) => e.state === 'sent');
   const notDelivered = [...reports].reverse().find((e) => e.state === 'failed');
   const lifecycle = [
-    { step: 'DRAIS created the message', at: row.created_at, done: true },
-    { step: 'Handed to the SMS provider', at: row.attempted_at, done: !!row.attempted_at },
-    { step: 'Provider accepted it', at: row.status === 'delivered' ? row.delivered_at : null, done: row.status === 'delivered' },
-    ...(onNetwork ? [{ step: `Handed to the mobile network${onNetwork.network ? ` (${onNetwork.network})` : ''}`, at: onNetwork.created_at, done: true }] : []),
+    // `key`/`vars` let the page word each step in the interface language; `step` stays the English.
+    { key: 'created', step: 'DRAIS created the message', at: row.created_at, done: true },
+    { key: 'handed', step: 'Handed to the SMS provider', at: row.attempted_at, done: !!row.attempted_at },
+    { key: 'accepted', step: 'Provider accepted it', at: row.status === 'delivered' ? row.delivered_at : null, done: row.status === 'delivered' },
+    ...(onNetwork ? [{ key: 'network', vars: { network: onNetwork.network ?? null }, step: `Handed to the mobile network${onNetwork.network ? ` (${onNetwork.network})` : ''}`, at: onNetwork.created_at, done: true }] : []),
     notDelivered && !row.delivery_confirmed_at
-      ? { step: `Provider reported it was NOT delivered${notDelivered.reason ? `: ${notDelivered.reason}` : ''}`, at: notDelivered.created_at, done: true, failed: true }
-      : { step: 'Provider confirmed delivery to the phone', at: row.delivery_confirmed_at, done: !!row.delivery_confirmed_at },
+      ? { key: 'notDelivered', vars: { reason: notDelivered.reason ?? null }, step: `Provider reported it was NOT delivered${notDelivered.reason ? `: ${notDelivered.reason}` : ''}`, at: notDelivered.created_at, done: true, failed: true }
+      : { key: 'confirmed', step: 'Provider confirmed delivery to the phone', at: row.delivery_confirmed_at, done: !!row.delivery_confirmed_at },
   ];
 
   return NextResponse.json({
@@ -109,6 +110,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       // provider's raw wholesale cost. Only shown for an accepted send —
       // a rejected attempt was never billed.
       cost: Number(d.success) === 1 ? `UGX ${retailPriceUgx.toFixed(4)}` : null,
+      costUgx: Number(d.success) === 1 ? Number(retailPriceUgx.toFixed(4)) : null,
       accepted: Number(d.success) === 1, error: d.error, at: d.delivered_at,
     })),
     providerReports: reports.map((e) => ({ state: e.state, provider: e.provider, network: e.network, reason: e.reason, at: e.created_at })),
