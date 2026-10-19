@@ -106,6 +106,16 @@ export async function POST(req: NextRequest) {
   try {
     const schoolId = session.schoolId;
 
+    // The year must be this school's own — a term pinned to another school's
+    // year would show that school's year name and fall out of every per-year query.
+    const [years]: any = await connection.execute(
+      'SELECT id FROM academic_years WHERE id = ? AND school_id = ? LIMIT 1',
+      [academic_year_id, schoolId]
+    );
+    if (years.length === 0) {
+      return NextResponse.json({ error: 'Academic year not found for this school' }, { status: 400 });
+    }
+
     const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
     const [dupes]: any = await connection.execute(
       `
@@ -134,5 +144,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, id: insertId }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
+  } finally {
+    await connection.end();
   }
 }

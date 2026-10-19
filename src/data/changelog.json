@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:49:25.551Z",
-  "last_commit": "99e6990dffd2456989df75890b23724925caf3b9",
+  "generated_at": "2026-10-19T16:54:20.269Z",
+  "last_commit": "c30bf71a743ab662203ec4957b818cf2bd0368bd",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10307,7 +10307,20 @@
         }
       ],
       "commit": "99e6990dff"
+    },
+    {
+      "version": "2.50.130",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/years fully Arabic, localized dates and year names",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/years fully Arabic, localized dates and year names"
+        }
+      ],
+      "commit": "c30bf71a74"
     }
   ],
-  "app_version": "2.50.130"
+  "app_version": "2.50.131"
 }

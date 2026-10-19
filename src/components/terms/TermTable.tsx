@@ -7,6 +7,7 @@ import { TermWizard } from './TermWizard';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 const fetcher = (u: string) => fetch(u).then(r => r.json());
+const KNOWN_STATUS = ['current', 'upcoming', 'completed', 'unknown'];
 
 const STATUS_STYLE: Record<string, string> = {
   current:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -24,17 +25,25 @@ const WARN_LABEL: Record<string, string> = {
 };
 
 export default function TermTable() {
-  const { t } = useI18n();
+  const { t, digits, formatDate } = useI18n();
+  const day = (d: any) => {
+    const s = String(d || '').slice(0, 10);
+    if (!s) return '';
+    const x = new Date(`${s}T00:00:00`);
+    return isNaN(x.getTime()) ? s : formatDate(x, 'medium');
+  };
+  const warnText = (w: string) => (WARN_LABEL[w] ? t(`academicsPages.termList.warn.${w}`, WARN_LABEL[w]) : w);
   const { data, isLoading, mutate } = useSWR('/api/terms/current', fetcher);
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const router = useRouter();
 
   const ctx = data?.data?.context;
-  const rows: any[] = ctx?.allTerms ?? data?.data?.all ?? [];
+  const rowsRaw = ctx?.allTerms ?? data?.data?.all;
+  const rows: any[] = Array.isArray(rowsRaw) ? rowsRaw : [];
   const effective = ctx?.effective ?? null;
   const progress = ctx?.progress ?? null;
-  const warnings: string[] = ctx?.warnings ?? [];
+  const warnings: string[] = Array.isArray(ctx?.warnings) ? ctx.warnings : [];
 
   const setActive = async (id: number, makeActive: boolean) => {
     setBusyId(id);
@@ -62,12 +71,12 @@ export default function TermTable() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> Current term: {effective.name}
-                {effective.academic_year_name ? ` · ${effective.academic_year_name}` : ''}
+                <CheckCircle2 className="w-4 h-4" /> {t('academicsPages.termList.current', { name: effective.name })}
+                {effective.academic_year_name ? ` · ${digits(String(effective.academic_year_name))}` : ''}
               </p>
               {progress && (
                 <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                  Day {progress.daysElapsed} of {progress.totalDays} · {progress.daysRemaining} day(s) remaining
+                  {t('academicsPages.termList.progress', { day: progress.daysElapsed, total: progress.totalDays, count: progress.daysRemaining })}
                 </p>
               )}
             </div>
@@ -81,25 +90,25 @@ export default function TermTable() {
       ) : (
         warnings.includes('NO_CURRENT_TERM') && (
           <div className="rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> No current term — today is outside every term. Set one active below or add the current term.
+            <AlertTriangle className="w-4 h-4" /> {t('academicsPages.termList.noCurrent', "No current term — today is outside every term. Set one active below or add the current term.")}
           </div>
         )
       )}
       {warnings.filter(w => w !== 'NO_CURRENT_TERM').map(w => (
         <div key={w} className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-2">
-          <AlertTriangle className="w-3.5 h-3.5" /> {WARN_LABEL[w] || w}
+          <AlertTriangle className="w-3.5 h-3.5" /> {warnText(w)}
         </div>
       ))}
 
       <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow">
         <table className="w-full text-sm">
-          <thead className="text-left bg-gray-50 dark:bg-slate-900/50 text-gray-500 dark:text-gray-400">
+          <thead className="text-start bg-gray-50 dark:bg-slate-900/50 text-gray-500 dark:text-gray-400">
             <tr>
-              <th className="px-4 py-2.5 font-semibold">{t('terms.name')}</th>
-              <th className="px-4 py-2.5 font-semibold">{t('terms.start')}</th>
-              <th className="px-4 py-2.5 font-semibold">{t('terms.end')}</th>
-              <th className="px-4 py-2.5 font-semibold">Status</th>
-              <th className="px-4 py-2.5 font-semibold text-right">Active</th>
+              <th className="px-4 py-2.5 font-semibold text-start">{t('terms.name')}</th>
+              <th className="px-4 py-2.5 font-semibold text-start">{t('terms.start')}</th>
+              <th className="px-4 py-2.5 font-semibold text-start">{t('terms.end')}</th>
+              <th className="px-4 py-2.5 font-semibold text-start">{t('academicsPages.termList.status', "Status")}</th>
+              <th className="px-4 py-2.5 font-semibold text-end">{t('academicsPages.termList.active', "Active")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -115,25 +124,25 @@ export default function TermTable() {
               return (
                 <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                   <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-200 cursor-pointer" onClick={() => router.push(`/terms/${r.id}`)}>
-                    {r.name}{r.academic_year_name ? <span className="text-xs text-gray-400"> · {r.academic_year_name}</span> : null}
+                    {r.name}{r.academic_year_name ? <span className="text-xs text-gray-400"> · {digits(String(r.academic_year_name))}</span> : null}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{String(r.start_date || '').slice(0, 10)}</td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{String(r.end_date || '').slice(0, 10)}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-500">{day(r.start_date)}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-500">{day(r.end_date)}</td>
                   <td className="px-4 py-2.5">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${STATUS_STYLE[ds]}`}>
-                      {ds === 'current' && <Clock className="w-3 h-3" />}{ds}
+                      {ds === 'current' && <Clock className="w-3 h-3" />}{KNOWN_STATUS.includes(ds) ? t(`academicsPages.termList.ds.${ds}`, ds) : ds}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right">
+                  <td className="px-4 py-2.5 text-end">
                     {isActive ? (
                       <button disabled={busyId === r.id} onClick={() => setActive(r.id, false)}
                         className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center gap-1">
-                        {busyId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Active — click to clear
+                        {busyId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} {t('academicsPages.termList.clearActive', "Active — click to clear")}
                       </button>
                     ) : (
                       <button disabled={busyId === r.id} onClick={() => setActive(r.id, true)}
                         className="px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-400 disabled:opacity-50">
-                        {busyId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Set active'}
+                        {busyId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t('academicsPages.termList.setActive', "Set active")}
                       </button>
                     )}
                   </td>

@@ -9188,6 +9188,44 @@
       "addTerm": "Add term",
       "noTerms": "No terms yet",
       "addFirstTerm": "Add first term"
+    },
+    "termList": {
+      "warn": {
+        "NO_CURRENT_TERM": "No current term — today is outside every term. Set the current term below.",
+        "STALE_ACTIVE": "A past term is still marked active. Deactivate it or activate the right term.",
+        "MULTIPLE_ACTIVE": "Multiple terms are marked active. Only one should be active.",
+        "MANUAL_OVERRIDE_MISMATCH": "The manually-active term differs from the date-current term.",
+        "NO_TERMS": "No terms exist yet. Add one to begin."
+      },
+      "current": "Current term: {{name}}",
+      "progress": {
+        "one": "Day {{day}} of {{total}} · {{count}} day(s) remaining",
+        "other": "Day {{day}} of {{total}} · {{count}} day(s) remaining"
+      },
+      "noCurrent": "No current term — today is outside every term. Set one active below or add the current term.",
+      "status": "Status",
+      "active": "Active",
+      "ds": {
+        "current": "current",
+        "upcoming": "upcoming",
+        "completed": "completed",
+        "unknown": "unknown"
+      },
+      "clearActive": "Active — click to clear",
+      "setActive": "Set active",
+      "w": {
+        "scheduled": "Scheduled",
+        "active": "Active",
+        "completed": "Completed",
+        "created": "Term created!",
+        "failed": "Failed",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "save": "Save",
+        "year": "Academic year",
+        "noYears": "No academic years yet",
+        "needYear": "Create an academic year first, then add its terms."
+      }
     }
   }
 }
