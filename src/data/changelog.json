@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T09:44:44.114Z",
-  "last_commit": "f607a649aecb26536e68267e085e7f454329665a",
+  "generated_at": "2026-10-19T09:46:35.542Z",
+  "last_commit": "7c15ddb0744ce2fe845356fc85f7b9bc7d11cae1",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10008,7 +10008,20 @@
         }
       ],
       "commit": "f607a649ae"
+    },
+    {
+      "version": "2.50.107",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/departments fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/admin/departments fully Arabic"
+        }
+      ],
+      "commit": "7c15ddb074"
     }
   ],
-  "app_version": "2.50.107"
+  "app_version": "2.50.108"
 }

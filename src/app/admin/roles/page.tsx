@@ -9,7 +9,8 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-import { showToast, confirmAction } from '@/lib/toast';
+import { showToast, confirmAction, uiIsArabic, isEnglishText } from '@/lib/toast';
+import { roleLabel } from '@/lib/i18n/roles';
 import { apiFetch } from '@/lib/apiClient';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
@@ -58,7 +59,8 @@ const MODULE_COLORS: Record<string, string> = {
 };
 
 export default function AdminRolesPage() {
-  const { t } = useI18n();
+  const { t, rich, lang, digits } = useI18n();
+  const modName = (m: string) => t(`staffPages.roles.mod.${m}`, m);
   const [roles,    setRoles]    = useState<Role[]>([]);
   const [allPerms, setAllPerms] = useState<Record<string, Permission[]>>({});
   /** Module → Resource → Permission[] grouping from the new catalog API. */
@@ -91,7 +93,7 @@ export default function AdminRolesPage() {
       setRoles(rData.data ?? []);
       setAllPerms(pData.data ?? {});
       setGroupedPerms(pData.grouped ?? {});
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setError((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.roles.loadFailed', "Could not load roles."))); }
     finally { setLoading(false); }
   }, []);
 
@@ -103,14 +105,14 @@ export default function AdminRolesPage() {
         '/api/admin/permissions/sync',
         { method: 'POST', silent: true },
       );
-      showToast('success', `Sync done. +${r.summary.inserted} new · ${r.summary.updated} updated · ${r.summary.orphaned} orphaned.`);
+      showToast('success', t('staffPages.roles.syncDone', { inserted: r.summary.inserted, updated: r.summary.updated, orphaned: r.summary.orphaned }));
       await loadRoles();
     } catch (e: any) {
-      showToast('error', e?.message || 'Sync failed');
+      showToast('error', (e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.roles.syncFailed', "Sync failed")));
     } finally {
       setSyncing(false);
     }
-  }, [loadRoles]);
+  }, [loadRoles, t]);
 
   useEffect(() => { loadRoles(); }, [loadRoles]);
 
@@ -132,7 +134,7 @@ export default function AdminRolesPage() {
       } else {
         setPendingPerms(new Set((data.data.permissions ?? []).map((p: Permission) => p.id)));
       }
-    } catch (e: any) { setError(e instanceof Error ? e.message : 'Error loading role'); }
+    } catch (e: any) { setError((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.roles.errorLoading', "Error loading role"))); }
     finally { setLoadingDetail(false); }
   }
 
@@ -161,24 +163,24 @@ export default function AdminRolesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ permission_ids: Array.from(pendingPerms) }),
-        successMessage: 'Permissions saved',
+        successMessage: t('staffPages.roles.permsSaved', "Permissions saved"),
       });
       setPermsDirty(false);
       loadRoles();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setError((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.roles.saveFailed', "Could not save permissions."))); }
     finally { setSavingPerms(false); }
   }
 
   async function deleteRole(role: Role) {
-    if (!await confirmAction(`Delete role "${role.name}"?`, 'This cannot be undone.', 'Delete')) return;
+    if (!await confirmAction(t('staffPages.roles.confirmDelete', { name: roleLabel(t, lang, role.name) }), t('staffPages.roles.cannotUndo', "This cannot be undone."), t('staffPages.roles.delete', "Delete"))) return;
     try {
       await apiFetch(`/api/admin/roles/${role.id}`, {
         method: 'DELETE',
-        successMessage: 'Role deleted',
+        successMessage: t('staffPages.roles.deleted', "Role deleted"),
       });
       if (selected?.id === role.id) setSelected(null);
       loadRoles();
-    } catch (e: any) { showToast('error', e.message ?? 'Delete failed'); }
+    } catch (e: any) { showToast('error', (e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.roles.deleteFailed', "Delete failed"))); }
   }
 
   const modules = Object.keys(allPerms);
@@ -186,18 +188,18 @@ export default function AdminRolesPage() {
   return (
     <div className="flex h-full min-h-screen gap-0">
       {/* Left: Role list — full-width on mobile, sidebar on md+ */}
-      <div className={`w-full md:w-72 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col ${selected ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-full md:w-72 flex-shrink-0 border-e border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col ${selected ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-indigo-500" />
-            <span className="font-semibold text-sm text-slate-800 dark:text-white">Roles</span>
+            <span className="font-semibold text-sm text-slate-800 dark:text-white">{t('staffPages.roles.roles', "Roles")}</span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={loadRoles}
+            <button onClick={loadRoles} title={t('staffPages.roles.refresh', "Refresh")} aria-label={t('staffPages.roles.refresh', "Refresh")}
               className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={() => setShowCreate(true)}
+            <button onClick={() => setShowCreate(true)} title={t('staffPages.roles.newRole', "New role")} aria-label={t('staffPages.roles.newRole', "New role")}
               className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors">
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -212,12 +214,12 @@ export default function AdminRolesPage() {
           ) : roles.map(role => (
             <button key={role.id}
               onClick={() => selectRole(role)}
-              className={`w-full text-left px-4 py-3 hover:bg-white dark:hover:bg-slate-800 transition-colors group ${selected?.id === role.id ? 'bg-white dark:bg-slate-800 border-r-2 border-indigo-500' : ''}`}
+              className={`w-full text-start px-4 py-3 hover:bg-white dark:hover:bg-slate-800 transition-colors group ${selected?.id === role.id ? 'bg-white dark:bg-slate-800 border-e-2 border-indigo-500' : ''}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-800 dark:text-white">{role.name}</span>
+                <span className="text-sm font-medium text-slate-800 dark:text-white">{roleLabel(t, lang, role.name)}</span>
                 {role.is_system_role ? (
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">system</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{t('staffPages.roles.system', "system")}</span>
                 ) : (
                   <button onClick={e => { e.stopPropagation(); deleteRole(role); }}
                     className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 transition-all">
@@ -226,11 +228,11 @@ export default function AdminRolesPage() {
                 )}
               </div>
               <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
-                <span className="flex items-center gap-1" title="Permissions granted">
+                <span className="flex items-center gap-1" title={t('staffPages.roles.permsGranted', "Permissions granted")}>
                   <Key className="w-3 h-3" />
-                  {isSuperAdminRole(role) ? 'all' : role.permission_count}
+                  {isSuperAdminRole(role) ? t('staffPages.roles.all', "all") : digits(role.permission_count)}
                 </span>
-                <span className="flex items-center gap-1"><UsersIcon className="w-3 h-3" />{role.user_count}</span>
+                <span className="flex items-center gap-1"><UsersIcon className="w-3 h-3" />{digits(role.user_count)}</span>
               </div>
             </button>
           ))}
@@ -243,7 +245,7 @@ export default function AdminRolesPage() {
           <div className="flex items-center justify-center h-full text-slate-400">
             <div className="text-center">
               <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Select a role to manage permissions</p>
+              <p>{t('staffPages.roles.selectRole', "Select a role to manage permissions")}</p>
             </div>
           </div>
         ) : loadingDetail ? (
@@ -257,37 +259,34 @@ export default function AdminRolesPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setSelected(null)}
+                    onClick={() => setSelected(null)} aria-label={t('staffPages.roles.back', "Back")}
                     className="md:hidden p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeft className="w-4 h-4 rtl:-scale-x-100" />
                   </button>
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">{selected.name}</h2>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">{roleLabel(t, lang, selected.name)}</h2>
                   {isSuperAdminRole(selected) ? (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Super Admin · Full Access</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{t('staffPages.roles.superFull', "Super Admin · Full Access")}</span>
                   ) : selected.is_system_role ? (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">System Role</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">{t('staffPages.roles.systemRole', "System Role")}</span>
                   ) : null}
                 </div>
-                {selected.description && <p className="text-sm text-slate-500 mt-0.5">{selected.description}</p>}
+                {selected.description && !(lang === 'ar' && isEnglishText(selected.description)) && <p className="text-sm text-slate-500 mt-0.5">{selected.description}</p>}
               </div>
               {!isReadOnly(selected) && permsDirty && (
                 <button onClick={savePermissions} disabled={savingPerms}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50">
                   {savingPerms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
-                  Save Permissions
+                  {t('staffPages.roles.savePerms', "Save Permissions")}
                 </button>
               )}
             </div>
 
             {isSuperAdminRole(selected) && (
               <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm">
-                <p className="font-semibold text-amber-700 dark:text-amber-300">Super Admin has implicit full access.</p>
+                <p className="font-semibold text-amber-700 dark:text-amber-300">{t('staffPages.roles.superImplicit', "Super Admin has implicit full access.")}</p>
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  The auth layer recognises this role by its <code className="font-mono">is_super_admin</code> flag and
-                  bypasses every permission check. Explicit grants in role_permissions are not required (and not
-                  consulted at runtime). The checkboxes below are shown for orientation only — every permission
-                  is effectively granted, including any added in future updates.
+                  {rich('staffPages.roles.superHelp', { flag: <code className="font-mono">is_super_admin</code> })}
                 </p>
               </div>
             )}
@@ -300,26 +299,26 @@ export default function AdminRolesPage() {
                 type="text"
                 value={permFilter}
                 onChange={e => setPermFilter(e.target.value)}
-                placeholder="Search permissions (code, name, description)…"
+                placeholder={t('staffPages.roles.searchPh', "Search permissions (code, name, description)…")}
                 className="flex-1 min-w-[16rem] px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button
                 onClick={runSync}
                 disabled={syncing}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border border-indigo-300 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 disabled:opacity-50"
-                title="Reconcile the permissions table with the code catalog"
+                title={t('staffPages.roles.syncTitle', "Reconcile the permissions table with the code catalog")}
               >
                 {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                Sync catalog
+                {t('staffPages.roles.syncCatalog', "Sync catalog")}
               </button>
               <span className="text-xs text-slate-400">
-                {pendingPerms.size} granted · {Object.values(allPerms).reduce((n, arr) => n + arr.length, 0)} total
+                {t('staffPages.roles.grantedTotal', { granted: pendingPerms.size, total: Object.values(allPerms).reduce((n, arr) => n + arr.length, 0) })}
               </span>
             </div>
 
             {/* Permission tree: module → resource → action grid */}
             {modules.length === 0 ? (
-              <p className="text-slate-400">No permissions defined.</p>
+              <p className="text-slate-400">{t('staffPages.roles.noPerms', "No permissions defined.")}</p>
             ) : modules.map(mod => {
               const resources = groupedPerms[mod] ?? {};
               const allModPerms = allPerms[mod] ?? [];
@@ -345,10 +344,10 @@ export default function AdminRolesPage() {
                       })}
                       className="flex items-center gap-2"
                     >
-                      <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
-                      <span className="font-medium text-sm capitalize">{mod}</span>
+                      <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isCollapsed ? 'rtl:-scale-x-100' : 'rotate-90'}`} />
+                      <span className="font-medium text-sm capitalize">{modName(mod)}</span>
                       <span className="text-xs opacity-60">
-                        ({allModPerms.filter(p => pendingPerms.has(p.id)).length}/{allModPerms.length})
+                        <span dir="ltr">({digits(allModPerms.filter(p => pendingPerms.has(p.id)).length)}/{digits(allModPerms.length)})</span>
                       </span>
                     </button>
                     {!isReadOnly(selected) && (
@@ -364,7 +363,7 @@ export default function AdminRolesPage() {
                         }}
                         className="text-xs underline-offset-1 hover:underline opacity-70"
                       >
-                        {allChecked ? 'Revoke all' : 'Grant all'}
+                        {allChecked ? t('staffPages.roles.revokeAll', "Revoke all") : t('staffPages.roles.grantAll', "Grant all")}
                       </button>
                     )}
                   </div>
@@ -377,7 +376,7 @@ export default function AdminRolesPage() {
                       <div key={resource} className="border-t border-slate-100 dark:border-slate-700/40">
                         <div className="px-4 py-1.5 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
                           <span className="text-xs font-medium text-slate-600 dark:text-slate-300 capitalize">
-                            {resource || mod}
+                            {resource ? (lang === 'ar' ? t(`staffPages.roles.mod.${resource}`, resource) : resource) : modName(mod)}
                           </span>
                           {!isReadOnly(selected) && perms.length > 1 && (
                             <button
@@ -392,7 +391,7 @@ export default function AdminRolesPage() {
                               }}
                               className="text-[10px] underline-offset-1 hover:underline opacity-60"
                             >
-                              {resAllChecked ? 'clear' : 'grant all'}
+                              {resAllChecked ? t('staffPages.roles.clear', "clear") : t('staffPages.roles.grantAllLower', "grant all")}
                             </button>
                           )}
                         </div>
@@ -405,7 +404,7 @@ export default function AdminRolesPage() {
                                 onClick={() => togglePerm(p.id)}
                                 disabled={isReadOnly(selected)}
                                 title={`${p.code}\n${p.description || ''}`}
-                                className={`flex items-start gap-2 px-3 py-2 bg-white dark:bg-slate-800 text-left transition-colors
+                                className={`flex items-start gap-2 px-3 py-2 bg-white dark:bg-slate-800 text-start transition-colors
                                   ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}
                                   ${!isReadOnly(selected) ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer' : 'cursor-default'}
                                 `}
@@ -416,7 +415,7 @@ export default function AdminRolesPage() {
                                 }
                                 <div className="min-w-0 flex-1">
                                   <div className="text-xs font-mono font-medium truncate">{p.action}</div>
-                                  {p.description && (
+                                  {p.description && !(lang === 'ar' && isEnglishText(p.description)) && (
                                     <div className="text-[10px] opacity-60 truncate" title={p.description}>
                                       {p.description}
                                     </div>
@@ -438,7 +437,7 @@ export default function AdminRolesPage() {
               <div className="rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/60 flex items-center gap-2">
                   <UsersIcon className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Assigned users ({selected.staff.length})</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('staffPages.roles.assigned', { n: selected.staff.length })}</span>
                 </div>
                 <div className="p-3 flex flex-wrap gap-2">
                   {selected.staff.map(su => (
@@ -466,6 +465,7 @@ export default function AdminRolesPage() {
 
 function CreateRoleModal({ onClose, onCreate }: { onClose: () => void; onCreate: () => void }) {
   const { t } = useI18n();
+  const P = 'staffPages.roles';
   const [name,  setName]  = useState('');
   const [desc,  setDesc]  = useState('');
   const [saving, setSaving] = useState(false);
@@ -479,10 +479,10 @@ function CreateRoleModal({ onClose, onCreate }: { onClose: () => void; onCreate:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description: desc || null }),
-        successMessage: 'Role created',
+        successMessage: t('staffPages.roles.created', "Role created"),
       });
       onCreate();
-    } catch (e: any) { setErr(e.message); }
+    } catch (e: any) { setErr((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.roles.createFailed', "Could not create the role."))); }
     finally { setSaving(false); }
   }
 
@@ -496,21 +496,21 @@ function CreateRoleModal({ onClose, onCreate }: { onClose: () => void; onCreate:
         {err && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 text-sm">{err}</div>}
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role Name <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staffPages.roles.roleName', "Role Name")} <span className="text-red-500">*</span></label>
             <input value={name} onChange={e => setName(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staffPages.roles.description', "Description")}</label>
             <textarea rows={2} value={desc} onChange={e => setDesc(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
         </div>
         <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('staffPages.roles.cancel', "Cancel")}</button>
           <button onClick={submit} disabled={saving || !name.trim()}
             className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50">
-            {saving ? 'Creating…' : 'Create Role'}
+            {saving ? t('staffPages.roles.creating', "Creating…") : t('staffPages.roles.createRole', "Create Role")}
           </button>
         </div>
       </div>
