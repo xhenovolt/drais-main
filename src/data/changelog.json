@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T09:43:26.118Z",
-  "last_commit": "26ffac62a3c62b7fcbbe9deee73c96a1f98721a7",
+  "generated_at": "2026-10-19T09:44:44.114Z",
+  "last_commit": "f607a649aecb26536e68267e085e7f454329665a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9995,7 +9995,20 @@
         }
       ],
       "commit": "26ffac62a3"
+    },
+    {
+      "version": "2.50.106",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/work-plans fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/work-plans fully Arabic"
+        }
+      ],
+      "commit": "f607a649ae"
     }
   ],
-  "app_version": "2.50.106"
+  "app_version": "2.50.107"
 }

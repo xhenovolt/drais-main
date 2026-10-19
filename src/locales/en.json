@@ -8047,6 +8047,30 @@
       "creating": "Creating…",
       "createBtn": "Create",
       "failed": "Could not create the work plan."
+    },
+    "depts": {
+      "updated": "Department updated",
+      "created": "Department created",
+      "confirmDelete": "Delete \"{{name}}\"?",
+      "cannotUndo": "This cannot be undone.",
+      "delete": "Delete",
+      "deleted": "Department deleted",
+      "deleteFailed": "Delete failed",
+      "loadFailed": "Could not load departments.",
+      "saveFailed": "Could not save the department.",
+      "count": "{{n}} departments",
+      "add": "Add Department",
+      "edit": "Edit Department",
+      "refresh": "Refresh",
+      "none": "No departments yet. Add one to get started.",
+      "staffCount": "{{n}} staff",
+      "noHead": "No head",
+      "name": "Name",
+      "description": "Description",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "create": "Create",
+      "save": "Save"
     }
   }
 }

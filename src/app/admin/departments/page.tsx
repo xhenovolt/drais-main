@@ -5,7 +5,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Building2, Plus, Pencil, Trash2, RefreshCw, Users, ChevronRight, X } from 'lucide-react';
 
-import { showToast, confirmAction } from '@/lib/toast';
+import { showToast, confirmAction, uiIsArabic, isEnglishText } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
@@ -22,7 +22,7 @@ interface FormState { name: string; description: string; head_id: string; }
 const EMPTY_FORM: FormState = { name: '', description: '', head_id: '' };
 
 export default function AdminDepartmentsPage() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [depts,   setDepts]   = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function AdminDepartmentsPage() {
     try {
       const data = await apiFetch<{ data: Department[] }>('/api/admin/departments?include_staff_count=1', { silent: true });
       setDepts(data.data ?? []);
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setError((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.depts.loadFailed', "Could not load departments."))); }
     finally { setLoading(false); }
   }, []);
 
@@ -67,24 +67,24 @@ export default function AdminDepartmentsPage() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        successMessage: isEdit ? 'Department updated' : 'Department created',
+        successMessage: isEdit ? t('staffPages.depts.updated', "Department updated") : t('staffPages.depts.created', "Department created"),
       });
       setModal(null);
       load();
-    } catch (e: any) { setSaveErr(e.message); }
+    } catch (e: any) { setSaveErr((e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.depts.saveFailed', "Could not save the department."))); }
     finally { setSaving(false); }
   }
 
   async function del(d: Department) {
-    if (!await confirmAction(`Delete "${d.name}"?`, 'This cannot be undone.', 'Delete')) return;
+    if (!await confirmAction(t('staffPages.depts.confirmDelete', { name: d.name }), t('staffPages.depts.cannotUndo', "This cannot be undone."), t('staffPages.depts.delete', "Delete"))) return;
     try {
       await apiFetch(`/api/admin/departments/${d.id}`, {
         method: 'DELETE',
-        successMessage: 'Department deleted',
+        successMessage: t('staffPages.depts.deleted', "Department deleted"),
       });
       load();
     } catch (e: any) {
-      showToast('error', e.message ?? 'Delete failed');
+      showToast('error', (e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('staffPages.depts.deleteFailed', "Delete failed")));
     }
   }
 
@@ -98,17 +98,17 @@ export default function AdminDepartmentsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-800 dark:text-white">{t('orgUnits.departments')}</h1>
-            <p className="text-sm text-slate-500">{depts.length} departments</p>
+            <p className="text-sm text-slate-500">{t('staffPages.depts.count', { n: depts.length })}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load}
+          <button onClick={load} title={t('staffPages.depts.refresh', "Refresh")} aria-label={t('staffPages.depts.refresh', "Refresh")}
             className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-violet-600 hover:bg-violet-700 text-white transition-colors">
-            <Plus className="w-4 h-4" /> Add Department
+            <Plus className="w-4 h-4" /> {t('staffPages.depts.add', "Add Department")}
           </button>
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function AdminDepartmentsPage() {
           ))}
         </div>
       ) : depts.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">No departments yet. Add one to get started.</div>
+        <div className="text-center py-16 text-slate-400">{t('staffPages.depts.none', "No departments yet. Add one to get started.")}</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {depts.map(d => (
@@ -154,13 +154,13 @@ export default function AdminDepartmentsPage() {
 
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5" /> {d.staff_count} staff
+                  <Users className="w-3.5 h-3.5" /> {t('staffPages.depts.staffCount', { n: d.staff_count })}
                 </span>
                 {d.head_name ? (
                   <span className="flex items-center gap-1">
-                    <ChevronRight className="w-3 h-3" /> {d.head_name}
+                    <ChevronRight className="w-3 h-3 rtl:-scale-x-100" /> {d.head_name}
                   </span>
-                ) : <span className="text-slate-300 dark:text-slate-600">No head</span>}
+                ) : <span className="text-slate-300 dark:text-slate-600">{t('staffPages.depts.noHead', "No head")}</span>}
               </div>
             </div>
           ))}
@@ -173,7 +173,7 @@ export default function AdminDepartmentsPage() {
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-slate-800 dark:text-white">
-                {modal.type === 'create' ? 'Add Department' : 'Edit Department'}
+                {modal.type === 'create' ? t('staffPages.depts.add', "Add Department") : t('staffPages.depts.edit', "Edit Department")}
               </h2>
               <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"><X className="w-4 h-4" /></button>
             </div>
@@ -182,22 +182,22 @@ export default function AdminDepartmentsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staffPages.depts.name', "Name")} <span className="text-red-500">*</span></label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('staffPages.depts.description', "Description")}</label>
                 <textarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setModal(null)} className="flex-1 px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+              <button onClick={() => setModal(null)} className="flex-1 px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">{t('staffPages.depts.cancel', "Cancel")}</button>
               <button onClick={save} disabled={saving || !form.name.trim()}
                 className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50">
-                {saving ? 'Saving…' : modal.type === 'create' ? 'Create' : 'Save'}
+                {saving ? t('staffPages.depts.saving', "Saving…") : modal.type === 'create' ? t('staffPages.depts.create', "Create") : t('staffPages.depts.save', "Save")}
               </button>
             </div>
           </div>
