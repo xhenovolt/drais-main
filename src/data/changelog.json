@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:46:58.463Z",
-  "last_commit": "81a9e6b63067bedda23584bccbbea04bcae58fc4",
+  "generated_at": "2026-10-19T15:48:39.666Z",
+  "last_commit": "6d7fe49eac5f777164b081269037a87981c67728",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10138,7 +10138,20 @@
         }
       ],
       "commit": "81a9e6b630"
+    },
+    {
+      "version": "2.50.117",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/modules (School Modules) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/modules (School Modules) fully Arabic"
+        }
+      ],
+      "commit": "6d7fe49eac"
     }
   ],
-  "app_version": "2.50.117"
+  "app_version": "2.50.118"
 }

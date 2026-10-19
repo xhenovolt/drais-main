@@ -8574,6 +8574,62 @@
       "subtitle": "Toggle features for this school. Super-admin only.",
       "warning": "Disabling a module hides its sidebar entries and blocks its API routes with HTTP 403. Existing data is preserved — re-enabling restores access.",
       "expires": "Expires: {{date}}"
+    },
+    "parents": {
+      "link": {
+        "revoke": "Link revoked",
+        "approve": "Link approved"
+      },
+      "acct": {
+        "activate": "Account activate done",
+        "suspend": "Account suspend done",
+        "correct_phone": "Account correct phone done"
+      },
+      "failed": "The action could not be completed.",
+      "mergeInto": "Merge this account INTO which parent id?",
+      "merged": "Merged: {{moved}} moved, {{dropped}} dropped",
+      "newPhone": "New phone number for this parent:",
+      "title": "Parents & Guardians",
+      "subtitle": "Search a parent by phone to view linked learners and manage portal access.",
+      "phonePh": "Phone number (min 4 digits)",
+      "search": "Search",
+      "none": "No matching parents.",
+      "noName": "No name",
+      "lastLogin": "last login {{when}}",
+      "never": "never",
+      "suspended": "SUSPENDED",
+      "locked": "LOCKED",
+      "active": "ACTIVE",
+      "noLinks": "No links in your school.",
+      "status": {
+        "active": "active",
+        "pending": "pending",
+        "revoked": "revoked"
+      },
+      "approve": "Approve",
+      "revoke": "Revoke",
+      "history": "History",
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "correctPhone": "Correct phone",
+      "merge": "Merge",
+      "loginHistory": "Login history",
+      "noLogins": "No logins recorded.",
+      "activeSession": "· active",
+      "rel": {
+        "mother": "mother",
+        "father": "father",
+        "guardian": "guardian",
+        "parent": "parent",
+        "grandmother": "grandmother",
+        "grandfather": "grandfather",
+        "aunt": "aunt",
+        "uncle": "uncle",
+        "sister": "sister",
+        "brother": "brother",
+        "sponsor": "sponsor",
+        "other": "other"
+      }
     }
   },
   "tahfizPages": {
