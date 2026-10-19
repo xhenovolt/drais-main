@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:12:26.333Z",
-  "last_commit": "ed97d2338e627e9b5b9ef5058b688844626cfc6a",
+  "generated_at": "2026-10-19T16:30:13.366Z",
+  "last_commit": "2a2690aa86a810c6739691611271e4c45c3b829b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10242,7 +10242,20 @@
         }
       ],
       "commit": "ed97d2338e"
+    },
+    {
+      "version": "2.50.125",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Restore 'Cloud Storage' wording (dictionary still held 'Cloud ✓'); storage icon when Cloudinary is connected",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Restore 'Cloud Storage' wording (dictionary still held 'Cloud ✓'); storage icon when Cloudinary is connected"
+        }
+      ],
+      "commit": "2a2690aa86"
     }
   ],
-  "app_version": "2.50.125"
+  "app_version": "2.50.126"
 }

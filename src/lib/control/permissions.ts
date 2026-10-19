@@ -125,6 +125,16 @@ export const CONTROL_AREAS: ControlArea[] = [
   { key: 'backup', label: 'Backups', group: 'Access & security', pages: ['/control/backup'],
     description: 'Full platform backups.',
     actions: { view: 'See backup history', create: 'Start backups', download: 'Download backups', delete: 'Delete backups' } },
+  { key: 'storage', label: 'Cloud Storage', group: 'Access & security', pages: ['/control/storage'],
+    description: "DRAIS's files in Cloudinary (drais/, drais-backups/, the Trash) — photos, documents, ID-card assets and backups of every school.",
+    actions: {
+      view: 'Browse and search DRAIS files and see storage usage',
+      download: 'Download any DRAIS file',
+      upload: 'Upload files and create folders',
+      edit: 'Rename, move and tag files',
+      delete: 'Move files and folders to the Trash, and restore them',
+      purge: 'Permanently delete files, folders and the Trash (cannot be undone)',
+    } },
 
   { key: 'docs', label: 'Docs', group: 'Help', pages: ['/control/docs'],
     description: 'Internal engineering documentation.',
@@ -196,7 +206,8 @@ export const CONTROL_PRESETS: Record<string, { label: string; description: strin
 
 const OPERATOR_LEGACY: string[] = [
   // Reads used to be open to every signed-in operator.
-  ...CONTROL_AREAS.filter((a) => !['operators', 'database', 'backup'].includes(a.key)).map((a) => `${a.key}.view`),
+  // Storage holds every school's photos and documents — never granted by default, like backups.
+  ...CONTROL_AREAS.filter((a) => !['operators', 'database', 'backup', 'storage'].includes(a.key)).map((a) => `${a.key}.view`),
   'operators.view',
   'schools.create', 'schools.edit', 'schools.delete', 'schools.impersonate',
   'accounts.edit', 'devices.edit', 'billing.edit', 'id_cards.edit',
@@ -207,7 +218,7 @@ const OPERATOR_LEGACY: string[] = [
 CONTROL_PRESETS.operator.permissions = OPERATOR_LEGACY;
 
 const VIEWER_LEGACY: string[] = [
-  ...CONTROL_AREAS.filter((a) => !['operators', 'database', 'backup'].includes(a.key)).map((a) => `${a.key}.view`),
+  ...CONTROL_AREAS.filter((a) => !['operators', 'database', 'backup', 'storage'].includes(a.key)).map((a) => `${a.key}.view`),
   'operators.view',
 ];
 
@@ -225,7 +236,7 @@ export type ControlSubject = string | null | undefined | { role?: string | null;
  * other operators). An operator limited to some schools never holds these: the data
  * cannot be filtered to their schools, so they would see the whole platform.
  */
-export const PLATFORM_WIDE_AREAS = ['dashboard', 'bi', 'system_health', 'sentinel', 'comm', 'sms', 'sms_accounting', 'sms_providers', 'sms_routing', 'sms_pricing', 'audit', 'backup', 'database', 'operators', 'plans'];
+export const PLATFORM_WIDE_AREAS = ['dashboard', 'bi', 'system_health', 'sentinel', 'comm', 'sms', 'sms_accounting', 'sms_providers', 'sms_routing', 'sms_pricing', 'audit', 'backup', 'database', 'operators', 'plans', 'storage'];
 const dropPlatformWide = (list: string[]) => list.filter((p) => !PLATFORM_WIDE_AREAS.includes(p.split('.')[0]));
 
 /** Only known permission names, de-duplicated, never super-admin-only ones. */

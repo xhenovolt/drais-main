@@ -15,7 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { canOpenPath, controlCan } from '@/lib/control/permissions';
 import { ControlAccessProvider } from '@/components/control/ControlAccess';
-import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X, BarChart3, PenSquare, ShieldOff } from 'lucide-react';
+import { Shield, ShieldCheck, LayoutDashboard, School, Activity, ScrollText, Users, HardDrive, CreditCard, TrendingUp, LogOut, Loader2, Monitor, Sun, Moon, Contrast, MessageSquare, Send, BookOpen, Lock, KeyRound, BadgeCheck, Menu, X, BarChart3, PenSquare, ShieldOff, Cloud } from 'lucide-react';
 
 type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; perm?: string };
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
@@ -67,6 +67,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       // "someone cannot sign in" reaches for people, not for a school record.
       { href: '/control/user-locks', label: 'Account Locks', icon: Lock },
       { href: '/control/database-settings', label: 'Database Access', icon: KeyRound },
+      { href: '/control/storage', label: 'Cloud Storage', icon: Cloud },
       { href: '/control/audit', label: 'Audit Log', icon: ScrollText },
     ],
   },
