@@ -9226,6 +9226,121 @@
         "noYears": "No academic years yet",
         "needYear": "Create an academic year first, then add its terms."
       }
+    },
+    "curriculums": {
+      "soon": "Curriculums — coming soon"
+    },
+    "promotions": {
+      "needBoth": "Please select both academic year and source class",
+      "conflictsFound": {
+        "one": "{{count}} conflict detected — review before promoting",
+        "other": "{{count}} conflicts detected — review before promoting"
+      },
+      "analyseFailed": "Failed to analyse eligibility",
+      "noneSelected": "No students selected",
+      "noDest": "No destination class selected",
+      "confirmTitle": {
+        "one": "Promote {{count}} Student",
+        "other": "Promote {{count}} Students"
+      },
+      "confirmText": {
+        "one": "This will promote {{count}} student(s) from {{from}} to {{to}}. New enrollments will be created and old ones closed. This cannot be undone easily.",
+        "other": "This will promote {{count}} student(s) from {{from}} to {{to}}. New enrollments will be created and old ones closed. This cannot be undone easily."
+      },
+      "source": "source",
+      "destination": "destination",
+      "promoteNow": "Promote Now",
+      "promoted": {
+        "one": "{{count}} student promoted successfully",
+        "other": "{{count}} students promoted successfully"
+      },
+      "promoteFailedN": {
+        "one": "{{count}} student failed to promote",
+        "other": "{{count}} students failed to promote"
+      },
+      "promoteFailed": "Promotion failed",
+      "title": "Smart Promotions",
+      "subtitle": "Order-independent promotion engine — new enrollees are never accidentally promoted",
+      "step1": "Select Class to Promote",
+      "year": "Academic Year",
+      "selectYear": "Select Year",
+      "activeTag": "(Active)",
+      "sourceClass": "Source Class (From)",
+      "selectClass": "Select Class",
+      "level": "(Level {{n}})",
+      "destClass": "Destination Class (To)",
+      "auto": "(auto-detected)",
+      "selectDest": "Select Destination",
+      "destYear": "Destination Year",
+      "sameAsSource": "Same as source",
+      "analyse": "Analyse Eligibility",
+      "card": {
+        "total": "Total in Class",
+        "eligible": "Eligible",
+        "ineligible": "Ineligible (New)",
+        "already": "Already Promoted",
+        "conflicts": "Conflicts"
+      },
+      "conflictsTitle": "Enrollment Conflicts Detected",
+      "conflict": {
+        "mixed_year": "mixed year",
+        "duplicate_path": "duplicate path",
+        "wrong_timeline": "wrong timeline"
+      },
+      "conflictText": {
+        "mixed_year": "Class has students from {{years}} different academic years enrolled simultaneously",
+        "duplicate_path": "Admission number {{adm}} appears {{n}} times in this class"
+      },
+      "affected": "({{n}} affected)",
+      "eligibleBanner": {
+        "one": "{{count}} learner eligible for promotion",
+        "other": "{{count}} learners eligible for promotion"
+      },
+      "newNotPromoted": "({{n}} newly enrolled — will NOT be promoted)",
+      "promoteBtn": {
+        "one": "Promote {{count}} Student",
+        "other": "Promote {{count}} Students"
+      },
+      "searchPh": "Search by name or admission number...",
+      "sec": {
+        "eligible": "Eligible for Promotion",
+        "eligibleSub": "These students have prior enrollment history and can be safely promoted",
+        "ineligible": "Ineligible — Newly Enrolled",
+        "ineligibleSub": "These students were directly enrolled in this class — they will NOT be promoted",
+        "already": "Already Promoted",
+        "alreadySub": "These students have already been promoted in this academic year"
+      },
+      "emptyTitle": "Select a class to analyse",
+      "emptyText": "Choose an academic year and source class, then click \"Analyse Eligibility\" to see which students can be safely promoted and which are newly enrolled.",
+      "analysing": "Analysing enrollment history and eligibility...",
+      "col": {
+        "name": "Name",
+        "adm": "Adm #",
+        "class": "Class",
+        "type": "Type",
+        "marks": "Marks",
+        "reason": "Reason"
+      },
+      "selectAll": "Select all",
+      "select": "Select",
+      "lineageTitle": "Has enrollment lineage",
+      "lineage": "LINEAGE",
+      "type": {
+        "new": "new",
+        "continuing": "continuing",
+        "standard": "standard",
+        "repeat": "repeat",
+        "re-admitted": "re-admitted"
+      },
+      "reason": {
+        "already_promoted": "Already promoted in this academic year",
+        "lineage": "Promoted into this class from previous class (has lineage)",
+        "previous": "Previously enrolled in {{class}} ({{year}})",
+        "previous_no_year": "Previously enrolled in {{class}} (unknown year)",
+        "new": "Newly enrolled in this class — no prior enrollment history",
+        "type_context": "Enrollment type: {{type}} — has progression context",
+        "review": "No definitive classification — included for manual review"
+      }
     }
   }
 }

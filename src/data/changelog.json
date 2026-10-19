@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:54:20.269Z",
-  "last_commit": "c30bf71a743ab662203ec4957b818cf2bd0368bd",
+  "generated_at": "2026-10-19T17:00:23.089Z",
+  "last_commit": "19e2b04f12382a6079cd50b9650c7dccdd47c64c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10320,7 +10320,20 @@
         }
       ],
       "commit": "c30bf71a74"
+    },
+    {
+      "version": "2.50.131",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/terms/list fully Arabic; fix: new terms were pinned to academic_year_id=1",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/terms/list fully Arabic; fix: new terms were pinned to academic_year_id=1"
+        }
+      ],
+      "commit": "19e2b04f12"
     }
   ],
-  "app_version": "2.50.131"
+  "app_version": "2.50.132"
 }

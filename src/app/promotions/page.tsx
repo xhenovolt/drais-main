@@ -20,6 +20,19 @@ import {
 import useSWR from 'swr';
 import { showToast, confirmAction } from '@/lib/toast';
 import { apiFetch, swrFetcher } from '@/lib/apiClient';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+const ENROLL_TYPES = ['new', 'continuing', 'standard', 'repeat', 're-admitted'];
+const CONFLICT_TYPES = ['mixed_year', 'duplicate_path', 'wrong_timeline'];
+type TFn = (k: string, v?: any, f?: string) => string;
+const typeLabel = (t: TFn, v: string) => (ENROLL_TYPES.includes(String(v || '').toLowerCase()) ? t(`academicsPages.promotions.type.${String(v).toLowerCase()}`, v) : v);
+// The service keeps an English reason for logs; reason_code lets the reader see it in their language.
+const reasonText = (t: TFn, s: EligibilityStudent) => {
+  if (!s.reason_code) return s.reason;
+  const vars: Record<string, any> = { ...(s.reason_vars || {}) };
+  if (vars.type) vars.type = typeLabel(t, vars.type);
+  return t(`academicsPages.promotions.reason.${s.reason_code}`, vars, s.reason);
+};
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,11 +50,14 @@ interface EligibilityStudent {
   attendance_count: number;
   results_count: number;
   reason: string;
+  reason_code?: string;
+  reason_vars?: Record<string, string | number>;
 }
 
 interface ConflictInfo {
   type: string;
   description: string;
+  vars?: Record<string, string | number>;
   affected_student_ids: number[];
 }
 
@@ -76,6 +92,7 @@ interface YearOption {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function PromotionsPage() {
+  const { t, digits } = useI18n();
   // ─── State ──────────────────────────────────────────────────────────────
   const [academicYearId, setAcademicYearId] = useState<string>('');
   const [classId, setClassId] = useState<string>('');
@@ -96,10 +113,10 @@ export default function PromotionsPage() {
 
   // ─── Data Fetching ────────────────────────────────────────────────────
   const { data: yearsData } = useSWR('/api/academic_years', swrFetcher, { revalidateOnFocus: false });
-  const years: YearOption[] = yearsData?.data || [];
+  const years: YearOption[] = Array.isArray(yearsData?.data) ? yearsData.data : [];
 
   const { data: classesData } = useSWR('/api/classes', swrFetcher, { revalidateOnFocus: false });
-  const classes: ClassOption[] = (classesData?.data || []).sort(
+  const classes: ClassOption[] = (Array.isArray(classesData?.data) ? [...classesData.data] : []).sort(
     (a: ClassOption, b: ClassOption) => (a.level ?? 999) - (b.level ?? 999) || a.name.localeCompare(b.name),
   );
 
@@ -128,7 +145,7 @@ export default function PromotionsPage() {
   // ─── Eligibility Analysis ────────────────────────────────────────────
   const runAnalysis = useCallback(async () => {
     if (!classId || !academicYearId) {
-      showToast('error', 'Please select both academic year and source class');
+      showToast('error', t('academicsPages.promotions.needBoth', "Please select both academic year and source class"));
       return;
     }
     setIsAnalysing(true);
@@ -153,10 +170,10 @@ export default function PromotionsPage() {
 
       // Show conflicts if any
       if (data.conflicts && data.conflicts.length > 0) {
-        showToast('warning', `${data.conflicts.length} conflict(s) detected — review before promoting`);
+        showToast('warning', t('academicsPages.promotions.conflictsFound', { count: data.conflicts.length }));
       }
     } catch {
-      showToast('error', 'Failed to analyse eligibility');
+      showToast('error', t('academicsPages.promotions.analyseFailed', "Failed to analyse eligibility"));
     } finally {
       setIsAnalysing(false);
     }
@@ -165,11 +182,11 @@ export default function PromotionsPage() {
   // ─── Promotion Execution ─────────────────────────────────────────────
   const handleBulkPromote = async () => {
     if (selectedForPromotion.size === 0) {
-      showToast('error', 'No students selected');
+      showToast('error', t('academicsPages.promotions.noneSelected', "No students selected"));
       return;
     }
     if (!toClassId) {
-      showToast('error', 'No destination class selected');
+      showToast('error', t('academicsPages.promotions.noDest', "No destination class selected"));
       return;
     }
 
@@ -177,9 +194,9 @@ export default function PromotionsPage() {
     const srcClass = classes.find(c => c.id === Number(classId));
 
     const confirmed = await confirmAction(
-      `Promote ${selectedForPromotion.size} Students`,
-      `This will promote ${selectedForPromotion.size} student(s) from ${srcClass?.name || 'source'} to ${destClass?.name || 'destination'}. New enrollments will be created and old ones closed. This cannot be undone easily.`,
-      'Promote Now',
+      t('academicsPages.promotions.confirmTitle', { count: selectedForPromotion.size }),
+      t('academicsPages.promotions.confirmText', { count: selectedForPromotion.size, from: srcClass?.name || t('academicsPages.promotions.source', "source"), to: destClass?.name || t('academicsPages.promotions.destination', "destination") }),
+      t('academicsPages.promotions.promoteNow', "Promote Now"),
     );
     if (!confirmed) return;
 
@@ -203,17 +220,17 @@ export default function PromotionsPage() {
       });
 
       if (result.promoted_count > 0) {
-        showToast('success', `${result.promoted_count} student(s) promoted successfully`);
+        showToast('success', t('academicsPages.promotions.promoted', { count: result.promoted_count }));
       }
       if (result.failed_count > 0) {
-        showToast('error', `${result.failed_count} student(s) failed to promote`);
+        showToast('error', t('academicsPages.promotions.promoteFailedN', { count: result.failed_count }));
       }
 
       // Re-run analysis to refresh
       setSelectedForPromotion(new Set());
       await runAnalysis();
     } catch {
-      showToast('error', 'Promotion failed');
+      showToast('error', t('academicsPages.promotions.promoteFailed', "Promotion failed"));
     } finally {
       setIsPromoting(false);
     }
@@ -266,10 +283,10 @@ export default function PromotionsPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <Shield className="w-7 h-7 text-blue-600" />
-            Smart Promotions
+            {t('academicsPages.promotions.title', "Smart Promotions")}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
-            Order-independent promotion engine — new enrollees are never accidentally promoted
+            {t('academicsPages.promotions.subtitle', "Order-independent promotion engine — new enrollees are never accidentally promoted")}
           </p>
         </div>
       </div>
@@ -277,37 +294,37 @@ export default function PromotionsPage() {
       {/* Step 1: Select Academic Year + Source Class */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
-          Select Class to Promote
+          <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">{digits(1)}</span>
+          {t('academicsPages.promotions.step1', "Select Class to Promote")}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Academic Year */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Academic Year</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('academicsPages.promotions.year', "Academic Year")}</label>
             <select
               value={academicYearId}
               onChange={e => { setAcademicYearId(e.target.value); setEligibility(null); setSelectedForPromotion(new Set()); }}
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
             >
-              <option value="">Select Year</option>
+              <option value="">{t('academicsPages.promotions.selectYear', "Select Year")}</option>
               {years.map((y: YearOption) => (
-                <option key={y.id} value={y.id}>{y.name} {y.status === 'active' ? '(Active)' : ''}</option>
+                <option key={y.id} value={y.id}>{digits(y.name)} {y.status === 'active' ? t('academicsPages.promotions.activeTag', "(Active)") : ''}</option>
               ))}
             </select>
           </div>
 
           {/* Source Class */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Source Class (From)</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('academicsPages.promotions.sourceClass', "Source Class (From)")}</label>
             <select
               value={classId}
               onChange={e => { setClassId(e.target.value); setEligibility(null); setSelectedForPromotion(new Set()); setToClassId(''); }}
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
             >
-              <option value="">Select Class</option>
+              <option value="">{t('academicsPages.promotions.selectClass', "Select Class")}</option>
               {classes.map((c: ClassOption) => (
-                <option key={c.id} value={c.id}>{c.name} {c.level !== null ? `(Level ${c.level})` : ''}</option>
+                <option key={c.id} value={c.id}>{c.name} {c.level !== null ? t('academicsPages.promotions.level', { n: c.level }) : ''}</option>
               ))}
             </select>
           </div>
@@ -315,15 +332,15 @@ export default function PromotionsPage() {
           {/* Destination Class (auto-detected) */}
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-              Destination Class (To)
-              {eligibility?.to_class && <span className="text-green-500 ml-1">(auto-detected)</span>}
+              {t('academicsPages.promotions.destClass', "Destination Class (To)")}
+              {eligibility?.to_class && <span className="text-green-500 ms-1">{t('academicsPages.promotions.auto', "(auto-detected)")}</span>}
             </label>
             <select
               value={toClassId}
               onChange={e => setToClassId(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
             >
-              <option value="">Select Destination</option>
+              <option value="">{t('academicsPages.promotions.selectDest', "Select Destination")}</option>
               {classes.map((c: ClassOption) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -332,15 +349,15 @@ export default function PromotionsPage() {
 
           {/* Destination Year */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Destination Year</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('academicsPages.promotions.destYear', "Destination Year")}</label>
             <select
               value={toAcademicYearId}
               onChange={e => setToAcademicYearId(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
             >
-              <option value="">Same as source</option>
+              <option value="">{t('academicsPages.promotions.sameAsSource', "Same as source")}</option>
               {years.map((y: YearOption) => (
-                <option key={y.id} value={y.id}>{y.name}</option>
+                <option key={y.id} value={y.id}>{digits(y.name)}</option>
               ))}
             </select>
           </div>
@@ -352,7 +369,7 @@ export default function PromotionsPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold text-sm disabled:opacity-50 transition-colors"
         >
           {isAnalysing ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-          Analyse Eligibility
+          {t('academicsPages.promotions.analyse', "Analyse Eligibility")}
         </button>
       </div>
 
@@ -361,30 +378,30 @@ export default function PromotionsPage() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <SummaryCard label="Total in Class" value={eligibility.summary.total_in_class} icon={<Users className="w-4 h-4" />} color="slate" />
+            <SummaryCard label={t('academicsPages.promotions.card.total', "Total in Class")} value={eligibility.summary.total_in_class} icon={<Users className="w-4 h-4" />} color="slate" />
             <SummaryCard
-              label="Eligible"
+              label={t('academicsPages.promotions.card.eligible', "Eligible")}
               value={eligibility.summary.eligible_count}
               icon={<CheckCircle2 className="w-4 h-4" />}
               color="green"
               onClick={() => { setShowEligible(true); setShowIneligible(false); setShowAlreadyPromoted(false); }}
             />
             <SummaryCard
-              label="Ineligible (New)"
+              label={t('academicsPages.promotions.card.ineligible', "Ineligible (New)")}
               value={eligibility.summary.ineligible_count}
               icon={<Ban className="w-4 h-4" />}
               color="amber"
               onClick={() => { setShowEligible(false); setShowIneligible(true); setShowAlreadyPromoted(false); }}
             />
             <SummaryCard
-              label="Already Promoted"
+              label={t('academicsPages.promotions.card.already', "Already Promoted")}
               value={eligibility.summary.already_promoted_count}
               icon={<Check className="w-4 h-4" />}
               color="blue"
               onClick={() => { setShowEligible(false); setShowIneligible(false); setShowAlreadyPromoted(true); }}
             />
             <SummaryCard
-              label="Conflicts"
+              label={t('academicsPages.promotions.card.conflicts', "Conflicts")}
               value={eligibility.summary.conflict_count}
               icon={<AlertTriangle className="w-4 h-4" />}
               color={eligibility.summary.conflict_count > 0 ? 'red' : 'slate'}
@@ -396,12 +413,12 @@ export default function PromotionsPage() {
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 space-y-2">
               <h3 className="text-sm font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
-                Enrollment Conflicts Detected
+                {t('academicsPages.promotions.conflictsTitle', "Enrollment Conflicts Detected")}
               </h3>
               {eligibility.conflicts.map((c, i) => (
                 <div key={i} className="text-sm text-red-600 dark:text-red-400 flex items-start gap-2">
                   <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span><strong>{c.type.replace('_', ' ')}:</strong> {c.description} ({c.affected_student_ids.length} affected)</span>
+                  <span><strong>{CONFLICT_TYPES.includes(c.type) ? t(`academicsPages.promotions.conflict.${c.type}`, c.type.replace('_', ' ')) : c.type.replace('_', ' ')}:</strong> {c.vars && (c.type === 'mixed_year' || c.type === 'duplicate_path') ? t(`academicsPages.promotions.conflictText.${c.type}`, c.vars) : c.description} {t('academicsPages.promotions.affected', { n: Array.isArray(c.affected_student_ids) ? c.affected_student_ids.length : 0 })}</span>
                 </div>
               ))}
             </div>
@@ -414,13 +431,13 @@ export default function PromotionsPage() {
                 <Shield className="w-5 h-5 text-green-600 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                    {eligibility.summary.eligible_count} learner{eligibility.summary.eligible_count !== 1 ? 's' : ''} eligible for promotion
+                    {t('academicsPages.promotions.eligibleBanner', { count: eligibility.summary.eligible_count })}
                   </p>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
-                    {eligibility.from_class.name} <ArrowRight className="w-3 h-3 inline" /> {eligibility.to_class.name}
+                    {eligibility.from_class.name} <ArrowRight className="w-3 h-3 inline rtl:-scale-x-100" /> {eligibility.to_class.name}
                     {eligibility.summary.ineligible_count > 0 && (
-                      <span className="ml-2 text-amber-600 dark:text-amber-400">
-                        ({eligibility.summary.ineligible_count} newly enrolled — will NOT be promoted)
+                      <span className="ms-2 text-amber-600 dark:text-amber-400">
+                        {t('academicsPages.promotions.newNotPromoted', { n: eligibility.summary.ineligible_count })}
                       </span>
                     )}
                   </p>
@@ -432,27 +449,27 @@ export default function PromotionsPage() {
                 className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold text-sm disabled:opacity-50 transition-colors whitespace-nowrap"
               >
                 {isPromoting ? <Loader className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                Promote {selectedForPromotion.size} Student{selectedForPromotion.size !== 1 ? 's' : ''}
+                {t('academicsPages.promotions.promoteBtn', { count: selectedForPromotion.size })}
               </button>
             </div>
           )}
 
           {/* Search within results */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by name or admission number..."
+              placeholder={t('academicsPages.promotions.searchPh', "Search by name or admission number...")}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
+              className="w-full ps-10 pe-4 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-400"
             />
           </div>
 
           {/* Eligible Students */}
           <StudentSection
-            title="Eligible for Promotion"
-            subtitle="These students have prior enrollment history and can be safely promoted"
+            title={t('academicsPages.promotions.sec.eligible', "Eligible for Promotion")}
+            subtitle={t('academicsPages.promotions.sec.eligibleSub', "These students have prior enrollment history and can be safely promoted")}
             icon={<CheckCircle2 className="w-4 h-4 text-green-600" />}
             students={filteredEligible}
             color="green"
@@ -466,8 +483,8 @@ export default function PromotionsPage() {
 
           {/* Ineligible Students */}
           <StudentSection
-            title="Ineligible — Newly Enrolled"
-            subtitle="These students were directly enrolled in this class — they will NOT be promoted"
+            title={t('academicsPages.promotions.sec.ineligible', "Ineligible — Newly Enrolled")}
+            subtitle={t('academicsPages.promotions.sec.ineligibleSub', "These students were directly enrolled in this class — they will NOT be promoted")}
             icon={<Ban className="w-4 h-4 text-amber-600" />}
             students={filteredIneligible}
             color="amber"
@@ -477,8 +494,8 @@ export default function PromotionsPage() {
 
           {/* Already Promoted */}
           <StudentSection
-            title="Already Promoted"
-            subtitle="These students have already been promoted in this academic year"
+            title={t('academicsPages.promotions.sec.already', "Already Promoted")}
+            subtitle={t('academicsPages.promotions.sec.alreadySub', "These students have already been promoted in this academic year")}
             icon={<Check className="w-4 h-4 text-blue-600" />}
             students={filteredAlready}
             color="blue"
@@ -493,11 +510,10 @@ export default function PromotionsPage() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
           <Shield className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">
-            Select a class to analyse
+            {t('academicsPages.promotions.emptyTitle', "Select a class to analyse")}
           </h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Choose an academic year and source class, then click &quot;Analyse Eligibility&quot; to see which students
-            can be safely promoted and which are newly enrolled.
+            {t('academicsPages.promotions.emptyText', "Choose an academic year and source class, then click \"Analyse Eligibility\" to see which students can be safely promoted and which are newly enrolled.")}
           </p>
         </div>
       )}
@@ -505,7 +521,7 @@ export default function PromotionsPage() {
       {isAnalysing && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
           <Loader className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-sm text-slate-600 dark:text-slate-400">Analysing enrollment history and eligibility...</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{t('academicsPages.promotions.analysing', "Analysing enrollment history and eligibility...")}</p>
         </div>
       )}
     </div>
@@ -523,6 +539,7 @@ function SummaryCard({
   color: string;
   onClick?: () => void;
 }) {
+  const { digits } = useI18n();
   const colorMap: Record<string, string> = {
     slate: 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300',
     green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300',
@@ -535,10 +552,10 @@ function SummaryCard({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`rounded-xl border p-3.5 text-left transition-all ${colorMap[color] || colorMap.slate} ${onClick ? 'hover:shadow-md cursor-pointer' : 'cursor-default'}`}
+      className={`rounded-xl border p-3.5 text-start transition-all ${colorMap[color] || colorMap.slate} ${onClick ? 'hover:shadow-md cursor-pointer' : 'cursor-default'}`}
     >
       <div className="flex items-center gap-2 mb-1.5">{icon}<span className="text-xs font-medium uppercase tracking-wider">{label}</span></div>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-2xl font-bold">{digits(value ?? 0)}</div>
     </button>
   );
 }
@@ -559,6 +576,7 @@ function StudentSection({
   onToggleStudent?: (id: number) => void;
   onToggleAll?: () => void;
 }) {
+  const { t, digits } = useI18n();
   if (students.length === 0) return null;
 
   const borderColor: Record<string, string> = {
@@ -576,9 +594,9 @@ function StudentSection({
       >
         <div className="flex items-center gap-3">
           {icon}
-          <div className="text-left">
+          <div className="text-start">
             <span className="text-sm font-bold text-slate-800 dark:text-white">{title}</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">({students.length})</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 ms-2">({digits(students.length)})</span>
           </div>
         </div>
         {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -595,16 +613,17 @@ function StudentSection({
                       type="checkbox"
                       checked={students.length > 0 && students.every(s => selectedIds?.has(s.id))}
                       onChange={onToggleAll}
+                      aria-label={t('academicsPages.promotions.selectAll', "Select all")}
                       className="w-3.5 h-3.5 rounded text-blue-600"
                     />
                   </th>
                 )}
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Name</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Adm #</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Class</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Type</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Marks</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Reason</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{t('academicsPages.promotions.col.name', "Name")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{t('academicsPages.promotions.col.adm', "Adm #")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{t('academicsPages.promotions.col.class', "Class")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{t('academicsPages.promotions.col.type', "Type")}</th>
+                <th className="px-4 py-2.5 text-end text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{t('academicsPages.promotions.col.marks', "Marks")}</th>
+                <th className="px-4 py-2.5 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{t('academicsPages.promotions.col.reason', "Reason")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -616,6 +635,7 @@ function StudentSection({
                         type="checkbox"
                         checked={selectedIds?.has(s.id) || false}
                         onChange={() => onToggleStudent?.(s.id)}
+                        aria-label={t('academicsPages.promotions.select', "Select")}
                         className="w-3.5 h-3.5 rounded text-blue-600"
                       />
                     </td>
@@ -623,8 +643,8 @@ function StudentSection({
                   <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-white whitespace-nowrap">
                     {s.first_name} {s.last_name}
                     {s.promoted_from_enrollment_id && (
-                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300" title="Has enrollment lineage">
-                        LINEAGE
+                      <span className="ms-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300" title={t('academicsPages.promotions.lineageTitle', "Has enrollment lineage")}>
+                        {t('academicsPages.promotions.lineage', "LINEAGE")}
                       </span>
                     )}
                   </td>
@@ -636,14 +656,14 @@ function StudentSection({
                       s.enrollment_type === 'continuing' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
                       'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                     }`}>
-                      {s.enrollment_type}
+                      {typeLabel(t, s.enrollment_type)}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right text-slate-600 dark:text-slate-400">
-                    {s.total_marks != null ? Number(s.total_marks).toFixed(0) : '\u2014'}
+                  <td className="px-4 py-2.5 text-end text-slate-600 dark:text-slate-400">
+                    {s.total_marks != null ? digits(Number(s.total_marks).toFixed(0)) : '\u2014'}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate" title={s.reason}>
-                    {s.reason}
+                  <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate" title={reasonText(t, s)}>
+                    {reasonText(t, s)}
                   </td>
                 </tr>
               ))}

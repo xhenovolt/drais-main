@@ -43,10 +43,13 @@ export interface PromotionStudent {
   results_count: number;
 }
 
+// reason stays English for logs/API consumers; reason_code + reason_vars let the UI translate it.
+type Reasoned = PromotionStudent & { reason: string; reason_code?: string; reason_vars?: Record<string, string | number> };
+
 export interface EligibilityResult {
-  eligible: (PromotionStudent & { reason: string })[];
-  ineligible: (PromotionStudent & { reason: string })[];
-  already_promoted: (PromotionStudent & { reason: string })[];
+  eligible: Reasoned[];
+  ineligible: Reasoned[];
+  already_promoted: Reasoned[];
   conflicts: ConflictInfo[];
   from_class: { id: number; name: string; level: number | null };
   to_class: { id: number; name: string; level: number | null } | null;
@@ -62,6 +65,7 @@ export interface EligibilityResult {
 export interface ConflictInfo {
   type: 'mixed_year' | 'wrong_timeline' | 'duplicate_path';
   description: string;
+  vars?: Record<string, string | number>;
   affected_student_ids: number[];
 }
 
@@ -227,9 +231,9 @@ export async function analyseEligibility(
   `, [academicYearId, academicYearId, academicYearId, schoolId, schoolId, fromClassId, academicYearId], schoolId);
 
   // Categorize each student
-  const eligible: (PromotionStudent & { reason: string })[] = [];
-  const ineligible: (PromotionStudent & { reason: string })[] = [];
-  const already_promoted: (PromotionStudent & { reason: string })[] = [];
+  const eligible: Reasoned[] = [];
+  const ineligible: Reasoned[] = [];
+  const already_promoted: Reasoned[] = [];
   const conflicts: ConflictInfo[] = [];
 
   // Check for prior enrollment in a DIFFERENT class (= they were promoted/moved here)
@@ -246,7 +250,7 @@ export async function analyseEligibility(
         schoolId,
       );
       if (promoCheck.length > 0) {
-        already_promoted.push({ ...student, reason: 'Already promoted in this academic year' });
+        already_promoted.push({ ...student, reason: 'Already promoted in this academic year', reason_code: 'already_promoted' });
         continue;
       }
     }
@@ -255,7 +259,7 @@ export async function analyseEligibility(
     if (student.promoted_from_enrollment_id) {
       // This student was promoted INTO this class — they need to complete the year first
       // They are eligible for promotion to the NEXT class
-      eligible.push({ ...student, reason: 'Promoted into this class from previous class (has lineage)' });
+      eligible.push({ ...student, reason: 'Promoted into this class from previous class (has lineage)', reason_code: 'lineage' });
       continue;
     }
 
@@ -278,6 +282,8 @@ export async function analyseEligibility(
       eligible.push({
         ...student,
         reason: `Previously enrolled in ${lastEnrollment.class_name} (${lastEnrollment.year_name || 'unknown year'})`,
+        reason_code: lastEnrollment.year_name ? 'previous' : 'previous_no_year',
+        reason_vars: { class: lastEnrollment.class_name, year: lastEnrollment.year_name || '' },
       });
       continue;
     }
@@ -290,6 +296,7 @@ export async function analyseEligibility(
       ineligible.push({
         ...student,
         reason: 'Newly enrolled in this class — no prior enrollment history',
+        reason_code: 'new',
       });
       continue;
     }
@@ -299,6 +306,8 @@ export async function analyseEligibility(
       eligible.push({
         ...student,
         reason: `Enrollment type: ${enrollType} — has progression context`,
+        reason_code: 'type_context',
+        reason_vars: { type: enrollType },
       });
       continue;
     }
@@ -307,6 +316,7 @@ export async function analyseEligibility(
     eligible.push({
       ...student,
       reason: 'No definitive classification — included for manual review',
+      reason_code: 'review',
     });
   }
 
@@ -325,6 +335,7 @@ export async function analyseEligibility(
     conflicts.push({
       type: 'mixed_year',
       description: `Class has students from ${yearGroups.size} different academic years enrolled simultaneously`,
+      vars: { years: yearGroups.size },
       affected_student_ids: students.map(s => s.id),
     });
   }
@@ -343,6 +354,7 @@ export async function analyseEligibility(
       conflicts.push({
         type: 'duplicate_path',
         description: `Admission number ${admNo} appears ${ids.length} times in this class`,
+        vars: { adm: admNo, n: ids.length },
         affected_student_ids: ids,
       });
     }
