@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:49:41.467Z",
-  "last_commit": "5b6a8d3edf75aec2966e189d1341a62d96d15660",
+  "generated_at": "2026-10-19T15:52:53.018Z",
+  "last_commit": "8dade743b0038267b6bcfa1f3e9a704aacd250c3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10164,7 +10164,20 @@
         }
       ],
       "commit": "5b6a8d3edf"
+    },
+    {
+      "version": "2.50.119",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/admission-mode fully Arabic — completes Staff & Roles",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/admission-mode fully Arabic — completes Staff & Roles"
+        }
+      ],
+      "commit": "8dade743b0"
     }
   ],
-  "app_version": "2.50.119"
+  "app_version": "2.50.120"
 }

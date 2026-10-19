@@ -83,14 +83,22 @@ function warnMissingKey(key: string, lang: string) {
 export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefault?: boolean }> = ({ children, loadSchoolDefault = true }) => {
   const lang = useThemeStore(s=>s.language);
   const setLanguageGlobal = useThemeStore(s=>s.setLanguage);
-  // The school whose screens are open. Pages rendered outside an AuthProvider simply have none.
+  // The school whose screens are open, and the person signed in. Pages rendered outside an
+  // AuthProvider simply have neither.
   let schoolId: number | null = null;
-  try { schoolId = useAuth()?.user?.schoolId ?? null; } catch { schoolId = null; }
-  /** Choosing a language applies here and is remembered for THIS school only. */
+  let userId: number | null = null;
+  try { const u = useAuth()?.user; schoolId = u?.schoolId ?? null; userId = (u?.id as number | undefined) ?? null; } catch { schoolId = null; userId = null; }
+  /**
+   * The language is ONE PERSON'S choice ON ONE DEVICE: it lives only in this browser's storage
+   * (never on the server), keyed by school + person — so it never follows into another school, and
+   * another person signing in on the same phone/computer keeps their own language.
+   */
+  const choiceKey = schoolId ? (userId ? `${schoolId}:${userId}` : String(schoolId)) : null;
+  /** Choosing a language applies here and is remembered for this person, in this school, on this device. */
   const setLanguage = useCallback((lng: string) => {
     setLanguageGlobal(lng);
-    if (schoolId) useThemeStore.getState().rememberSchoolLanguage(schoolId, lng === 'ar' ? 'ar' : 'en');
-  }, [setLanguageGlobal, schoolId]);
+    if (choiceKey) useThemeStore.getState().rememberSchoolLanguage(choiceKey, lng === 'ar' ? 'ar' : 'en');
+  }, [setLanguageGlobal, choiceKey]);
   const setLanguageFromSchoolDefault = useThemeStore(s=>s.setLanguageFromSchoolDefault);
   const dict = DICTIONARIES[lang] ?? DICTIONARIES.en;
   // Kept in the context value for existing consumers; the dictionaries are always available.
@@ -99,21 +107,32 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
   const error: string | null = null;
 
   /**
-   * Which language this school's screens open in — decided per school, never carried over
-   * from another school used in the same browser:
-   *   1. the language last chosen while in THIS school;
-   *   2. otherwise the school's default (Settings → Appearance → School default language);
+   * Which language the screens open in for THIS person, in THIS school, on THIS device:
+   *   1. the language this person last chose here;
+   *   2. otherwise the school's default (Settings → Appearance → School default language) —
+   *      a starting point only; it never overrides anyone's own choice;
    *   3. otherwise English.
-   * A choice made before languages were per school is given once to the first school opened.
+   * Nobody's choice changes what anyone else sees — not other schools, not other people sharing
+   * the device, not other devices.
    */
   useEffect(() => {
-    if (!loadSchoolDefault || !schoolId) return; // public/login routes must not touch the DB
+    if (!loadSchoolDefault || !schoolId || !choiceKey) return; // public/login routes must not touch the DB
     const st = useThemeStore.getState();
     if (!st.langBySchoolMigrated) {
       st.markLangBySchoolMigrated();
-      if (st.languageExplicit) { st.rememberSchoolLanguage(schoolId, st.language === 'ar' ? 'ar' : 'en'); return; }
+      if (st.languageExplicit) { st.rememberSchoolLanguage(choiceKey, st.language === 'ar' ? 'ar' : 'en'); return; }
     }
-    const mine = st.langBySchool[String(schoolId)];
+    // An older per-school choice (before choices were per person) goes to the first person to open
+    // that school here — the one most likely to have made it — and is then removed, so the next
+    // person on this device starts from the school default rather than inheriting it.
+    const legacy = choiceKey !== String(schoolId) ? st.langBySchool[String(schoolId)] : undefined;
+    if (legacy && !st.langBySchool[choiceKey]) {
+      st.rememberSchoolLanguage(choiceKey, legacy);
+      const rest = { ...useThemeStore.getState().langBySchool };
+      delete rest[String(schoolId)];
+      useThemeStore.setState({ langBySchool: rest });
+    }
+    const mine = useThemeStore.getState().langBySchool[choiceKey];
     if (mine) { if (mine !== st.language) setLanguageFromSchoolDefault(mine); return; }
     let cancelled = false;
     fetch('/api/school-config')
@@ -127,7 +146,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode; loadSchoolDefau
       .catch(() => { /* silent — keep current language */ });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId, loadSchoolDefault]);
+  }, [schoolId, choiceKey, loadSchoolDefault]);
 
 
   useEffect(() => {
