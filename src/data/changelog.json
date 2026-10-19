@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:07:46.142Z",
-  "last_commit": "f95ee7351d8130ed38750ff71054fe29e74da791",
+  "generated_at": "2026-10-19T17:09:58.800Z",
+  "last_commit": "c35f5b99b5861b45876bff59037c31860578866d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10372,7 +10372,20 @@
         }
       ],
       "commit": "f95ee7351d"
+    },
+    {
+      "version": "2.50.135",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Results entry (secular + theology) fully Arabic incl. bulk grid and create-on-type picker",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Results entry (secular + theology) fully Arabic incl. bulk grid and create-on-type picker"
+        }
+      ],
+      "commit": "c35f5b99b5"
     }
   ],
-  "app_version": "2.50.135"
+  "app_version": "2.50.136"
 }
