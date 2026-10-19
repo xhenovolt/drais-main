@@ -8167,6 +8167,45 @@
         "documents": "documents",
         "users": "users"
       }
+    },
+    "sessions": {
+      "secsAgo": "{{n}}s ago",
+      "minsAgo": "{{n}}m ago",
+      "hoursAgo": "{{n}}h ago",
+      "dur": {
+        "s": "{{n}}s",
+        "m": "{{n}}m",
+        "hm": "{{h}}h {{m}}m"
+      },
+      "loadFailed": "Could not load sessions.",
+      "actionFailed": "The action could not be completed.",
+      "confirmTerminate": "Terminate session?",
+      "terminateHelp": "The user will be logged out immediately.",
+      "terminate": "Terminate",
+      "terminated": "Session terminated",
+      "confirmLogoutUser": "Force logout {{name}}?",
+      "logoutUserHelp": "All sessions will be terminated.",
+      "logoutAll": "Logout All",
+      "userTerminated": "All sessions for {{name}} terminated",
+      "title": "User Monitoring",
+      "subtitle": "Live session activity",
+      "autoRefresh": "Auto-refresh (30s)",
+      "refresh": "Refresh",
+      "onlineNow": "Online Now",
+      "activeSessions": "Active Sessions",
+      "lastUpdated": "Last Updated",
+      "online": "Online",
+      "recentlyActive": "Recently Active",
+      "none": "No active sessions found",
+      "unknownIp": "unknown IP",
+      "now": "Now",
+      "device": {
+        "Desktop": "Desktop",
+        "Mobile": "Mobile",
+        "Tablet": "Tablet"
+      },
+      "terminateTitle": "Terminate this session",
+      "logoutUserTitle": "Logout all sessions for this user"
     }
   },
   "tahfizPages": {

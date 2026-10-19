@@ -8406,6 +8406,45 @@
         "documents": "المستندات",
         "users": "المستخدمون"
       }
+    },
+    "sessions": {
+      "secsAgo": "قبل {{n}} ث",
+      "minsAgo": "قبل {{n}} د",
+      "hoursAgo": "قبل {{n}} س",
+      "dur": {
+        "s": "{{n}} ث",
+        "m": "{{n}} د",
+        "hm": "{{h}} س {{m}} د"
+      },
+      "loadFailed": "تعذّر تحميل الجلسات.",
+      "actionFailed": "تعذّر إتمام الإجراء.",
+      "confirmTerminate": "إنهاء الجلسة؟",
+      "terminateHelp": "سيتم تسجيل خروج المستخدم فورًا.",
+      "terminate": "إنهاء",
+      "terminated": "تم إنهاء الجلسة",
+      "confirmLogoutUser": "فرض تسجيل خروج {{name}}؟",
+      "logoutUserHelp": "سيتم إنهاء جميع الجلسات.",
+      "logoutAll": "تسجيل خروج الكل",
+      "userTerminated": "تم إنهاء جميع جلسات {{name}}",
+      "title": "مراقبة المستخدمين",
+      "subtitle": "نشاط الجلسات المباشر",
+      "autoRefresh": "تحديث تلقائي (30 ث)",
+      "refresh": "تحديث",
+      "onlineNow": "متصل الآن",
+      "activeSessions": "الجلسات النشطة",
+      "lastUpdated": "آخر تحديث",
+      "online": "متصل",
+      "recentlyActive": "نشط مؤخرًا",
+      "none": "لم يُعثر على جلسات نشطة",
+      "unknownIp": "عنوان IP غير معروف",
+      "now": "الآن",
+      "device": {
+        "Desktop": "حاسوب مكتبي",
+        "Mobile": "هاتف محمول",
+        "Tablet": "جهاز لوحي"
+      },
+      "terminateTitle": "إنهاء هذه الجلسة",
+      "logoutUserTitle": "تسجيل خروج جميع جلسات هذا المستخدم"
     }
   },
   "tahfizPages": {

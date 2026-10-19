@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T15:31:22.701Z",
-  "last_commit": "3b21e575f481b3f3342f3cd7772ad41e04eadf09",
+  "generated_at": "2026-10-19T15:39:26.336Z",
+  "last_commit": "2a769ec97ad8da4dda7c383c9e9c24ac0841f550",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10073,7 +10073,20 @@
         }
       ],
       "commit": "3b21e575f4"
+    },
+    {
+      "version": "2.50.112",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "Device uptime — how long each device has been online/offline (school + Control Center)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Device uptime — how long each device has been online/offline (school + Control Center)"
+        }
+      ],
+      "commit": "2a769ec97a"
     }
   ],
-  "app_version": "2.50.112"
+  "app_version": "2.50.113"
 }
