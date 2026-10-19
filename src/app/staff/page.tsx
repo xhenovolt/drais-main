@@ -16,8 +16,10 @@ import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import Link from 'next/link';
 import NewBadge from '@/components/ui/NewBadge';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 const StaffOverviewPage: React.FC = () => {
+  const { t, lang, digits, formatPercent } = useI18n();
   // Fetch staff overview data (school_id derived from session on server)
   const { data: staffData, isLoading } = useSWR(
     `/api/staff/overview`,
@@ -29,7 +31,7 @@ const StaffOverviewPage: React.FC = () => {
 
   const overviewCards = [
     {
-      title: 'Total Staff',
+      title: t('staffPages.overview.totalStaff', "Total Staff"),
       value: stats.total_staff || 0,
       icon: Users,
       color: 'from-blue-500 to-cyan-500',
@@ -37,7 +39,7 @@ const StaffOverviewPage: React.FC = () => {
       bgColor: 'bg-blue-50 dark:bg-blue-900/20'
     },
     {
-      title: 'Active Staff',
+      title: t('staffPages.overview.activeStaff', "Active Staff"),
       value: stats.active_staff || 0,
       icon: UserCheck,
       color: 'from-green-500 to-emerald-500',
@@ -45,7 +47,7 @@ const StaffOverviewPage: React.FC = () => {
       bgColor: 'bg-green-50 dark:bg-green-900/20'
     },
     {
-      title: 'Departments',
+      title: t('staffPages.overview.departments', "Departments"),
       value: stats.total_departments || 0,
       icon: Building,
       color: 'from-purple-500 to-pink-500',
@@ -53,8 +55,8 @@ const StaffOverviewPage: React.FC = () => {
       bgColor: 'bg-purple-50 dark:bg-purple-900/20'
     },
     {
-      title: 'Avg Attendance',
-      value: `${stats.avg_attendance || 0}%`,
+      title: t('staffPages.overview.avgAttendance', "Avg Attendance"),
+      value: lang === 'ar' ? formatPercent(Number(stats.avg_attendance || 0)) : `${stats.avg_attendance || 0}%`,
       icon: Calendar,
       color: 'from-orange-500 to-red-500',
       textColor: 'text-orange-600',
@@ -70,12 +72,12 @@ const StaffOverviewPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                👥 Staff Overview
+                {t('staffPages.overview.title', "👥 Staff Overview")}
               </h1>
               <NewBadge size="sm" animated />
             </div>
             <p className="text-gray-600 dark:text-gray-400">
-              Comprehensive staff management dashboard
+              {t('staffPages.overview.subtitle', "Comprehensive staff management dashboard")}
             </p>
           </div>
 
@@ -85,14 +87,14 @@ const StaffOverviewPage: React.FC = () => {
               className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all duration-200"
             >
               <Plus className="w-5 h-5" />
-              Add Staff
+              {t('staffPages.overview.addStaff', "Add Staff")}
             </Link>
             <Link
               href="/staff/list"
               className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-800 text-white rounded-lg hover:shadow-lg transition-all duration-200"
             >
               <Eye className="w-5 h-5" />
-              View All
+              {t('staffPages.overview.viewAll', "View All")}
             </Link>
           </div>
         </div>
@@ -113,7 +115,7 @@ const StaffOverviewPage: React.FC = () => {
                     {card.title}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                    {isLoading ? '...' : card.value}
+                    {isLoading ? '...' : digits(card.value)}
                   </p>
                 </div>
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center`}>
@@ -135,10 +137,10 @@ const StaffOverviewPage: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Recent Staff Additions
+                {t('staffPages.overview.recent', "Recent Staff Additions")}
               </h3>
               <Link href="/staff/list" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-                View all →
+                {t('staffPages.overview.viewAllArrow', "View all →")}
               </Link>
             </div>
             {isLoading ? (
@@ -150,15 +152,15 @@ const StaffOverviewPage: React.FC = () => {
             ) : !stats.recent_staff || stats.recent_staff.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <Users className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">No staff added yet.</p>
+                <p className="text-sm">{t('staffPages.overview.noStaff', "No staff added yet.")}</p>
                 <Link href="/staff/add" className="text-xs text-indigo-600 hover:underline">
-                  Add the first staff member →
+                  {t('staffPages.overview.addFirst', "Add the first staff member →")}
                 </Link>
               </div>
             ) : (
               <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                 {stats.recent_staff.map((s: any) => {
-                  const fullName = [s.first_name, s.last_name].filter(Boolean).join(' ').trim() || `Staff #${s.id}`;
+                  const fullName = [s.first_name, s.last_name].filter(Boolean).join(' ').trim() || t(`${P}.staffNo`, { id: s.id });
                   const subtitle = [s.position_name, s.department_name].filter(Boolean).join(' · ');
                   return (
                     <li key={s.id} className="flex items-center gap-3 py-2.5">
@@ -179,7 +181,7 @@ const StaffOverviewPage: React.FC = () => {
                             ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
                             : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
                         }`}>
-                          {s.status}
+                          {s.status ? t(`staffPages.overview.status.${s.status}`, s.status) : ''}
                         </span>
                       </Link>
                     </li>
@@ -198,10 +200,10 @@ const StaffOverviewPage: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Department Distribution
+                {t('staffPages.overview.deptDist', "Department Distribution")}
               </h3>
               <Link href="/admin/departments" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-                Manage →
+                {t('staffPages.overview.manage', "Manage →")}
               </Link>
             </div>
             {isLoading ? (
@@ -213,9 +215,9 @@ const StaffOverviewPage: React.FC = () => {
             ) : !stats.by_department || stats.by_department.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <Building className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">No departments defined yet.</p>
+                <p className="text-sm">{t('staffPages.overview.noDepts', "No departments defined yet.")}</p>
                 <Link href="/admin/departments" className="text-xs text-indigo-600 hover:underline">
-                  Create a department →
+                  {t('staffPages.overview.createDept', "Create a department →")}
                 </Link>
               </div>
             ) : (() => {
@@ -229,7 +231,7 @@ const StaffOverviewPage: React.FC = () => {
                       <li key={d.department_id} className="text-sm">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-slate-700 dark:text-slate-200 truncate">{d.department_name}</span>
-                          <span className="text-xs font-mono text-slate-500">{count}</span>
+                          <span className="text-xs font-mono text-slate-500">{digits(count)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
                           <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"

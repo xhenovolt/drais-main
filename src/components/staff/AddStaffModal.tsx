@@ -10,6 +10,7 @@ import useSWR from 'swr';
 import { apiFetch } from '@/lib/apiClient';
 import { useDropzone } from 'react-dropzone';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { roleLabel } from '@/lib/i18n/roles';
 
 interface AddStaffModalProps {
   open: boolean;
@@ -18,7 +19,7 @@ interface AddStaffModalProps {
 }
 
 const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess }) => {
-  const { t } = useI18n();
+  const { t, lang, digits } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     // Personal Info
@@ -105,11 +106,11 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
   const managers = managersData?.data || [];
 
   const steps = [
-    { title: 'Personal Info', icon: User },
-    { title: 'Professional', icon: Briefcase },
-    { title: 'Organization', icon: Building },
-    { title: 'Financial', icon: CreditCard },
-    { title: 'Account Access', icon: UserCog }
+    { title: t('staffPages.add.step.personal', "Personal Info"), icon: User },
+    { title: t('staffPages.add.step.professional', "Professional"), icon: Briefcase },
+    { title: t('staffPages.add.step.organization', "Organization"), icon: Building },
+    { title: t('staffPages.add.step.financial', "Financial"), icon: CreditCard },
+    { title: t('staffPages.add.step.account', "Account Access"), icon: UserCog }
   ];
 
   const handleInputChange = (field: string, value: any) => {
@@ -141,22 +142,22 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
     switch (step) {
       case 0: // Personal Info
-        if (!formData.first_name.trim()) newErrors.first_name = 'First name is required';
-        if (!formData.last_name.trim()) newErrors.last_name = 'Last name is required';
+        if (!formData.first_name.trim()) newErrors.first_name = t('staffPages.add.err.firstName', "First name is required");
+        if (!formData.last_name.trim()) newErrors.last_name = t('staffPages.add.err.lastName', "Last name is required");
         if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
-          newErrors.email = 'Invalid email format';
+          newErrors.email = t('staffPages.add.err.email', "Invalid email format");
         }
         break;
       case 1: // Professional
-        if (!formData.position.trim()) newErrors.position = 'Position is required';
+        if (!formData.position.trim()) newErrors.position = t('staffPages.add.err.position', "Position is required");
         break;
       case 4: // Account Access
         if (formData.create_account) {
-          if (!formData.email.trim()) newErrors.email = 'Email is required for login accounts';
-          if (!formData.password) newErrors.password = 'Password is required';
-          if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
+          if (!formData.email.trim()) newErrors.email = t('staffPages.add.err.emailLogin', "Email is required for login accounts");
+          if (!formData.password) newErrors.password = t('staffPages.add.err.password', "Password is required");
+          if (formData.password.length < 8) newErrors.password = t('staffPages.add.err.passwordLen', "Password must be at least 8 characters");
           if (formData.password !== formData.confirm_password) {
-            newErrors.confirm_password = 'Passwords do not match';
+            newErrors.confirm_password = t('staffPages.add.err.mismatch', "Passwords do not match");
           }
         }
         break;
@@ -203,7 +204,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       const result = await apiFetch<{ message?: string }>('/api/staff/add', {
         method: 'POST',
         body: submitData,
-        successMessage: 'Staff member added successfully!',
+        successMessage: t('staffPages.add.added', "Staff member added successfully!"),
       });
 
       onSuccess();
@@ -245,11 +246,11 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
         >
           <input {...getInputProps()} />
           {photoPreview ? (
-            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+            <img src={photoPreview} alt={t('staffPages.add.preview', "Preview")} className="w-full h-full object-cover" />
           ) : (
             <div className="text-center">
               <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">Upload Photo</p>
+              <p className="text-xs text-gray-500">{t('staffPages.add.uploadPhoto', "Upload Photo")}</p>
             </div>
           )}
         </div>
@@ -262,7 +263,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             }}
             className="mt-2 text-sm text-red-600 hover:text-red-700"
           >
-            Remove Photo
+            {t('staffPages.add.removePhoto', "Remove Photo")}
           </button>
         )}
       </div>
@@ -270,7 +271,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            First Name *
+            {t('staffPages.add.firstName', "First Name *")}
           </label>
           <input
             type="text"
@@ -286,7 +287,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Last Name *
+            {t('staffPages.add.lastName', "Last Name *")}
           </label>
           <input
             type="text"
@@ -302,7 +303,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Other Names
+            {t('staffPages.add.otherNames', "Other Names")}
           </label>
           <input
             type="text"
@@ -315,22 +316,22 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Gender
+            {t('staffPages.add.gender', "Gender")}
           </label>
           <select
             value={formData.gender}
             onChange={(e) => handleInputChange('gender', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Select gender</option>
-            <option value="M">Male</option>
-            <option value="F">Female</option>
+            <option value="">{t('staffPages.add.selectGender', "Select gender")}</option>
+            <option value="M">{t('staffPages.add.male', "Male")}</option>
+            <option value="F">{t('staffPages.add.female', "Female")}</option>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Date of Birth
+            {t('staffPages.add.dob', "Date of Birth")}
           </label>
           <input
             type="date"
@@ -342,7 +343,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Phone Number
+            {t('staffPages.add.phone', "Phone Number")}
           </label>
           <input
             type="tel"
@@ -355,7 +356,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Email Address
+            {t('staffPages.add.email', "Email Address")}
           </label>
           <input
             type="email"
@@ -371,7 +372,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Address
+            {t('staffPages.add.address', "Address")}
           </label>
           <textarea
             value={formData.address}
@@ -390,7 +391,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Staff Number
+            {t('staffPages.add.staffNo', "Staff Number")}
           </label>
           <input
             type="text"
@@ -403,7 +404,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Position *
+            {t('staffPages.add.position', "Position *")}
           </label>
           <select
             value={formData.position_id}
@@ -419,18 +420,18 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
               errors.position ? 'border-red-500' : 'border-gray-300'
             }`}
           >
-            <option value="">Select a position…</option>
+            <option value="">{t('staffPages.add.selectPosition', "Select a position…")}</option>
             {(['academic', 'spiritual', 'admin', 'finance', 'support'] as const).map(cat => {
               const inCat = positions.filter(p => p.category === cat);
               if (inCat.length === 0) return null;
               return (
                 <optgroup
                   key={cat}
-                  label={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  label={t(`staffPages.add.cat.${cat}`, cat.charAt(0).toUpperCase() + cat.slice(1))}
                 >
                   {inCat.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name}{p.isTeaching ? ' · teaching' : ''}
+                      {p.name}{p.isTeaching ? t('staffPages.add.teaching', " · teaching") : ''}
                     </option>
                   ))}
                 </optgroup>
@@ -442,23 +443,23 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Employment Type
+            {t('staffPages.add.employmentType', "Employment Type")}
           </label>
           <select
             value={formData.employment_type}
             onChange={(e) => handleInputChange('employment_type', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            <option value="permanent">Permanent</option>
-            <option value="contract">Contract</option>
-            <option value="volunteer">Volunteer</option>
-            <option value="part-time">Part-time</option>
+            <option value="permanent">{t('staffPages.add.permanent', "Permanent")}</option>
+            <option value="contract">{t('staffPages.add.contract', "Contract")}</option>
+            <option value="volunteer">{t('staffPages.add.volunteer', "Volunteer")}</option>
+            <option value="part-time">{t('staffPages.add.partTime', "Part-time")}</option>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Experience (Years)
+            {t('staffPages.add.experience', "Experience (Years)")}
           </label>
           <input
             type="number"
@@ -471,7 +472,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Hire Date
+            {t('staffPages.add.hireDate', "Hire Date")}
           </label>
           <input
             type="date"
@@ -483,7 +484,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Monthly Salary (UGX)
+            {t('staffPages.add.salary', "Monthly Salary (UGX)")}
           </label>
           <input
             type="number"
@@ -498,7 +499,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Qualification
+            {t('staffPages.add.qualification', "Qualification")}
           </label>
           <textarea
             value={formData.qualification}
@@ -517,14 +518,14 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Department
+            {t('staffPages.add.department', "Department")}
           </label>
           <select
             value={formData.department_id}
             onChange={(e) => handleInputChange('department_id', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Select department</option>
+            <option value="">{t('staffPages.add.selectDepartment', "Select department")}</option>
             {departments.map((dept: any) => (
               <option key={dept.id} value={dept.id}>{dept.name}</option>
             ))}
@@ -533,30 +534,30 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Role
+            {t('staffPages.add.role', "Role")}
           </label>
           <select
             value={formData.role_id}
             onChange={(e) => handleInputChange('role_id', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Select role</option>
+            <option value="">{t('staffPages.add.selectRole', "Select role")}</option>
             {roles.map((role: any) => (
-              <option key={role.id} value={role.id}>{role.name}</option>
+              <option key={role.id} value={role.id}>{roleLabel(t, lang, role.name)}</option>
             ))}
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Reports To (Manager)
+            {t('staffPages.add.reportsTo', "Reports To (Manager)")}
           </label>
           <select
             value={formData.manager_id}
             onChange={(e) => handleInputChange('manager_id', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">— No manager (top of hierarchy) —</option>
+            <option value="">{t('staffPages.add.noManager', "— No manager (top of hierarchy) —")}</option>
             {managers.map((m: { id: number; first_name: string; last_name: string; position: string | null; position_name?: string | null; department_name?: string | null }) => {
               const title = m.position_name || m.position || '';
               const dept  = m.department_name ? ` · ${m.department_name}` : '';
@@ -568,7 +569,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             })}
           </select>
           <p className="text-[10px] text-slate-400 mt-1">
-            The person this staff member reports to.
+            {t('staffPages.add.reportsHelp', "The person this staff member reports to.")}
           </p>
         </div>
       </div>
@@ -580,7 +581,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Bank Name
+            {t('staffPages.add.bankName', "Bank Name")}
           </label>
           <input
             type="text"
@@ -593,7 +594,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Bank Account Number
+            {t('staffPages.add.bankAccount', "Bank Account Number")}
           </label>
           <input
             type="text"
@@ -606,27 +607,27 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            NSSF Number
+            {t('staffPages.add.nssf', "NSSF Number")}
           </label>
           <input
             type="text"
             value={formData.nssf_no}
             onChange={(e) => handleInputChange('nssf_no', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter NSSF number"
+            placeholder={t('staffPages.add.nssfPh', "Enter NSSF number")}
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            TIN Number
+            {t('staffPages.add.tin', "TIN Number")}
           </label>
           <input
             type="text"
             value={formData.tin_no}
             onChange={(e) => handleInputChange('tin_no', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter TIN number"
+            placeholder={t('staffPages.add.tinPh', "Enter TIN number")}
           />
         </div>
       </div>
@@ -644,28 +645,28 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
         />
         <label htmlFor="create_account" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Create login account for this staff member
+          {t('staffPages.add.createAccount', "Create login account for this staff member")}
         </label>
       </div>
 
       {formData.create_account && (
         <div className="space-y-4 mt-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-700 dark:text-blue-300">
-            The staff member will use their email ({formData.email || 'not set'}) to log in.
-            {!formData.email && <span className="block mt-1 text-red-500 font-medium">Please enter an email in Step 1 first.</span>}
+            {t(`staffPages.add.loginEmail`, { email: formData.email || t(`staffPages.add.notSet`, 'not set') })}
+            {!formData.email && <span className="block mt-1 text-red-500 font-medium">{t('staffPages.add.emailFirst', "Please enter an email in Step 1 first.")}</span>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Password *
+                {t('staffPages.add.password', "Password *")}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 pr-10 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 pe-10 ${
                     errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder={t('auth.password')}
@@ -673,7 +674,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute end-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -683,7 +684,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm Password *
+                {t('staffPages.add.confirmPassword', "Confirm Password *")}
               </label>
               <input
                 type={showPassword ? "text" : "password"}
@@ -728,7 +729,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.staff.add')}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Step {currentStep + 1} of {steps.length}: {steps[currentStep].title}
+              {t(`staffPages.add.stepLine`, { n: currentStep + 1, total: steps.length, title: steps[currentStep].title })}
             </p>
           </div>
           <button
@@ -756,7 +757,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
                 }`}>
                   <step.icon className="w-4 h-4" />
                 </div>
-                <span className={`ml-2 text-sm font-medium ${
+                <span className={`ms-2 text-sm font-medium ${
                   index === currentStep ? 'text-blue-600' : 'text-gray-600'
                 }`}>
                   {step.title}
@@ -793,7 +794,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
             disabled={currentStep === 0}
             className="px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Previous
+            {t('staffPages.add.previous', "Previous")}
           </button>
           
           <div className="flex gap-3">
@@ -801,7 +802,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              Cancel
+              {t('staffPages.add.cancel', "Cancel")}
             </button>
             
             {currentStep === steps.length - 1 ? (
@@ -810,14 +811,14 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
                 disabled={loading}
                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
               >
-                {loading ? 'Adding...' : 'Add Staff'}
+                {loading ? t('staffPages.add.adding', "Adding...") : t('staffPages.add.addStaff', "Add Staff")}
               </button>
             ) : (
               <button
                 onClick={handleNext}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Next
+                {t('staffPages.add.next', "Next")}
               </button>
             )}
           </div>

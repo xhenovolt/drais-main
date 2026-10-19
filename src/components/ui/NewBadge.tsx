@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface NewBadgeProps {
   size?: 'sm' | 'md' | 'lg';
@@ -18,6 +19,7 @@ const NewBadge: React.FC<NewBadgeProps> = ({
   showIcon = false,
   className = ''
 }) => {
+  const { t } = useI18n();
   const sizeClasses = {
     sm: 'px-1.5 py-0.5 text-xs',
     md: 'px-2 py-1 text-sm',
@@ -36,7 +38,7 @@ const NewBadge: React.FC<NewBadgeProps> = ({
       ${sizeClasses[size]} ${variantClasses[variant]} ${className}
     `}>
       {showIcon && <Sparkles className="w-3 h-3" />}
-      NEW
+      {t('staffPages.overview.newBadge', 'NEW')}
     </span>
   );
 
