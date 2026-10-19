@@ -9419,6 +9419,103 @@
         "deleteFailed": "The result type could not be deleted.",
         "none": "No result types yet."
       }
+    },
+    "classResults": {
+      "student": "Student",
+      "noOptions": "No options",
+      "select": "Select",
+      "loadFailed": "Failed to load form data",
+      "needYear": "Create an academic year first before adding a term.",
+      "termCreateFailed": "Could not create term",
+      "termReady": "Term \"{{name}}\" ready.",
+      "subjectCreateFailed": "Could not create subject",
+      "subjectReady": "Subject \"{{name}}\" ready.",
+      "allocCreated": "Allocation created. Resubmitting…",
+      "allocFailed": "Allocation failed",
+      "rtCreateFailed": "Could not create result type",
+      "rtReady": "Result type \"{{name}}\" ready. Adjust weight later in the Result Types tab.",
+      "resultsLoadFailed": "Failed to load results",
+      "scoreRange": "Score must be between 0 and 100",
+      "saving": "Saving...",
+      "scoreUpdated": "Score updated successfully",
+      "scoreFailed": "Failed to update score",
+      "network": "Network error - please try again",
+      "bulkLoadFailed": "Failed to load bulk data",
+      "missingFailed": "Error loading missing learners",
+      "fetchFailed": "Failed to fetch data",
+      "allocating": "Allocating subject to class…",
+      "submitFailed": "Failed to submit results",
+      "savedOk": "✓ Saved Successfully!",
+      "submitted": "Results submitted successfully!",
+      "allocatingN": {
+        "one": "Allocating {{count}} subject to class…",
+        "other": "Allocating {{count}} subjects to class…"
+      },
+      "bulkSavedOk": "✓ Bulk results saved successfully!",
+      "savedIgnored": {
+        "one": "Saved {{saved}}; {{count}} row ignored",
+        "other": "Saved {{saved}}; {{count}} rows ignored"
+      },
+      "bulkSubmitted": "Bulk results submitted successfully! {{n}} records saved.",
+      "bulkFailed": "Failed to submit bulk results",
+      "noExport": "No data to export",
+      "excelOk": "Excel file exported successfully!",
+      "excelFailed": "Failed to export Excel file",
+      "csvOk": "CSV exported successfully!",
+      "csvFailed": "Failed to export CSV",
+      "allYears": "All Years",
+      "bulkEntry": "Bulk Entry",
+      "resultsCount": {
+        "one": "{{count}} result",
+        "other": "{{count}} results"
+      },
+      "perPage": "{{n}} per page",
+      "sort": {
+        "name": "Name",
+        "score": "Score",
+        "class": "Class"
+      },
+      "exportPdf": "Export PDF",
+      "exportXls": "Export Excel",
+      "exportCsv": "Export CSV",
+      "program": "Program",
+      "loadingResults": "Loading results...",
+      "range": "{{from}}–{{to}} of {{total}}",
+      "bulkTitle": "Bulk Results Entry",
+      "bulkSub": "Enter scores for multiple subjects simultaneously",
+      "singleSub": "Enter scores for each student across all subjects",
+      "closeModal": "Close modal",
+      "filterLoad": "Filter & Load",
+      "ph": {
+        "firstTerm": "Type to create your first term…",
+        "pick": "Pick or type to create",
+        "firstSubject": "Type a subject name to create it…",
+        "firstType": "Type to create e.g. End-of-Term…"
+      },
+      "entity": {
+        "term": "term",
+        "subject": "subject",
+        "resultType": "result type"
+      },
+      "score": "Score",
+      "invalid": "Invalid",
+      "scoreFor": "Score for {{name}}",
+      "commentFor": "Comment for {{name}}",
+      "bulkHeading": {
+        "one": "Bulk Entry — {{count}} Student",
+        "other": "Bulk Entry — {{count}} Students"
+      },
+      "keysHelp": "Use Tab/Arrow keys to navigate • Ctrl+V to paste from Excel",
+      "savingBulk": "Saving bulk results...",
+      "saveBulk": "Save Bulk Results",
+      "ta": {
+        "placeholder": "Select or type to create…",
+        "item": "item",
+        "noMatch": "No {{entity}} matches \"{{query}}\"",
+        "none": "No {{entity}}s yet — start typing to create one.",
+        "create": "Create {{entity}}",
+        "createHelp": "DRAIS will add it now, then continue."
+      }
     }
   }
 }

@@ -16,6 +16,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
 
 export interface TypeaheadOption {
   id: number | string;
@@ -42,12 +43,14 @@ export function EntityTypeahead<T extends TypeaheadOption>({
   value,
   onChange,
   items,
-  placeholder = 'Select or type to create…',
+  placeholder,
   disabled,
   onCreate,
-  entityLabel = 'item',
+  entityLabel,
   variant = 'glass',
 }: EntityTypeaheadProps<T>) {
+  const { t } = useI18n();
+  const entity = entityLabel ?? t('academicsPages.classResults.ta.item', "item");
   const [query, setQuery] = useState<string>('');
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -113,7 +116,7 @@ export function EntityTypeahead<T extends TypeaheadOption>({
           type="text"
           value={query}
           disabled={disabled || creating}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('academicsPages.classResults.ta.placeholder', "Select or type to create…")}
           onFocus={() => setOpen(true)}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); if (value) onChange(null); }}
           onKeyDown={(e) => {
@@ -125,7 +128,7 @@ export function EntityTypeahead<T extends TypeaheadOption>({
               setOpen(false);
             }
           }}
-          className="flex w-full bg-transparent text-left text-sm font-medium outline-none placeholder:text-slate-400"
+          className="flex w-full bg-transparent text-start text-sm font-medium outline-none placeholder:text-slate-400"
         />
         {open && !disabled && (
           <div className="absolute z-30 mt-2 left-0 right-0 max-h-64 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl p-1 text-sm">
@@ -134,7 +137,7 @@ export function EntityTypeahead<T extends TypeaheadOption>({
                 key={o.id}
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); onChange(o); setQuery(o.name); setOpen(false); }}
-                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 ${value?.id === o.id ? 'text-fuchsia-600 dark:text-fuchsia-400 font-semibold' : ''}`}
+                className={`w-full text-start flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 ${value?.id === o.id ? 'text-fuchsia-600 dark:text-fuchsia-400 font-semibold' : ''}`}
               >
                 <span className="flex-1 truncate">{o.name}</span>
                 {value?.id === o.id && <Check className="w-4 h-4" />}
@@ -142,7 +145,7 @@ export function EntityTypeahead<T extends TypeaheadOption>({
             ))}
             {matches.length === 0 && !canCreate && (
               <div className="px-3 py-4 text-center text-xs text-slate-500">
-                {q ? `No ${entityLabel} matches "${query}"` : `No ${entityLabel}s yet — start typing to create one.`}
+                {q ? t('academicsPages.classResults.ta.noMatch', { entity, query }) : t('academicsPages.classResults.ta.none', { entity })}
               </div>
             )}
             {canCreate && (
@@ -153,9 +156,9 @@ export function EntityTypeahead<T extends TypeaheadOption>({
                 className="w-full mt-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 font-semibold"
               >
                 {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : <span className="text-base leading-none">＋</span>}
-                <span className="flex-1 truncate text-left">
-                  Create {entityLabel} <span className="font-bold">&ldquo;{query.trim()}&rdquo;</span>
-                  <span className="block text-[10px] font-normal opacity-70">DRAIS will add it now, then continue.</span>
+                <span className="flex-1 truncate text-start">
+                  {t('academicsPages.classResults.ta.create', { entity })} <span className="font-bold">&ldquo;{query.trim()}&rdquo;</span>
+                  <span className="block text-[10px] font-normal opacity-70">{t('academicsPages.classResults.ta.createHelp', "DRAIS will add it now, then continue.")}</span>
                 </span>
               </button>
             )}

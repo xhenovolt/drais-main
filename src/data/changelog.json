@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:04:07.769Z",
-  "last_commit": "211cb612d210f09aa9f43bb502a02e03e4c3cdaf",
+  "generated_at": "2026-10-19T17:07:46.142Z",
+  "last_commit": "f95ee7351d8130ed38750ff71054fe29e74da791",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10359,7 +10359,20 @@
         }
       ],
       "commit": "211cb612d2"
+    },
+    {
+      "version": "2.50.134",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/results shell, CAFE banner and result types in Arabic; result-type save/delete failures now surface",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/results shell, CAFE banner and result types in Arabic; result-type save/delete failures now surface"
+        }
+      ],
+      "commit": "f95ee7351d"
     }
   ],
-  "app_version": "2.50.134"
+  "app_version": "2.50.135"
 }

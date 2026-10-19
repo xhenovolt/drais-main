@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 // keep these heavy libs out of the eager build/client graph. (html2canvas was
 // imported but unused — removed.)
 import { toast } from 'react-hot-toast';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 const API_BASE = '/api';
 const API_MISSING = `${API_BASE}/class_results/missing`;
@@ -34,6 +35,7 @@ interface BulkEntryGridProps {
 }
 
 const BulkEntryGrid: React.FC<BulkEntryGridProps> = React.memo(function BulkEntryGrid({ bulkData, setBulkData, subjects, classId }) {
+  const { t } = useI18n();
   const [focusedCell, setFocusedCell] = useState<{ studentId: number; subjectId: number } | null>(null);
 
   // Filter subjects to only those allocated to the class
@@ -143,8 +145,8 @@ const BulkEntryGrid: React.FC<BulkEntryGridProps> = React.memo(function BulkEntr
       <table className="w-full text-xs">
         <thead className="bg-slate-50 dark:bg-slate-800">
           <tr>
-            <th className="sticky left-0 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-3 py-2 text-left font-semibold min-w-[200px]">
-              Student
+            <th className="sticky start-0 bg-slate-50 dark:bg-slate-800 border-e border-slate-200 dark:border-slate-700 px-3 py-2 text-start font-semibold min-w-[200px]">
+              {t('academicsPages.classResults.student', "Student")}
             </th>
             {classSubjects.map(subject => (
               <th key={subject.id} className="px-3 py-2 text-center font-semibold min-w-[80px]">
@@ -156,7 +158,7 @@ const BulkEntryGrid: React.FC<BulkEntryGridProps> = React.memo(function BulkEntr
         <tbody>
           {students.map((student: any, studentIndex) => (
             <tr key={student.student_id} className={studentIndex % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800'}>
-              <td className="sticky left-0 bg-inherit border-r border-slate-200 dark:border-slate-700 px-3 py-2 font-medium">
+              <td className="sticky start-0 bg-inherit border-e border-slate-200 dark:border-slate-700 px-3 py-2 font-medium">
                 <div>
                   <div className="font-semibold">{student.first_name} {student.last_name}</div>
                   <div className="text-xs text-slate-500">{student.admission_no}</div>
@@ -167,7 +169,7 @@ const BulkEntryGrid: React.FC<BulkEntryGridProps> = React.memo(function BulkEntr
                 const isFocused = focusedCell?.studentId === student.student_id && focusedCell?.subjectId === subject.id;
 
                 return (
-                  <td key={subject.id} className="px-1 py-1 border-r border-slate-100 dark:border-slate-700">
+                  <td key={subject.id} className="px-1 py-1 border-e border-slate-100 dark:border-slate-700">
                     <input
                       type="number"
                       min="0"
@@ -204,33 +206,33 @@ interface StudentRow { student_id:number; first_name:string; last_name:string; s
 // for the why + behaviour notes.
 import { EntityTypeahead as Typeahead } from './EntityTypeahead';
 
-const SelectBox:React.FC<{label:string; value:any; onChange:(v:any)=>void; items:Option[]; placeholder?:string; disabled?:boolean}> = ({label,value,onChange,items,placeholder='Select',disabled}) => (
+const SelectBox:React.FC<{label:string; value:any; onChange:(v:any)=>void; items:Option[]; placeholder?:string; disabled?:boolean}> = ({label,value,onChange,items,placeholder,disabled}) => { const { t } = useI18n(); return (
   <Listbox value={value} onChange={onChange} disabled={disabled}>
     <div className="space-y-1">
       <Listbox.Label className="block text-[11px] font-semibold uppercase tracking-wide mb-1">{label}</Listbox.Label>
-      <div className={`relative rounded-xl border border-white/40 dark:border-white/10 bg-gradient-to-br from-slate-200/40 to-slate-50/20 dark:from-slate-800/60 dark:to-slate-900/40 backdrop-blur px-3 py-2 ${disabled?'opacity-50 cursor-not-allowed':'cursor-pointer'}`}>          
-        <Listbox.Button className="flex w-full items-center justify-between text-left text-sm font-medium">
-          <span className="truncate">{value? value.name : placeholder}</span>
+      <div className={`relative rounded-xl border border-white/40 dark:border-white/10 bg-gradient-to-br from-slate-200/40 to-slate-50/20 dark:from-slate-800/60 dark:to-slate-900/40 backdrop-blur px-3 py-2 ${disabled?'opacity-50 cursor-not-allowed':'cursor-pointer'}`}>
+        <Listbox.Button className="flex w-full items-center justify-between text-start text-sm font-medium">
+          <span className="truncate">{value? value.name : (placeholder ?? t('academicsPages.classResults.select', "Select"))}</span>
           <ChevronsUpDown className="w-4 h-4 opacity-60" />
         </Listbox.Button>
         {!disabled && (
           <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <Listbox.Options className="absolute z-20 mt-2 left-0 right-0 max-h-64 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl p-1 text-sm">
+            <Listbox.Options className="absolute z-20 mt-2 start-0 end-0 max-h-64 overflow-auto rounded-xl border border-white/30 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl p-1 text-sm">
               {items.map(o => (
                 <Listbox.Option key={o.id} value={o} className={({active,selected})=>`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer ${active?'bg-black/5 dark:bg-white/10':''} ${selected?'text-fuchsia-600 dark:text-fuchsia-400 font-semibold':''}`}>
                   {({selected}) => (<><span className="flex-1 truncate">{o.name}</span>{selected && <Check className="w-4 h-4"/>}</>)}
                 </Listbox.Option>
               ))}
-              {items.length===0 && <div className="px-3 py-4 text-center text-xs text-slate-500">No options</div>}
+              {items.length===0 && <div className="px-3 py-4 text-center text-xs text-slate-500">{t('academicsPages.classResults.noOptions', "No options")}</div>}
             </Listbox.Options>
           </Transition>) }
       </div>
     </div>
   </Listbox>
-);
+); };
 
 export default function ClassResultsManager({ academicType = 'secular' }: { academicType?: 'secular' | 'theology' }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [isPending, startTransition] = useTransition();
 
   const [open,setOpen]=useState(false);
@@ -320,7 +322,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       setTypes(rt.data || []);
     } catch (error) {
       console.error('Error loading metadata:', error);
-      setMessage('Failed to load form data');
+      setMessage(t('academicsPages.classResults.loadFailed', "Failed to load form data"));
     }
   };
 
@@ -336,7 +338,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
 
   async function createTerm(name: string): Promise<Option | null> {
     if (academicYears.length === 0) {
-      toast.error('Create an academic year first before adding a term.');
+      toast.error(t('academicsPages.classResults.needYear', "Create an academic year first before adding a term."));
       return null;
     }
     const year = academicYears[0]; // most recent — terms API orders by year DESC
@@ -350,7 +352,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       if (!res.ok) {
         // 409 = exists; pick from the fresh list below
         if (res.status !== 409) {
-          toast.error(data.error || 'Could not create term');
+          toast.error((data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.termCreateFailed', "Could not create term")));
           return null;
         }
       }
@@ -359,10 +361,10 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const list = (fresh.data || []) as TermOption[];
       setTerms(list);
       const created = list.find(t => t.name.toLowerCase() === name.toLowerCase()) || null;
-      if (created) toast.success(`Term "${name}" ready.`);
+      if (created) toast.success(t('academicsPages.classResults.termReady', { name }));
       return created;
     } catch (e: any) {
-      toast.error(e.message || 'Network error creating term');
+      toast.error(t('academicsPages.classResults.network', "Network error - please try again"));
       return null;
     }
   }
@@ -376,7 +378,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       });
       const data = await res.json();
       if (!res.ok && res.status !== 409) {
-        toast.error(data.error || 'Could not create subject');
+        toast.error((data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.subjectCreateFailed', "Could not create subject")));
         return null;
       }
       const fresh = await fetch(`${API_BASE}/subjects?academic_type=${academicType}`).then(r => r.json()).catch(() => ({ data: [] }));
@@ -393,10 +395,10 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       if (klass) {
         await ensureSubjectAllocated(created.id, klass.id, /*announce*/ false);
       }
-      toast.success(`Subject "${name}" ready.`);
+      toast.success(t('academicsPages.classResults.subjectReady', { name }));
       return created;
     } catch (e: any) {
-      toast.error(e.message || 'Network error creating subject');
+      toast.error(t('academicsPages.classResults.network', "Network error - please try again"));
       return null;
     }
   }
@@ -416,14 +418,14 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       });
       // 409/200 both mean we now have an active allocation.
       if (res.ok || res.status === 409) {
-        if (announce) toast.success('Allocation created. Resubmitting…');
+        if (announce) toast.success(t('academicsPages.classResults.allocCreated', "Allocation created. Resubmitting…"));
         return true;
       }
       const data = await res.json().catch(() => ({}));
-      if (announce) toast.error(data.error || data.message || `Allocation failed (${res.status})`);
+      if (announce) { const m = data.error || data.message; toast.error((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.classResults.allocFailed', "Allocation failed"))); }
       return false;
     } catch (e: any) {
-      if (announce) toast.error(e.message || 'Network error allocating subject');
+      if (announce) toast.error(t('academicsPages.classResults.network', "Network error - please try again"));
       return false;
     }
   }
@@ -443,17 +445,17 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       });
       const data = await res.json();
       if (!res.ok && res.status !== 409) {
-        toast.error(data.error || 'Could not create result type');
+        toast.error((data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.rtCreateFailed', "Could not create result type")));
         return null;
       }
       const fresh = await fetch(`${API_BASE}/result_types`).then(r => r.json()).catch(() => ({ data: [] }));
       const list = (fresh.data || []) as Option[];
       setTypes(list);
       const created = list.find(rt => rt.name.toLowerCase() === name.toLowerCase()) || null;
-      if (created) toast.success(`Result type "${name}" ready. Adjust weight later in the Result Types tab.`);
+      if (created) toast.success(t('academicsPages.classResults.rtReady', { name }));
       return created;
     } catch (e: any) {
-      toast.error(e.message || 'Network error creating result type');
+      toast.error(t('academicsPages.classResults.network', "Network error - please try again"));
       return null;
     }
   }
@@ -483,15 +485,16 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         return r.json();
       })
       .then(d => {
-        if (d.error) setMessage(d.error);
+        if (d.error) setMessage((d.error && !(uiIsArabic() && isEnglishText(d.error)) ? d.error : t('academicsPages.classResults.resultsLoadFailed', "Failed to load results")));
         else {
-          setList(d.data || []);
-          setListTotal(d.meta?.total ?? (d.data || []).length);
+          const rowsOk = Array.isArray(d.data) ? d.data : [];
+          setList(rowsOk);
+          setListTotal(d.meta?.total ?? rowsOk.length);
         }
       })
       .catch(e => {
         console.error('Error loading results:', e);
-        setMessage(e.message || 'Failed to load results');
+        setMessage(t('academicsPages.classResults.resultsLoadFailed', "Failed to load results"));
       })
       .finally(() => setListLoading(false));
   }, [filters.class_id, filters.subject_id, filters.result_type_id, filters.term_id, filters.academic_year_id, filters.search, listSortBy, listSortOrder, listPage, listLimit]);
@@ -502,13 +505,13 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     if (field === 'score') {
       const numValue = parseFloat(value);
       if (isNaN(numValue) || numValue < 0 || numValue > 100) {
-        toast.error('Score must be between 0 and 100');
+        toast.error(t('academicsPages.classResults.scoreRange', "Score must be between 0 and 100"));
         return;
       }
     }
 
     // Show saving toast
-    const savingToast = toast.loading('Saving...', {
+    const savingToast = toast.loading(t('academicsPages.classResults.saving', "Saving..."), {
       duration: Infinity,
       style: { background: '#3b82f6', color: 'white' },
     });
@@ -533,7 +536,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
 
         if (data.success) {
           toast.dismiss(savingToast);
-          toast.success('Score updated successfully', {
+          toast.success(t('academicsPages.classResults.scoreUpdated', "Score updated successfully"), {
             duration: 2000,
             style: { background: '#10b981', color: 'white' },
           });
@@ -543,13 +546,13 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           ));
         } else {
           toast.dismiss(savingToast);
-          toast.error(data.error || 'Failed to update score');
+          toast.error((data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.scoreFailed', "Failed to update score")));
           // Revert by resetting filters to trigger reload
           setFilters(f => ({ ...f }));
         }
       } catch (error) {
         toast.dismiss(savingToast);
-        toast.error('Network error - please try again');
+        toast.error(t('academicsPages.classResults.network', "Network error - please try again"));
         console.error('Error updating score:', error);
       }
     });
@@ -561,7 +564,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     setKlass(classes.find(c => String(c.id) === String(filters.class_id)) || null);
     setSubject(subjects.find(s => String(s.id) === String(filters.subject_id)) || null);
     setRtype(types.find(rt => String(rt.id) === String(filters.result_type_id)) || null);
-    setTerm(terms.find(t => String(t.id) === String(filters.term_id)) || null);
+    setTerm(terms.find(tm => String(tm.id) === String(filters.term_id)) || null);
     setRows([]);
     setBulkData({});
   };
@@ -619,7 +622,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       setBulkData(data);
     } catch (error) {
       console.error('Error loading bulk data:', error);
-      setMessage('Failed to load bulk data');
+      setMessage(t('academicsPages.classResults.bulkLoadFailed', "Failed to load bulk data"));
     } finally {
       setLoading(false);
     }
@@ -635,7 +638,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         throw new Error(`Server error: ${res.status} ${res.statusText}`);
       }
       const data = await res.json();
-      if (!data.success) setMessage(data.error || 'Error loading missing learners');
+      if (!data.success) setMessage((data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.missingFailed', "Error loading missing learners")));
       else {
         // Deduplicate learners by student_id (fallback to admission_no + name if no id)
         const items = data.data || [];
@@ -661,7 +664,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         setRows(unique.map((r: any) => ({ ...r, score: null, grade: null, remarks: null })));
       }
     } catch (e: any) {
-      setMessage(e.message || 'Failed to fetch data');
+      setMessage(t('academicsPages.classResults.fetchFailed', "Failed to fetch data"));
       console.error('Error fetching missing rows:', e);
     } finally {
       setLoading(false);
@@ -701,7 +704,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       // operator's intent — they're trying to enter marks for this
       // subject in this class right now.
       if (!res.ok && data?.code === 'SUBJECT_NOT_ALLOCATED' && klass && subject) {
-        toast('Allocating subject to class…', { icon: '⏳' });
+        toast(t('academicsPages.classResults.allocating', "Allocating subject to class…"), { icon: '⏳' });
         const allocated = await ensureSubjectAllocated(subject.id, klass.id, /*announce*/ true);
         if (allocated) {
           res = await postOnce();
@@ -710,20 +713,22 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       }
 
       if (!res.ok) {
-        const msg = data?.error || `Server error: ${res.status} ${res.statusText}`;
+        const raw = data?.error;
+        const msg = (raw && !(uiIsArabic() && isEnglishText(raw)) ? raw : t('academicsPages.classResults.submitFailed', "Failed to submit results"));
         setMessage(msg);
         toast.error(msg);
         return;
       }
       if (data.error) {
-        setMessage(data.error);
-        toast.error(data.error);
+        const msg = (data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.submitFailed', "Failed to submit results"));
+        setMessage(msg);
+        toast.error(msg);
         return;
       }
 
-      setMessage('✓ Saved Successfully!');
+      setMessage(t('academicsPages.classResults.savedOk', "✓ Saved Successfully!"));
       setShowSuccessAnimation(true);
-      toast.success('Results submitted successfully!');
+      toast.success(t('academicsPages.classResults.submitted', "Results submitted successfully!"));
       setTimeout(() => {
         setList([]);
         setFilters(f => ({ ...f }));
@@ -731,8 +736,9 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         setShowSuccessAnimation(false);
       }, 800);
     } catch (e: any) {
-      setMessage(e.message || 'Failed to submit results');
-      toast.error(e.message || 'Failed to submit results');
+      const msg = (e?.message && !(uiIsArabic() && isEnglishText(e?.message)) ? e?.message : t('academicsPages.classResults.submitFailed', "Failed to submit results"));
+      setMessage(msg);
+      toast.error(msg);
       console.error('Error submitting results:', e);
     } finally {
       setSaving(false);
@@ -789,7 +795,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const allocBlocked = ignored1.filter(isAllocIgnored);
       if (allocBlocked.length > 0) {
         const subjectIds = Array.from(new Set(allocBlocked.map(r => r.subject_id)));
-        toast(`Allocating ${subjectIds.length} subject${subjectIds.length === 1 ? '' : 's'} to class…`, { icon: '⏳' });
+        toast(t('academicsPages.classResults.allocatingN', { count: subjectIds.length }), { icon: '⏳' });
         const allocatedSubjects = new Set<number>();
         for (const sid of subjectIds) {
           const ok = await ensureSubjectAllocated(sid, klass.id, /*announce*/ false);
@@ -818,18 +824,19 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       }
 
       if (data.error) {
-        setMessage(data.error);
-        toast.error(data.error);
+        const msg = (data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('academicsPages.classResults.bulkFailed', "Failed to submit bulk results"));
+        setMessage(msg);
+        toast.error(msg);
         return;
       }
       const remainingIgnored = Array.isArray(data.ignored) ? data.ignored.length : 0;
       const inserted = Number(data.inserted ?? 0);
-      setMessage('✓ Bulk results saved successfully!');
+      setMessage(t('academicsPages.classResults.bulkSavedOk', "✓ Bulk results saved successfully!"));
       setShowSuccessAnimation(true);
       if (remainingIgnored > 0) {
-        toast.success(`Saved ${inserted}; ${remainingIgnored} row${remainingIgnored === 1 ? '' : 's'} ignored`);
+        toast.success(t('academicsPages.classResults.savedIgnored', { saved: inserted, count: remainingIgnored }));
       } else {
-        toast.success(`Bulk results submitted successfully! ${inserted} records saved.`);
+        toast.success(t('academicsPages.classResults.bulkSubmitted', { n: inserted }));
       }
       setTimeout(() => {
         setList([]);
@@ -838,8 +845,9 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         setShowSuccessAnimation(false);
       }, 800);
     } catch (e: any) {
-      setMessage(e.message || 'Failed to submit bulk results');
-      toast.error(e.message || 'Failed to submit bulk results');
+      const msg = (e?.message && !(uiIsArabic() && isEnglishText(e?.message)) ? e?.message : t('academicsPages.classResults.bulkFailed', "Failed to submit bulk results"));
+      setMessage(msg);
+      toast.error(msg);
       console.error('Error submitting bulk results:', e);
     } finally {
       setSaving(false);
@@ -879,7 +887,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const scoreNum = typeof r.score === 'number' ? r.score : (r.score !== null && r.score !== undefined && r.score !== '' ? parseFloat(r.score) : null);
       if (scoreNum !== null && !isNaN(scoreNum)) student.allScores.push(scoreNum);
     });
-    
+
     let allRows: any[] = [];
     Object.values(classGroups).forEach((students: any[]) => {
       students.forEach(row => {
@@ -893,11 +901,11 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         row.total = Math.round(total * 100) / 100;
         row.avg = avg;
       });
-      
+
       // Sort by total descending for class position
       students.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
-      students.forEach((row, i) => { 
-        row.position = i + 1; 
+      students.forEach((row, i) => {
+        row.position = i + 1;
         row.totalInClass = students.length;
       });
       allRows = allRows.concat(students);
@@ -961,7 +969,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
             disabled={isUpdating}
           />
           {isUpdating && (
-            <div className="absolute inset-y-0 right-1 flex items-center">
+            <div className="absolute inset-y-0 end-1 flex items-center">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
             </div>
           )}
@@ -976,7 +984,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         }`}
         onClick={() => !isUpdating && handleCellEdit(result, 'score')}
       >
-        <span className={isUpdating ? 'text-blue-600' : ''}>{result.score ?? '-'}</span>
+        <span className={isUpdating ? 'text-blue-600' : ''}>{result.score != null ? digits(result.score) : '-'}</span>
       </div>
     );
   };
@@ -989,14 +997,14 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 40;
     const tableWidth = pageWidth - margin * 2;
-    
+
     // Header
     pdf.setFontSize(18);
     pdf.text('Class Results', margin, margin);
     pdf.setFontSize(10);
     pdf.text(`Date: ${new Date().toLocaleDateString()}`, margin, margin + 10);
     pdf.text(`Time: ${new Date().toLocaleTimeString()}`, margin, margin + 20);
-    
+
     // Table: Add column headers
     const headers = [
       'Student Name',
@@ -1008,7 +1016,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       'Avg',
       'Position'
     ];
-    
+
     // Table: Add rows
     const rows = data.map(row => [
       row.name,
@@ -1023,14 +1031,14 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       row.avg !== null && row.avg !== undefined ? row.avg.toFixed(2) : '-',
       `${row.position}/${row.totalInClass}`
     ]);
-    
+
     // Table: Auto-adjust column widths
     const columnWidths = headers.map((_, i) => {
       if (i === 0) return 100; // Student Name
       if (i === 1) return 50;  // Class
       return 40; // Subjects, Total, Min, Max, Avg, Position
     });
-    
+
     // Table: Draw
     pdf.autoTable({
       head: [headers],
@@ -1055,14 +1063,14 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         columnWidths.map((width, i) => [i, { cellWidth: width }])
       ),
     });
-    
+
     // Footer
     const footerText = scope === 'learner' ? 'Learner Report' : scope === 'class' ? 'Class Report' : 'School Report';
     const footerY = pageHeight - margin;
     pdf.setFontSize(10);
     pdf.text(footerText, margin, footerY, { align: 'left' });
     pdf.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth - margin - 100, footerY, { align: 'right' });
-    
+
     // Save the PDF
     pdf.save(`class_results_${new Date().getTime()}.pdf`);
   };
@@ -1071,7 +1079,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   const exportToExcel = async (scope: 'learner' | 'class' | 'school', data: any[]) => {
     const XLSX = await import('xlsx');
     if (!data || data.length === 0) {
-      toast.error('No data to export');
+      toast.error(t('academicsPages.classResults.noExport', "No data to export"));
       return;
     }
 
@@ -1082,27 +1090,27 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           'Student Name': row.name,
           'Class': row.class_name || '-'
         };
-        
+
         // Add subject scores
         subjectColumns.forEach(subject => {
           const score = row.scores?.[subject.id];
           rowData[subject.name] = score ? (score.score || score) : '-';
         });
-        
+
         // Add summary data
         rowData['Total'] = row.total ?? '-';
         rowData['Min'] = row.min ?? '-';
         rowData['Max'] = row.max ?? '-';
         rowData['Avg'] = row.avg !== null && row.avg !== undefined ? row.avg.toFixed(2) : '-';
         rowData['Position'] = `${row.position}/${row.totalInClass}`;
-        
+
         return rowData;
       });
 
       const ws = XLSX.utils.json_to_sheet(excelData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Results');
-      
+
       // Set column widths
       const columnWidths = [
         { wpx: 200 }, // Student Name
@@ -1114,21 +1122,21 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         { wpx: 60 }, // Avg
         { wpx: 100 }, // Position
       ];
-      
+
       ws['!cols'] = columnWidths;
-      
+
       XLSX.writeFile(wb, `class_results_${new Date().getTime()}.xlsx`);
-      toast.success('Excel file exported successfully!');
+      toast.success(t('academicsPages.classResults.excelOk', "Excel file exported successfully!"));
     } catch (error) {
       console.error('Excel export error:', error);
-      toast.error('Failed to export Excel file');
+      toast.error(t('academicsPages.classResults.excelFailed', "Failed to export Excel file"));
     }
   };
 
   // Export to CSV
   const exportToCSV = (data: any[]) => {
     if (!data || data.length === 0) {
-      toast.error('No data to export');
+      toast.error(t('academicsPages.classResults.noExport', "No data to export"));
       return;
     }
 
@@ -1164,7 +1172,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const csvContent = csvRows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
-      
+
       const link = document.createElement('a');
       link.href = url;
       link.download = `class_results_${new Date().getTime()}.csv`;
@@ -1172,11 +1180,11 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      toast.success('CSV exported successfully!');
+
+      toast.success(t('academicsPages.classResults.csvOk', "CSV exported successfully!"));
     } catch (error) {
       console.error('CSV export error:', error);
-      toast.error('Failed to export CSV');
+      toast.error(t('academicsPages.classResults.csvFailed', "Failed to export CSV"));
     }
   };
 
@@ -1221,11 +1229,11 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           onChange={e => setFilters(f => ({ ...f, academic_year_id: e.target.value, term_id: '' }))}
           className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
         >
-          <option value="">All Years</option>
+          <option value="">{t('academicsPages.classResults.allYears', "All Years")}</option>
           {Array.from(
-            new Map(terms.map(t => [t.academic_year_id, t.academic_year])).entries()
+            new Map(terms.map(tm => [tm.academic_year_id, tm.academic_year])).entries()
           ).sort((a, b) => String(b[1]).localeCompare(String(a[1]))).map(([ayId, ayName]) => (
-            <option key={ayId} value={ayId}>{ayName}</option>
+            <option key={ayId} value={ayId}>{digits(String(ayName ?? ''))}</option>
           ))}
         </select>
         <select
@@ -1252,12 +1260,12 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
             onClick={() => handleOpenModal('bulk')}
             className="h-8 px-3 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors"
           >
-            Bulk Entry
+            {t('academicsPages.classResults.bulkEntry', "Bulk Entry")}
           </button>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-500 font-medium">{listTotal} results</span>
+        <div className="ms-auto flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-500 font-medium">{t('academicsPages.classResults.resultsCount', { count: listTotal })}</span>
           <button onClick={() => setFilters(f => ({ ...f }))} className="h-8 px-2 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors">
             <RefreshCw className="w-3 h-3"/>{t('classResults.refresh')}
           </button>
@@ -1265,8 +1273,9 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
             <button
               key={n}
               onClick={() => { setListLimit(n); setListPage(1); }}
+              title={t('academicsPages.classResults.perPage', { n })}
               className={`h-8 px-2 rounded-lg text-xs font-medium transition-colors ${listLimit === n ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-            >{n}</button>
+            >{digits(n)}</button>
           ))}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
           {(['name', 'score', 'class'] as const).map(key => (
@@ -1279,14 +1288,14 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
               }}
               className={`h-8 px-2 rounded-lg text-xs font-medium transition-colors ${listSortBy === key ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
             >
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-              {listSortBy === key && <span className="ml-0.5">{listSortOrder === 'asc' ? '↑' : '↓'}</span>}
+              {t(`academicsPages.classResults.sort.${key}`, key.charAt(0).toUpperCase() + key.slice(1))}
+              {listSortBy === key && <span className="ms-0.5">{listSortOrder === 'asc' ? '↑' : '↓'}</span>}
             </button>
           ))}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-          <button onClick={() => exportToPDF('learner', filteredMarklist)} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">PDF</button>
-          <button onClick={() => exportToExcel('learner', filteredMarklist)} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">XLS</button>
-          <button onClick={() => exportToCSV(filteredMarklist)} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors">CSV</button>
+          <button onClick={() => exportToPDF('learner', filteredMarklist)} title={t('academicsPages.classResults.exportPdf', "Export PDF")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">PDF</button>
+          <button onClick={() => exportToExcel('learner', filteredMarklist)} title={t('academicsPages.classResults.exportXls', "Export Excel")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">XLS</button>
+          <button onClick={() => exportToCSV(filteredMarklist)} title={t('academicsPages.classResults.exportCsv', "Export CSV")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors">CSV</button>
         </div>
       </div>
 
@@ -1296,31 +1305,31 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
             <thead className="bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur sticky top-0 z-10 shadow-sm">
               <tr>
                 <th
-                  className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
+                  className="text-start px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
                   onClick={() => { if (listSortBy==='name') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('name'); setListSortOrder('asc'); } setListPage(1); }}
                 >
                   {t('classResults.student')} {listSortBy==='name' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
                 </th>
                 <th
-                  className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
+                  className="text-start px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
                   onClick={() => { if (listSortBy==='class') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('class'); setListSortOrder('asc'); } setListPage(1); }}
                 >
                   {t('classResults.class')} {listSortBy==='class' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
                 </th>
-                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">Program</th>
+                <th className="text-start px-3 py-2.5 font-semibold whitespace-nowrap">{t('academicsPages.classResults.program', "Program")}</th>
                 {subjectColumns.map(s => (
-                  <th key={s.id} className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">
+                  <th key={s.id} className="text-start px-3 py-2.5 font-semibold whitespace-nowrap">
                     {s.name}
                   </th>
                 ))}
                 <th
-                  className="text-left px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
+                  className="text-start px-3 py-2.5 font-semibold cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 select-none whitespace-nowrap"
                   onClick={() => { if (listSortBy==='score') setListSortOrder(o=>o==='asc'?'desc':'asc'); else { setListSortBy('score'); setListSortOrder('asc'); } setListPage(1); }}
                 >
                   {t('classResults.total')} {listSortBy==='score' && <span>{listSortOrder==='asc'?'↑':'↓'}</span>}
                 </th>
-                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('classResults.avg')}</th>
-                <th className="text-left px-3 py-2.5 font-semibold whitespace-nowrap">{t('classResults.position')}</th>
+                <th className="text-start px-3 py-2.5 font-semibold whitespace-nowrap">{t('classResults.avg')}</th>
+                <th className="text-start px-3 py-2.5 font-semibold whitespace-nowrap">{t('classResults.position')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1340,11 +1349,11 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                       {row.scores[s.id] ? renderEditableCell(row.scores[s.id]) : <span className="text-slate-300">—</span>}
                     </td>
                   ))}
-                  <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200">{row.total ?? '—'}</td>
-                  <td className="px-3 py-2">{row.avg !== null && row.avg !== undefined ? row.avg.toFixed(1) : '—'}</td>
+                  <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200">{row.total != null ? digits(row.total) : '—'}</td>
+                  <td className="px-3 py-2">{row.avg !== null && row.avg !== undefined ? digits(row.avg.toFixed(1)) : '—'}</td>
                   <td className="px-3 py-2">
                     <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                      {row.position}/{row.totalInClass}
+                      {digits(`${row.position}/${row.totalInClass}`)}
                     </span>
                   </td>
                 </tr>
@@ -1363,7 +1372,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
           </table>
           {listLoading && (
             <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-500"/>Loading results...
+              <Loader2 className="w-4 h-4 animate-spin text-indigo-500"/>{t('academicsPages.classResults.loadingResults', "Loading results...")}
             </div>
           )}
         </div>
@@ -1372,22 +1381,22 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       {listTotal > 0 && (
         <div className="flex-shrink-0 flex items-center justify-between text-xs px-3 py-1.5 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800">
           <span className="text-slate-500">
-            {Math.min((listPage - 1) * listLimit + 1, listTotal)}–{Math.min(listPage * listLimit, listTotal)} of {listTotal}
+            {t('academicsPages.classResults.range', { from: Math.min((listPage - 1) * listLimit + 1, listTotal), to: Math.min(listPage * listLimit, listTotal), total: listTotal })}
           </span>
           <div className="flex items-center gap-1.5">
             <button
               disabled={listPage === 1}
               onClick={() => setListPage(p => Math.max(1, p - 1))}
               className="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            >← {t('classResults.prev')}</button>
+            ><span className="rtl:hidden">←</span><span className="ltr:hidden">→</span> {t('classResults.prev')}</button>
             <span className="h-7 px-2.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold flex items-center">
-              {listPage}/{Math.ceil(listTotal / listLimit)}
+              {digits(`${listPage}/${Math.ceil(listTotal / listLimit)}`)}
             </span>
             <button
               disabled={listPage >= Math.ceil(listTotal / listLimit)}
               onClick={() => setListPage(p => p + 1)}
               className="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            >{t('classResults.next')} →</button>
+            >{t('classResults.next')} <span className="rtl:hidden">→</span><span className="ltr:hidden">←</span></button>
           </div>
         </div>
       )}
@@ -1395,25 +1404,25 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       {/* Modal for adding/editing results */}
       <Transition show={open} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={()=>setOpen(false)}>
-          <Transition.Child 
+          <Transition.Child
             as="div"
-            enter="ease-out duration-200" 
-            enterFrom="opacity-0" 
-            enterTo="opacity-100" 
-            leave="ease-in duration-150" 
-            leaveFrom="opacity-100" 
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
             leaveTo="opacity-0"
             className="fixed inset-0 bg-gradient-to-br from-slate-900/80 via-fuchsia-900/60 to-indigo-900/80 backdrop-blur"
           />
           <div className="fixed inset-0 overflow-y-auto p-4 md:p-8">
             <div className="mx-auto max-w-6xl">
-              <Transition.Child 
+              <Transition.Child
                 as="div"
-                enter="ease-out duration-300" 
-                enterFrom="opacity-0 scale-95" 
-                enterTo="opacity-100 scale-100" 
-                leave="ease-in duration-200" 
-                leaveFrom="opacity-100 scale-100" 
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
                 className="relative rounded-3xl border border-white/15 dark:border-white/10 bg-gradient-to-br from-white/90 via-white/70 to-white/50 dark:from-slate-900/90 dark:via-slate-900/70 dark:to-slate-800/60 backdrop-blur-2xl shadow-2xl overflow-hidden"
               >
@@ -1426,15 +1435,15 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-                        {bulkMode ? 'Bulk Results Entry' : t('classResults.classResultsEntry')}
+                        {bulkMode ? t('academicsPages.classResults.bulkTitle', "Bulk Results Entry") : t('classResults.classResultsEntry')}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {bulkMode ? 'Enter scores for multiple subjects simultaneously' : 'Enter scores for each student across all subjects'}
+                        {bulkMode ? t('academicsPages.classResults.bulkSub', "Enter scores for multiple subjects simultaneously") : t('academicsPages.classResults.singleSub', "Enter scores for each student across all subjects")}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      {message && <span className={`text-xs font-semibold px-3 py-1 rounded-full ${message.includes('Successfully')?'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300':'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>{message}</span>}
-                      <button onClick={()=>setOpen(false)} className="group p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors" aria-label="Close modal"><X className="w-5 h-5 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white"/></button>
+                      {message && <span className={`text-xs font-semibold px-3 py-1 rounded-full ${message.startsWith('✓')?'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300':'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>{message}</span>}
+                      <button onClick={()=>setOpen(false)} className="group p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors" aria-label={t('academicsPages.classResults.closeModal', "Close modal")}><X className="w-5 h-5 text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white"/></button>
                     </div>
                   </div>
                 </div>
@@ -1442,21 +1451,21 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                 <div className="relative px-6 pt-6 pb-24 max-h-[calc(80vh-180px)] overflow-y-auto space-y-6">
                   {/* Filter Section */}
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Filter & Load</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">{t('academicsPages.classResults.filterLoad', "Filter & Load")}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <Typeahead label={t('classResults.term')} value={term ?? null} onChange={(v) => setTerm(v as TermOption | null)} items={terms} placeholder={terms.length === 0 ? 'Type to create your first term…' : 'Pick or type to create'} entityLabel="term" onCreate={createTerm} />
+                      <Typeahead label={t('classResults.term')} value={term ?? null} onChange={(v) => setTerm(v as TermOption | null)} items={terms} placeholder={terms.length === 0 ? t('academicsPages.classResults.ph.firstTerm', "Type to create your first term…") : t('academicsPages.classResults.ph.pick', "Pick or type to create")} entityLabel={t('academicsPages.classResults.entity.term', "term")} onCreate={createTerm} />
                       <SelectBox label={t('classResults.class')} value={klass ?? null} onChange={v=>{setKlass(v);}} items={classes} />
                       {!bulkMode && (
-                        <Typeahead label={t('classResults.subject')} value={subject ?? null} onChange={(v) => setSubject(v as Option | null)} items={subjects.filter(s=>!klass || s)} placeholder={subjects.length === 0 ? 'Type a subject name to create it…' : 'Pick or type to create'} entityLabel="subject" onCreate={createSubject} />
+                        <Typeahead label={t('classResults.subject')} value={subject ?? null} onChange={(v) => setSubject(v as Option | null)} items={subjects.filter(s=>!klass || s)} placeholder={subjects.length === 0 ? t('academicsPages.classResults.ph.firstSubject', "Type a subject name to create it…") : t('academicsPages.classResults.ph.pick', "Pick or type to create")} entityLabel={t('academicsPages.classResults.entity.subject', "subject")} onCreate={createSubject} />
                       )}
-                      <Typeahead label={t('classResults.resultType')} value={rtype ?? null} onChange={(v) => setRtype(v as Option | null)} items={types} placeholder={types.length === 0 ? 'Type to create e.g. End-of-Term…' : 'Pick or type to create'} entityLabel="result type" onCreate={createResultType} />
+                      <Typeahead label={t('classResults.resultType')} value={rtype ?? null} onChange={(v) => setRtype(v as Option | null)} items={types} placeholder={types.length === 0 ? t('academicsPages.classResults.ph.firstType', "Type to create e.g. End-of-Term…") : t('academicsPages.classResults.ph.pick', "Pick or type to create")} entityLabel={t('academicsPages.classResults.entity.resultType', "result type")} onCreate={createResultType} />
                       <div className="flex flex-col justify-end">
                         <button
                           disabled={!klass || (!bulkMode && !subject) || !rtype || loading}
                           onClick={bulkMode ? loadBulkData : handleFetchMissingRows}
                           className="px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white disabled:opacity-40 transition-all hover:shadow-lg disabled:cursor-not-allowed"
                         >
-                          {loading ? <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" /> : null}
+                          {loading ? <Loader2 className="w-3 h-3 animate-spin inline me-1.5" /> : null}
                           {loading ? t('classResults.loading') : t('classResults.load')}
                         </button>
                       </div>
@@ -1468,7 +1477,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                          {t('classResults.studentResults')} — {rows.length} {t('classResults.students')}
+                          {t('classResults.studentResults')} — {digits(rows.length)} {t('classResults.students')}
                         </h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1494,13 +1503,13 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                               onChange={e=>updateRow(r.student_id,'score', e.target.value===''? null : parseFloat(e.target.value))}
                               onFocus={() => setEditingCell({ id: r.student_id, field: 'score' })}
                               onBlur={() => setEditingCell(null)}
-                              placeholder="Score"
-                              aria-label={`Score for ${r.first_name} ${r.last_name}`}
+                              placeholder={t('academicsPages.classResults.score', "Score")}
+                              aria-label={t('academicsPages.classResults.scoreFor', { name: `${r.first_name} ${r.last_name}` })}
                             />
                             {/* Score Display Helper */}
                             {r.score !== null && r.score !== undefined && (
                               <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 text-center">
-                                {typeof r.score === 'number' && r.score >= 0 && r.score <= 100 ? `${r.score}%` : 'Invalid'}
+                                {typeof r.score === 'number' && r.score >= 0 && r.score <= 100 ? digits(`${r.score}%`) : t('academicsPages.classResults.invalid', "Invalid")}
                               </div>
                             )}
                             {/* Manual subject comment (Phase 6) — teacher's own
@@ -1514,7 +1523,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                               onFocus={() => setEditingCell({ id: r.student_id, field: 'remarks' })}
                               onBlur={() => setEditingCell(null)}
                               placeholder={t('classResults.subjectComment')}
-                              aria-label={`Comment for ${r.first_name} ${r.last_name}`}
+                              aria-label={t('academicsPages.classResults.commentFor', { name: `${r.first_name} ${r.last_name}` })}
                             />
                           </div>
                         ))}
@@ -1527,10 +1536,10 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                          Bulk Entry — {Object.keys(bulkData).length} Students
+                          {t('academicsPages.classResults.bulkHeading', { count: Object.keys(bulkData).length })}
                         </h3>
                         <div className="text-xs text-slate-500">
-                          Use Tab/Arrow keys to navigate • Ctrl+V to paste from Excel
+                          {t('academicsPages.classResults.keysHelp', "Use Tab/Arrow keys to navigate • Ctrl+V to paste from Excel")}
                         </div>
                       </div>
                       <BulkEntryGrid
@@ -1552,7 +1561,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                 </div>
 
                 {/* Sticky Footer */}
-                <div className="sticky bottom-0 left-0 right-0 z-40 border-t border-white/30 dark:border-white/10 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl p-6 space-y-4">
+                <div className="sticky bottom-0 inset-x-0 z-40 border-t border-white/30 dark:border-white/10 bg-gradient-to-r from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-xl p-6 space-y-4">
                   {!bulkMode && (
                     <label className="flex items-center gap-3 text-xs cursor-pointer group">
                       <input
@@ -1571,7 +1580,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
                       className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:shadow-lg hover:scale-105 active:scale-95 disabled:hover:shadow-none disabled:hover:scale-100 ${showSuccessAnimation ? 'success-pulse' : ''}`}
                     >
                       <Save className="w-4 h-4"/>
-                      <span>{saving ? (bulkMode ? 'Saving bulk results...' : t('classResults.saving')+'...') : (bulkMode ? 'Save Bulk Results' : t('classResults.saveResults'))}</span>
+                      <span>{saving ? (bulkMode ? t('academicsPages.classResults.savingBulk', "Saving bulk results...") : t('classResults.saving')+'...') : (bulkMode ? t('academicsPages.classResults.saveBulk', "Save Bulk Results") : t('classResults.saveResults'))}</span>
                     </button>
                     <button
                       onClick={()=>setOpen(false)}
