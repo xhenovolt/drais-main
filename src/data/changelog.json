@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T16:30:13.366Z",
-  "last_commit": "2a2690aa86a810c6739691611271e4c45c3b829b",
+  "generated_at": "2026-10-19T16:41:26.825Z",
+  "last_commit": "81ed24f52f1951015dbb2b6e470de309e1909270",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10255,7 +10255,20 @@
         }
       ],
       "commit": "2a2690aa86"
+    },
+    {
+      "version": "2.50.126",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "DRAIS Cloud Storage — full Cloudinary management in the Control Center",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "DRAIS Cloud Storage — full Cloudinary management in the Control Center"
+        }
+      ],
+      "commit": "81ed24f52f"
     }
   ],
-  "app_version": "2.50.126"
+  "app_version": "2.50.127"
 }

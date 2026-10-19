@@ -9,6 +9,8 @@ import {
 } from '@/components/ui';
 import { Loader2, Search, Users, BookOpen, Grid3x3, List, Download, Upload, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
 
@@ -60,6 +62,7 @@ interface MatrixCell {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SubjectAllocationsManager: React.FC = () => {
+  const { t, digits } = useI18n();
   // State
   const [viewMode, setViewMode] = useState<'list' | 'matrix'>('matrix');
   const [searchTeacher, setSearchTeacher] = useState('');
@@ -79,10 +82,12 @@ export const SubjectAllocationsManager: React.FC = () => {
   );
 
   // Derived data
-  const classes = classesRes?.data || [];
-  const subjects = subjectsRes?.data || [];
-  const teachers = teachersRes?.data || [];
-  const allocations = allocationsRes?.data || [];
+  // Arrays only — an error body must never reach .map/.filter.
+  const arr = <T,>(x: any): T[] => (Array.isArray(x?.data) ? x.data : []);
+  const classes = arr<Class>(classesRes);
+  const subjects = arr<Subject>(subjectsRes);
+  const teachers = arr<Teacher>(teachersRes);
+  const allocations = arr<Allocation>(allocationsRes);
 
   // Filtered allocations for list view
   const filteredAllocations = useMemo(() => {
@@ -126,13 +131,13 @@ export const SubjectAllocationsManager: React.FC = () => {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message || 'Failed to update allocation');
+        throw new Error(err.message || err.error || 'Failed to update allocation');
       }
 
       await mutateAllocations();
-      toast.success('Allocation updated');
-    } catch (err: any) {
-      toast.error(err.message);
+      toast.success(t('academicsPages.alloc.m.updated', "Allocation updated"));
+    } catch (e: any) {
+      toast.error(e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('academicsPages.alloc.m.updateFailed', "Failed to update allocation"));
     } finally {
       setSaving(false);
     }
@@ -140,7 +145,7 @@ export const SubjectAllocationsManager: React.FC = () => {
 
   const handleBulkSave = async () => {
     if (!selectedTeacher) {
-      toast.error('Select a teacher for bulk assignment');
+      toast.error(t('academicsPages.alloc.m.pickBulk', "Select a teacher for bulk assignment"));
       return;
     }
 
@@ -171,10 +176,10 @@ export const SubjectAllocationsManager: React.FC = () => {
       }
 
       await mutateAllocations();
-      toast.success('Bulk allocation completed');
+      toast.success(t('academicsPages.alloc.m.bulkDone', "Bulk allocation completed"));
       setIsBulkMode(false);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (e: any) {
+      toast.error(e?.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('academicsPages.alloc.m.bulkFailed', "Bulk save failed"));
     } finally {
       setSaving(false);
     }
@@ -189,7 +194,7 @@ export const SubjectAllocationsManager: React.FC = () => {
       return (
         <div className="flex items-center justify-center p-12">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-          <span className="ml-2">Loading matrix...</span>
+          <span className="ms-2">{t('academicsPages.alloc.m.loading', "Loading matrix...")}</span>
         </div>
       );
     }
@@ -199,7 +204,7 @@ export const SubjectAllocationsManager: React.FC = () => {
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-slate-100 dark:bg-slate-800 border-b border-gray-300 dark:border-slate-600">
-              <th className="border p-2 sticky left-0 bg-slate-100 dark:bg-slate-800 z-10 min-w-32 border-r border-gray-300 dark:border-slate-600">Class \\ Subject</th>
+              <th className="border p-2 sticky start-0 bg-slate-100 dark:bg-slate-800 z-10 min-w-32 border-e border-gray-300 dark:border-slate-600">{t('academicsPages.alloc.m.corner', "Class \\ Subject")}</th>
               {subjects.map(sub => (
                 <th key={sub.id} className="border p-2 min-w-32 bg-slate-100 dark:bg-slate-800 border-r border-gray-300 dark:border-slate-600">
                   <div className="flex flex-col">
@@ -213,7 +218,7 @@ export const SubjectAllocationsManager: React.FC = () => {
           <tbody>
             {classes.map(cls => (
               <tr key={cls.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
-                <td className="border p-2 font-medium sticky left-0 bg-white dark:bg-slate-900 z-10 border-r border-gray-300 dark:border-slate-600">
+                <td className="border p-2 font-medium sticky start-0 bg-white dark:bg-slate-900 z-10 border-r border-gray-300 dark:border-slate-600">
                   {cls.name}
                 </td>
                 {subjects.map(sub => {
@@ -236,7 +241,7 @@ export const SubjectAllocationsManager: React.FC = () => {
                           }}
                         >
                           <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
-                            <SelectValue placeholder="Unassigned">
+                            <SelectValue placeholder={t('academicsPages.alloc.m.unassigned', "Unassigned")}>
                               {cell ? (
                                 <div className="flex items-center gap-1">
                                   <Badge variant="secondary" className="text-xs">
@@ -245,23 +250,23 @@ export const SubjectAllocationsManager: React.FC = () => {
                                   <span className="truncate max-w-20">{cell.teacher_name}</span>
                                 </div>
                               ) : (
-                                'Unassigned'
+                                t('academicsPages.alloc.m.unassigned', "Unassigned")
                               )}
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
                             <SelectItem value="unassigned" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
-                              Unassigned
+                              {t('academicsPages.alloc.m.unassigned', "Unassigned")}
                             </SelectItem>
-                            {teachers.map(t => (
+                            {teachers.map(tch => (
                               <SelectItem
-                                key={t.id}
-                                value={t.id.toString()}
+                                key={tch.id}
+                                value={tch.id.toString()}
                                 className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span>{t.first_name} {t.last_name}</span>
-                                  {t.staff_no && <span className="text-xs text-gray-500 dark:text-gray-400">({t.staff_no})</span>}
+                                  <span>{tch.first_name} {tch.last_name}</span>
+                                  {tch.staff_no && <span className="text-xs text-gray-500 dark:text-gray-400">({tch.staff_no})</span>}
                                 </div>
                               </SelectItem>
                             ))}
@@ -269,8 +274,8 @@ export const SubjectAllocationsManager: React.FC = () => {
                         </Select>
                       )}
                       {cell && cell.custom_initials && (
-                        <div className="text-[10px] text-amber-600 mt-1" title="Custom initials override">
-                          Override
+                        <div className="text-[10px] text-amber-600 mt-1" title={t('academicsPages.alloc.m.overrideTitle', "Custom initials override")}>
+                          {t('academicsPages.alloc.m.override', "Override")}
                         </div>
                       )}
                     </td>
@@ -294,11 +299,11 @@ export const SubjectAllocationsManager: React.FC = () => {
         <table className="w-full">
           <thead className="bg-slate-100 dark:bg-slate-800 border-b border-gray-300 dark:border-slate-600">
             <tr>
-              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Class</th>
-              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Subject</th>
-              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Teacher</th>
-              <th className="p-3 text-left text-sm font-medium border-r border-gray-300 dark:border-slate-600">Initials</th>
-              <th className="p-3 text-left text-sm font-medium">Actions</th>
+              <th className="p-3 text-start text-sm font-medium border-e border-gray-300 dark:border-slate-600">{t('academicsPages.alloc.m.class', "Class")}</th>
+              <th className="p-3 text-start text-sm font-medium border-e border-gray-300 dark:border-slate-600">{t('academicsPages.alloc.m.subject', "Subject")}</th>
+              <th className="p-3 text-start text-sm font-medium border-e border-gray-300 dark:border-slate-600">{t('academicsPages.alloc.m.teacher', "Teacher")}</th>
+              <th className="p-3 text-start text-sm font-medium border-e border-gray-300 dark:border-slate-600">{t('academicsPages.alloc.m.initials', "Initials")}</th>
+              <th className="p-3 text-start text-sm font-medium">{t('academicsPages.alloc.m.actions', "Actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -317,15 +322,15 @@ export const SubjectAllocationsManager: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
                       <SelectItem value="unassigned" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
-                        Unassigned
+                        {t('academicsPages.alloc.m.unassigned', "Unassigned")}
                       </SelectItem>
-                      {teachers.map(t => (
+                      {teachers.map(tch => (
                         <SelectItem
-                          key={t.id}
-                          value={t.id.toString()}
+                          key={tch.id}
+                          value={tch.id.toString()}
                           className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
                         >
-                          {t.first_name} {t.last_name}
+                          {tch.first_name} {tch.last_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -336,7 +341,7 @@ export const SubjectAllocationsManager: React.FC = () => {
                     {a.display_initials || '—'}
                   </Badge>
                   {a.custom_initials && (
-                    <span className="ml-2 text-xs text-amber-600" title="Manually overridden">*</span>
+                    <span className="ms-2 text-xs text-amber-600" title={t('academicsPages.alloc.m.manualTitle', "Manually overridden")}>*</span>
                   )}
                 </td>
                 <td className="p-3">
@@ -344,13 +349,13 @@ export const SubjectAllocationsManager: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     onClick={async () => {
-                      if (!confirm('Delete this assignment?')) return;
+                      if (!confirm(t('academicsPages.alloc.m.confirmDelete', "Delete this assignment?"))) return;
                       await fetch(`${API_BASE}/academics/allocations?id=${a.id}`, { method: 'DELETE' });
                       await mutateAllocations();
-                      toast.success('Deleted');
+                      toast.success(t('academicsPages.alloc.m.deleted', "Deleted"));
                     }}
                   >
-                    Delete
+                    {t('academicsPages.alloc.m.delete', "Delete")}
                   </Button>
                 </td>
               </tr>
@@ -373,10 +378,10 @@ export const SubjectAllocationsManager: React.FC = () => {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Teacher Subject Allocation
+                {t('academicsPages.alloc.m.title', "Teacher Subject Allocation")}
               </CardTitle>
               <CardDescription>
-                Assign teachers to subjects per class. Changes reflect automatically on all reports.
+                {t('academicsPages.alloc.m.desc', "Assign teachers to subjects per class. Changes reflect automatically on all reports.")}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -385,22 +390,22 @@ export const SubjectAllocationsManager: React.FC = () => {
                   variant={viewMode === 'matrix' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('matrix')}
-                  className="rounded-r-none"
+                  className="rounded-e-none"
                 >
-                  <Grid3x3 className="w-4 h-4 mr-1" />
-                  Matrix
+                  <Grid3x3 className="w-4 h-4 me-1" />
+                  {t('academicsPages.alloc.m.matrix', "Matrix")}
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className="rounded-l-none"
+                  className="rounded-s-none"
                 >
-                  <List className="w-4 h-4 mr-1" />
-                  List
+                  <List className="w-4 h-4 me-1" />
+                  {t('academicsPages.alloc.m.list', "List")}
                 </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={() => mutateAllocations()}>
+              <Button variant="outline" size="sm" onClick={() => mutateAllocations()} title={t('academicsPages.alloc.m.refresh', "Refresh")} aria-label={t('academicsPages.alloc.m.refresh', "Refresh")}>
                 <RefreshCw className="w-4 h-4" />
               </Button>
             </div>
@@ -411,14 +416,14 @@ export const SubjectAllocationsManager: React.FC = () => {
           {/* Filters & Actions */}
           <div className="flex flex-wrap items-end gap-4 mb-6 pb-4 border-b">
             <div className="flex-1 min-w-48">
-              <Label>Filter by Class</Label>
+              <Label>{t('academicsPages.alloc.m.filterClass', "Filter by Class")}</Label>
               <Select value={filterClass} onValueChange={setFilterClass}>
                 <SelectTrigger className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
-                  <SelectValue placeholder="All Classes" />
+                  <SelectValue placeholder={t('academicsPages.alloc.m.allClasses', "All Classes")} />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
                   <SelectItem value="all" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
-                    All Classes
+                    {t('academicsPages.alloc.m.allClasses', "All Classes")}
                   </SelectItem>
                   {classes.map(c => (
                     <SelectItem
@@ -434,14 +439,14 @@ export const SubjectAllocationsManager: React.FC = () => {
             </div>
 
             <div className="flex-1 min-w-48">
-              <Label>Filter by Subject</Label>
+              <Label>{t('academicsPages.alloc.m.filterSubject', "Filter by Subject")}</Label>
               <Select value={filterSubject} onValueChange={setFilterSubject}>
                 <SelectTrigger className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
-                  <SelectValue placeholder="All Subjects" />
+                  <SelectValue placeholder={t('academicsPages.alloc.m.allSubjects', "All Subjects")} />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
                   <SelectItem value="all" className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100">
-                    All Subjects
+                    {t('academicsPages.alloc.m.allSubjects', "All Subjects")}
                   </SelectItem>
                   {subjects.map(s => (
                     <SelectItem
@@ -457,14 +462,14 @@ export const SubjectAllocationsManager: React.FC = () => {
             </div>
 
             <div className="flex-1 min-w-48">
-              <Label>Search Teacher</Label>
+              <Label>{t('academicsPages.alloc.m.searchTeacher', "Search Teacher")}</Label>
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className="absolute start-2 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search teacher name..."
+                  placeholder={t('academicsPages.alloc.m.searchPh', "Search teacher name...")}
                   value={searchTeacher}
                   onChange={e => setSearchTeacher(e.target.value)}
-                  className="pl-8"
+                  className="ps-8"
                 />
               </div>
             </div>
@@ -475,8 +480,8 @@ export const SubjectAllocationsManager: React.FC = () => {
                 size="sm"
                 onClick={() => setIsBulkMode(!isBulkMode)}
               >
-                <Upload className="w-4 h-4 mr-1" />
-                Bulk
+                <Upload className="w-4 h-4 me-1" />
+                {t('academicsPages.alloc.m.bulk', "Bulk")}
               </Button>
             </div>
           </div>
@@ -488,33 +493,33 @@ export const SubjectAllocationsManager: React.FC = () => {
                 <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                   <AlertCircle className="h-4 w-4" />
                   <span>
-                  Bulk Mode: Assign teacher to ALL class-subject combinations at once.
-                  {selectedTeacher && ` Selected: ${teachers.find(t => t.id === selectedTeacher) ? `${teachers.find(t => t.id === selectedTeacher)?.first_name} ${teachers.find(t => t.id === selectedTeacher)?.last_name}` : ''}`}
+                  {t('academicsPages.alloc.m.bulkHelp', "Bulk Mode: Assign teacher to ALL class-subject combinations at once.")}
+                  {selectedTeacher && (() => { const st = teachers.find(tch => tch.id === selectedTeacher); return st ? t('academicsPages.alloc.m.selected', { name: `${st.first_name} ${st.last_name}` }) : ''; })()}
                   </span>
                 </div>
                 <div className="flex gap-2">
                   <Select value={selectedTeacher.toString()} onValueChange={val => setSelectedTeacher(Number(val))}>
                     <SelectTrigger className="w-48 h-8 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400">
-                      <SelectValue placeholder="Choose teacher" />
+                      <SelectValue placeholder={t('academicsPages.alloc.m.chooseTeacher', "Choose teacher")} />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600">
-                      {teachers.map(t => (
+                      {teachers.map(tch => (
                         <SelectItem
-                          key={t.id}
-                          value={t.id.toString()}
+                          key={tch.id}
+                          value={tch.id.toString()}
                           className="hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 text-gray-900 dark:text-gray-100"
                         >
-                          {t.first_name} {t.last_name}
+                          {tch.first_name} {tch.last_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <Button size="sm" onClick={handleBulkSave} disabled={!selectedTeacher || saving}>
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    Apply
+                    {t('academicsPages.alloc.m.apply', "Apply")}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setIsBulkMode(false)}>
-                    Cancel
+                    {t('academicsPages.alloc.m.cancel', "Cancel")}
                   </Button>
                 </div>
               </div>
@@ -526,11 +531,11 @@ export const SubjectAllocationsManager: React.FC = () => {
 
           {/* Stats summary */}
           <div className="mt-4 flex gap-6 text-sm text-gray-600 dark:text-gray-400">
-            <span>Total Assignments: {allocations.length}</span>
-            <span>Classes: {classes.length}</span>
-            <span>Subjects: {subjects.length}</span>
-            <span>With Teacher: {allocations.filter(a => a.teacher_id !== null).length}</span>
-            <span>Unassigned: {allocations.filter(a => a.teacher_id === null).length}</span>
+            <span>{t('academicsPages.alloc.m.total', { n: allocations.length })}</span>
+            <span>{t('academicsPages.alloc.m.classes', { n: classes.length })}</span>
+            <span>{t('academicsPages.alloc.m.subjects', { n: subjects.length })}</span>
+            <span>{t('academicsPages.alloc.m.withTeacher', { n: allocations.filter(a => a.teacher_id !== null).length })}</span>
+            <span>{t('academicsPages.alloc.m.unassignedCount', { n: allocations.filter(a => a.teacher_id === null).length })}</span>
           </div>
         </CardContent>
       </Card>

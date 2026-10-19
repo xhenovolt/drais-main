@@ -25,7 +25,7 @@ export default function SubjectAllocationsPage() {
           href="/academics/allocations/history"
           className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
         >
-          <History className="w-3.5 h-3.5" /> {t('nav.students.history')}
+          <History className="w-3.5 h-3.5 rtl:-scale-x-100" /> {t('nav.students.history')}
         </Link>
       </div>
 
@@ -33,10 +33,10 @@ export default function SubjectAllocationsPage() {
         activeTab={tab}
         onTabChange={(id) => setTab(id as typeof tab)}
         tabs={[
-          { id: 'matrix', label: 'Class matrix', icon: Grid3x3 },
-          { id: 'teachers', label: 'Multiple teachers', icon: Users },
-          { id: 'groups', label: 'Departments & groups', icon: Layers },
-          { id: 'warnings', label: 'Warnings', icon: ShieldAlert },
+          { id: 'matrix', label: t('academicsPages.alloc.tab.matrix', "Class matrix"), icon: Grid3x3 },
+          { id: 'teachers', label: t('academicsPages.alloc.tab.teachers', "Multiple teachers"), icon: Users },
+          { id: 'groups', label: t('academicsPages.alloc.tab.groups', "Departments & groups"), icon: Layers },
+          { id: 'warnings', label: t('academicsPages.alloc.tab.warnings', "Warnings"), icon: ShieldAlert },
         ]}
       />
 
