@@ -221,6 +221,60 @@ async function saveParsedLog(opts: {
   }
 }
 
+/** Many parsed records in ONE insert (a 128-user OPERLOG batch was 128 sequential round trips). */
+async function saveParsedLogsBulk(rows: Array<Parameters<typeof saveParsedLog>[0]>): Promise<void> {
+  if (rows.length === 0) return;
+  try {
+    const params: unknown[] = [];
+    for (const r of rows) {
+      params.push(r.rawLogId, r.deviceSn, r.schoolId, r.tableName, r.rawLine?.substring(0, 65000) ?? null,
+        r.userId ?? null, r.checkTime ?? null, r.verifyType ?? null, r.inoutMode ?? null, r.workCode ?? null, r.logId ?? null,
+        r.matched ? 1 : 0, r.studentId ?? null, r.staffId ?? null, r.status, r.errorMessage ?? null);
+    }
+    await query(
+      `INSERT INTO zk_parsed_logs
+         (raw_log_id, device_sn, school_id, table_name, raw_line,
+          user_id, check_time, verify_type, inout_mode, work_code, log_id,
+          matched, student_id, staff_id, status, error_message)
+       VALUES ${rows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')}`,
+      params,
+    );
+  } catch (err) {
+    zkLog('error', 'PARSED_LOG_BULK_SAVE_FAILED', { rawLogId: rows[0]?.rawLogId, count: rows.length, error: String(err) });
+    for (const r of rows) await saveParsedLog(r);
+  }
+}
+
+/**
+ * A device that keeps re-posting the SAME upload has not accepted our reply (its HTTP request timed
+ * out, or the reply was lost) and will not move on to anything queued behind it — e.g. its punches.
+ * Nakifuma's device did this for five days with nothing in the logs saying so. Returns how many
+ * times this exact body arrived from this device in the last hour, and records an ERROR device
+ * event when it looks like a loop, so the device-logs page and alerts show it.
+ */
+async function detectUploadLoop(sn: string, rawLogId: number | null, table: string, schoolId: number | null): Promise<number> {
+  try {
+    const rows = (await query(
+      `SELECT COUNT(*) AS n FROM zk_raw_logs
+        WHERE device_sn = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+          AND MD5(raw_body) = (SELECT MD5(raw_body) FROM zk_raw_logs WHERE id = ?)`,
+      [sn, rawLogId],
+    )) as any[];
+    const n = Number(rows[0]?.n ?? 0);
+    if (n >= 5) {
+      zkLog('error', 'UPLOAD_LOOP', { sn, table, repeatsLastHour: n, rawLogId });
+      logDeviceEvent({
+        deviceSn: sn, eventType: 'ERROR', tableName: table, status: 'failed', schoolId,
+        errorMessage: `UPLOAD_LOOP: the device re-sent the same ${table} upload ${n} times in the last hour — it is not accepting our acknowledgement, and anything queued behind it (punches) is stuck on the device.`,
+      }).catch(() => {});
+    }
+    return n;
+  } catch (err) {
+    zkLog('warn', 'UPLOAD_LOOP_CHECK_FAILED', { sn, error: String(err) });
+    return 0;
+  }
+}
+
 // ─── zk_device_logs — Unified Observability (NEVER remove) ───────────────────
 
 type ZkEventType = 'HEARTBEAT' | 'DATA_RECEIVED' | 'DATA_PARSED' | 'DATA_ACK_SENT' | 'PUNCH_SAVED' | 'ERROR';
@@ -1539,73 +1593,91 @@ async function handlePOST(req: NextRequest) {
         });
       }
     } else if (table === 'OPERLOG') {
-      // OPERLOG contains mixed data: OPLOG lines, FP templates, USER records
-      await logSystemEvent(sn, 'SYSTEM', 'INCOMING', rawBody.substring(0, 2000), ip, ua);
+      // OPERLOG contains mixed data: OPLOG lines, FP templates, USER records.
+      //
+      // REPLY FIRST, PROCESS AFTER. A directory upload arrives as 128-user batches (~16 KB). Doing the
+      // per-user work (directory upsert + fuzzy auto-link + parsed-log insert, x128, sequentially)
+      // before replying made the device's HTTP request time out, so it never accepted the batch and
+      // re-sent it every minute — for days — while its punches (ATTLOG) waited behind it on the
+      // device (Nakifuma, 14–19 Oct 2026). The raw upload is already saved (STEP 2), so nothing is
+      // lost by acknowledging now; everything below runs in after() and logs its own failures.
+      logSystemEvent(sn, 'SYSTEM', 'INCOMING', rawBody.substring(0, 2000), ip, ua).catch(() => {});
+      const operRecords = records;
+      const operLines = lines;
+      after(async () => {
+        try {
+          // The device re-sending a batch it already gave us: don't redo 128 users' work or write
+          // another 128 parsed rows each minute — just record the loop so it is visible.
+          const repeats = await detectUploadLoop(sn, rawLogId, 'OPERLOG', schoolId);
+          if (repeats > 1) return;
 
-      for (let i = 0; i < records.length; i++) {
-        const rec = records[i];
-        const rawLine = lines[i] || '';
+          const parsedRows: Array<Parameters<typeof saveParsedLog>[0]> = [];
+          let liveCountDirty = false;
+          for (let i = 0; i < operRecords.length; i++) {
+            const rec = operRecords[i];
+            const rawLine = (operLines[i] || '').substring(0, 2000);
 
-        // ── FP template: device sends after local fingerprint enrollment ──
-        // Format: FP PIN=4\tFID=6\tSize=816\tValid=1\tTMP=<base64data>
-        const fpPin = rec['FP PIN'] || rec.PIN;
-        if (fpPin && rec.FID && rec.TMP) {
-          try {
-            await processFingerprint(sn, fpPin, rec.FID, rec.SIZE || '0', rec.VALID || '1', rec.TMP, schoolId);
-          } catch (err) {
-            zkLog('warn', 'FP_PROCESS_ERROR', { sn, pin: fpPin, fid: rec.FID, error: String(err) });
+            // ── FP template: device sends after local fingerprint enrollment ──
+            // Format: FP PIN=4\tFID=6\tSize=816\tValid=1\tTMP=<base64data>
+            const fpPin = rec['FP PIN'] || rec.PIN;
+            if (fpPin && rec.FID && rec.TMP) {
+              try {
+                await processFingerprint(sn, fpPin, rec.FID, rec.SIZE || '0', rec.VALID || '1', rec.TMP, schoolId);
+              } catch (err) {
+                zkLog('warn', 'FP_PROCESS_ERROR', { sn, pin: fpPin, fid: rec.FID, error: String(err) });
+              }
+              parsedRows.push({ rawLogId: rawLogId!, deviceSn: sn, schoolId: schoolId as number, tableName: 'OPERLOG', rawLine, userId: fpPin, status: 'success' });
+              continue;
+            }
+
+            // ── USER record: device confirms user info ──
+            // Format: USER PIN=4\tName=...\tPri=0\tPasswd=\tCard=\tGrp=1\t...
+            const userPin = rec['USER PIN'];
+            if (userPin) {
+              // BIO-8 — capture (sn, pin) → name so the popup can show the
+              // human-readable name on a future unmatched punch.
+              const userName = (rec.NAME || rec.USERNAME || '').trim();
+              if (userName) {
+                try {
+                  await captureDeviceUserDirectory(
+                    sn, userPin, userName, schoolId,
+                    { card: rec.CARD || rec.CARDNO, priv: rec.PRI },
+                  );
+                  // BIO-9 — and try to bind the PIN to the real learner/staff
+                  // member that name fuzzy-resolves to. Without this, an
+                  // enrollment that came through DRAIS leaves zk_user_mapping
+                  // empty for the new PIN and the very next punch shows
+                  // "Unrecognized ID" in the live popup. Conservative: only
+                  // links when the top match is unambiguous.
+                  await autoLinkPinFromName(sn, userPin, userName, schoolId);
+                } catch (err) {
+                  zkLog('warn', 'OPERLOG_USER_PROCESS_ERROR', { sn, pin: userPin, error: String(err) });
+                }
+              }
+              // Phase 2I — the device just confirmed it knows this PIN.
+              if (schoolId) {
+                touchEnrollmentSeen(schoolId, parseInt(userPin, 10) || 0).catch(() => {});
+                liveCountDirty = true;
+              }
+              parsedRows.push({ rawLogId: rawLogId!, deviceSn: sn, schoolId: schoolId as number, tableName: 'OPERLOG', rawLine, userId: userPin, status: 'success' });
+              continue;
+            }
+
+            // ── OPLOG or other OPERLOG record ──
+            parsedRows.push({ rawLogId: rawLogId!, deviceSn: sn, schoolId: schoolId as number, tableName: 'OPERLOG', rawLine, status: 'success' });
           }
-          await saveParsedLog({
-            rawLogId: rawLogId!, deviceSn: sn, schoolId,
-            tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
-            userId: fpPin, status: 'success',
-          });
-          continue;
+          await saveParsedLogsBulk(parsedRows);
+          // REALTIME COUNT: refresh the live on-device count from the directory once per batch
+          // (it used to run once per user).
+          if (liveCountDirty) refreshLiveCountFromDirectory(sn).catch(() => {});
+        } catch (err) {
+          zkLog('error', 'OPERLOG_DEFERRED_PROCESSING_FAILED', { sn, rawLogId, error: String(err) });
+          logDeviceEvent({
+            deviceSn: sn, eventType: 'ERROR', tableName: 'OPERLOG', status: 'failed', schoolId,
+            errorMessage: `OPERLOG processing failed after acknowledgement (raw log ${rawLogId} is kept): ${String(err)}`,
+          }).catch(() => {});
         }
-
-        // ── USER record: device confirms user info ──
-        // Format: USER PIN=4\tName=...\tPri=0\tPasswd=\tCard=\tGrp=1\t...
-        const userPin = rec['USER PIN'];
-        if (userPin) {
-          // BIO-8 — capture (sn, pin) → name so the popup can show the
-          // human-readable name on a future unmatched punch.
-          const userName = (rec.NAME || rec.USERNAME || '').trim();
-          if (userName) {
-            await captureDeviceUserDirectory(
-              sn, userPin, userName, schoolId,
-              { card: rec.CARD || rec.CARDNO, priv: rec.PRI },
-            );
-            // BIO-9 — and try to bind the PIN to the real learner/staff
-            // member that name fuzzy-resolves to. Without this, an
-            // enrollment that came through DRAIS leaves zk_user_mapping
-            // empty for the new PIN and the very next punch shows
-            // "Unrecognized ID" in the live popup. Conservative: only
-            // links when the top match is unambiguous.
-            await autoLinkPinFromName(sn, userPin, userName, schoolId);
-          }
-          // Phase 2I — the device just confirmed it knows this PIN.
-          if (schoolId) {
-            touchEnrollmentSeen(schoolId, parseInt(userPin, 10) || 0).catch(() => {});
-            // REALTIME COUNT: a keypad enrollment pushes this USER record
-            // on the next heartbeat. Refresh the live on-device count from
-            // the directory so the UI reflects it without a manual sync.
-            refreshLiveCountFromDirectory(sn).catch(() => {});
-          }
-          await saveParsedLog({
-            rawLogId: rawLogId!, deviceSn: sn, schoolId,
-            tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
-            userId: userPin, status: 'success',
-          });
-          continue;
-        }
-
-        // ── OPLOG or other OPERLOG record ──
-        await saveParsedLog({
-          rawLogId: rawLogId!, deviceSn: sn, schoolId,
-          tableName: 'OPERLOG', rawLine: rawLine.substring(0, 2000),
-          status: 'success',
-        });
-      }
+      });
     } else if (deviceStatus === 'suspended' || deviceStatus === 'retired') {
       // Platform (Xhenvolt Control) has taken this device out of service — it
       // must record NO attendance. The raw payload is already persisted (STEP 2)
@@ -1892,6 +1964,8 @@ async function handlePOST(req: NextRequest) {
     zkLog('info', 'DATA_PROCESSED', { sn, table, recordCount: records.length, rawLogId });
     // For data uploads, acknowledge the number of records accepted. This is
     // how the device advances its ATTLOG/OPERLOG upload cursor.
+    // Any other table can loop the same way; detection only (processing above is unchanged).
+    if (table !== 'OPERLOG' && rawLogId) after(() => detectUploadLoop(sn, rawLogId, table, schoolId).then(() => undefined));
     const ack = admsUploadAck(records.length);
     logDeviceEvent({
       deviceSn: sn, ipAddress: ip, eventType: 'DATA_ACK_SENT',

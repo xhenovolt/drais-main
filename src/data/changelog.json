@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T09:46:35.542Z",
-  "last_commit": "7c15ddb0744ce2fe845356fc85f7b9bc7d11cae1",
+  "generated_at": "2026-10-19T13:46:09.743Z",
+  "last_commit": "180cdc6ad7c2e5fb0a76fc1d5b476402bcb438d3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10021,7 +10021,20 @@
         }
       ],
       "commit": "7c15ddb074"
+    },
+    {
+      "version": "2.50.108",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/roles (Roles & Permissions) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/roles (Roles & Permissions) fully Arabic"
+        }
+      ],
+      "commit": "180cdc6ad7"
     }
   ],
-  "app_version": "2.50.108"
+  "app_version": "2.50.109"
 }
