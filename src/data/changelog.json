@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T09:31:50.441Z",
-  "last_commit": "cd5cb34e605f501558ab000d04dc1f7ec95de18a",
+  "generated_at": "2026-10-19T09:33:52.783Z",
+  "last_commit": "a1b041f56d69a80505c0f2abb4b163312247f0c6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -9943,7 +9943,20 @@
         }
       ],
       "commit": "cd5cb34e60"
+    },
+    {
+      "version": "2.50.102",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/admin/notifications/outbox (SMS Outbox) fully Arabic",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "/admin/notifications/outbox (SMS Outbox) fully Arabic"
+        }
+      ],
+      "commit": "a1b041f56d"
     }
   ],
-  "app_version": "2.50.102"
+  "app_version": "2.50.103"
 }

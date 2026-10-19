@@ -7584,6 +7584,57 @@
         "noDecision": "No decision was stored for this message (it was created before decision diagnostics existed).",
         "ugx": "UGX {{n}}"
       }
+    },
+    "buy": {
+      "st": {
+        "credited": "Added",
+        "processing": "Waiting for approval",
+        "initiated": "Starting",
+        "failed": "Not completed",
+        "expired": "Not approved in time",
+        "review": "Being checked by Xhenvolt",
+        "paid": "Adding…"
+      },
+      "m": {
+        "received": "Payment received. {{sms}} SMS were added to your balance.",
+        "review": "We received the payment but need to check it. Xhenvolt will add your SMS shortly.",
+        "notCompleted": "The payment was not completed. You have not been charged.",
+        "stillWaiting": "We are still waiting for the payment. If you approved it, your SMS will be added automatically within a few minutes.",
+        "couldNotStart": "Could not start the payment",
+        "network": "Network problem. Please try again."
+      },
+      "q": {
+        "invalid": "Invalid amount or price",
+        "min": "The minimum top-up is UGX {{n}}",
+        "max": "The maximum single top-up is UGX {{n}}",
+        "lessThanOne": "That is less than one SMS at UGX {{n}} each"
+      },
+      "title": "Buy SMS",
+      "intro": "Pay with MTN or Airtel Mobile Money. Your SMS are added the moment the payment is confirmed.",
+      "loadError": "Could not load this page. Refresh and try again.",
+      "loadErrorServer": "Could not load your SMS balance.",
+      "smsLeft": "SMS left",
+      "noLimit": "No limit set",
+      "pricePer": "Price per SMS",
+      "ugx": "UGX {{n}}",
+      "notConfigured": "Online payment is not switched on yet. Please contact Xhenvolt to top up your SMS.",
+      "disabled": "Online buying is switched off for your school. Please contact Xhenvolt to top up your SMS.",
+      "howMuch": "How much do you want to pay? (UGX)",
+      "quote": "You pay {{amount}} and get {{sms}} {{each}}.",
+      "smsCount": "{{n}} SMS",
+      "each": "(UGX {{n}} each)",
+      "enterAmount": "Enter an amount.",
+      "phoneLabel": "Mobile Money number to pay from",
+      "phoneHelp": "You will get a prompt on this phone. Enter your Mobile Money PIN to approve.",
+      "starting": "Starting…",
+      "payBtn": "Pay with Mobile Money",
+      "approve": "Check your phone and approve the payment of {{amount}}. This page updates by itself; please don't close it.",
+      "purchases": "Your purchases",
+      "noPurchases": "No purchases yet.",
+      "colDate": "Date",
+      "colPaid": "Paid (UGX)",
+      "colSms": "SMS",
+      "colStatus": "Status"
     }
   },
   "shell": {
