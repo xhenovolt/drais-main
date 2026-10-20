@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:45:34.384Z",
-  "last_commit": "68ca837fadfb5e9b8e2654ad98f7e30a4abb802e",
+  "generated_at": "2026-10-20T10:47:54.530Z",
+  "last_commit": "7cb08e2be9e334ec5b959d330eee70b3b773bb5f",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10528,7 +10528,20 @@
         }
       ],
       "commit": "68ca837fad"
+    },
+    {
+      "version": "2.50.147",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/admin/drce/blocks (block library + editor) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/drce/blocks (block library + editor) fully Arabic"
+        }
+      ],
+      "commit": "7cb08e2be9"
     }
   ],
-  "app_version": "2.50.147"
+  "app_version": "2.50.148"
 }

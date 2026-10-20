@@ -17,6 +17,7 @@ import type {
   FieldInput, CustomFieldValidation,
 } from '@/lib/custom-fields';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText, showToast } from '@/lib/toast';
 
 const TYPE_META: Record<CustomFieldType, { label: string; Icon: React.ElementType; hint: string }> = {
   text:        { label: 'Short text',  Icon: Type,        hint: 'Single line: name, code, sponsor.' },
@@ -32,7 +33,7 @@ const TYPE_META: Record<CustomFieldType, { label: string; Icon: React.ElementTyp
 };
 
 export default function CustomFieldsAdminPage() {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
   const [fields, setFields]   = useState<CustomFieldDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -44,17 +45,17 @@ export default function CustomFieldsAdminPage() {
     try {
       const res = await fetch(`/api/admin/custom-fields?active_only=${showArchived ? '0' : '1'}`);
       const d   = await res.json();
-      if (!res.ok || !d.success) throw new Error(d?.error || 'Failed to load');
-      setFields(d.fields ?? []);
-    } catch (e) { setError((e as Error).message); }
+      if (!res.ok || !d.success) throw new Error(d?.error || '');
+      setFields(Array.isArray(d.fields) ? d.fields : []);
+    } catch (e) { const m = (e as Error).message; setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('customFields.page.loadFailed', "Failed to load"))); }
     finally { setLoading(false); }
   }, [showArchived]);
   useEffect(() => { void load(); }, [load]);
 
   async function archive(id: number) {
-    if (!confirm('Archive this field? Existing student values stay in the database but the field stops appearing on forms and reports.')) return;
+    if (!confirm(t('customFields.page.confirmArchive', "Archive this field? Existing student values stay in the database but the field stops appearing on forms and reports."))) return;
     const res = await fetch(`/api/admin/custom-fields/${id}`, { method: 'DELETE' });
-    if (res.ok) load(); else alert('Failed to archive');
+    if (res.ok) load(); else showToast('error', t('customFields.page.archiveFailed', "Failed to archive"));
   }
 
   return (
@@ -63,7 +64,7 @@ export default function CustomFieldsAdminPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('customFields.customFields')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Define per-school data fields that appear on the student profile and become bindings in DRCE (<code className="text-[11px] px-1 bg-slate-100 dark:bg-slate-800 rounded">{'{student.custom.<code>}'}</code>).
+            {rich('customFields.page.intro', { code: <code dir="ltr" className="text-[11px] px-1 bg-slate-100 dark:bg-slate-800 rounded">{'{student.custom.<code>}'}</code> })}
           </p>
         </div>
         <button
@@ -98,15 +99,15 @@ export default function CustomFieldsAdminPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">{f.label}</span>
-                    <code className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-500">student.custom.{f.code}</code>
-                    {f.isRequired && <span className="text-[10px] px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded">required</span>}
-                    {!f.isActive   && <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-500 rounded">archived</span>}
+                    <code dir="ltr" className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-500">student.custom.{f.code}</code>
+                    {f.isRequired && <span className="text-[10px] px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded">{t('customFields.page.required', "required")}</span>}
+                    {!f.isActive   && <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-500 rounded">{t('customFields.page.archived', "archived")}</span>}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{T?.label}{f.description ? ` — ${f.description}` : ''}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{T ? t(`customFields.page.type.${f.dataType}`, T.label) : ''}{f.description ? ` — ${f.description}` : ''}</p>
                 </div>
-                <button onClick={() => setEditing(f)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500" title="Edit"><Pencil size={14} /></button>
+                <button onClick={() => setEditing(f)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500" title={t('customFields.page.edit', "Edit")} aria-label={t('customFields.page.edit', "Edit")}><Pencil size={14} /></button>
                 {f.isActive && (
-                  <button onClick={() => archive(f.id)} className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded text-rose-500" title="Archive"><Trash2 size={14} /></button>
+                  <button onClick={() => archive(f.id)} className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded text-rose-500" title={t('customFields.page.archive', "Archive")} aria-label={t('customFields.page.archive', "Archive")}><Trash2 size={14} /></button>
                 )}
               </div>
             );
@@ -132,6 +133,7 @@ function FieldEditorModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t, rich } = useI18n();
   const [label, setLabel]               = useState(initial?.label ?? '');
   const [code, setCode]                 = useState(initial?.code ?? '');
   const [codeTouched, setCodeTouched]   = useState(Boolean(initial));
@@ -172,10 +174,11 @@ function FieldEditorModal({
         { method: initial ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
       );
       const d = await res.json();
-      if (!res.ok || !d.success) throw new Error(d?.error || 'Save failed');
+      if (!res.ok || !d.success) throw new Error(d?.error || '');
       onSaved();
     } catch (e) {
-      setError((e as Error).message);
+      const m = (e as Error).message;
+      setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('customFields.page.saveFailed', "Save failed")));
     } finally {
       setSaving(false);
     }
@@ -186,93 +189,94 @@ function FieldEditorModal({
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto"
            onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="font-bold text-slate-800 dark:text-white">{initial ? 'Edit field' : 'New custom field'}</h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600"><X size={16} /></button>
+          <h2 className="font-bold text-slate-800 dark:text-white">{initial ? t('customFields.page.editTitle', "Edit field") : t('customFields.page.newTitle', "New custom field")}</h2>
+          <button onClick={onClose} title={t('customFields.page.close', "Close")} aria-label={t('customFields.page.close', "Close")} className="p-1 text-slate-400 hover:text-slate-600"><X size={16} /></button>
         </div>
 
         <div className="p-4 space-y-3 text-xs">
-          <Row label="Label">
-            <input value={label} onChange={e => setLabel(e.target.value)} className={inputCls} placeholder="Bus Route" />
+          <Row label={t('customFields.page.label', "Label")}>
+            <input value={label} onChange={e => setLabel(e.target.value)} className={inputCls} placeholder={t('customFields.page.labelPh', "Bus Route")} />
           </Row>
-          <Row label="Code">
+          <Row label={t('customFields.page.code', "Code")}>
             <input
               value={code}
               onChange={e => { setCode(e.target.value); setCodeTouched(true); }}
               onBlur={() => setCodeTouched(true)}
               className={inputCls + ' font-mono'}
+              dir="ltr"
               placeholder="bus_route"
               disabled={Boolean(initial)}
             />
             <p className="text-[10px] text-slate-400 mt-0.5">
-              Used as <code>student.custom.{code || '<code>'}</code> in DRCE bindings. Lowercase, digits, underscore. Immutable after creation.
+              {rich('customFields.page.codeHelp', { binding: <code dir="ltr">student.custom.{code || '<code>'}</code> })}
             </p>
           </Row>
-          <Row label="Type">
+          <Row label={t('customFields.page.typeLabel', "Type")}>
             <select value={dataType} onChange={e => setDataType(e.target.value as CustomFieldType)} className={inputCls}>
-              {Object.entries(TYPE_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              {Object.entries(TYPE_META).map(([k, v]) => <option key={k} value={k}>{t(`customFields.page.type.${k}`, v.label)}</option>)}
             </select>
-            <p className="text-[10px] text-slate-400 mt-0.5">{TYPE_META[dataType].hint}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t(`customFields.page.hint.${dataType}`, TYPE_META[dataType].hint)}</p>
           </Row>
-          <Row label="Description">
-            <input value={description ?? ''} onChange={e => setDescription(e.target.value)} className={inputCls} placeholder="Shown under the field in the form." />
+          <Row label={t('customFields.page.description', "Description")}>
+            <input value={description ?? ''} onChange={e => setDescription(e.target.value)} className={inputCls} placeholder={t('customFields.page.descPh', "Shown under the field in the form.")} />
           </Row>
 
           {needsOptions && (
-            <Row label="Options">
+            <Row label={t('customFields.page.options', "Options")}>
               <div className="space-y-1.5">
                 {options.map((o, i) => (
                   <div key={i} className="flex gap-1.5">
                     <input value={o.value} onChange={e => {
                       const next = [...options]; next[i] = { ...next[i], value: e.target.value }; setOptions(next);
-                    }} placeholder="value" className={inputCls + ' font-mono w-1/3'} />
+                    }} placeholder={t('customFields.page.optValuePh', "value")} className={inputCls + ' font-mono w-1/3'} />
                     <input value={o.label} onChange={e => {
                       const next = [...options]; next[i] = { ...next[i], label: e.target.value }; setOptions(next);
-                    }} placeholder="Label" className={inputCls + ' flex-1'} />
-                    <button type="button" onClick={() => setOptions(options.filter((_, j) => j !== i))} className="px-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"><Trash2 size={12} /></button>
+                    }} placeholder={t('customFields.page.optLabelPh', "Label")} className={inputCls + ' flex-1'} />
+                    <button type="button" onClick={() => setOptions(options.filter((_, j) => j !== i))} title={t('customFields.page.removeOption', "Remove option")} aria-label={t('customFields.page.removeOption', "Remove option")} className="px-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"><Trash2 size={12} /></button>
                   </div>
                 ))}
-                <button type="button" onClick={() => setOptions([...options, { value: '', label: '' }])} className="text-indigo-600 text-[11px] hover:underline">+ add option</button>
+                <button type="button" onClick={() => setOptions([...options, { value: '', label: '' }])} className="text-indigo-600 text-[11px] hover:underline">{t('customFields.page.addOption', "+ add option")}</button>
               </div>
             </Row>
           )}
 
           {(dataType === 'number' || dataType === 'text' || dataType === 'long_text') && (
-            <Row label="Validation">
+            <Row label={t('customFields.page.validation', "Validation")}>
               <div className="grid grid-cols-2 gap-2">
                 {dataType === 'number' ? (
                   <>
-                    <input type="number" value={validation.min ?? ''} onChange={e => setValidation(v => ({ ...v, min: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder="min" className={inputCls} />
-                    <input type="number" value={validation.max ?? ''} onChange={e => setValidation(v => ({ ...v, max: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder="max" className={inputCls} />
+                    <input type="number" value={validation.min ?? ''} onChange={e => setValidation(v => ({ ...v, min: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder={t('customFields.page.min', "min")} className={inputCls} />
+                    <input type="number" value={validation.max ?? ''} onChange={e => setValidation(v => ({ ...v, max: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder={t('customFields.page.max', "max")} className={inputCls} />
                   </>
                 ) : (
                   <>
-                    <input type="number" value={validation.minLength ?? ''} onChange={e => setValidation(v => ({ ...v, minLength: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder="min length" className={inputCls} />
-                    <input type="number" value={validation.maxLength ?? ''} onChange={e => setValidation(v => ({ ...v, maxLength: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder="max length" className={inputCls} />
+                    <input type="number" value={validation.minLength ?? ''} onChange={e => setValidation(v => ({ ...v, minLength: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder={t('customFields.page.minLength', "min length")} className={inputCls} />
+                    <input type="number" value={validation.maxLength ?? ''} onChange={e => setValidation(v => ({ ...v, maxLength: e.target.value === '' ? undefined : Number(e.target.value) }))} placeholder={t('customFields.page.maxLength', "max length")} className={inputCls} />
                   </>
                 )}
               </div>
             </Row>
           )}
 
-          <Row label="Default">
-            <input value={defaultValue ?? ''} onChange={e => setDefaultValue(e.target.value)} className={inputCls} placeholder="Optional default value" />
+          <Row label={t('customFields.page.default', "Default")}>
+            <input value={defaultValue ?? ''} onChange={e => setDefaultValue(e.target.value)} className={inputCls} placeholder={t('customFields.page.defaultPh', "Optional default value")} />
           </Row>
-          <Row label="Display order">
+          <Row label={t('customFields.page.order', "Display order")}>
             <input type="number" value={displayOrder} onChange={e => setDisplayOrder(Number(e.target.value) || 100)} className={inputCls} />
           </Row>
 
           <div className="flex items-center gap-4 pt-2">
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={isRequired} onChange={e => setIsRequired(e.target.checked)} /> Required</label>
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={isSearchable} onChange={e => setIsSearchable(e.target.checked)} /> Searchable</label>
+            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={isRequired} onChange={e => setIsRequired(e.target.checked)} /> {t('customFields.page.isRequired', "Required")}</label>
+            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={isSearchable} onChange={e => setIsSearchable(e.target.checked)} /> {t('customFields.page.searchable', "Searchable")}</label>
           </div>
 
           {error && <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded">{error}</div>}
         </div>
 
         <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100 dark:border-slate-800">
-          <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+          <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">{t('customFields.page.cancel', "Cancel")}</button>
           <button onClick={submit} disabled={saving || !label.trim() || !code} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">
-            {saving ? 'Saving…' : initial ? 'Save changes' : 'Create field'}
+            {saving ? t('customFields.page.saving', "Saving…") : initial ? t('customFields.page.save', "Save changes") : t('customFields.page.create', "Create field")}
           </button>
         </div>
       </div>
