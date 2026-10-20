@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
   const bridgeToken = req.headers.get('x-bridge-secret') || '';
   const isBridgeCall = BRIDGE_SECRET.length >= 16 && bridgeToken === BRIDGE_SECRET;
 
+  // A session caller acts for ITS school only: body.school_id is ignored and the
+  // device must belong to that school. Only the bridge (no session) may name a school.
+  let sessionSchoolId = 0;
   if (!isBridgeCall) {
     // Fall back to session-based auth
     const { getSessionSchoolId } = await import('@/lib/auth');
@@ -58,7 +61,8 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    // When called from UI/session, session.schoolId must be in body too (validated below)
+    sessionSchoolId = Number(session.schoolId) || 0;
+    if (!sessionSchoolId) return NextResponse.json({ error: 'No school selected' }, { status: 403 });
   }
 
   let body: {
@@ -81,12 +85,12 @@ export async function POST(req: NextRequest) {
 
   // Resolve device_sn: explicit > look up by IP
   let deviceSn = body.device_sn || '';
-  let schoolId  = Number(body.school_id) || 0;
+  let schoolId  = sessionSchoolId || Number(body.school_id) || 0;
 
   if (!deviceSn && body.device_ip) {
     const deviceRows = await query(
-      `SELECT sn, school_id FROM devices WHERE ip_address = ? LIMIT 1`,
-      [body.device_ip],
+      `SELECT sn, school_id FROM devices WHERE ip_address = ?${sessionSchoolId ? ' AND school_id = ?' : ''} LIMIT 1`,
+      sessionSchoolId ? [body.device_ip, sessionSchoolId] : [body.device_ip],
     );
     if (deviceRows.length) {
       deviceSn = deviceRows[0].sn;
@@ -112,6 +116,11 @@ export async function POST(req: NextRequest) {
 
   if (!schoolId) {
     return NextResponse.json({ error: 'Cannot determine school_id for device.' }, { status: 422 });
+  }
+
+  if (sessionSchoolId) {
+    const own = await query(`SELECT 1 FROM devices WHERE sn = ? AND school_id = ? LIMIT 1`, [deviceSn, sessionSchoolId]);
+    if (!own.length) return NextResponse.json({ error: 'Device not found' }, { status: 404 });
   }
 
   // Build a fast lookup: device_user_id → mapping row

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T15:32:04.400Z",
-  "last_commit": "bfd1112f1ad573731f15a37b95f9644a8ae2b19d",
+  "generated_at": "2026-10-20T15:52:14.637Z",
+  "last_commit": "82c554908b7fc4350efd0ee4c1baadc0f0d35432",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10580,7 +10580,20 @@
         }
       ],
       "commit": "bfd1112f1a"
+    },
+    {
+      "version": "2.50.151",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Offline-first photo and media management (directive issue 1)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Offline-first photo and media management (directive issue 1)"
+        }
+      ],
+      "commit": "82c554908b"
     }
   ],
-  "app_version": "2.50.151"
+  "app_version": "2.50.152"
 }
