@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T20:36:37.392Z",
-  "last_commit": "234ea6d2f2c7733c4f585c5b027de043c43befa3",
+  "generated_at": "2026-10-20T20:51:36.168Z",
+  "last_commit": "f5e671353aa9a487f93cc4e9715ea6ef5e018526",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10632,7 +10632,20 @@
         }
       ],
       "commit": "234ea6d2f2"
+    },
+    {
+      "version": "2.50.155",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Packaged exe opens SQLite/.drs without XAMPP (directive issue 4)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Packaged exe opens SQLite/.drs without XAMPP (directive issue 4)"
+        }
+      ],
+      "commit": "f5e671353a"
     }
   ],
-  "app_version": "2.50.155"
+  "app_version": "2.50.156"
 }

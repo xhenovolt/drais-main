@@ -48,6 +48,9 @@ yarn-error.log*
 # anything there.
 /scripts/*
 !/scripts/install-hooks.mjs
+# Run by `prebuild` (npm runs it before `build` on Vercel too): writes the
+# Control Center developer-docs index. Missing here = MODULE_NOT_FOUND and a failed deploy.
+!/scripts/devdocs/
 *.md
 DAHUA_*
 DATABASE_*

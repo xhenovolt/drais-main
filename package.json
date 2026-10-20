@@ -6,12 +6,12 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "2.50.155",
+  "version": "2.50.156",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/devdocs/generate.mjs",
+    "prebuild": "node scripts/devdocs/generate.mjs || node -e \"console.warn('[devdocs] index NOT generated — the build continues; Control Center route docs will say so')\"",
     "build": "next build --turbopack",
     "build:webpack": "next build",
     "start": "next start",
@@ -45,7 +45,7 @@
     "trash:verify": "npx tsx scripts/verify-trash-descriptors.mts",
     "vercel-build": "NODE_OPTIONS=--max_old_space_size=2560 npm run build",
     "vercel-api": "next start",
-    "prebuild:electron": "node scripts/devdocs/generate.mjs",
+    "prebuild:electron": "node scripts/devdocs/generate.mjs || node -e \"console.warn('[devdocs] index NOT generated — the build continues; Control Center route docs will say so')\"",
     "build:electron": "next build && node scripts/postbuild-electron.mjs",
     "electron:dev": "npm run build:electron && electron .",
     "prepare:drs-bundle": "tsx scripts/build/prepare-drs-bundle.mjs",
