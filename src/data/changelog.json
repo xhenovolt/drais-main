@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:41:40.570Z",
-  "last_commit": "0671ad6dfcda91481d9501a2e955f9cf6af65d8c",
+  "generated_at": "2026-10-20T10:43:19.738Z",
+  "last_commit": "7220634faaad01615722e60164537c0c6d2f682b",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10502,7 +10502,20 @@
         }
       ],
       "commit": "0671ad6dfc"
+    },
+    {
+      "version": "2.50.145",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/issuance (list, new batch, batch detail) fully Arabic; DRCE binding catalogue + rule editor in Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/issuance (list, new batch, batch detail) fully Arabic; DRCE binding catalogue + rule editor in Arabic"
+        }
+      ],
+      "commit": "7220634faa"
     }
   ],
-  "app_version": "2.50.145"
+  "app_version": "2.50.146"
 }

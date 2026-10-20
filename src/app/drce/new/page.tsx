@@ -15,6 +15,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles, Loader2, Search } from 'lucide-react';
 import { BUILT_IN_KINDS, findKind } from '@/lib/drce/kinds';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+import { kindLabel, kindDescription } from '@/lib/i18n/kinds';
 
 interface StarterCard {
   id:           string;
@@ -29,7 +32,11 @@ interface StarterCard {
 }
 
 export default function DRCENewDocumentPage() {
+  const { t } = useI18n();
   const router = useRouter();
+  // Built-in starters have fixed English names; a school's own starters stay as entered.
+  const starterName = (s: StarterCard) => (s.source === 'built-in' ? t(`drce.newDoc.starter.${s.id}.name`, s.name) : s.name);
+  const starterDesc = (s: StarterCard) => (s.source === 'built-in' ? t(`drce.newDoc.starter.${s.id}.desc`, s.description) : s.description);
   const [starters, setStarters] = useState<StarterCard[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<string>('all');
@@ -44,10 +51,10 @@ export default function DRCENewDocumentPage() {
         const res = await fetch('/api/drce/starters');
         const d   = await res.json();
         if (abort) return;
-        if (res.ok && d?.success) setStarters(d.starters ?? []);
-        else setError(d?.error ?? 'Failed to load starters');
+        if (res.ok && d?.success) setStarters(Array.isArray(d.starters) ? d.starters : []);
+        else { const m = d?.error; setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('drce.newDoc.loadFailed', "Failed to load starters"))); }
       } catch (e) {
-        if (!abort) setError((e as Error).message);
+        if (!abort) setError(t('drce.newDoc.loadFailed', "Failed to load starters"));
       } finally {
         if (!abort) setLoading(false);
       }
@@ -59,10 +66,11 @@ export default function DRCENewDocumentPage() {
     const q = search.trim().toLowerCase();
     return starters.filter(s => {
       if (filter !== 'all' && s.kind !== filter) return false;
-      if (q && !s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
+      if (q && ![s.name, s.description, starterName(s), starterDesc(s)].some(v => String(v ?? '').toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [starters, filter, search]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [starters, filter, search, t]);
 
   // Group visible starters by kind for display.
   const grouped = useMemo(() => {
@@ -94,10 +102,10 @@ export default function DRCENewDocumentPage() {
     try {
       const resolve = await fetch(`/api/drce/starters/${encodeURIComponent(starter.id)}`);
       const rd      = await resolve.json();
-      if (!resolve.ok || !rd?.success) throw new Error(rd?.error || 'Could not load starter');
+      if (!resolve.ok || !rd?.success) throw new Error(rd?.error || t('drce.newDoc.starterFailed', "Could not load starter"));
 
       const doc  = rd.document;
-      const name = window.prompt('Name your new document', `${starter.name} — copy`);
+      const name = window.prompt(t('drce.newDoc.namePrompt', "Name your new document"), t('drce.newDoc.copyName', { name: starterName(starter) }));
       if (name === null) { setCreating(null); return; }
       doc.meta = { ...doc.meta, name };
 
@@ -113,10 +121,11 @@ export default function DRCENewDocumentPage() {
         }),
       });
       const cd = await create.json();
-      if (!create.ok || !cd?.success) throw new Error(cd?.error || 'Could not create document');
+      if (!create.ok || !cd?.success) throw new Error(cd?.error || t('drce.newDoc.createFailed', "Could not create document"));
       router.push(`/reports/kitchen/drce/${cd.id}`);
     } catch (e) {
-      setError((e as Error).message);
+      const m = (e as Error).message;
+      setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('drce.newDoc.createFailed', "Could not create document")));
       setCreating(null);
     }
   }
@@ -126,19 +135,19 @@ export default function DRCENewDocumentPage() {
       {/* Header */}
       <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/reports/kitchen" className="p-1.5 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <ArrowLeft size={16} />
+          <Link href="/reports/kitchen" title={t('drce.newDoc.back', "Back to Template Kitchen")} aria-label={t('drce.newDoc.back', "Back to Template Kitchen")} className="p-1.5 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+            <ArrowLeft size={16} className="rtl:-scale-x-100" />
           </Link>
           <Sparkles size={18} className="text-indigo-500" />
-          <h1 className="text-lg font-bold text-slate-800 dark:text-white">New document</h1>
-          <span className="text-xs text-slate-400">Pick a starter or begin blank.</span>
+          <h1 className="text-lg font-bold text-slate-800 dark:text-white">{t('drce.newDoc.title', "New document")}</h1>
+          <span className="text-xs text-slate-400">{t('drce.newDoc.subtitle', "Pick a starter or begin blank.")}</span>
           <div className="flex-1" />
           <div className="relative">
-            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={13} className="absolute start-2 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search starters…"
-              className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-indigo-400 w-56"
+              placeholder={t('drce.newDoc.searchPh', "Search starters…")}
+              className="ps-7 pe-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-indigo-400 w-56"
             />
           </div>
         </div>
@@ -148,10 +157,10 @@ export default function DRCENewDocumentPage() {
           <button
             onClick={() => setFilter('all')}
             className={pillCls(filter === 'all')}
-          >All</button>
+          >{t('drce.newDoc.all', "All")}</button>
           {availableKinds.map(k => (
             <button key={k.code} onClick={() => setFilter(k.code)} className={pillCls(filter === k.code)}>
-              <span className="mr-1">{k.icon}</span>{k.label}
+              <span className="me-1">{k.icon}</span>{kindLabel(t, k)}
             </button>
           ))}
         </div>
@@ -166,11 +175,11 @@ export default function DRCENewDocumentPage() {
 
         {loading ? (
           <div className="flex items-center gap-2 text-slate-400 text-sm">
-            <Loader2 size={14} className="animate-spin" /> Loading starters…
+            <Loader2 size={14} className="animate-spin" /> {t('drce.newDoc.loading', "Loading starters…")}
           </div>
         ) : grouped.length === 0 ? (
           <div className="text-center py-16 text-slate-400 text-sm">
-            No starters match your filter.
+            {t('drce.newDoc.none', "No starters match your filter.")}
           </div>
         ) : (
           <div className="space-y-8">
@@ -180,9 +189,9 @@ export default function DRCENewDocumentPage() {
                 <section key={kind}>
                   <div className="flex items-baseline gap-2 mb-3">
                     <h2 className="text-base font-bold text-slate-800 dark:text-white">
-                      <span className="mr-1">{k.icon}</span>{k.label}
+                      <span className="me-1">{k.icon}</span>{kindLabel(t, k)}
                     </h2>
-                    <span className="text-xs text-slate-400">{k.description}</span>
+                    <span className="text-xs text-slate-400">{kindDescription(t, k)}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {list.map(s => (
@@ -190,23 +199,23 @@ export default function DRCENewDocumentPage() {
                         key={s.id}
                         onClick={() => pickStarter(s)}
                         disabled={creating !== null}
-                        className="text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-start p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <div className="flex items-start gap-2 mb-1">
                           <span className="text-2xl">{s.kindIcon}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <h3 className="font-semibold text-sm text-slate-800 dark:text-white truncate">{s.name}</h3>
+                              <h3 className="font-semibold text-sm text-slate-800 dark:text-white truncate">{starterName(s)}</h3>
                               {s.source === 'school' && (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">School</span>
+                                <span className="text-[9px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">{t('drce.newDoc.school', "School")}</span>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{starterDesc(s)}</p>
                           </div>
                         </div>
                         {creating === s.id && (
                           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-indigo-600">
-                            <Loader2 size={11} className="animate-spin" /> Creating…
+                            <Loader2 size={11} className="animate-spin" /> {t('drce.newDoc.creating', "Creating…")}
                           </div>
                         )}
                       </button>

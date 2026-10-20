@@ -3497,6 +3497,48 @@
       "rangePh": "min, max",
       "valuePh": "value",
       "removeCondition": "Remove condition"
+    },
+    "newDoc": {
+      "loadFailed": "Failed to load starters",
+      "starterFailed": "Could not load starter",
+      "namePrompt": "Name your new document",
+      "copyName": "{{name}} — copy",
+      "createFailed": "Could not create document",
+      "back": "Back to Template Kitchen",
+      "title": "New document",
+      "subtitle": "Pick a starter or begin blank.",
+      "searchPh": "Search starters…",
+      "all": "All",
+      "loading": "Loading starters…",
+      "none": "No starters match your filter.",
+      "school": "School",
+      "creating": "Creating…",
+      "starter": {
+        "report-classic": {
+          "name": "Classic Report Card",
+          "desc": "School header, student info, results table with totals, and three comment blocks."
+        },
+        "certificate-award": {
+          "name": "Award Certificate",
+          "desc": "Landscape A4 with a big award title, recipient name, and signature block."
+        },
+        "id-card-portrait": {
+          "name": "Student ID Card",
+          "desc": "Small-format student ID with photo, name, class, admission number, school footer."
+        },
+        "transcript-cumulative": {
+          "name": "Academic Transcript",
+          "desc": "Cumulative academic record with student details and a long results table."
+        },
+        "letter-official": {
+          "name": "Official Letter",
+          "desc": "School header with empty body — use a Container or text shape to compose the letter body."
+        },
+        "blank-document": {
+          "name": "Blank document",
+          "desc": "Start from an empty page."
+        }
+      }
     }
   },
   "drceCanvas": {
