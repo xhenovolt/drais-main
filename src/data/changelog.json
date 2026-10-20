@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:47:54.530Z",
-  "last_commit": "7cb08e2be9e334ec5b959d330eee70b3b773bb5f",
+  "generated_at": "2026-10-20T10:50:20.309Z",
+  "last_commit": "bda74d18e487c6d1c86af25b5b855353a2b2cd51",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10541,7 +10541,20 @@
         }
       ],
       "commit": "7cb08e2be9"
+    },
+    {
+      "version": "2.50.148",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/admin/custom-fields (list + field editor) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/custom-fields (list + field editor) fully Arabic"
+        }
+      ],
+      "commit": "bda74d18e4"
     }
   ],
-  "app_version": "2.50.148"
+  "app_version": "2.50.149"
 }

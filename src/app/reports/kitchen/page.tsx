@@ -12,6 +12,8 @@ import { findKind, BUILT_IN_KINDS } from '@/lib/drce/kinds';
 import type { DRCERenderContext } from '@/components/drce/types';
 import { GenerateSnapshotButton } from '@/components/reports/GenerateSnapshotButton';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+import { kindLabel, kindDescription } from '@/lib/i18n/kinds';
 
 // ============================================================================
 // Sample data used for card mini-previews
@@ -122,7 +124,7 @@ function DocMiniPreview({ doc }: { doc: DRCEDocument }) {
 // MAIN: Kitchen Page — manages dvcf_documents directly
 // ============================================================================
 export default function ReportsKitchen() {
-  const { t, lang } = useI18n();
+  const { t, lang, rich, digits } = useI18n();
   const router = useRouter();
   const [documents, setDocuments] = useState<DRCEDocument[]>([]);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
@@ -155,7 +157,7 @@ export default function ReportsKitchen() {
     const m = doc.meta as { id: string; school_id?: number | null };
     return Number.isNaN(parseInt(m.id, 10)) || m.school_id == null;
   };
-  const BUILTIN_PROTECTION = 'This is a built-in DRAIS template, so it can’t be renamed or deleted. Use “Duplicate” to make your own editable copy.';
+  const BUILTIN_PROTECTION = t('drce.kitchen.builtinProtection', "This is a built-in DRAIS template, so it can’t be renamed or deleted. Use “Duplicate” to make your own editable copy.");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -167,12 +169,12 @@ export default function ReportsKitchen() {
       const docsData   = await docsRes.json();
       const activeData = await activeRes.json();
 
-      if (docsData.documents) setDocuments(docsData.documents as DRCEDocument[]);
+      if (Array.isArray(docsData.documents)) setDocuments(docsData.documents as DRCEDocument[]);
       if (activeData.document?.meta?.id) {
         setActiveDocId(parseInt(activeData.document.meta.id, 10));
       }
     } catch {
-      showMsg('error', 'Failed to load templates');
+      showMsg('error', t('drce.kitchen.loadFailed', "Failed to load templates"));
     } finally {
       setLoading(false);
     }
@@ -192,12 +194,12 @@ export default function ReportsKitchen() {
       const data = await res.json();
       if (data.success) {
         setActiveDocId(id);
-        showMsg('success', `"${doc.meta.name}" is now the active template`);
+        showMsg('success', t('drce.kitchen.nowActive', { name: doc.meta.name }));
       } else {
-        showMsg('error', data.error || 'Failed to activate');
+        showMsg('error', (data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('drce.kitchen.activateFailed', "Failed to activate")));
       }
     } catch {
-      showMsg('error', 'Network error');
+      showMsg('error', t('drce.kitchen.network', "Network error"));
     } finally {
       setActivatingId(null);
     }
@@ -208,7 +210,7 @@ export default function ReportsKitchen() {
     setDuplicatingId(id);
     try {
       const cloned = structuredClone(doc);
-      cloned.meta.name = `${doc.meta.name} (Copy)`;
+      cloned.meta.name = t('drce.kitchen.copySuffix', { name: doc.meta.name });
       cloned.meta.id   = '';
       cloned.meta.is_default  = false;
       cloned.meta.school_id   = doc.meta.school_id;
@@ -226,13 +228,13 @@ export default function ReportsKitchen() {
       });
       const data = await res.json();
       if (data.id) {
-        showMsg('success', `Duplicated as "${cloned.meta.name}"`);
+        showMsg('success', t('drce.kitchen.duplicated', { name: cloned.meta.name }));
         fetchData();
       } else {
-        showMsg('error', data.error || 'Failed to duplicate');
+        showMsg('error', (data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('drce.kitchen.duplicateFailed', "Failed to duplicate")));
       }
     } catch {
-      showMsg('error', 'Network error');
+      showMsg('error', t('drce.kitchen.network', "Network error"));
     } finally {
       setDuplicatingId(null);
     }
@@ -262,17 +264,17 @@ export default function ReportsKitchen() {
       });
       const data = await res.json();
       if (data.success) {
-        showMsg('success', `Renamed to "${name}"`);
+        showMsg('success', t('drce.kitchen.renamed', { name }));
         if (previewDoc && docNumId(previewDoc) === id) {
           setPreviewDoc({ ...previewDoc, meta: { ...previewDoc.meta, name } });
         }
         setRenameTarget(null);
         fetchData();
       } else {
-        showMsg('error', data.error || 'Cannot rename this template');
+        showMsg('error', (data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('drce.kitchen.renameFailed', "Cannot rename this template")));
       }
     } catch {
-      showMsg('error', 'Network error');
+      showMsg('error', t('drce.kitchen.network', "Network error"));
     } finally {
       setRenamingId(null);
     }
@@ -280,21 +282,21 @@ export default function ReportsKitchen() {
 
   const handleDelete = async (doc: DRCEDocument) => {
     if (isBuiltIn(doc)) { showMsg('error', BUILTIN_PROTECTION); return; }
-    if (!confirm(`Delete template "${doc.meta.name}"? This cannot be undone.`)) return;
+    if (!confirm(t('drce.kitchen.confirmDelete', { name: doc.meta.name }))) return;
     const id = docNumId(doc);
     setDeletingId(id);
     try {
       const res = await fetch(`/api/dvcf/documents/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
-        showMsg('success', 'Template deleted');
+        showMsg('success', t('drce.kitchen.deleted', "Template deleted"));
         if (previewDoc && docNumId(previewDoc) === id) setPreviewDoc(null);
         fetchData();
       } else {
-        showMsg('error', data.error || 'Cannot delete this template');
+        showMsg('error', (data.error && !(uiIsArabic() && isEnglishText(data.error)) ? data.error : t('drce.kitchen.deleteFailed', "Cannot delete this template")));
       }
     } catch {
-      showMsg('error', 'Network error');
+      showMsg('error', t('drce.kitchen.network', "Network error"));
     } finally {
       setDeletingId(null);
     }
@@ -315,7 +317,7 @@ export default function ReportsKitchen() {
             <div className="h-4 w-px bg-gray-300 dark:bg-slate-600" />
             <ChefHat size={22} className="text-amber-600" />
             <h1 className="text-lg font-bold text-gray-800 dark:text-white">{t('drce.templateKitchen')}</h1>
-            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Template Engine</span>
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{t('drce.kitchen.engine', "Template Engine")}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -331,24 +333,24 @@ export default function ReportsKitchen() {
             />
             <button
               onClick={() => router.push('/admin/drce/blocks')}
-              title="Reusable section subtrees referenced by templates via block_ref"
+              title={t('drce.kitchen.blocksTitle', "Reusable section subtrees referenced by templates via block_ref")}
               className="flex items-center gap-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm px-3 py-1.5 rounded hover:bg-slate-50 dark:hover:bg-slate-600"
             >
               <Library size={14} /> {t('drce.blockLibrary')}
             </button>
             <button
               onClick={() => router.push('/drce/new')}
-              title="Pick a starter — report, certificate, ID card, transcript, letter, or blank"
+              title={t('drce.kitchen.newTitle', "Pick a starter — report, certificate, ID card, transcript, letter, or blank")}
               className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3 py-1.5 rounded hover:bg-indigo-700"
             >
               <Plus size={14} /> {t('drce.newDocument')}
             </button>
             <button
               onClick={() => router.push('/reports/kitchen/drce/new')}
-              title="Start a blank template directly in the editor"
+              title={t('drce.kitchen.blankTitle', "Start a blank template directly in the editor")}
               className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800"
             >
-              blank
+              {t('drce.kitchen.blank', "blank")}
             </button>
           </div>
         </div>
@@ -356,7 +358,7 @@ export default function ReportsKitchen() {
 
       {/* Toast */}
       {message && (
-        <div className={`fixed top-16 right-4 z-50 px-4 py-2 rounded shadow-lg text-white text-sm ${
+        <div className={`fixed top-16 end-4 z-50 px-4 py-2 rounded shadow-lg text-white text-sm ${
           message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
         }`}>
           {message.text}
@@ -371,8 +373,7 @@ export default function ReportsKitchen() {
             <div>
               <h2 className="font-semibold text-amber-800 dark:text-amber-300">{t('drce.templateKitchen')}</h2>
               <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
-                Each card below is a real report template — what you see is exactly what prints.
-                Click <strong>Edit</strong> to open the visual designer. Set <strong>Use This</strong> to make it the active template for all report printing.
+                {rich('drce.kitchen.intro', { edit: <strong>{t('drce.kitchen.edit', "Edit")}</strong>, use: <strong>{t('drce.kitchen.useThis', "Use This")}</strong> })}
               </p>
             </div>
           </div>
@@ -396,7 +397,7 @@ export default function ReportsKitchen() {
           }
           return (
             <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1">
-              {([{ code: 'all', label: 'All', icon: '📚' } as { code: string; label: string; icon: string }, ...visibleKinds]).map(k => {
+              {([{ code: 'all', label: t('drce.kitchen.all', "All"), icon: '📚' } as { code: string; label: string; icon: string }, ...visibleKinds]).map(k => {
                 const active = kindFilter === k.code;
                 const n = counts.get(k.code) ?? 0;
                 return (
@@ -410,8 +411,8 @@ export default function ReportsKitchen() {
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200',
                     ].join(' ')}
                   >
-                    <span className="mr-1">{k.icon}</span>{k.label}
-                    <span className="ml-1 opacity-70">{n}</span>
+                    <span className="me-1">{k.icon}</span>{k.code === 'all' ? k.label : kindLabel(t, k)}
+                    <span className="ms-1 opacity-70">{digits(n)}</span>
                   </button>
                 );
               })}
@@ -421,17 +422,17 @@ export default function ReportsKitchen() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
-            <Loader2 size={22} className="animate-spin" /> Loading templates...
+            <Loader2 size={22} className="animate-spin" /> {t('drce.kitchen.loading', "Loading templates...")}
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <ChefHat size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="font-medium">No templates yet</p>
+            <p className="font-medium">{t('drce.kitchen.none', "No templates yet")}</p>
             <button
               onClick={() => router.push('/reports/kitchen/drce/new')}
               className="mt-4 inline-flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-4 py-2 rounded hover:bg-indigo-700"
             >
-              <Plus size={14} /> Create your first template
+              <Plus size={14} /> {t('drce.kitchen.createFirst', "Create your first template")}
             </button>
           </div>
         ) : (
@@ -460,12 +461,12 @@ export default function ReportsKitchen() {
                   >
                     <DocMiniPreview doc={doc} />
                     {isActive && (
-                      <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
-                        <Check size={10} /> Active
+                      <div className="absolute top-2 end-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                        <Check size={10} /> {t('drce.kitchen.active', "Active")}
                       </div>
                     )}
-                    <div className="absolute bottom-1 right-1 text-xs bg-black/50 text-white px-1.5 py-0.5 rounded opacity-0 hover:opacity-100 transition-opacity">
-                      Full preview
+                    <div className="absolute bottom-1 end-1 text-xs bg-black/50 text-white px-1.5 py-0.5 rounded opacity-0 hover:opacity-100 transition-opacity">
+                      {t('drce.kitchen.fullPreview', "Full preview")}
                     </div>
                   </div>
 
@@ -474,18 +475,18 @@ export default function ReportsKitchen() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-sm text-gray-800 dark:text-white truncate">{doc.meta.name}</h3>
-                        <p className="text-xs text-gray-400 mt-0.5 capitalize">{doc.meta.report_type?.replace('_', ' ')}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 capitalize">{doc.meta.report_type ? t(`drce.kitchen.type.${doc.meta.report_type}`, doc.meta.report_type.replace('_', ' ')) : ''}</p>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      <div className="flex items-center gap-1 flex-shrink-0 ms-2">
                         {/* Document kind chip — Canva-style "what is this?" */}
                         <span
                           className="text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
-                          title={kind.description}
+                          title={kindDescription(t, kind)}
                         >
-                          <span>{kind.icon}</span>{kind.label}
+                          <span>{kind.icon}</span>{kindLabel(t, kind)}
                         </span>
-                        {isGlobal && <span className="text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 px-1.5 py-0.5 rounded">Built-in</span>}
-                        {!isGlobal && <span className="text-xs bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 px-1.5 py-0.5 rounded">Custom</span>}
+                        {isGlobal && <span className="text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 px-1.5 py-0.5 rounded">{t('drce.kitchen.builtIn', "Built-in")}</span>}
+                        {!isGlobal && <span className="text-xs bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 px-1.5 py-0.5 rounded">{t('drce.kitchen.custom', "Custom")}</span>}
                       </div>
                     </div>
 
@@ -494,8 +495,8 @@ export default function ReportsKitchen() {
                       {[doc.theme.primaryColor, doc.theme.secondaryColor, doc.theme.accentColor, doc.theme.pageBackground].map((c, i) => (
                         <div key={i} title={c} style={{ width: 14, height: 14, borderRadius: 3, background: c, border: '1px solid rgba(0,0,0,0.12)' }} />
                       ))}
-                      <span className="text-xs text-gray-300 dark:text-slate-500 ml-1">palette</span>
-                      <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">{doc.theme.pageSize?.toUpperCase() ?? 'A4'} {doc.theme.orientation ?? 'portrait'}</span>
+                      <span className="text-xs text-gray-300 dark:text-slate-500 ms-1">{t('drce.kitchen.palette', "palette")}</span>
+                      <span className="text-xs text-gray-400 dark:text-slate-500 ms-auto">{doc.theme.pageSize?.toUpperCase() ?? 'A4'} {(doc.theme.orientation ?? 'portrait') === 'landscape' ? t('drce.kitchen.landscape', "landscape") : t('drce.kitchen.portrait', "portrait")}</span>
                     </div>
 
                     {/* Actions */}
@@ -504,14 +505,14 @@ export default function ReportsKitchen() {
                         onClick={() => router.push(`/reports/kitchen/drce/${id}`)}
                         className="flex items-center gap-1 text-xs bg-indigo-600 text-white rounded px-2 py-1 hover:bg-indigo-700"
                       >
-                        <Pencil size={11} /> Edit
+                        <Pencil size={11} /> {t('drce.kitchen.edit', "Edit")}
                       </button>
 
                       <button
                         onClick={() => setPreviewDoc(prev => prev && docNumId(prev) === id ? null : doc)}
                         className="flex items-center gap-1 text-xs border dark:border-slate-600 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-gray-300"
                       >
-                        <Eye size={11} /> {previewDoc && docNumId(previewDoc) === id ? 'Close' : 'Preview'}
+                        <Eye size={11} /> {previewDoc && docNumId(previewDoc) === id ? t('drce.kitchen.close', "Close") : t('drce.kitchen.preview', "Preview")}
                       </button>
 
                       <button
@@ -524,7 +525,7 @@ export default function ReportsKitchen() {
                         }`}
                       >
                         {activatingId === id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                        {isActive ? 'Active' : 'Use This'}
+                        {isActive ? t('drce.kitchen.active', "Active") : t('drce.kitchen.useThis', "Use This")}
                       </button>
 
                       <button
@@ -533,18 +534,18 @@ export default function ReportsKitchen() {
                         className="flex items-center gap-1 text-xs border dark:border-slate-600 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-gray-300"
                       >
                         {duplicatingId === id ? <Loader2 size={11} className="animate-spin" /> : <Copy size={11} />}
-                        Copy
+                        {t('drce.kitchen.copy', "Copy")}
                       </button>
 
                       {!isGlobal && (
                         <button
                           onClick={() => handleRename(doc)}
                           disabled={renamingId === id}
-                          title="Rename this template"
+                          title={t('drce.kitchen.renameTitle', "Rename this template")}
                           className="flex items-center gap-1 text-xs border dark:border-slate-600 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-gray-300"
                         >
                           {renamingId === id ? <Loader2 size={11} className="animate-spin" /> : <Pencil size={11} />}
-                          Rename
+                          {t('drce.kitchen.rename', "Rename")}
                         </button>
                       )}
 
@@ -553,15 +554,15 @@ export default function ReportsKitchen() {
                           control with the reason so it's never a mystery. */}
                       {isGlobal ? (
                         <span
-                          title="Built-in templates can't be deleted. Use Copy to make your own editable version."
-                          className="flex items-center gap-1 text-xs border border-gray-200 dark:border-slate-700 text-gray-300 dark:text-slate-600 rounded px-2 py-1 ml-auto cursor-not-allowed"
+                          title={t('drce.kitchen.builtinNoDelete', "Built-in templates can't be deleted. Use Copy to make your own editable version.")}
+                          className="flex items-center gap-1 text-xs border border-gray-200 dark:border-slate-700 text-gray-300 dark:text-slate-600 rounded px-2 py-1 ms-auto cursor-not-allowed"
                         >
                           <Trash2 size={11} />
                         </span>
                       ) : id === activeDocId ? (
                         <span
-                          title="This is the active template. Set another template as active before deleting it."
-                          className="flex items-center gap-1 text-xs border border-gray-200 dark:border-slate-700 text-gray-300 dark:text-slate-600 rounded px-2 py-1 ml-auto cursor-not-allowed"
+                          title={t('drce.kitchen.activeNoDelete', "This is the active template. Set another template as active before deleting it.")}
+                          className="flex items-center gap-1 text-xs border border-gray-200 dark:border-slate-700 text-gray-300 dark:text-slate-600 rounded px-2 py-1 ms-auto cursor-not-allowed"
                         >
                           <Trash2 size={11} />
                         </span>
@@ -569,8 +570,9 @@ export default function ReportsKitchen() {
                         <button
                           onClick={() => handleDelete(doc)}
                           disabled={deletingId === id}
-                          title="Delete this template"
-                          className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded px-2 py-1 hover:bg-red-50 ml-auto"
+                          title={t('drce.kitchen.deleteTitle', "Delete this template")}
+                          aria-label={t('drce.kitchen.deleteTitle', "Delete this template")}
+                          className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded px-2 py-1 hover:bg-red-50 ms-auto"
                         >
                           {deletingId === id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
                         </button>
@@ -590,7 +592,7 @@ export default function ReportsKitchen() {
               <div className="flex items-center gap-2">
                 <Eye size={16} className="text-blue-500" />
                 <span className="font-semibold text-sm dark:text-white">
-                  Preview: <span className="text-blue-600 dark:text-blue-400">{previewDoc.meta.name}</span>
+                  {rich('drce.kitchen.previewOf', { name: <span className="text-blue-600 dark:text-blue-400">{previewDoc.meta.name}</span> })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -599,25 +601,25 @@ export default function ReportsKitchen() {
                     onClick={() => handleActivate(previewDoc)}
                     className="bg-green-600 text-white text-sm px-3 py-1 rounded hover:bg-green-700"
                   >
-                    <Check size={13} className="inline mr-1" />Use This Template
+                    <Check size={13} className="inline me-1" />{t('drce.kitchen.useTemplate', "Use This Template")}
                   </button>
                 )}
                 {docNumId(previewDoc) === activeDocId && (
                   <span className="text-sm text-green-600 font-medium flex items-center gap-1">
-                    <Check size={14} /> Currently Active
+                    <Check size={14} /> {t('drce.kitchen.currentlyActive', "Currently Active")}
                   </span>
                 )}
                 <button
                   onClick={() => router.push(`/reports/kitchen/drce/${docNumId(previewDoc)}`)}
                   className="flex items-center gap-1 bg-indigo-600 text-white text-sm px-3 py-1 rounded hover:bg-indigo-700"
                 >
-                  <Pencil size={13} /> Edit
+                  <Pencil size={13} /> {t('drce.kitchen.edit', "Edit")}
                 </button>
                 <button
                   onClick={() => setPreviewDoc(null)}
                   className="text-sm text-gray-500 hover:text-gray-800 border dark:border-slate-600 dark:text-gray-300 rounded px-2 py-1"
                 >
-                  Close
+                  {t('drce.kitchen.close', "Close")}
                 </button>
               </div>
             </div>
@@ -642,14 +644,14 @@ export default function ReportsKitchen() {
       {renameTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setRenameTarget(null)}>
           <div className="w-full max-w-sm rounded-xl bg-card border border-border shadow-2xl p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Rename template</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">{t('drce.kitchen.renameHeading', "Rename template")}</h3>
             <input
               autoFocus
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') doRename(); if (e.key === 'Escape') setRenameTarget(null); }}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Template name"
+              placeholder={t('drce.kitchen.namePh', "Template name")}
             />
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -657,7 +659,7 @@ export default function ReportsKitchen() {
                 onClick={() => setRenameTarget(null)}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:bg-muted"
               >
-                Cancel
+                {t('drce.kitchen.cancel', "Cancel")}
               </button>
               <button
                 type="button"
@@ -665,7 +667,7 @@ export default function ReportsKitchen() {
                 disabled={!renameValue.trim() || renamingId === docNumId(renameTarget)}
                 className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-primary text-white hover:opacity-90 disabled:opacity-50"
               >
-                {renamingId === docNumId(renameTarget) ? 'Saving…' : 'Rename'}
+                {renamingId === docNumId(renameTarget) ? t('drce.kitchen.saving', "Saving…") : t('drce.kitchen.rename', "Rename")}
               </button>
             </div>
           </div>
