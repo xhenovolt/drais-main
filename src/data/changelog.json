@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:36:25.810Z",
-  "last_commit": "618cb6d7b48924d23e75c7d220e030406f1e7d4c",
+  "generated_at": "2026-10-20T10:41:40.570Z",
+  "last_commit": "0671ad6dfcda91481d9501a2e955f9cf6af65d8c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10489,7 +10489,20 @@
         }
       ],
       "commit": "618cb6d7b4"
+    },
+    {
+      "version": "2.50.144",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/examinations/deadlines fully Arabic; fix result types never loading and deadlines shown 3h late",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/examinations/deadlines fully Arabic; fix result types never loading and deadlines shown 3h late"
+        }
+      ],
+      "commit": "0671ad6dfc"
     }
   ],
-  "app_version": "2.50.144"
+  "app_version": "2.50.145"
 }

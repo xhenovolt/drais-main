@@ -17,13 +17,15 @@ import { VisibilityRuleEditor } from '@/components/drce/editor/VisibilityRuleEdi
 import type { VisibilityRule } from '@/lib/drce/visibility';
 import { findKind, BUILT_IN_KINDS } from '@/lib/drce/kinds';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+import { kindLabel, kindPlural } from '@/lib/i18n/kinds';
 
 interface TemplateRow {
   meta: { id: string; name: string; document_kind?: string };
 }
 
 export default function NewIssuancePage() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const router = useRouter();
   const search = useSearchParams();
   const presetKind = search.get('kind') ?? 'certificate';
@@ -58,8 +60,8 @@ export default function NewIssuancePage() {
 
   async function submit() {
     setError(null);
-    if (!chosenTemplateId)    { setError('Pick a template first');         return; }
-    if (!name.trim())         { setError('Give the batch a name');         return; }
+    if (!chosenTemplateId)    { setError(t('issuancePages.pickTemplate', "Pick a template first"));         return; }
+    if (!name.trim())         { setError(t('issuancePages.nameBatch', "Give the batch a name"));         return; }
     setSubmitting(true);
     try {
       const classIds = classIdsRaw
@@ -79,10 +81,11 @@ export default function NewIssuancePage() {
         body: JSON.stringify(body),
       });
       const d = await r.json();
-      if (!r.ok || !d?.success) throw new Error(d?.error || 'Could not create batch');
+      if (!r.ok || !d?.success) throw new Error(d?.error || '');
       router.push(`/issuance/batches/${d.id}`);
     } catch (e) {
-      setError((e as Error).message);
+      const m = (e as Error).message;
+      setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('issuancePages.createFailed', "Could not create batch")));
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +94,7 @@ export default function NewIssuancePage() {
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-5">
       <div className="flex items-center gap-2">
-        <button onClick={() => router.back()} className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+        <button onClick={() => router.back()} title={t('issuancePages.back', "Back")} aria-label={t('issuancePages.back', "Back")} className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
           <ArrowLeft size={16} className="rtl-flip" />
         </button>
         <Sparkles size={18} className="text-indigo-500" />
@@ -111,20 +114,20 @@ export default function NewIssuancePage() {
                 kindFilter === k.code ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
               ].join(' ')}
             >
-              <span className="mr-1">{k.icon}</span>{k.label}
+              <span className="me-1">{k.icon}</span>{kindLabel(t, k)}
             </button>
           ))}
       </div>
 
       {/* Template picker */}
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">1. {t('issuance.selectedTemplate')}</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{digits(1)}. {t('issuance.selectedTemplate')}</h2>
         {loading ? (
           <div className="text-xs text-slate-400 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> {t('common.loading')}</div>
         ) : filtered.length === 0 ? (
           <div className="p-3 text-xs text-slate-500 border border-dashed border-slate-200 dark:border-slate-700 rounded">
-            {t('drce.noTemplatesYet')} — <span className="font-semibold">{findKind(kindFilter).label}</span>.
-            <a href="/drce/new" className="text-indigo-600 hover:underline ml-1">{t('drce.chooseStarter')} →</a>
+            {t('drce.noTemplatesYet')} — <span className="font-semibold">{kindLabel(t, findKind(kindFilter))}</span>.
+            <a href="/drce/new" className="text-indigo-600 hover:underline ms-1">{t('drce.chooseStarter')} <span className="rtl:hidden">→</span><span className="ltr:hidden">←</span></a>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -136,7 +139,7 @@ export default function NewIssuancePage() {
                   key={id}
                   onClick={() => setChosenTemplateId(id)}
                   className={[
-                    'text-left p-3 rounded border text-sm transition-colors',
+                    'text-start p-3 rounded border text-sm transition-colors',
                     isPicked
                       ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
                       : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-700 dark:text-slate-300',
@@ -152,10 +155,10 @@ export default function NewIssuancePage() {
 
       {/* Batch details */}
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">2. {t('issuance.batchName')}</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{digits(2)}. {t('issuance.batchName')}</h2>
         <input
           value={name} onChange={e => setName(e.target.value)}
-          placeholder={`e.g. ${findKind(kindFilter).label}s — Term 3 2026`}
+          placeholder={t('issuancePages.namePh', { kind: kindPlural(t, findKind(kindFilter)) })}
           className="w-full text-sm px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
         />
         <input
@@ -165,12 +168,12 @@ export default function NewIssuancePage() {
         />
         <input
           value={runKey} onChange={e => setRunKey(e.target.value)}
-          placeholder="Run key (optional) — e.g. term-3-2026-prefects (used for dedupe)"
+          placeholder={t('issuancePages.runKeyPh', "Run key (optional) — e.g. term-3-2026-prefects (used for dedupe)")}
           className="w-full text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 font-mono"
         />
         <input
           value={classIdsRaw} onChange={e => setClassIdsRaw(e.target.value)}
-          placeholder="Restrict to class IDs (optional, comma-separated)"
+          placeholder={t('issuancePages.classIdsPh', "Restrict to class IDs (optional, comma-separated)")}
           className="w-full text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 font-mono"
         />
       </div>
@@ -178,7 +181,7 @@ export default function NewIssuancePage() {
       {/* Eligibility */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-          3. {t('issuance.eligibilityRule')}
+          {digits(3)}. {t('issuance.eligibilityRule')}
         </h2>
         <VisibilityRuleEditor
           value={rule}

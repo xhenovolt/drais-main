@@ -11,6 +11,8 @@ import { Loader2, Plus, FileCheck, Clock, AlertTriangle, Printer } from 'lucide-
 import type { IssuanceBatch } from '@/lib/issuance/types';
 import { findKind } from '@/lib/drce/kinds';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+import { kindLabel, kindPlural } from '@/lib/i18n/kinds';
 
 export default function IssuanceDashboard() {
   const { t } = useI18n();
@@ -24,10 +26,11 @@ export default function IssuanceDashboard() {
       try {
         const r = await fetch('/api/issuance/batches');
         const d = await r.json();
-        if (!r.ok || !d?.success) throw new Error(d?.error || 'Failed to load');
-        setBatches(d.batches ?? []);
+        if (!r.ok || !d?.success) throw new Error(d?.error || '');
+        setBatches(Array.isArray(d.batches) ? d.batches : []);
       } catch (e) {
-        setError((e as Error).message);
+        const m = (e as Error).message;
+        setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('issuancePages.loadFailed', "Failed to load")));
       } finally {
         setLoading(false);
       }
@@ -75,7 +78,7 @@ export default function IssuanceDashboard() {
             return (
               <section key={kind}>
                 <h2 className="text-sm font-bold mb-2 text-slate-700 dark:text-slate-200">
-                  <span className="mr-1">{k.icon}</span>{k.label}s
+                  <span className="me-1">{k.icon}</span>{kindPlural(t, k)}
                 </h2>
                 <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {list.map(b => <Row key={b.id} batch={b} />)}
@@ -90,6 +93,7 @@ export default function IssuanceDashboard() {
 }
 
 function Row({ batch }: { batch: IssuanceBatch }) {
+  const { t } = useI18n();
   const counts = batch.counts;
   const issued = counts?.issued ?? 0;
   return (
@@ -101,11 +105,11 @@ function Row({ batch }: { batch: IssuanceBatch }) {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-slate-800 dark:text-white truncate">{batch.name}</div>
         <div className="text-[11px] text-slate-400">
-          {batch.status}
-          {counts && ` · ${counts.candidates} candidates · ${counts.eligible} eligible · ${counts.issued} issued · ${counts.skipped} skipped`}
+          {t(`issuancePages.st.${batch.status}`, batch.status)}
+          {counts && ` · ${t('issuancePages.counts', { candidates: counts.candidates ?? 0, eligible: counts.eligible ?? 0, issued: counts.issued ?? 0, skipped: counts.skipped ?? 0 })}`}
         </div>
       </div>
-      <span className="text-xs text-slate-500">{issued} document{issued === 1 ? '' : 's'}</span>
+      <span className="text-xs text-slate-500">{t('issuancePages.documents', { count: issued })}</span>
     </Link>
   );
 }

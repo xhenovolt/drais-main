@@ -12,7 +12,11 @@
  * is always returned.
  */
 import useSWR from 'swr';
+import { useMemo } from 'react';
 import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+const slug = (s: string) => s.replace(/[^A-Za-z0-9]+/g, '_');
 
 export interface BindingEntry {
   group: string;
@@ -81,7 +85,24 @@ export function useAvailableBindings(): BindingEntry[] {
     label:   f.label,
   }));
 
-  // CAFE bindings come last so they appear at the bottom of the picker —
-  // they're future-facing and shouldn't push existing groups around.
-  return [...AVAILABLE_BINDINGS, ...customEntries, ...CAFE_BINDINGS];
+  // Labels/groups/hints are shown in the reader's language; the binding path never changes.
+  // Custom-field labels are school data and stay as entered.
+  const { t } = useI18n();
+  return useMemo(() => {
+    const tr = (e: BindingEntry, cafe: boolean): BindingEntry => ({
+      ...e,
+      group: t(`drce.bindingGroup.${slug(e.group)}`, e.group),
+      label: e.group === 'Custom Field' ? e.label
+        : t(cafe && e.binding === 'result.competencyLevel' ? 'drce.binding.cafe_result_competencyLevel' : `drce.binding.${slug(e.binding)}`, e.label),
+      hint: e.hint ? t(`drce.bindingHint.${slug(e.binding)}`, e.hint) : e.hint,
+    });
+    // CAFE bindings come last so they appear at the bottom of the picker —
+    // they're future-facing and shouldn't push existing groups around.
+    return [
+      ...AVAILABLE_BINDINGS.map(e => tr(e, false)),
+      ...customEntries.map(e => tr(e, false)),
+      ...CAFE_BINDINGS.map(e => tr(e, true)),
+    ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, data]);
 }

@@ -26,6 +26,13 @@ import {
   type RuleLiteral, blankLeaf, emptyRule, describeRule,
 } from '@/lib/drce/visibility';
 import { useAvailableBindings } from '@/components/drce/hooks/useAvailableBindings';
+import { useI18n } from '@/components/i18n/I18nProvider';
+
+// Operator → dictionary key (symbols ≥ ≤ stay as they are).
+const OP_KEY: Partial<Record<CompareOp, string>> = {
+  '==': 'eq', '!=': 'ne', '>': 'gt', '<': 'lt', contains: 'contains', not_contains: 'not_contains',
+  starts_with: 'starts_with', ends_with: 'ends_with', in: 'in', not_in: 'not_in', between: 'between', empty: 'empty', not_empty: 'not_empty',
+};
 
 const OPS: { value: CompareOp; label: string; unary?: boolean }[] = [
   { value: '==',           label: 'equals' },
@@ -60,19 +67,20 @@ interface Props {
 export function VisibilityRuleEditor({ value, onChange, bindings: bindingsOverride }: Props) {
   // Hook must run unconditionally (Rules of Hooks); the override, when given,
   // simply wins over its result.
+  const { t } = useI18n();
   const liveBindings = useAvailableBindings();
   const bindings = bindingsOverride ?? liveBindings;
 
   if (!value) {
     return (
       <div className="text-xs text-gray-500 dark:text-gray-400 space-y-2">
-        <p>This section is always visible. Add a rule to render it only for matching learners.</p>
+        <p>{t('drce.rule.alwaysVisible', 'This section is always visible. Add a rule to render it only for matching learners.')}</p>
         <button
           type="button"
           onClick={() => onChange(emptyRule())}
           className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-500"
         >
-          <Plus size={12} /> Add visibility rule
+          <Plus size={12} /> {t('drce.rule.add', 'Add visibility rule')}
         </button>
       </div>
     );
@@ -89,9 +97,9 @@ export function VisibilityRuleEditor({ value, onChange, bindings: bindingsOverri
         <GroupEditor node={tree} bindings={bindings} onChange={onChange} />
       </div>
       <div className="flex items-center justify-between text-[10px] text-gray-400">
-        <span>Preview: <span className="font-mono">{describeRule(tree)}</span></span>
+        <span>{t('drce.rule.preview', 'Preview:')} <span dir="ltr" className="font-mono">{describeRule(tree)}</span></span>
         <button type="button" onClick={() => onChange(null)} className="text-rose-500 hover:underline">
-          Remove rule
+          {t('drce.rule.remove', 'Remove rule')}
         </button>
       </div>
     </div>
@@ -107,6 +115,7 @@ function GroupEditor({
   bindings: ReturnType<typeof useAvailableBindings>;
   onChange: (next: RuleGroup) => void;
 }) {
+  const { t } = useI18n();
   function patch(p: Partial<RuleGroup>) { onChange({ ...node, ...p }); }
   function patchChild(idx: number, next: VisibilityRule | null) {
     if (next === null) onChange({ ...node, children: node.children.filter((_, i) => i !== idx) });
@@ -121,21 +130,21 @@ function GroupEditor({
           onChange={e => patch({ op: e.target.value as 'AND' | 'OR' })}
           className="text-[11px] px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
         >
-          <option value="AND">ALL of (AND)</option>
-          <option value="OR">ANY of (OR)</option>
+          <option value="AND">{t('drce.rule.all', 'ALL of (AND)')}</option>
+          <option value="OR">{t('drce.rule.any', 'ANY of (OR)')}</option>
         </select>
         <label className="inline-flex items-center gap-1 text-[11px] text-gray-500">
           <input
             type="checkbox" checked={Boolean(node.negate)}
             onChange={e => patch({ negate: e.target.checked })}
-          /> NOT
+          /> {t('drce.rule.not', 'NOT')}
         </label>
-        <span className="text-[10px] text-gray-400 italic">{node.children.length} condition{node.children.length === 1 ? '' : 's'}</span>
+        <span className="text-[10px] text-gray-400 italic">{t('drce.rule.conditions', { count: node.children.length })}</span>
       </div>
 
-      <ul className="space-y-1.5 ml-1">
+      <ul className="space-y-1.5 ms-1">
         {node.children.map((child, i) => (
-          <li key={i} className="border-l-2 border-indigo-300 pl-2">
+          <li key={i} className="border-s-2 border-indigo-300 ps-2">
             {child.kind === 'compare' ? (
               <LeafEditor
                 node={child} bindings={bindings}
@@ -157,14 +166,14 @@ function GroupEditor({
           onClick={() => patch({ children: [...node.children, blankLeaf()] })}
           className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-500"
         >
-          <Plus size={11} /> condition
+          <Plus size={11} /> {t('drce.rule.addCondition', 'condition')}
         </button>
         <button
           type="button"
           onClick={() => patch({ children: [...node.children, emptyRule()] })}
           className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 border border-indigo-300 text-indigo-600 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
         >
-          <Plus size={11} /> group
+          <Plus size={11} /> {t('drce.rule.addGroup', 'group')}
         </button>
       </div>
     </div>
@@ -180,6 +189,8 @@ function LeafEditor({
   bindings: ReturnType<typeof useAvailableBindings>;
   onChange: (next: VisibilityRule | null) => void;
 }) {
+  const { t } = useI18n();
+  const opLabel = (o: { value: CompareOp; label: string }) => (OP_KEY[o.value] ? t(`drce.rule.op.${OP_KEY[o.value]}`, o.label) : o.label);
   const opMeta = OPS.find(o => o.value === node.op) ?? OPS[0];
   const isUnary = Boolean(opMeta.unary);
 
@@ -212,7 +223,7 @@ function LeafEditor({
         onChange={e => patch({ left: e.target.value })}
         className="text-[11px] px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 max-w-[160px]"
       >
-        <option value="">— pick field —</option>
+        <option value="">{t('drce.rule.pickField', '— pick field —')}</option>
         {bindings.map(b => (
           <option key={b.binding} value={b.binding}>{b.group}: {b.label}</option>
         ))}
@@ -224,7 +235,7 @@ function LeafEditor({
         onChange={e => switchOp(e.target.value as CompareOp)}
         className="text-[11px] px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
       >
-        {OPS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {OPS.map(o => <option key={o.value} value={o.value}>{opLabel(o)}</option>)}
       </select>
 
       {/* Right operand (skipped for unary ops) */}
@@ -237,10 +248,10 @@ function LeafEditor({
               else setRight('');
             }}
             className="text-[10px] px-1 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
-            title="literal value or another binding"
+            title={t('drce.rule.operandTitle', 'literal value or another binding')}
           >
-            <option value="__literal__">value</option>
-            <option value="__binding__">binding</option>
+            <option value="__literal__">{t('drce.rule.value', 'value')}</option>
+            <option value="__binding__">{t('drce.rule.binding', 'binding')}</option>
           </select>
           {rightIsBinding ? (
             <select
@@ -248,7 +259,7 @@ function LeafEditor({
               onChange={e => setRightFromBinding(e.target.value)}
               className="text-[11px] px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 max-w-[160px]"
             >
-              <option value="">— pick field —</option>
+              <option value="">{t('drce.rule.pickField', '— pick field —')}</option>
               {bindings.map(b => (
                 <option key={b.binding} value={b.binding}>{b.group}: {b.label}</option>
               ))}
@@ -259,9 +270,9 @@ function LeafEditor({
               value={literalToInput(right?.kind === 'literal' ? right.value : '')}
               onChange={e => setRight(parseInputLiteral(e.target.value, node.op))}
               placeholder={
-                node.op === 'in' || node.op === 'not_in' ? 'a, b, c'
-                : node.op === 'between' ? 'min, max'
-                : 'value'
+                node.op === 'in' || node.op === 'not_in' ? t('drce.rule.listPh', 'a, b, c')
+                : node.op === 'between' ? t('drce.rule.rangePh', 'min, max')
+                : t('drce.rule.valuePh', 'value')
               }
               className="text-[11px] px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 w-[110px]"
             />
@@ -273,7 +284,8 @@ function LeafEditor({
       <button
         type="button" onClick={() => onChange(null)}
         className="p-0.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"
-        title="Remove condition"
+        title={t('drce.rule.removeCondition', 'Remove condition')}
+        aria-label={t('drce.rule.removeCondition', 'Remove condition')}
       >
         <Trash2 size={11} />
       </button>

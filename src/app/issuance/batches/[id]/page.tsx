@@ -11,9 +11,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Eye, Sparkles, Printer, RefreshCw } from 'lucide-react';
 import type { IssuanceBatch, IssuanceItem } from '@/lib/issuance/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 export default function BatchDetailPage() {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const params  = useParams<{ id: string }>();
   const router  = useRouter();
   const batchId = Number(params.id);
@@ -29,10 +30,11 @@ export default function BatchDetailPage() {
     try {
       const r = await fetch(`/api/issuance/batches/${batchId}`);
       const d = await r.json();
-      if (!r.ok || !d?.success) throw new Error(d?.error || 'Failed to load');
-      setBatch(d.batch); setItems(d.items ?? []);
+      if (!r.ok || !d?.success) throw new Error(d?.error || '');
+      setBatch(d.batch); setItems(Array.isArray(d.items) ? d.items : []);
     } catch (e) {
-      setError((e as Error).message);
+      const m = (e as Error).message;
+      setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('issuancePages.loadFailed', "Failed to load")));
     } finally {
       setLoading(false);
     }
@@ -44,10 +46,11 @@ export default function BatchDetailPage() {
     try {
       const r = await fetch(`/api/issuance/batches/${batchId}/${verb}`, { method: 'POST' });
       const d = await r.json();
-      if (!r.ok || !d?.success) throw new Error(d?.error || `Failed to ${verb}`);
+      if (!r.ok || !d?.success) throw new Error(d?.error || '');
       await load();
     } catch (e) {
-      setError((e as Error).message);
+      const m = (e as Error).message;
+      setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('issuancePages.verbFailed', "The action could not be completed.")));
     } finally {
       setBusy(null);
     }
@@ -61,27 +64,27 @@ export default function BatchDetailPage() {
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-4">
       <div className="flex items-center gap-2">
-        <button onClick={() => router.back()} className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+        <button onClick={() => router.back()} title={t('issuancePages.back', "Back")} aria-label={t('issuancePages.back', "Back")} className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
           <ArrowLeft size={16} className="rtl-flip" />
         </button>
         <h1 className="text-xl font-bold text-slate-800 dark:text-white">{batch.name}</h1>
         <span className="text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wide font-semibold bg-indigo-50 text-indigo-700">
-          {batch.status}
+          {t(`issuancePages.st.${batch.status}`, batch.status)}
         </span>
       </div>
 
       {batch.counts && (
         <div className="flex items-center gap-3 text-xs text-slate-500">
-          <span><strong className="text-slate-700 dark:text-slate-200">{batch.counts.candidates}</strong> candidates</span>
+          <span><strong className="text-slate-700 dark:text-slate-200">{digits(batch.counts.candidates ?? 0)}</strong> {t('issuancePages.c.candidates', "candidates")}</span>
           <span>·</span>
-          <span><strong className="text-emerald-600">{batch.counts.eligible}</strong> eligible</span>
+          <span><strong className="text-emerald-600">{digits(batch.counts.eligible ?? 0)}</strong> {t('issuancePages.c.eligible', "eligible")}</span>
           <span>·</span>
-          <span><strong className="text-emerald-600">{batch.counts.issued}</strong> issued</span>
+          <span><strong className="text-emerald-600">{digits(batch.counts.issued ?? 0)}</strong> {t('issuancePages.c.issued', "issued")}</span>
           <span>·</span>
-          <span><strong className="text-slate-400">{batch.counts.skipped}</strong> skipped</span>
+          <span><strong className="text-slate-400">{digits(batch.counts.skipped ?? 0)}</strong> {t('issuancePages.c.skipped', "skipped")}</span>
           {batch.counts.errored > 0 && <>
             <span>·</span>
-            <span><strong className="text-rose-600">{batch.counts.errored}</strong> errored</span>
+            <span><strong className="text-rose-600">{digits(batch.counts.errored)}</strong> {t('issuancePages.c.errored', "errored")}</span>
           </>}
         </div>
       )}
@@ -100,7 +103,7 @@ export default function BatchDetailPage() {
         <button
           onClick={() => run('generate')}
           disabled={busy !== null || batch.status === 'draft'}
-          title={batch.status === 'draft' ? 'Run preview first' : ''}
+          title={batch.status === 'draft' ? t('issuancePages.previewFirst', "Run preview first") : ''}
           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {busy === 'generate' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -112,12 +115,12 @@ export default function BatchDetailPage() {
             target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded"
           >
-            <Printer size={12} /> {t('actions.print')} ({issuedCount})
+            <Printer size={12} /> {t('actions.print')} ({digits(issuedCount)})
           </a>
         )}
         <button
           onClick={() => load()}
-          className="ml-auto text-xs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+          className="ms-auto text-xs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
         >
           <RefreshCw size={11} /> {t('actions.refresh')}
         </button>
@@ -133,16 +136,16 @@ export default function BatchDetailPage() {
                 <ItemStatusPill status={it.status} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
-                    {snap?.fullName ?? `Recipient #${it.recipientId}`}
+                    {snap?.fullName ?? t('issuancePages.recipientN', { id: it.recipientId })}
                   </div>
                   <div className="text-[11px] text-slate-400">
                     {snap?.admissionNo} · {snap?.className}
-                    {it.skipReason  && <> · skipped: {it.skipReason}</>}
-                    {it.errorMessage && <> · error: {it.errorMessage}</>}
+                    {it.skipReason  && <> · {t('issuancePages.skippedReason', { reason: it.skipReason === 'eligibility rule returned false' ? t('issuancePages.reason.rule', it.skipReason) : it.skipReason === 'already issued under this run key' ? t('issuancePages.reason.runKey', it.skipReason) : it.skipReason })}</>}
+                    {it.errorMessage && <> · {t('issuancePages.errorReason', { reason: it.errorMessage })}</>}
                   </div>
                 </div>
                 {it.reprintCount > 0 && (
-                  <span className="text-[10px] text-slate-400">reprinted ×{it.reprintCount}</span>
+                  <span className="text-[10px] text-slate-400">{t('issuancePages.reprinted', { n: it.reprintCount })}</span>
                 )}
               </div>
             );
@@ -154,14 +157,15 @@ export default function BatchDetailPage() {
 }
 
 function ItemStatusPill({ status }: { status: IssuanceItem['status'] }) {
+  const { t } = useI18n();
   const map: Record<IssuanceItem['status'], { label: string; cls: string }> = {
-    eligible:  { label: 'eligible',  cls: 'bg-emerald-100 text-emerald-700' },
-    issued:    { label: 'issued',    cls: 'bg-indigo-100 text-indigo-700' },
-    reprinted: { label: 'reprinted', cls: 'bg-blue-100 text-blue-700' },
-    skipped:   { label: 'skipped',   cls: 'bg-slate-100 text-slate-500' },
-    errored:   { label: 'errored',   cls: 'bg-rose-100 text-rose-700' },
+    eligible:  { label: t('issuancePages.item.eligible', "eligible"),  cls: 'bg-emerald-100 text-emerald-700' },
+    issued:    { label: t('issuancePages.item.issued', "issued"),    cls: 'bg-indigo-100 text-indigo-700' },
+    reprinted: { label: t('issuancePages.item.reprinted', "reprinted"), cls: 'bg-blue-100 text-blue-700' },
+    skipped:   { label: t('issuancePages.item.skipped', "skipped"),   cls: 'bg-slate-100 text-slate-500' },
+    errored:   { label: t('issuancePages.item.errored', "errored"),   cls: 'bg-rose-100 text-rose-700' },
   };
-  const m = map[status];
+  const m = map[status] ?? { label: String(status), cls: 'bg-slate-100 text-slate-500' };
   return (
     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${m.cls}`}>
       {m.label}
