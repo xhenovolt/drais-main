@@ -6,6 +6,8 @@ import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { SnapshotSummaryCard } from '@/components/reports/SnapshotSummaryCard';
 import { SnapshotPreviewer } from '@/components/reports/SnapshotPreviewer';
 import type { ReportSnapshot, SnapshotType } from '@/lib/snapshots/types';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 interface PageProps {
   params: Promise<{ type: string; snapshotId: string }>;
@@ -15,6 +17,8 @@ const VALID_TYPES: SnapshotType[] = ['theology', 'secular', 'mixed'];
 
 export default function SnapshotPreviewPage({ params }: PageProps) {
   const { type, snapshotId } = use(params);
+  const { t, rich } = useI18n();
+  const [reloadKey, setReloadKey] = useState(0);
   const isValidType = VALID_TYPES.includes(type as SnapshotType);
 
   const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null);
@@ -22,7 +26,7 @@ export default function SnapshotPreviewPage({ params }: PageProps) {
 
   useEffect(() => {
     if (!isValidType) {
-      setError(`Invalid type "${type}"`);
+      setError(t('academicsPages.snapshotView.invalidType', { type }));
       return;
     }
     let cancelled = false;
@@ -35,17 +39,18 @@ export default function SnapshotPreviewPage({ params }: PageProps) {
       .then(json => {
         if (cancelled) return;
         if (!json?.snapshot) {
-          setError('Snapshot payload missing');
+          setError(t('academicsPages.snapshotView.payloadMissing', "Snapshot payload missing"));
           return;
         }
         setSnapshot(json.snapshot as ReportSnapshot);
       })
       .catch(e => {
         if (cancelled) return;
-        setError(e?.message || 'Failed to load snapshot');
+        const m = e?.message;
+        setError(m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.snapshotView.loadFailed', "Failed to load snapshot"));
       });
     return () => { cancelled = true; };
-  }, [snapshotId, isValidType, type]);
+  }, [snapshotId, isValidType, type, reloadKey]);
 
   const backHref = isValidType ? `/academics/report-cards/${type}` : '/academics/report-cards';
 
@@ -55,12 +60,12 @@ export default function SnapshotPreviewPage({ params }: PageProps) {
         href={backHref}
         className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
       >
-        <ArrowLeft className="w-4 h-4" /> Back
+        <ArrowLeft className="w-4 h-4 rtl:-scale-x-100" /> {t('academicsPages.snapshotView.back', "Back")}
       </Link>
 
       {!snapshot && !error && (
         <div className="flex items-center gap-2 text-sm text-slate-500 py-12">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading snapshot…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t('academicsPages.snapshotView.loading', "Loading snapshot…")}
         </div>
       )}
 
@@ -68,7 +73,7 @@ export default function SnapshotPreviewPage({ params }: PageProps) {
         <div className="rounded-lg border border-rose-200 bg-rose-50 dark:bg-rose-950/40 dark:border-rose-900 p-4 flex items-start gap-2 text-sm text-rose-700 dark:text-rose-300">
           <AlertTriangle className="w-4 h-4 mt-0.5" />
           <div>
-            <div className="font-semibold">Could not load snapshot</div>
+            <div className="font-semibold">{t('academicsPages.snapshotView.couldNotLoad', "Could not load snapshot")}</div>
             <div>{error}</div>
           </div>
         </div>
@@ -76,14 +81,14 @@ export default function SnapshotPreviewPage({ params }: PageProps) {
 
       {snapshot && snapshot.meta.type !== type && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
-          This snapshot was generated as <b>{snapshot.meta.type}</b>, not <b>{type}</b>.
+          {rich('academicsPages.snapshotView.typeMismatch', { actual: <b>{t(`academicsPages.snapshotView.type.${snapshot.meta.type}`, String(snapshot.meta.type))}</b>, wanted: <b>{t(`academicsPages.snapshotView.type.${type}`, String(type))}</b> })}
         </div>
       )}
 
       {snapshot && (
         <>
           <SnapshotSummaryCard snapshot={snapshot} />
-          <SnapshotPreviewer snapshot={snapshot} />
+          <SnapshotPreviewer snapshot={snapshot} onSnapshotChanged={() => setReloadKey(k => k + 1)} />
         </>
       )}
     </div>

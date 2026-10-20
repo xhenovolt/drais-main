@@ -13,6 +13,14 @@
  */
 import type { DRCESection, DRCESectionType, DRCETheme, DRCEDataContext } from './schema';
 
+/** What an inline cell edit refers to, so the host can map it to a snapshot field. */
+export interface CellEditMeta {
+  /** The column's data binding, e.g. 'result.initials' or 'result.comment'. */
+  binding?:   string;
+  /** Subject id of the edited results row, when the row is a subject result. */
+  subjectId?: number | string | null;
+}
+
 export interface SectionRenderProps {
   section:   DRCESection;
   theme:     DRCETheme;
@@ -20,7 +28,7 @@ export interface SectionRenderProps {
   /** Render context (school metadata, language); typed loosely to avoid a circular import. */
   renderCtx: { language?: 'en' | 'ar'; [k: string]: unknown };
   /** Results-table interactive callbacks. Only honoured by results_table. */
-  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string, meta?: CellEditMeta) => Promise<void>;
   onColumnHide?: (sectionId: string, columnId: string) => Promise<void>;
 }
 

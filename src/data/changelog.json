@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-19T17:21:59.220Z",
-  "last_commit": "8515a49efbc9514680bd73c96ff6a56b8d07b80c",
+  "generated_at": "2026-10-20T10:25:50.686Z",
+  "last_commit": "ce36d9e1d8698e015e77dc2a288f41e4880b5b22",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10437,7 +10437,20 @@
         }
       ],
       "commit": "8515a49efb"
+    },
+    {
+      "version": "2.50.140",
+      "date": "2026-10-19",
+      "release_type": "patch",
+      "title": "/academics/report-cards/manage (snapshot management + flush) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/report-cards/manage (snapshot management + flush) fully Arabic"
+        }
+      ],
+      "commit": "ce36d9e1d8"
     }
   ],
-  "app_version": "2.50.140"
+  "app_version": "2.50.141"
 }

@@ -146,6 +146,8 @@ export function snapshotToDRCEDataContext(
       : (r.grade ? String(r.grade).trim() : (r.score != null ? gradeForScore(r.score, false) : ''));
 
     return {
+      // Identity of the row for inline edits (unchanged by display renames).
+      subjectId:    r.subjectId,
       subjectName:  r.displaySubject || r.subjectName,
       midTermScore: null,
       endTermScore: r.score,

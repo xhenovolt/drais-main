@@ -63,7 +63,7 @@ interface Props {
   ctx: DRCEDataContext;
   renderCtx?: { isPrint?: boolean; editMode?: boolean; [k: string]: unknown };
   /** Optional callback when an editable cell is changed */
-  onCellChange?: (columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  onCellChange?: (columnId: string, rowIndex: number, newValue: string, meta?: { binding?: string; subjectId?: number | string | null }) => Promise<void>;
   /** Optional callback when a column should be hidden */
   onColumnHide?: (columnId: string) => Promise<void>;
 }
@@ -170,12 +170,13 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
     e: React.FocusEvent<HTMLTableCellElement>,
     columnId: string,
     rowIndex: number,
+    meta?: { binding?: string; subjectId?: number | string | null },
   ) => {
     const newValue = e.currentTarget.textContent?.trim() || '';
     if (onCellChange) {
       setIsSaving(true);
       try {
-        await onCellChange(columnId, rowIndex, newValue);
+        await onCellChange(columnId, rowIndex, newValue, meta);
       } catch (error) {
         console.error('Failed to save cell change:', error);
       } finally {
@@ -218,7 +219,7 @@ export function ResultsTableSection({ section, ctx, renderCtx, onCellChange, onC
             }}
             contentEditable={isEditable}
             suppressContentEditableWarning={isEditable}
-            onBlur={isEditable ? (e) => handleCellBlur(e, col.id, i) : undefined}
+            onBlur={isEditable ? (e) => handleCellBlur(e, col.id, i, { binding: col.binding, subjectId: row.subject?.id ?? row.subjectId ?? null }) : undefined}
             onFocus={() => isEditable && setEditingCell({ col: col.id, row: i })}
           >
             {cellValue}

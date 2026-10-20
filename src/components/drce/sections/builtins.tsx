@@ -132,7 +132,7 @@ registerSection({
       theme={p.theme}
       ctx={enhanced(p) as any}
       renderCtx={p.renderCtx}
-      onCellChange={p.onCellChange ? (columnId, rowIndex, newValue) => p.onCellChange!(p.section.id, columnId, rowIndex, newValue) : undefined}
+      onCellChange={p.onCellChange ? (columnId, rowIndex, newValue, meta) => p.onCellChange!(p.section.id, columnId, rowIndex, newValue, meta) : undefined}
       onColumnHide={p.onColumnHide ? (columnId) => p.onColumnHide!(p.section.id, columnId) : undefined}
     />) as any,
 });

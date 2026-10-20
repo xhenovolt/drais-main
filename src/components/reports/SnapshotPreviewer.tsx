@@ -18,9 +18,14 @@ import {
 import { OverridesPanel } from './OverridesPanel';
 import SnapshotAuditPanel from './SnapshotAuditPanel';
 import { resolveActiveTemplateId } from '@/lib/snapshots/active-template';
+import type { CellEditMeta } from '@/lib/drce/section-registry';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 export interface SnapshotPreviewerProps {
   snapshot: ReportSnapshot;
+  /** Called after an inline edit is saved into the snapshot, so the host can re-read it. */
+  onSnapshotChanged?: () => void;
 }
 
 type Mode = 'emergency' | 'drce';
@@ -51,7 +56,8 @@ const DEFAULT_DRCE_BY_TYPE: Record<SnapshotType, string> = {
  *   - 'drce':       skinned React render via DRCEDocumentRenderer using the
  *     active dvcf_documents document. Switch templates without regenerating.
  */
-export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
+export function SnapshotPreviewer({ snapshot, onSnapshotChanged }: SnapshotPreviewerProps) {
+  const { t, digits } = useI18n();
   const [classIdx, setClassIdx]     = useState<number>(0);
   const [studentIdx, setStudentIdx] = useState<number>(0);
   const [mode, setMode]             = useState<Mode>('emergency');
@@ -116,98 +122,35 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     return () => { cancelled = true; };
   }, [reloadOverrides]);
 
-  // Handle cell content changes with syncing for initials
-  const handleCellChange = async (sectionId: string, columnId: string, rowIndex: number, newValue: string) => {
-    if (!cls) return;
-
+  // Inline DRCE edit → the snapshot PATCH (the same path the emergency print view saves through).
+  // Initials sync across the class by subject; comments are per student, per subject row.
+  const handleCellChange = async (_sectionId: string, _columnId: string, _rowIndex: number, newValue: string, meta?: CellEditMeta) => {
+    if (!cls || !stu) return;
+    const binding = meta?.binding ?? '';
+    const subjectId = meta?.subjectId != null ? Number(meta.subjectId) : NaN;
+    let action: Record<string, unknown> | null = null;
+    if (binding === 'result.initials' && Number.isFinite(subjectId)) {
+      action = { classIdx, studentDbId: null, field: 'initials', subjectId, value: newValue };
+    } else if ((binding === 'result.comment' || binding === 'result.subjectComment') && Number.isFinite(subjectId)) {
+      const idx = stu.results.findIndex(r => r.subjectId === subjectId);
+      if (idx >= 0) action = { classIdx, studentDbId: stu.studentDbId, field: 'remarks', rowIndex: idx, value: newValue };
+    }
+    if (!action) { toast.error(t('academicsPages.snapshotView.notEditable', "This column can't be edited here — correct the marks in Results, then regenerate the snapshot.")); return; }
     try {
-      // Check if this is an initials column that should sync across all students
-      const isInitialsColumn = columnId.toLowerCase().includes('initial') || columnId.toLowerCase().includes('teacher');
-
-      if (isInitialsColumn) {
-        // Sync initials across all students in this class
-        const syncPromises = cls.students.map(async (student) => {
-          const override = {
-            kind: 'cell_content_edit' as const,
-            targetId: sectionId,
-            columnId,
-            rowIndex,
-            payload: { content: newValue },
-          };
-
-          return fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              studentDbId: student.studentDbId,
-              override,
-            }),
-          });
-        });
-
-        await Promise.all(syncPromises);
-        toast.success(`Initials updated for all ${cls.students.length} students in this class`);
-      } else {
-        // Regular cell edit for current student only
-        const override = {
-          kind: 'cell_content_edit' as const,
-          targetId: sectionId,
-          columnId,
-          rowIndex,
-          payload: { content: newValue },
-        };
-
-        const response = await fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentDbId: stu?.studentDbId,
-            override,
-          }),
-        });
-
-        if (response.ok) {
-          toast.success('Cell updated successfully');
-        } else {
-          toast.error('Failed to update cell');
-        }
-      }
-
-      // Reload overrides to reflect changes
-      await reloadOverrides();
+      const res = await fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ actions: [action] }),
+      });
+      if (!res.ok) { toast.error(t('academicsPages.snapshotView.cellFailed', "Failed to update cell")); return; }
+      toast.success(action.field === 'initials'
+        ? t('academicsPages.snapshotView.initialsSynced', { count: cls.students.length })
+        : t('academicsPages.snapshotView.cellUpdated', "Cell updated successfully"));
+      onSnapshotChanged?.();
     } catch (error) {
       console.error('Error updating cell:', error);
-      toast.error('Failed to update cell');
-    }
-  };
-
-  // Handle column hiding
-  const handleColumnHide = async (sectionId: string, columnId: string) => {
-    try {
-      const override = {
-        kind: 'hide_column' as const,
-        targetId: sectionId,
-        columnId,
-      };
-
-      const response = await fetch(`/api/snapshots/${encodeURIComponent(snapshot.meta.snapshotId)}/overrides`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentDbId: null, // Apply to all students in the snapshot
-          override,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success(`Column "${columnId}" hidden successfully`);
-        await reloadOverrides();
-      } else {
-        toast.error('Failed to hide column');
-      }
-    } catch (error) {
-      console.error('Error hiding column:', error);
-      toast.error('Failed to hide column');
+      toast.error(t('academicsPages.snapshotView.cellFailed', "Failed to update cell"));
     }
   };
 
@@ -313,11 +256,11 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             detail = j.message || j.error || detail;
             if (j.hint) detail += ` — ${j.hint}`;
           } else {
-            const t = await res.text();
-            if (t) detail = t.slice(0, 300);
+            const txt = await res.text();
+            if (txt) detail = txt.slice(0, 300);
           }
         } catch { /* fall through with statusText */ }
-        toast.error(`PDF failed (${res.status}): ${detail}`, { duration: 8000 });
+        toast.error(t('academicsPages.snapshotView.pdfFailed', { status: res.status, detail: uiIsArabic() && isEnglishText(detail) ? '—' : detail }), { duration: 8000 });
         return;
       }
       const blob = await res.blob();
@@ -332,7 +275,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
     } catch (e: any) {
       // Network-level failure (dev server crashed, lost connection).
       // This is the "site can't be reached" case in toast form.
-      toast.error(`Network error: ${e?.message || 'unknown'} — is the dev server still running?`, { duration: 8000 });
+      toast.error(t('academicsPages.snapshotView.pdfNetwork', "Network error while building the PDF. Check your connection and try again."), { duration: 8000 });
     } finally {
       setPdfBusy(false);
     }
@@ -357,21 +300,22 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
       .then(json => {
         if (cancelled) return;
         if (json?.document) setDrceDoc(json.document as DRCEDocument);
-        else setDrceError('No active DRCE template configured');
+        else setDrceError(t('academicsPages.snapshotView.noDrce', "No active DRCE template configured"));
         setDrceLoading(false);
       })
       .catch(e => {
         if (cancelled) return;
-        setDrceError(e?.message || 'Failed to load DRCE template');
+        setDrceError(t('academicsPages.snapshotView.drceLoadFailed', "Failed to load DRCE template"));
         setDrceLoading(false);
       });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, drceTemplateId]);
 
   if (classes.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-sm text-slate-500">
-        This snapshot contains no classes.
+        {t('academicsPages.snapshotView.noClasses', "This snapshot contains no classes.")}
       </div>
     );
   }
@@ -384,9 +328,10 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             onClick={() => setClassIdx(i => Math.max(0, i - 1))}
             disabled={classIdx === 0}
             className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30"
-            aria-label="Previous class"
+            aria-label={t('academicsPages.snapshotView.prevClass', "Previous class")}
+            title={t('academicsPages.snapshotView.prevClass', "Previous class")}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:-scale-x-100" />
           </button>
           <select
             value={classIdx}
@@ -395,7 +340,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
           >
             {classes.map((c, i) => (
               <option key={c.classId} value={i}>
-                {c.className} ({c.students.length} students)
+                {t('academicsPages.snapshotView.classOpt', { name: c.className, count: c.students.length })}
               </option>
             ))}
           </select>
@@ -403,9 +348,10 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             onClick={() => setClassIdx(i => Math.min(classes.length - 1, i + 1))}
             disabled={classIdx === classes.length - 1}
             className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30"
-            aria-label="Next class"
+            aria-label={t('academicsPages.snapshotView.nextClass', "Next class")}
+            title={t('academicsPages.snapshotView.nextClass', "Next class")}
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:-scale-x-100" />
           </button>
 
           {mode === 'drce' && cls && (
@@ -416,7 +362,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
             >
               {cls.students.map((s, i) => (
                 <option key={s.studentDbId} value={i}>
-                  #{s.position} · {s.name}
+                  {digits(`#${s.position}`)} · {s.name}
                 </option>
               ))}
             </select>
@@ -429,7 +375,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               value={emergencyTemplateId}
               onChange={e => setEmergencyTemplateId(e.target.value)}
               className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
-              title="Pick a template"
+              title={t('academicsPages.snapshotView.pickTemplate', "Pick a template")}
             >
               {(['emergency','arabic','legacy_rpt'] as const).map(cat => {
                 const opts = emergencyOptions.filter(t => t.category === cat);
@@ -438,13 +384,13 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
                   <optgroup
                     key={cat}
                     label={
-                      cat === 'emergency'  ? 'Emergency' :
-                      cat === 'arabic'     ? 'Arabic / RTL' :
-                                             'Legacy rpt.html'
+                      cat === 'emergency'  ? t('academicsPages.snapshotView.cat.emergency', "Emergency") :
+                      cat === 'arabic'     ? t('academicsPages.snapshotView.cat.arabic', "Arabic / RTL") :
+                                             t('academicsPages.snapshotView.cat.legacy', "Legacy rpt.html")
                     }
                   >
-                    {opts.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                    {opts.map(tpl => (
+                      <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
                     ))}
                   </optgroup>
                 );
@@ -459,12 +405,12 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               value={drceTemplateId}
               onChange={e => setDrceTemplateId(e.target.value)}
               className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
-              title="Pick a DRCE template"
+              title={t('academicsPages.snapshotView.pickDrce', "Pick a DRCE template")}
             >
-              <option value="">— school default —</option>
-              {drceOptions.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.isDefault ? ' (default)' : ''}
+              <option value="">{t('academicsPages.snapshotView.schoolDefault', "— school default —")}</option>
+              {drceOptions.map(tpl => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name}{tpl.isDefault ? t('academicsPages.snapshotView.defaultTag', " (default)") : ''}
                 </option>
               ))}
             </select>
@@ -474,13 +420,13 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               onClick={() => setMode('emergency')}
               className={`px-2.5 py-1 ${mode === 'emergency' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
-              Emergency
+              {t('academicsPages.snapshotView.modeEmergency', "Emergency")}
             </button>
             <button
               onClick={() => setMode('drce')}
               disabled={drceOptions.length === 0}
               className={`px-2.5 py-1 inline-flex items-center gap-1 ${mode === 'drce' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'} disabled:opacity-40 disabled:cursor-not-allowed`}
-              title={drceOptions.length === 0 ? 'No DRCE template configured' : 'DRCE renderer'}
+              title={drceOptions.length === 0 ? t('academicsPages.snapshotView.noDrceTitle', "No DRCE template configured") : t('academicsPages.snapshotView.drceTitle', "DRCE renderer")}
             >
               <Layers className="w-3.5 h-3.5" /> DRCE
             </button>
@@ -501,29 +447,30 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
               }, 120);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-blue-600 text-white hover:bg-blue-700"
-            title={mode === 'drce' ? 'Open printable DRCE view in this panel' : 'Open printable emergency view in this panel'}
+            title={mode === 'drce' ? t('academicsPages.snapshotView.printDrceTitle', "Open printable DRCE view in this panel") : t('academicsPages.snapshotView.printEmTitle', "Open printable emergency view in this panel")}
           >
-            <Printer className="w-4 h-4" /> Print
+            <Printer className="w-4 h-4" /> {t('academicsPages.snapshotView.print', "Print")}
           </button>
           <button
             type="button"
             onClick={() => setShowAudit(s => !s)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-yellow-600 text-white hover:bg-yellow-700"
-            title="Show generation audit metadata"
+            title={t('academicsPages.snapshotView.auditTitle', "Show generation audit metadata")}
+            aria-pressed={showAudit}
           >
-            Audit
+            {t('academicsPages.snapshotView.audit', "Audit")}
           </button>
           <button
             type="button"
             onClick={downloadPdf}
             disabled={pdfBusy}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
-            title="Download a PDF rendered server-side (preserves multi-page DRCE layout)."
+            title={t('academicsPages.snapshotView.pdfTitle', "Download a PDF rendered server-side (preserves multi-page DRCE layout).")}
           >
             {pdfBusy
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Printer className="w-4 h-4" />}
-            {pdfBusy ? 'Building PDF…' : 'PDF'}
+            {pdfBusy ? t('academicsPages.snapshotView.buildingPdf', "Building PDF…") : t('academicsPages.snapshotView.pdf', "PDF")}
           </button>
           {(mode === 'drce' || mode === 'emergency') && (
             <button
@@ -533,21 +480,19 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-600 text-white hover:bg-gray-700'
               }`}
-              title={isEditMode ? 'Exit edit mode' : 'Enter edit mode to modify report content'}
+              title={isEditMode ? t('academicsPages.snapshotView.exitEdit', "Exit edit mode") : t('academicsPages.snapshotView.enterEdit', "Enter edit mode to modify report content")}
             >
-              {isEditMode ? '✏️ Editing' : '✏️ Edit'}
+              {isEditMode ? t('academicsPages.snapshotView.editing', "✏️ Editing") : t('academicsPages.snapshotView.edit', "✏️ Edit")}
             </button>
           )}
         </div>
       </div>
 
+      {showAudit && <SnapshotAuditPanel key={classIdx} snapshot={snapshot} classIdx={classIdx} />}
+
       {(mode === 'drce' || mode === 'emergency') && (
         <div className="px-4 pb-4 text-xs text-slate-600 dark:text-slate-400">
-          {isEditMode ? (
-            'Edit mode is on. Click any result cell — subject comments, initials, scores or grades — to type a correction in place; it saves back to this snapshot on blur. Initials/teacher columns sync across the whole class.'
-          ) : (
-            'Inline editing is available in both DRCE and emergency preview modes. Click Edit, then click any result cell to change it in place.'
-          )}
+          {isEditMode ? t('academicsPages.snapshotView.editOn', "Edit mode is on. Click any result cell — subject comments, initials, scores or grades — to type a correction in place; it saves back to this snapshot on blur. Initials/teacher columns sync across the whole class.") : t('academicsPages.snapshotView.editOff', "Inline editing is available in both DRCE and emergency preview modes. Click Edit, then click any result cell to change it in place.")}
         </div>
       )}
 
@@ -555,7 +500,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
         <iframe
           key={previewSrc}
           src={previewSrc}
-          title={`Snapshot preview — ${cls?.className}`}
+          title={t('academicsPages.snapshotView.previewTitle', { name: cls?.className ?? '' })}
           className="w-full"
           style={{ height: '80vh', minHeight: 600, border: 0 }}
         />
@@ -565,12 +510,12 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
         <div className="bg-slate-100 dark:bg-slate-900 overflow-auto" style={{ minHeight: 600 }}>
           {drceLoading && (
             <div className="flex items-center gap-2 text-sm text-slate-500 py-12 justify-center">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading DRCE template…
+              <Loader2 className="w-4 h-4 animate-spin" /> {t('academicsPages.snapshotView.loadingDrce', "Loading DRCE template…")}
             </div>
           )}
           {drceError && !drceLoading && (
             <div className="m-4 rounded border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-700 dark:text-rose-300">
-              {drceError}. The Emergency view above is always available.
+              {t('academicsPages.snapshotView.emergencyAvailable', { err: drceError })}
             </div>
           )}
           {drceDoc && cls && stu && (() => {
@@ -620,7 +565,7 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
                       isRTL:    snapshot.meta.numerals === 'arabic',
                     }}
                     onCellChange={isEditMode ? handleCellChange : undefined}
-                    onColumnHide={isEditMode ? handleColumnHide : undefined}
+                    onColumnHide={undefined}
                   />
                 </div>
                 <div className="lg:sticky lg:top-4 self-start">
@@ -643,15 +588,16 @@ export function SnapshotPreviewer({ snapshot }: SnapshotPreviewerProps) {
 }
 
 function CategoryBadge({ category }: { category: RegistryEntry['category'] }) {
+  const { t } = useI18n();
   const map: Record<RegistryEntry['category'], { label: string; cls: string }> = {
-    standard:   { label: 'Standard',   cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
-    emergency:  { label: 'Emergency',  cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' },
-    legacy_rpt: { label: 'Legacy rpt', cls: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200' },
-    drce:       { label: 'DRCE',       cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' },
-    arabic:     { label: 'Arabic',     cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' },
-    custom:     { label: 'Custom',     cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200' },
+    standard:   { label: t('academicsPages.snapshotView.badge.standard', "Standard"),   cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
+    emergency:  { label: t('academicsPages.snapshotView.badge.emergency', "Emergency"),  cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' },
+    legacy_rpt: { label: t('academicsPages.snapshotView.badge.legacy_rpt', "Legacy rpt"), cls: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200' },
+    drce:       { label: t('academicsPages.snapshotView.badge.drce', "DRCE"),       cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' },
+    arabic:     { label: t('academicsPages.snapshotView.badge.arabic', "Arabic"),     cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' },
+    custom:     { label: t('academicsPages.snapshotView.badge.custom', "Custom"),     cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200' },
   };
-  const v = map[category];
+  const v = map[category] ?? map.custom;
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${v.cls}`}>
       {v.label}

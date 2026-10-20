@@ -12,7 +12,7 @@ import type { DRCERenderContext } from './types';
 // Side-effect import: registers the 11 built-in section plugins on load.
 // Adding a new section type means registering it from elsewhere — no edits here.
 import './sections/builtins';
-import { getSectionPlugin } from '@/lib/drce/section-registry';
+import { getSectionPlugin, type CellEditMeta } from '@/lib/drce/section-registry';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
 import { evaluateRule } from '@/lib/drce/visibility';
 import { resolveAssessmentForSection } from '@/lib/drce/assessmentUtils';
@@ -30,7 +30,7 @@ interface Props {
   /** ID of the currently selected section (highlights it) */
   selectedSectionId?: string | null;
   /** Called when a cell content is changed */
-  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string, meta?: CellEditMeta) => Promise<void>;
   /** Called when a column should be hidden */
   onColumnHide?: (sectionId: string, columnId: string) => Promise<void>;
 }
@@ -40,14 +40,14 @@ function renderSection(
   doc: DRCEDocument,
   dataCtx: DRCEDataContext,
   renderCtx: DRCERenderContext,
-  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>,
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string, meta?: CellEditMeta) => Promise<void>,
   onColumnHide?: (sectionId: string, columnId: string) => Promise<void>,
 ) {
   if (!section || !doc || !dataCtx || !renderCtx) {
     console.warn('[renderSection] Missing required context:', { section: !!section, doc: !!doc, dataCtx: !!dataCtx, renderCtx: !!renderCtx });
     return null;
   }
-  
+
   const { theme } = doc;
   const plugin = getSectionPlugin(section.type);
   if (!plugin) {
@@ -168,7 +168,7 @@ function DRCEDocumentRendererInner({
   if (!document)  { console.error('[DRCEDocumentRenderer] document is missing');  return null; }
   if (!dataCtx)   { console.error('[DRCEDocumentRenderer] dataCtx is missing');   return null; }
   if (!renderCtx) { console.error('[DRCEDocumentRenderer] renderCtx is missing'); return null; }
-  
+
   const { theme, watermark, sections, pages } = document;
   const effectiveLanguage = renderCtx.language ?? inferDocumentLanguage(document);
   const effectiveDirection = renderCtx.isRTL === true ? 'rtl' : inferDocumentDirection(document, effectiveLanguage);
@@ -809,7 +809,7 @@ interface MemoProps {
   renderCtx:   DRCERenderContext;
   isSelected:  boolean;
   onClick?:    (id: string) => void;
-  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string) => Promise<void>;
+  onCellChange?: (sectionId: string, columnId: string, rowIndex: number, newValue: string, meta?: CellEditMeta) => Promise<void>;
   onColumnHide?: (sectionId: string, columnId: string) => Promise<void>;
 }
 

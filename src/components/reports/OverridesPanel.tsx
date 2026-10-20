@@ -8,6 +8,8 @@ import type {
   RenderOverride,
   OverrideKind,
 } from '@/lib/drce/overrides';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 export interface OverridesPanelProps {
   snapshotId:    string;
@@ -39,6 +41,8 @@ export interface OverridesPanelProps {
  */
 export function OverridesPanel(props: OverridesPanelProps) {
   const { snapshotId, document, overrides, studentDbId, subjects, onChanged } = props;
+  const { t, formatDate } = useI18n();
+  const when = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? s : formatDate(d, 'datetime'); };
   const [busy, setBusy] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +93,7 @@ export function OverridesPanel(props: OverridesPanelProps) {
       if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
       onChanged();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Write failed');
+      setError((e instanceof Error && e.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('academicsPages.overrides.writeFailed', "Write failed")));
     } finally {
       setBusy(false);
     }
@@ -108,7 +112,7 @@ export function OverridesPanel(props: OverridesPanelProps) {
       }
       onChanged();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Delete failed');
+      setError((e instanceof Error && e.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('academicsPages.overrides.deleteFailed', "Delete failed")));
     } finally {
       setBusy(false);
     }
@@ -139,7 +143,7 @@ export function OverridesPanel(props: OverridesPanelProps) {
 
   async function clearStudentOverrides() {
     if (studentDbId === null) return;
-    if (!confirm('Remove every override applied to this student?')) return;
+    if (!confirm(t('academicsPages.overrides.confirmClear', "Remove every override applied to this student?"))) return;
     setBusy(true); setError(null);
     try {
       const res = await fetch(
@@ -152,7 +156,7 @@ export function OverridesPanel(props: OverridesPanelProps) {
       }
       onChanged();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Clear failed');
+      setError((e instanceof Error && e.message && !(uiIsArabic() && isEnglishText(e.message)) ? e.message : t('academicsPages.overrides.clearFailed', "Clear failed")));
     } finally {
       setBusy(false);
     }
@@ -166,9 +170,9 @@ export function OverridesPanel(props: OverridesPanelProps) {
       >
         <span className="inline-flex items-center gap-1.5 font-medium">
           <Layers className="w-4 h-4" />
-          Overrides
+          {t('academicsPages.overrides.title', "Overrides")}
           <span className="text-xs text-slate-500">
-            ({activeForStudent.length} active{studentDbId !== null ? ' for this student' : ''})
+            {t(studentDbId !== null ? 'academicsPages.overrides.activeStudent' : 'academicsPages.overrides.active', { n: activeForStudent.length })}
           </span>
         </span>
         {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -183,9 +187,9 @@ export function OverridesPanel(props: OverridesPanelProps) {
           )}
 
           {/* — Sections — */}
-          <Group title="Document sections" hint="Toggles apply to every learner.">
+          <Group title={t('academicsPages.overrides.sections', "Document sections")} hint={t('academicsPages.overrides.sectionsHint', "Toggles apply to every learner.")}>
             {document.sections.length === 0 && (
-              <div className="text-xs text-slate-500">No sections in this template.</div>
+              <div className="text-xs text-slate-500">{t('academicsPages.overrides.noSections', "No sections in this template.")}</div>
             )}
             {document.sections.map(s => (
               <SectionRow
@@ -202,16 +206,14 @@ export function OverridesPanel(props: OverridesPanelProps) {
 
           {/* — Subjects (per-student) — */}
           <Group
-            title="Subjects (this student)"
-            hint={studentDbId === null
-              ? 'Pick a student to scope overrides per learner.'
-              : 'Hidden subjects are removed from this student\'s results only.'}
+            title={t('academicsPages.overrides.subjects', "Subjects (this student)")}
+            hint={studentDbId === null ? t('academicsPages.overrides.pickStudent', "Pick a student to scope overrides per learner.") : t('academicsPages.overrides.subjectsHint', "Hidden subjects are removed from this student's results only.")}
           >
             {studentDbId === null && (
-              <div className="text-xs text-slate-500">No student selected.</div>
+              <div className="text-xs text-slate-500">{t('academicsPages.overrides.noStudent', "No student selected.")}</div>
             )}
             {studentDbId !== null && subjects.length === 0 && (
-              <div className="text-xs text-slate-500">This student has no subject results.</div>
+              <div className="text-xs text-slate-500">{t('academicsPages.overrides.noResults', "This student has no subject results.")}</div>
             )}
             {studentDbId !== null && subjects.map(subj => {
               const sid = String(subj.id);
@@ -231,8 +233,8 @@ export function OverridesPanel(props: OverridesPanelProps) {
 
           {/* — Active overrides list — */}
           <Group
-            title="Active overrides"
-            hint="Snapshot-wide entries apply to every learner; per-student entries are scoped."
+            title={t('academicsPages.overrides.activeTitle', "Active overrides")}
+            hint={t('academicsPages.overrides.activeHint', "Snapshot-wide entries apply to every learner; per-student entries are scoped.")}
             trailing={
               studentDbId !== null && activeForStudent.length > 0 ? (
                 <button
@@ -240,13 +242,13 @@ export function OverridesPanel(props: OverridesPanelProps) {
                   disabled={busy}
                   className="inline-flex items-center gap-1 text-xs text-rose-600 hover:underline disabled:opacity-50"
                 >
-                  <RotateCcw className="w-3 h-3" /> Reset student
+                  <RotateCcw className="w-3 h-3" /> {t('academicsPages.overrides.reset', "Reset student")}
                 </button>
               ) : null
             }
           >
             {activeForStudent.length === 0 && (
-              <div className="text-xs text-slate-500">No overrides in scope.</div>
+              <div className="text-xs text-slate-500">{t('academicsPages.overrides.none', "No overrides in scope.")}</div>
             )}
             {activeForStudent.map(o => (
               <ActiveOverrideRow
@@ -254,6 +256,8 @@ export function OverridesPanel(props: OverridesPanelProps) {
                 override={o}
                 disabled={busy}
                 onRemove={() => deleteOverrideRow(o.id)}
+                t={t}
+                when={when}
               />
             ))}
           </Group>
@@ -291,9 +295,10 @@ function SectionRow(props: {
   disabled: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <ToggleRow
-      label={`${prettifySectionType(props.section.type)} · ${props.section.id}`}
+      label={`${t(`academicsPages.overrides.section.${props.section.type}`, prettifySectionType(props.section.type))} · ${props.section.id}`}
       hidden={props.hidden}
       disabled={props.disabled}
       onToggle={props.onToggle}
@@ -311,7 +316,7 @@ function ToggleRow(props: {
     <button
       onClick={props.onToggle}
       disabled={props.disabled}
-      className={`w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-900 disabled:opacity-50 ${
+      className={`w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-start text-xs hover:bg-slate-100 dark:hover:bg-slate-900 disabled:opacity-50 ${
         props.hidden ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'
       }`}
     >
@@ -327,25 +332,30 @@ function ActiveOverrideRow(props: {
   override: PersistedOverride;
   disabled: boolean;
   onRemove: () => void;
+  t: (k: string, v?: any, f?: string) => string;
+  when: (s: string) => string;
 }) {
+  const { t } = props;
   const o = props.override;
   return (
     <div className="flex items-center justify-between gap-2 px-2 py-1 rounded text-xs hover:bg-slate-50 dark:hover:bg-slate-900">
       <div className="min-w-0">
         <div className="truncate">
-          <span className="font-medium">{prettifyKind(o.override.kind)}</span>
+          <span className="font-medium">{t(`academicsPages.overrides.kind.${o.override.kind}`, prettifyKind(o.override.kind))}</span>
           <span className="text-slate-500"> · </span>
           <span className="text-slate-600 dark:text-slate-400">{o.override.targetId}</span>
         </div>
         <div className="text-[10px] text-slate-400">
-          {o.studentDbId === null ? 'snapshot-wide' : `student #${o.studentDbId}`}
+          {o.studentDbId === null ? t('academicsPages.overrides.wide', "snapshot-wide") : t('academicsPages.overrides.studentN', { id: o.studentDbId })}
           {' · '}
-          {new Date(o.createdAt).toLocaleString()}
+          {props.when(o.createdAt)}
         </div>
       </div>
       <button
         onClick={props.onRemove}
         disabled={props.disabled}
+        title={t('academicsPages.overrides.remove', "Remove")}
+        aria-label={t('academicsPages.overrides.remove', "Remove")}
         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-50"
       >
         <Trash2 className="w-3 h-3" />
@@ -366,5 +376,6 @@ function prettifyKind(k: OverrideKind): string {
     case 'style_patch':   return 'Style patch';
     case 'text_replace':  return 'Text replace';
     case 'spacing_patch': return 'Spacing patch';
+    default:              return String(k);
   }
 }
