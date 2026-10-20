@@ -11,6 +11,8 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Library, Plus, Trash2, Loader2, Save, X, Globe, Lock } from 'lucide-react';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 type Kind = 'header' | 'footer' | 'comment_rules' | 'custom';
 
@@ -37,6 +39,7 @@ const TEMPLATE_SECTION = (name: string): Record<string, unknown> => ({
 });
 
 export default function BlockLibraryPage() {
+  const { t, rich, formatDate } = useI18n();
   const [blocks, setBlocks] = useState<BlockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,9 +51,9 @@ export default function BlockLibraryPage() {
     try {
       const res = await fetch('/api/drce/blocks');
       const data = await res.json();
-      if (!res.ok || !data?.success) { setError(data?.error ?? 'Failed to load'); return; }
-      setBlocks(data.blocks ?? []);
-    } catch { setError('Network error'); }
+      if (!res.ok || !data?.success) { const m = data?.error; setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('drce.blockLib.loadFailed', "Failed to load"))); return; }
+      setBlocks(Array.isArray(data.blocks) ? data.blocks : []);
+    } catch { setError(t('drce.blockLib.network', "Network error")); }
     finally { setLoading(false); }
   }
 
@@ -58,10 +61,10 @@ export default function BlockLibraryPage() {
 
   async function remove(b: BlockRow) {
     if (b.school_id === null) return;
-    if (!window.confirm(`Delete block "${b.name}"? Documents that reference it will render an empty spacer instead.`)) return;
+    if (!window.confirm(t('drce.blockLib.confirmDelete', { name: b.name }))) return;
     const res = await fetch(`/api/drce/blocks/${b.id}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok || !data?.success) { setError(data?.error ?? 'Delete failed'); return; }
+    if (!res.ok || !data?.success) { const m = data?.error; setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('drce.blockLib.deleteFailed', "Delete failed"))); return; }
     reload();
   }
 
@@ -73,14 +76,14 @@ export default function BlockLibraryPage() {
             <Library className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-800 dark:text-white">Block library</h1>
-            <p className="text-xs text-slate-400">Reusable section subtrees referenced by documents via <code>block_ref</code>. Editing a block updates everywhere it's used.</p>
+            <h1 className="text-lg font-bold text-slate-800 dark:text-white">{t('drce.blockLib.title', "Block library")}</h1>
+            <p className="text-xs text-slate-400">{rich('drce.blockLib.subtitle', { code: <code dir="ltr">block_ref</code> })}</p>
           </div>
         </div>
         <button
           onClick={() => setCreating(true)}
           className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm">
-          <Plus className="w-3.5 h-3.5" /> New block
+          <Plus className="w-3.5 h-3.5" /> {t('drce.blockLib.newBlock', "New block")}
         </button>
       </header>
 
@@ -90,13 +93,13 @@ export default function BlockLibraryPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-400 py-12 justify-center">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t('drce.blockLib.loading', "Loading…")}
         </div>
       ) : blocks.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
           <Library className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">No blocks yet.</p>
-          <p className="text-xs text-slate-400 mt-1">Create one to start building a header / footer / comment library.</p>
+          <p className="text-sm text-slate-500">{t('drce.blockLib.none', "No blocks yet.")}</p>
+          <p className="text-xs text-slate-400 mt-1">{t('drce.blockLib.noneHelp', "Create one to start building a header / footer / comment library.")}</p>
         </div>
       ) : (
         <div className="grid gap-2">
@@ -110,23 +113,24 @@ export default function BlockLibraryPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{b.name}</p>
-                  <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">{b.kind}</span>
-                  {b.school_id === null && <span className="text-[10px] uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded">global</span>}
+                  <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">{t(`drce.blockLib.kind.${b.kind}`, b.kind)}</span>
+                  {b.school_id === null && <span className="text-[10px] uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded">{t('drce.blockLib.global', "global")}</span>}
                 </div>
                 {b.description && <p className="text-[11px] text-slate-400 truncate">{b.description}</p>}
-                <p className="text-[10px] text-slate-400 mt-0.5">#{b.id} · updated {b.updated_at ? new Date(b.updated_at).toLocaleString() : '—'}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{t('drce.blockLib.meta', { id: b.id, when: b.updated_at ? formatDate(new Date(b.updated_at), 'datetime') : '—' })}</p>
               </div>
               <button
                 onClick={() => setEditing(b)}
                 disabled={b.school_id === null}
-                title={b.school_id === null ? 'Global blocks are read-only here' : 'Edit'}
+                title={b.school_id === null ? t('drce.blockLib.globalReadOnly', "Global blocks are read-only here") : t('drce.blockLib.edit', "Edit")}
                 className="px-2 py-1 text-xs rounded-md text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-40 disabled:hover:bg-transparent">
-                Edit
+                {t('drce.blockLib.edit', "Edit")}
               </button>
               <button
                 onClick={() => remove(b)}
                 disabled={b.school_id === null}
-                title={b.school_id === null ? 'Global blocks cannot be deleted' : 'Delete'}
+                title={b.school_id === null ? t('drce.blockLib.globalNoDelete', "Global blocks cannot be deleted") : t('drce.blockLib.delete', "Delete")}
+                aria-label={t('drce.blockLib.delete', "Delete")}
                 className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 disabled:opacity-40 disabled:hover:bg-transparent">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -151,6 +155,7 @@ function BlockEditor({ block, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const isEdit = !!block;
   const [name, setName]               = useState(block?.name ?? '');
   const [description, setDescription] = useState(block?.description ?? '');
@@ -165,9 +170,9 @@ function BlockEditor({ block, onClose, onSaved }: {
     setError('');
     let section;
     try { section = JSON.parse(sectionJson); }
-    catch (e) { setError(`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`); return; }
-    if (!section?.type) { setError('Section must have a "type" field'); return; }
-    if (!name.trim())   { setError('Name is required'); return; }
+    catch (e) { setError(t('drce.blockLib.invalidJson', { msg: e instanceof Error ? e.message : String(e) })); return; }
+    if (!section?.type) { setError(t('drce.blockLib.needType', "Section must have a \"type\" field")); return; }
+    if (!name.trim())   { setError(t('drce.blockLib.nameRequired', "Name is required")); return; }
     setSaving(true);
     try {
       const url = isEdit ? `/api/drce/blocks/${block!.id}` : '/api/drce/blocks';
@@ -177,9 +182,9 @@ function BlockEditor({ block, onClose, onSaved }: {
         body: JSON.stringify({ name: name.trim(), description: description.trim(), kind, section }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.success) { setError(data?.error ?? 'Save failed'); return; }
+      if (!res.ok || !data?.success) { const m = data?.error; setError((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('drce.blockLib.saveFailed', "Save failed"))); return; }
       onSaved();
-    } catch { setError('Network error'); }
+    } catch { setError(t('drce.blockLib.network', "Network error")); }
     finally { setSaving(false); }
   }
 
@@ -187,8 +192,8 @@ function BlockEditor({ block, onClose, onSaved }: {
     <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 backdrop-blur-sm pt-[6vh] px-4" onMouseDown={onClose}>
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[88vh]" onMouseDown={e => e.stopPropagation()}>
         <header className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="text-sm font-bold text-slate-800 dark:text-white">{isEdit ? `Edit block #${block!.id}` : 'New block'}</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+          <h2 className="text-sm font-bold text-slate-800 dark:text-white">{isEdit ? t('drce.blockLib.editTitle', { id: block!.id }) : t('drce.blockLib.newBlock', "New block")}</h2>
+          <button onClick={onClose} title={t('drce.blockLib.close', "Close")} aria-label={t('drce.blockLib.close', "Close")} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
             <X className="w-4 h-4" />
           </button>
         </header>
@@ -197,37 +202,37 @@ function BlockEditor({ block, onClose, onSaved }: {
           {error && <div className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-lg px-3 py-2">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Name</span>
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('drce.blockLib.name', "Name")}</span>
               <input value={name} onChange={e => setName(e.target.value)}
                 className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
             </label>
             <label className="block">
-              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Kind</span>
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('drce.blockLib.kindLabel', "Kind")}</span>
               <select value={kind} onChange={e => setKind(e.target.value as Kind)}
                 className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm outline-none">
-                {KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+                {KINDS.map(k => <option key={k} value={k}>{t(`drce.blockLib.kind.${k}`, k)}</option>)}
               </select>
             </label>
           </div>
           <label className="block">
-            <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Description</span>
+            <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('drce.blockLib.description', "Description")}</span>
             <input value={description} onChange={e => setDescription(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm outline-none" />
           </label>
           <label className="block">
-            <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Section JSON</span>
-            <textarea value={sectionJson} onChange={e => setSectionJson(e.target.value)} rows={16} spellCheck={false}
+            <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('drce.blockLib.json', "Section JSON")}</span>
+            <textarea dir="ltr" value={sectionJson} onChange={e => setSectionJson(e.target.value)} rows={16} spellCheck={false}
               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-mono outline-none focus:ring-2 focus:ring-indigo-500" />
-            <span className="text-[10px] text-slate-400">A DRCESection (typically a container with children). Paste from an existing document or hand-author.</span>
+            <span className="text-[10px] text-slate-400">{t('drce.blockLib.jsonHelp', "A DRCESection (typically a container with children). Paste from an existing document or hand-author.")}</span>
           </label>
         </div>
 
         <footer className="flex justify-end gap-2 px-4 py-3 border-t border-slate-100 dark:border-slate-800">
-          <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Cancel</button>
+          <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">{t('drce.blockLib.cancel', "Cancel")}</button>
           <button onClick={save} disabled={saving}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-60">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {isEdit ? 'Save changes' : 'Create block'}
+            {isEdit ? t('drce.blockLib.save', "Save changes") : t('drce.blockLib.create', "Create block")}
           </button>
         </footer>
       </div>

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:43:19.738Z",
-  "last_commit": "7220634faaad01615722e60164537c0c6d2f682b",
+  "generated_at": "2026-10-20T10:45:34.384Z",
+  "last_commit": "68ca837fadfb5e9b8e2654ad98f7e30a4abb802e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10515,7 +10515,20 @@
         }
       ],
       "commit": "7220634faa"
+    },
+    {
+      "version": "2.50.146",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/drce/new starter gallery fully Arabic (built-in starters translated, school starters as entered)",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/drce/new starter gallery fully Arabic (built-in starters translated, school starters as entered)"
+        }
+      ],
+      "commit": "68ca837fad"
     }
   ],
-  "app_version": "2.50.146"
+  "app_version": "2.50.147"
 }

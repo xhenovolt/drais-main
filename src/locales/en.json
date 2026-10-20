@@ -3539,6 +3539,44 @@
           "desc": "Start from an empty page."
         }
       }
+    },
+    "blockLib": {
+      "loadFailed": "Failed to load",
+      "network": "Network error",
+      "confirmDelete": "Delete block \"{{name}}\"? Documents that reference it will render an empty spacer instead.",
+      "deleteFailed": "Delete failed",
+      "title": "Block library",
+      "subtitle": "Reusable section subtrees referenced by documents via {{code}}. Editing a block updates everywhere it's used.",
+      "newBlock": "New block",
+      "loading": "Loading…",
+      "none": "No blocks yet.",
+      "noneHelp": "Create one to start building a header / footer / comment library.",
+      "kind": {
+        "header": "header",
+        "footer": "footer",
+        "comment_rules": "comment_rules",
+        "custom": "custom"
+      },
+      "global": "global",
+      "meta": "#{{id}} · updated {{when}}",
+      "globalReadOnly": "Global blocks are read-only here",
+      "edit": "Edit",
+      "globalNoDelete": "Global blocks cannot be deleted",
+      "delete": "Delete",
+      "invalidJson": "Invalid JSON: {{msg}}",
+      "needType": "Section must have a \"type\" field",
+      "nameRequired": "Name is required",
+      "saveFailed": "Save failed",
+      "editTitle": "Edit block #{{id}}",
+      "close": "Close",
+      "name": "Name",
+      "kindLabel": "Kind",
+      "description": "Description",
+      "json": "Section JSON",
+      "jsonHelp": "A DRCESection (typically a container with children). Paste from an existing document or hand-author.",
+      "cancel": "Cancel",
+      "save": "Save changes",
+      "create": "Create block"
     }
   },
   "drceCanvas": {
