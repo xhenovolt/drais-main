@@ -29,7 +29,7 @@ const INCLUDE = [
   'package.json', 'package-lock.json',
   'next.config.js', 'tsconfig.json', 'electron-builder.yml',
   'postcss.config.mjs', 'tailwind.config.js', 'eslint.config.mjs', '.eslintrc.json',
-  'capacitor.config.ts', 'middleware.ts', 'next-env.d.ts',
+  'capacitor.config.ts', 'next-env.d.ts',
   '.gitignore', 'README.md',
   '.env.example', '.env.local.example', '.env.production.example',
   'DESKTOP_LOCAL_TRANSFER.md',

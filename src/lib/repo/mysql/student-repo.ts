@@ -85,8 +85,8 @@ export function createMysqlStudentRepo(): StudentRepo {
       const limit = Math.max(1, Math.min(1000, opts.limit ?? 100));
       const deletedClause = opts.includeDeleted ? '' : 'AND deleted_at IS NULL';
       const rows = (await query(
-        `${BASE_SELECT} WHERE school_id = ? ${deletedClause} ORDER BY id ASC LIMIT ${limit}`,
-        [schoolId],
+        `${BASE_SELECT} WHERE school_id = ? AND id > ? ${deletedClause} ORDER BY id ASC LIMIT ${limit}`,
+        [schoolId, opts.afterId ?? 0],
       )) as StudentRow[];
       return rows.map(toRecord);
     },

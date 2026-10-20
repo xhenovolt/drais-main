@@ -222,7 +222,7 @@ function ProtectedLayoutGuide() {
       </p>
       <p>What actually protects a school page:</p>
       <ol>
-        <li><F path="middleware.ts" /> — no session cookie → redirect to <code>/login</code> (pages) or 401 (APIs).</li>
+        <li><F path="src/middleware.ts" /> — no session cookie → redirect to <code>/login</code> (pages) or 401 (APIs).</li>
         <li>The API routes the page calls — each checks the session and, for writes, a permission code.</li>
       </ol>
       <Box kind="warning" title="Before moving pages into (protected)">

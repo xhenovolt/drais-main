@@ -228,7 +228,7 @@ export default function Page() {
         ]}
       />
 
-      <Source path="middleware.ts">Stage 2.</Source>
+      <Source path="src/middleware.ts">Stage 2.</Source>
       <Source path="src/lib/snapshots/README.md">Generation pipeline and determinism rules.</Source>
       <Source path="src/lib/ingestion/README.md">Punch intake and dedup.</Source>
 

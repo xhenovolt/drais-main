@@ -37,7 +37,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { isLocalAllowed } from '@/lib/db/db-mode';
 import { findBundledSchool, resolveDroppedFile } from '@/lib/desktop/drs-bundle';
-import { installDrsPayload, InstallTargetExistsError } from '@/lib/desktop/install';
+import { installDrsPayload, InstallTargetExistsError, InstallPayloadInvalidError } from '@/lib/desktop/install';
+import { requireDesktopWindow } from '@/lib/desktop/desktop-guard';
 
 export const runtime = 'nodejs';
 
@@ -48,9 +49,12 @@ async function installPayload(payload: Buffer, force: boolean) {
   } catch (e) {
     if (e instanceof InstallTargetExistsError) {
       return NextResponse.json({
-        error: 'A local database already exists on this machine. Pass force to replace it — this discards whatever is currently there.',
+        error: 'A local database already exists on this machine. Pass force to replace it — the current one is copied to a "replaced" folder beside it first.',
         code: 'TARGET_EXISTS',
       }, { status: 409 });
+    }
+    if (e instanceof InstallPayloadInvalidError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 422 });
     }
     throw e;
   }
@@ -60,6 +64,10 @@ export async function POST(req: NextRequest) {
   if (!isLocalAllowed()) {
     return NextResponse.json({ error: 'Local database setup is disabled on this deployment.' }, { status: 403 });
   }
+  // Installing or replacing the school's database: only from the DRAIS window on this computer,
+  // never from another device on the school network (the desktop server listens on 0.0.0.0).
+  const denied = requireDesktopWindow(req);
+  if (denied) return denied;
 
   const { openDrsFile, readDrsHeader } = await import('@/lib/container/read-drs');
   const contentType = req.headers.get('content-type') || '';

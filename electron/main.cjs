@@ -36,6 +36,12 @@ app.setAppUserModelId('ug.drais.desktop');
 const isDev = !app.isPackaged;
 const PORT = Number(process.env.DRAIS_PORT) || 3210;
 
+// Per-launch secret that marks requests from THIS app's window (see
+// src/lib/desktop/desktop-guard.ts). The server listens on 0.0.0.0 for
+// attendance devices; database install and mode switching must not be
+// reachable from other machines on the network.
+const DESKTOP_TOKEN = require('crypto').randomBytes(32).toString('hex');
+
 const standaloneDir = isDev
   ? path.join(__dirname, '..', '.next', 'standalone')
   : path.join(process.resourcesPath, 'standalone');
@@ -92,6 +98,7 @@ function startNextServer() {
   // dev-under-Electron: the repo's own build/ dir, same place `npm run
   // prepare:drs-bundle` writes to locally.
   process.env.DRAIS_RESOURCES_PATH = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', 'build');
+  process.env.DRAIS_DESKTOP_TOKEN = DESKTOP_TOKEN;
   process.chdir(standaloneDir);
   try {
     startupMark('next-server-require');
@@ -256,6 +263,14 @@ else {
     logToFile(`config source: ${cfg.source}; ${cfg.summary.join('; ')}`);
     if (!cfg.hasDbCreds) logToFile('WARN: no DB credentials resolved — diagnostic screen will show until configured.');
     buildMenu();
+    // Mark this window's own requests to the local server (desktop-guard.ts).
+    require('electron').session.defaultSession.webRequest.onBeforeSendHeaders(
+      { urls: [`http://127.0.0.1:${PORT}/*`, `http://localhost:${PORT}/*`] },
+      (details, callback) => {
+        details.requestHeaders['x-drais-desktop'] = DESKTOP_TOKEN;
+        callback({ requestHeaders: details.requestHeaders });
+      },
+    );
     showSplash();              // paint a window instantly (perceived startup)
     if (!startNextServer()) return;
     waitForServer(() => boot());

@@ -21,7 +21,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import type { SessionInfo } from '@/lib/auth';
-import { getSqliteDb } from '../sqlite/singleton';
+import { getSqliteDb, defaultSqlitePath, LocalDatabaseMissingError } from '../sqlite/singleton';
 import { createSqliteRepos } from '../sqlite';
 import { getLocalInstallSchoolId, LocalInstallSchoolError } from './install';
 import { attemptOfflineLogin, type OfflineLoginFailureCode } from './login';
@@ -40,11 +40,34 @@ function getClientIp(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1';
 }
 
+/** 503, not "invalid credentials": the database itself is unavailable, and the user must be told
+ *  why — missing file, unreadable or corrupt file, or a driver that failed to load. */
+function localDbUnavailable(err: unknown) {
+  if (err instanceof LocalDatabaseMissingError) {
+    return NextResponse.json({ success: false, error: { message: err.message, code: err.code, path: err.path } }, { status: 503 });
+  }
+  const e = err as { message?: string; code?: string };
+  console.error('[offline-auth] local database could not be opened:', err);
+  return NextResponse.json({
+    success: false,
+    error: {
+      message: `The local DRAIS database at ${defaultSqlitePath()} could not be opened: ${e?.message || String(err)}. The file has not been changed.`,
+      code: 'LOCAL_DB_UNREADABLE',
+      sqliteCode: e?.code ?? null,
+    },
+  }, { status: 503 });
+}
+
 /** getSessionSchoolId()'s offline branch. */
 export async function getOfflineSessionInfo(request: NextRequest): Promise<SessionInfo | null> {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
-  const db = getSqliteDb();
+  let db;
+  try { db = getSqliteDb(); } catch (err) {
+    // No database → nobody is signed in to it. The login route reports the real cause.
+    if (err instanceof LocalDatabaseMissingError) return null;
+    throw err;
+  }
   const repos = createSqliteRepos(db);
   return validateOfflineSession(db, repos, token);
 }
@@ -77,7 +100,10 @@ export async function handleOfflineMe(request: NextRequest): Promise<NextRespons
     );
   }
 
-  const db = getSqliteDb();
+  let db;
+  try { db = getSqliteDb(); } catch (err) {
+    return localDbUnavailable(err);
+  }
   const repos = createSqliteRepos(db);
   const session = await validateOfflineSession(db, repos, token);
   if (!session) {
@@ -160,7 +186,10 @@ export async function handleOfflineLogin(request: NextRequest): Promise<NextResp
     );
   }
 
-  const db = getSqliteDb();
+  let db;
+  try { db = getSqliteDb(); } catch (err) {
+    return localDbUnavailable(err);
+  }
   const repos = createSqliteRepos(db);
 
   let schoolId: number;

@@ -74,9 +74,9 @@ export function createSqliteStudentRepo(db: SqliteConnection): StudentRepo {
     async listBySchool(schoolId, opts: ListOptions = {}) {
       const limit = Math.max(1, Math.min(1000, opts.limit ?? 100));
       const sql = opts.includeDeleted
-        ? `${BASE_SELECT} WHERE school_id = ? ORDER BY id ASC LIMIT ?`
-        : `${BASE_SELECT} WHERE school_id = ? AND deleted_at IS NULL ORDER BY id ASC LIMIT ?`;
-      const rows = db.prepare(sql).all(schoolId, limit) as StudentRow[];
+        ? `${BASE_SELECT} WHERE school_id = ? AND id > ? ORDER BY id ASC LIMIT ?`
+        : `${BASE_SELECT} WHERE school_id = ? AND id > ? AND deleted_at IS NULL ORDER BY id ASC LIMIT ?`;
+      const rows = db.prepare(sql).all(schoolId, opts.afterId ?? 0, limit) as StudentRow[];
       return rows.map(toRecord);
     },
 

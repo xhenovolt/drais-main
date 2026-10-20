@@ -121,7 +121,16 @@ export interface ListOfflineStudentsOptions {
 }
 
 export async function listOfflineStudents(repos: Repos, schoolId: number, opts: ListOfflineStudentsOptions = {}): Promise<OfflineStudentView[]> {
-  const students = await repos.students.listBySchool(schoolId, { limit: opts.limit ?? 500, includeDeleted: opts.includeDeleted });
+  // Every learner, a page at a time: a fixed cap (it was 500) hid learners 501+ from the list
+  // and from search — a 759-learner school saw its newest admissions vanish offline.
+  const students: Awaited<ReturnType<Repos['students']['listBySchool']>> = [];
+  for (let afterId = 0; ; ) {
+    const page = await repos.students.listBySchool(schoolId, { limit: 1000, afterId, includeDeleted: opts.includeDeleted });
+    students.push(...page);
+    if (page.length < 1000 || (opts.limit && !opts.search && students.length >= opts.limit)) break;
+    afterId = page[page.length - 1].id;
+  }
+  if (opts.limit && !opts.search) students.splice(opts.limit);
   const views: OfflineStudentView[] = [];
   for (const s of students) {
     const person = await repos.people.findById(s.personId);
@@ -132,9 +141,10 @@ export async function listOfflineStudents(repos: Repos, schoolId: number, opts: 
   if (!opts.search) return views;
   const q = opts.search.trim().toLowerCase();
   if (!q) return views;
-  return views.filter((v) =>
+  const hits = views.filter((v) =>
     v.firstName.toLowerCase().includes(q) || v.lastName.toLowerCase().includes(q) ||
     (v.otherName ?? '').toLowerCase().includes(q) || (v.admissionNo ?? '').toLowerCase().includes(q));
+  return opts.limit ? hits.slice(0, opts.limit) : hits;
 }
 
 export async function getOfflineStudent(repos: Repos, schoolId: number, id: number): Promise<OfflineStudentView | null> {

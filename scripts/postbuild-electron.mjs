@@ -53,7 +53,17 @@ const publicDst  = path.join(standalone, 'public');
 // anywhere above it, so that fallback never existed there. Copied
 // explicitly here, the same way static/public already are above, rather
 // than trusting the tracer a second time.
-const sqliteSrc = path.join(root, 'node_modules', 'better-sqlite3');
+// WHICH better-sqlite3 ships (directive 2026-10, issue 4 — verified by crashing it):
+// the root dependency is better-sqlite3 13.x, which declares engines "node >=22"
+// and is built for Node-API 10. Electron 33 embeds Node 20.18.3 (Node-API 9).
+// Loaded there, 13.x segfaults on `new Database()` — the whole desktop app died
+// the moment local-sqlite was chosen, with nothing in drais.log. Recompiling
+// 13.x against Electron's headers does not help (the source itself targets
+// Node-API 10; reproduced). 12.x supports Node 20, so the desktop bundle ships
+// the pinned devDependency alias "better-sqlite3-electron" (npm:better-sqlite3@12.x),
+// compiled here against Electron's own headers. Dev, tests and hosted builds keep
+// using the root 13.x under plain Node. Same JS API in both.
+const sqliteSrc = path.join(root, 'node_modules', 'better-sqlite3-electron');
 const sqliteDst = path.join(standalone, 'node_modules', 'better-sqlite3');
 
 if (!existsSync(standalone)) {
@@ -77,46 +87,46 @@ async function copyDir(src, dst, label) {
 await copyDir(staticSrc, staticDst, '.next/static → standalone/.next/static');
 await copyDir(publicSrc, publicDst, 'public → standalone/public');
 
-if (existsSync(sqliteSrc)) {
-  await copyDir(sqliteSrc, sqliteDst, 'node_modules/better-sqlite3 → standalone/node_modules/better-sqlite3');
-
-  // Rebuild the COPY, not the root one — the copy at sqliteDst is only
-  // ever require()'d by the Electron-packaged app; the root node_modules
-  // copy is what `npm run dev`/`npm start`/the test suite use under plain
-  // Node, and must keep working against plain Node's own ABI. Rebuilding
-  // in place here, confined to this one already-isolated copy, is what
-  // keeps the two from fighting over a single shared binary.
-  //
-  // Prompted by a real, confirmed-live crash: switching to local-sqlite in
-  // the packaged .exe killed the whole app instantly, with ZERO trace in
-  // drais.log or Windows' own Application event log — consistent with a
-  // native-level fault inside Electron's embedded runtime that its own
-  // Crashpad handler intercepted before Windows' crash reporting ever saw
-  // it. better-sqlite3 ships ONE prebuilt binary per platform+arch (no
-  // per-Node-ABI variants — confirmed by reading lib/binding.js, which
-  // picks purely by process.platform+process.arch), on the premise that
-  // node-addon-api (confirmed: better_sqlite3.cpp uses `Napi::` throughout)
-  // makes it ABI-stable across any N-API host, Electron included. That
-  // premise isn't holding up in practice here, and Electron's own docs are
-  // explicit that native modules should be rebuilt against Electron's own
-  // ABI rather than assumed compatible — this does exactly that, for this
-  // one module only, so it never needs Visual Studio Build Tools unless
-  // better-sqlite3's own prebuild server has no Electron-targeted binary
-  // available (in which case this step fails loudly and the build stops,
-  // rather than silently shipping a binary already shown not to work).
-  console.log('[postbuild-electron] rebuilding better-sqlite3 for Electron ABI...');
-  const { rebuild } = await import('@electron/rebuild');
-  const electronVersion = JSON.parse(
-    await fs.readFile(path.join(root, 'node_modules', 'electron', 'package.json'), 'utf8'),
-  ).version;
-  await rebuild({ buildPath: standalone, electronVersion, onlyModules: ['better-sqlite3'], force: true });
-  console.log(`[postbuild-electron] rebuilt better-sqlite3 for Electron ${electronVersion}`);
-} else {
-  // better-sqlite3 is an optionalDependency — if it genuinely failed to
-  // install on this build machine, local-sqlite just won't be offered as
-  // reachable at runtime (the same health check that catches it missing
-  // in the exe catches it missing here too). Not a build failure.
-  console.warn('[postbuild-electron] node_modules/better-sqlite3 not found — local-sqlite will be unavailable in this build.');
+if (!existsSync(sqliteSrc)) {
+  console.error('[postbuild-electron] node_modules/better-sqlite3-electron is missing — run `npm install`. Without it the desktop app cannot open a local SQLite database.');
+  process.exit(1);
 }
+await copyDir(sqliteSrc, sqliteDst, 'node_modules/better-sqlite3-electron (12.x) → standalone/node_modules/better-sqlite3');
+// 12.x finds its binary through `bindings` (→ file-uri-to-path). The tracer never sees
+// them (eval'd require, above), and a packaged exe has no parent node_modules to fall
+// back on — the "Cannot find module 'bindings'" seen in an earlier packaged build.
+const { createRequire } = await import('node:module');
+const fromSqlite = createRequire(path.join(sqliteSrc, 'package.json'));
+for (const dep of ['bindings', 'file-uri-to-path']) {
+  const pkgDir = path.dirname(fromSqlite.resolve(`${dep}/package.json`));
+  await copyDir(pkgDir, path.join(standalone, 'node_modules', dep), `${dep} → standalone/node_modules/${dep}`);
+}
+
+// Compile the COPY against Electron's headers (Visual Studio Build Tools + Python on
+// the build machine). The root node_modules is untouched and keeps Node's ABI.
+const electronVersion = JSON.parse(
+  await fs.readFile(path.join(root, 'node_modules', 'electron', 'package.json'), 'utf8'),
+).version;
+console.log(`[postbuild-electron] compiling better-sqlite3 for Electron ${electronVersion}...`);
+await fs.rm(path.join(sqliteDst, 'build'), { recursive: true, force: true });
+const { rebuild } = await import('@electron/rebuild');
+await rebuild({ buildPath: standalone, electronVersion, onlyModules: ['better-sqlite3'], force: true, buildFromSource: true });
+if (!existsSync(path.join(sqliteDst, 'build', 'Release', 'better_sqlite3.node'))) {
+  console.error('[postbuild-electron] better-sqlite3 was not compiled for Electron (no build/Release/better_sqlite3.node). Stopping rather than shipping a desktop app that cannot open its database.');
+  process.exit(1);
+}
+
+// Prove it inside Electron's own runtime — the failure mode is a segfault, which no
+// unit test under plain Node can see. Opens a database, writes, reads, closes.
+const { spawnSync } = await import('node:child_process');
+const electronExe = fromSqlite(path.join(root, 'node_modules', 'electron'));
+const probe = `const D=require(${JSON.stringify(sqliteDst)});const db=new D(':memory:');db.pragma('journal_mode = WAL');db.exec('CREATE TABLE t(x)');db.prepare('INSERT INTO t VALUES (?)').run(Buffer.from('ok'));const v=db.prepare('SELECT x FROM t').get().x.toString();db.close();if(v!=='ok')process.exit(3);console.log('electron-sqlite-ok '+process.versions.electron);`;
+const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
+const run = spawnSync(electronExe, ['-e', probe], { env, encoding: 'utf8' });
+if (run.status !== 0 || !/electron-sqlite-ok/.test(run.stdout)) {
+  console.error(`[postbuild-electron] better-sqlite3 FAILED inside Electron ${electronVersion} (exit ${run.status}${run.signal ? ', ' + run.signal : ''}): ${(run.stderr || run.stdout || '').trim().slice(0, 500)}`);
+  process.exit(1);
+}
+console.log(`[postbuild-electron] verified inside Electron: ${run.stdout.trim()}`);
 
 console.log('[postbuild-electron] done. Standalone bundle ready for electron-builder.');

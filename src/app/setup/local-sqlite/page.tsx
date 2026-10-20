@@ -284,7 +284,8 @@ export default function LocalSqliteSetupPage() {
         {needsForce && (
           <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 p-3 text-sm">
             <p className="text-amber-800 dark:text-amber-200">
-              A local database already exists on this machine. Replacing it discards whatever is currently there.
+              A local database already exists on this machine. Replacing it makes the new file the live database;
+              the current one is first copied into a &ldquo;replaced&rdquo; folder beside it, so it can be restored.
             </p>
             <button
               type="button"

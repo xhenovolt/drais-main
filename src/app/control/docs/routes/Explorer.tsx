@@ -529,7 +529,7 @@ export function RouteView({ url }: { url: string }) {
               <>
                 <p className="mb-2">Every school page is wrapped, outermost first, by:</p>
                 <ol className="list-decimal pl-5 space-y-1">
-                  <li><FileLink file="middleware.ts" /> — session cookie check (pages redirect to <code>/login</code>).</li>
+                  <li><FileLink file="src/middleware.ts" /> — session cookie check (pages redirect to <code>/login</code>).</li>
                   {d.layouts.map((l: any) => (
                     <li key={l.file}><FileLink file={l.file} /> {l.summary && <span className="text-slate-400">— {l.summary}</span>}
                       {l.file === 'src/app/layout.tsx' && <span className="text-slate-400"> (chooses the app shell: <FileLink file="src/components/layout/AuthenticatedShell.tsx" /> → MainLayout)</span>}

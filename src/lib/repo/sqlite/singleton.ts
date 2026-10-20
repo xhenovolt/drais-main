@@ -26,16 +26,32 @@ export function defaultSqlitePath(): string {
 let cached: SqliteConnection | null = null;
 let cachedPath: string | null = null;
 
+/** The local database file is not where this install expects it. Never "fixed" by creating
+ *  an empty one: that would hide the real problem (moved file, unplugged drive, wrong
+ *  DRAIS_SQLITE_PATH) behind a valid-looking database with no school in it. */
+export class LocalDatabaseMissingError extends Error {
+  readonly code = 'LOCAL_DB_MISSING';
+  constructor(readonly path: string) {
+    super(`The local DRAIS database was not found at ${path}. Choose or import the school's .drs file in Local setup — nothing has been created in its place.`);
+    this.name = 'LocalDatabaseMissingError';
+  }
+}
+
 /** Get (or lazily open) the singleton local SQLite connection. Re-opens if
  *  DRAIS_SQLITE_PATH changed since the last call (mirrors pools.ts
  *  resetting on a runtime-config change) rather than silently keeping a
- *  stale connection to the old path open. */
+ *  stale connection to the old path open.
+ *
+ *  Opens an EXISTING file only. A database is created on purpose, by
+ *  src/lib/desktop/install.ts (from a .drs) or provisioning (openSqliteDb). */
 export function getSqliteDb(): SqliteConnection {
   const targetPath = defaultSqlitePath();
   if (cached && cachedPath === targetPath) return cached;
   if (cached) closeSqliteDb(cached);
+  cached = null;
 
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  // ':memory:' (tests) has no file to find.
+  if (targetPath !== ':memory:' && !fs.existsSync(targetPath)) throw new LocalDatabaseMissingError(targetPath);
   cached = openSqliteDb(targetPath);
   cachedPath = targetPath;
   return cached;

@@ -43,6 +43,10 @@ extraResources:
       - "!**/BACKUP/**"
       - "!**/RELAY-INSTALLERS/**"
       - "!**/workers/dist/**"
+      # One school's learner list for its 2025→2026 promotion (read by
+      # /api/students/promotion-manifest online). Output tracing copies it
+      # into standalone/; it must never ship to every school's computer.
+      - "!Promotion_Manifest_*.json"
   # Ship the runtime icon next to standalone/ so the BrowserWindow can
   # set its taskbar icon without depending on the asar layout. The
   # installer/shortcut icon is wired separately via `win.icon` below.

@@ -6,7 +6,7 @@
     "name": "DRAIS",
     "email": "info@drais.pro"
   },
-  "version": "2.50.154",
+  "version": "2.50.155",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -30,7 +30,7 @@
     "test:comm": "npx tsx --test src/lib/comm/__tests__/*.test.mjs",
     "test:sms": "npx tsx --test src/lib/sms/__tests__/*.test.mjs",
     "test:i18n": "npx tsx --test src/lib/i18n/__tests__/*.test.mjs",
-    "test": "npm run test:biometric && npm run test:drce && npm run test:snapshots && npm run test:ingestion && npm run test:attendance && npm run test:notifications && npm run test:idcards && npm run test:sentinel && npm run test:comm && npm run test:sms && npm run test:i18n && npm run test:media && npm run test:devdocs",
+    "test": "npm run test:biometric && npm run test:drce && npm run test:snapshots && npm run test:ingestion && npm run test:attendance && npm run test:notifications && npm run test:idcards && npm run test:sentinel && npm run test:comm && npm run test:sms && npm run test:i18n && npm run test:media && npm run test:devdocs && npm run test:desktop",
     "sentinel:scan": "node scripts/sentinel/architecture-scan.mjs",
     "gate": "node scripts/phase-stability-gate.mjs",
     "zip": "node scripts/zip-project.mjs",
@@ -75,7 +75,8 @@
     "brand:icons": "node scripts/brand/generate-icons.mjs",
     "test:media": "npx tsx --test src/lib/media/__tests__/*.test.mjs",
     "docs:gen": "node scripts/devdocs/generate.mjs --stats",
-    "test:devdocs": "npx tsx --test src/lib/devdocs/__tests__/*.test.mjs"
+    "test:devdocs": "npx tsx --test src/lib/devdocs/__tests__/*.test.mjs",
+    "test:desktop": "npx tsx --test src/lib/desktop/__tests__/*.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -160,6 +161,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "better-sqlite3-electron": "npm:better-sqlite3@12.11.1",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9",

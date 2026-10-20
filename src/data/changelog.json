@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T16:32:17.117Z",
-  "last_commit": "2588da52a7343f280d9fff282a52a882d6fa06a3",
+  "generated_at": "2026-10-20T20:36:37.392Z",
+  "last_commit": "234ea6d2f2c7733c4f585c5b027de043c43befa3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10619,7 +10619,20 @@
         }
       ],
       "commit": "2588da52a7"
+    },
+    {
+      "version": "2.50.154",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Sidebar and header stay put while long pages scroll (directive issue 3)",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Sidebar and header stay put while long pages scroll (directive issue 3)"
+        }
+      ],
+      "commit": "234ea6d2f2"
     }
   ],
-  "app_version": "2.50.154"
+  "app_version": "2.50.155"
 }

@@ -153,7 +153,7 @@ export async function DELETE(req: NextRequest){ … }`}</code></pre>
         One file at the repository root, running before <em>every</em> matched request.
       </p>
 
-      <Source path="middleware.ts" />
+      <Source path="src/middleware.ts" />
 
       <Evolution
         stages={[

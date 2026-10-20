@@ -39,6 +39,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbMode, setDbMode, isLocalAllowed, describeMode, type DbMode } from '@/lib/db/db-mode';
+import { requireDesktopWindow } from '@/lib/desktop/desktop-guard';
 import { healthCheck, resetPool } from '@/lib/db/pools';
 import { healthCheckSqlite } from '@/lib/db/sqlite-health';
 
@@ -91,6 +92,10 @@ export async function POST(req: NextRequest) {
       { status: 403 },
     );
   }
+  // The mode is process-wide: switching it from another computer on the school
+  // network would redirect everyone's data. Only the DRAIS window on this machine may.
+  const denied = requireDesktopWindow(req);
+  if (denied) return denied;
 
   // Selecting Online is a mode choice, not a requirement that TiDB be
   // reachable at that exact moment. The regular health probe can take up to
@@ -116,7 +121,7 @@ export async function POST(req: NextRequest) {
   const health = target === 'local-sqlite' ? await healthCheckSqlite() : await healthCheck(target);
   if (!health.ok) {
     return NextResponse.json(
-      { error: `Cannot switch: ${describeMode(target).label} is not reachable.`, health },
+      { error: `Cannot switch: ${describeMode(target).label} is not reachable${health?.error ? ` — ${health.error}` : '.'}`, health },
       { status: 502 },
     );
   }

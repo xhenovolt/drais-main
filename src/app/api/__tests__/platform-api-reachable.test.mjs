@@ -14,7 +14,7 @@ const read = (p) => readFileSync(new URL(`../../../../${p}`, import.meta.url), '
 
 describe('external platform API is reachable', () => {
   it('middleware treats /api/platform as public (route enforces key auth itself)', () => {
-    const mw = read('middleware.ts');
+    const mw = read('src/middleware.ts');
     // Must appear as a PUBLIC_ROUTES entry, not merely mentioned in a comment.
     assert.match(mw, /['"]\/api\/platform['"]/, '/api/platform must be in PUBLIC_ROUTES');
   });

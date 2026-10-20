@@ -43,7 +43,7 @@ export function listSourceFiles(root) {
     }
   };
   for (const d of SRC_DIRS) walk(d);
-  for (const f of ['middleware.ts', 'src/instrumentation.ts', 'src/instrumentation-node.ts']) if (fs.existsSync(path.join(root, f))) out.push(f);
+  for (const f of ['src/middleware.ts', 'src/instrumentation.ts', 'src/instrumentation-node.ts']) if (fs.existsSync(path.join(root, f))) out.push(f);
   return out.sort();
 }
 
@@ -473,7 +473,7 @@ export function analyseFile(root, file, exists) {
 
 function readPublicRoutes(root) {
   try {
-    const mw = fs.readFileSync(path.join(root, 'middleware.ts'), 'utf8');
+    const mw = fs.readFileSync(path.join(root, 'src/middleware.ts'), 'utf8');
     const m = mw.match(/const PUBLIC_ROUTES\s*=\s*\[([\s\S]*?)\];/);
     return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : [];
   } catch { return []; }

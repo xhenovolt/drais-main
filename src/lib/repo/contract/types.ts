@@ -128,6 +128,8 @@ export interface NewStudentInput {
 export interface ListOptions {
   limit?: number;
   includeDeleted?: boolean;
+  /** Keyset paging: only rows with id greater than this (lists are ORDER BY id ASC). */
+  afterId?: number;
 }
 
 // ── Phase 7: repository layer expansion ─────────────────────────────────

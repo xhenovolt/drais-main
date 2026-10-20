@@ -16,6 +16,9 @@ let svc, store, refs;
 const folder = path.join(tmp, 'school-photos');
 
 before(async () => {
+  // Create the database on purpose (as an install does); getSqliteDb() only opens existing files.
+  const { openSqliteDb, closeSqliteDb } = await import('../../repo/sqlite/connection.ts');
+  closeSqliteDb(openSqliteDb(process.env.DRAIS_SQLITE_PATH));
   const { getSqliteDb } = await import('../../repo/sqlite/singleton.ts');
   const db = getSqliteDb();
   db.pragma('foreign_keys = OFF');
