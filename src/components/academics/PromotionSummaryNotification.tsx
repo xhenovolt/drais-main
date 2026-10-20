@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  TrendingUp, 
-  AlertTriangle, 
+import {
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  AlertTriangle,
   XCircle,
   Award,
   Users,
@@ -14,6 +14,11 @@ import {
   Download,
   Printer
 } from 'lucide-react';
+import useSWR from 'swr';
+import { useI18n } from '@/components/i18n/I18nProvider';
+import { showToast } from '@/lib/toast';
+
+const fetcher = (u: string) => fetch(u).then(r => r.json());
 
 interface Student {
   student_id: number;
@@ -30,7 +35,21 @@ interface Student {
   credits: number;
   passes: number;
   failures: number;
+  nextClassName?: string | null;
 }
+
+type TFn = (k: string, v?: any, f?: string) => string;
+const divisionText = (t: TFn, s: Student) =>
+  s.division >= 1 && s.division <= 4 ? t(`academicsPages.promoSummary.div.${s.division}`, s.divisionName) : (s.divisionName ? t('academicsPages.promoSummary.div.fail', s.divisionName) : '');
+const recommendationText = (t: TFn, s: Student) => {
+  switch (s.promotionStatus) {
+    case 'promoted':            return s.nextClassName ? t('academicsPages.promoSummary.rec.promoted', { next: s.nextClassName }, s.recommendation) : s.recommendation;
+    case 'expected_to_improve': return t('academicsPages.promoSummary.rec.improve', { count: s.failures ?? 0 }, s.recommendation);
+    case 'repeat':              return t('academicsPages.promoSummary.rec.repeat', { cls: s.class_name }, s.recommendation);
+    case 'not_applicable':      return t('academicsPages.promoSummary.rec.na', s.recommendation);
+    default:                    return s.recommendation;
+  }
+};
 
 interface PromotionSummaryProps {
   data: {
@@ -54,8 +73,13 @@ interface PromotionSummaryProps {
 }
 
 const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, onPromoteStudents }) => {
+  const { t, digits } = useI18n();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+  // The destination is picked from this school's own classes — it used to be a hardcoded id (2).
+  const [nextClassId, setNextClassId] = useState<string>('');
+  const { data: classesRes } = useSWR(data?.isThirdTerm ? '/api/classes' : null, fetcher);
+  const classOptions: Array<{ id: number; name: string }> = Array.isArray(classesRes?.data) ? classesRes.data : [];
 
   // Defensive defaults: ensure student arrays are never null
   const safeStudents = data ? {
@@ -77,10 +101,10 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
           <AlertTriangle className="w-6 h-6 text-blue-600" />
           <div>
             <h4 className="font-semibold text-blue-900 dark:text-blue-100">
-              Promotion Status
+              {t('academicsPages.promoSummary.status', "Promotion Status")}
             </h4>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              Promotions are calculated at the end of 3rd term. Current term: {data.termName}
+              {t('academicsPages.promoSummary.notThird', { term: data.termName })}
             </p>
           </div>
         </div>
@@ -104,14 +128,15 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
 
   const handleBulkPromotion = () => {
     if (selectedStudents.size === 0) {
-      alert('Please select students to promote');
+      showToast('error', t('academicsPages.promoSummary.pickStudents', "Please select students to promote"));
       return;
     }
-    
-    // In real implementation, get next class ID from user selection
-    const nextClassId = 2; // Placeholder
+    if (!nextClassId) {
+      showToast('error', t('academicsPages.promoSummary.pickClass', "Choose the class to promote them into"));
+      return;
+    }
     if (onPromoteStudents) {
-      onPromoteStudents(Array.from(selectedStudents), nextClassId);
+      onPromoteStudents(Array.from(selectedStudents), Number(nextClassId));
     }
   };
 
@@ -121,7 +146,7 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
       summary: data.summary,
       students: data.students,
     };
-    
+
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -144,22 +169,24 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
               <Award className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Promotion Summary - {data.termName}</h2>
-              <p className="text-emerald-100">End of Year Academic Performance Review</p>
+              <h2 className="text-2xl font-bold">{t('academicsPages.promoSummary.title', { term: data.termName })}</h2>
+              <p className="text-emerald-100">{t('academicsPages.promoSummary.subtitle', "End of Year Academic Performance Review")}</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={exportReport}
               className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-              title="Export Report"
+              title={t('academicsPages.promoSummary.export', "Export Report")}
+              aria-label={t('academicsPages.promoSummary.export', "Export Report")}
             >
               <Download className="w-5 h-5" />
             </button>
             <button
               onClick={() => window.print()}
               className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-              title="Print"
+              title={t('academicsPages.promoSummary.print', "Print")}
+              aria-label={t('academicsPages.promoSummary.print', "Print")}
             >
               <Printer className="w-5 h-5" />
             </button>
@@ -168,25 +195,25 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white/10 rounded-lg p-4">
-            <div className="text-3xl font-bold">{data.summary.total}</div>
-            <div className="text-sm text-emerald-100">Total Students</div>
+            <div className="text-3xl font-bold">{digits(data.summary.total ?? 0)}</div>
+            <div className="text-sm text-emerald-100">{t('academicsPages.promoSummary.total', "Total Students")}</div>
           </div>
           <div className="bg-white/10 rounded-lg p-4">
-            <div className="text-3xl font-bold text-green-200">{data.summary.promoted}</div>
-            <div className="text-sm text-emerald-100">Promoted</div>
+            <div className="text-3xl font-bold text-green-200">{digits(data.summary.promoted ?? 0)}</div>
+            <div className="text-sm text-emerald-100">{t('academicsPages.promoSummary.promoted', "Promoted")}</div>
           </div>
           <div className="bg-white/10 rounded-lg p-4">
-            <div className="text-3xl font-bold text-yellow-200">{data.summary.expectedToImprove}</div>
-            <div className="text-sm text-emerald-100">Need Support</div>
+            <div className="text-3xl font-bold text-yellow-200">{digits(data.summary.expectedToImprove ?? 0)}</div>
+            <div className="text-sm text-emerald-100">{t('academicsPages.promoSummary.support', "Need Support")}</div>
           </div>
           <div className="bg-white/10 rounded-lg p-4">
-            <div className="text-3xl font-bold text-red-200">{data.summary.advisedToRepeat}</div>
-            <div className="text-sm text-emerald-100">Advised Repeat</div>
+            <div className="text-3xl font-bold text-red-200">{digits(data.summary.advisedToRepeat ?? 0)}</div>
+            <div className="text-sm text-emerald-100">{t('academicsPages.promoSummary.repeat', "Advised Repeat")}</div>
           </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-white/20">
-          <div className="text-sm text-emerald-100">Overall Promotion Rate</div>
+          <div className="text-sm text-emerald-100">{t('academicsPages.promoSummary.rate', "Overall Promotion Rate")}</div>
           <div className="flex items-center gap-3 mt-1">
             <div className="flex-1 bg-white/20 rounded-full h-3">
               <div
@@ -194,15 +221,15 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
                 style={{ width: `${data.summary.promotionRate}%` }}
               />
             </div>
-            <span className="text-2xl font-bold">{data.summary.promotionRate}%</span>
+            <span className="text-2xl font-bold">{digits(`${data.summary.promotionRate}%`)}</span>
           </div>
         </div>
       </motion.div>
 
       {/* Promoted Students */}
         <ExpandableSection
-          title="✅ Promoted Learners"
-          subtitle={`Division I, II, or III - Ready for next level`}
+          title={t('academicsPages.promoSummary.sec.promoted', "✅ Promoted Learners")}
+          subtitle={t('academicsPages.promoSummary.sec.promotedSub', "Division I, II, or III - Ready for next level")}
           count={safeStudents.promoted.length}
           icon={CheckCircle2}
           color="green"
@@ -216,16 +243,26 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
             showSelection={true}
           />
         {selectedStudents.size > 0 && (
-          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-between">
+          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium text-green-800 dark:text-green-200">
-              {selectedStudents.size} student(s) selected
+              {t('academicsPages.promoSummary.selected', { count: selectedStudents.size })}
             </span>
+            <select
+              value={nextClassId}
+              onChange={e => setNextClassId(e.target.value)}
+              aria-label={t('academicsPages.promoSummary.destClass', "Destination class")}
+              className="px-3 py-2 rounded-lg border border-green-300 bg-white dark:bg-slate-800 text-sm"
+            >
+              <option value="">{t('academicsPages.promoSummary.destClass', "Destination class")}</option>
+              {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
             <button
               onClick={handleBulkPromotion}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              disabled={!nextClassId}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <TrendingUp className="w-4 h-4" />
-              Execute Promotion
+              {t('academicsPages.promoSummary.execute', "Execute Promotion")}
             </button>
           </div>
         )}
@@ -233,8 +270,8 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
 
       {/* Expected to Improve */}
         <ExpandableSection
-          title="⚠️ Expected to Improve"
-          subtitle="Division IV - Promoted with conditions"
+          title={t('academicsPages.promoSummary.sec.improve', "⚠️ Expected to Improve")}
+          subtitle={t('academicsPages.promoSummary.sec.improveSub', "Division IV - Promoted with conditions")}
           count={safeStudents.expectedToImprove.length}
           icon={AlertTriangle}
           color="yellow"
@@ -250,8 +287,8 @@ const PromotionSummaryNotification: React.FC<PromotionSummaryProps> = ({ data, o
 
       {/* Advised to Repeat */}
         <ExpandableSection
-          title="❌ Advised to Repeat"
-          subtitle="Below passing standard - Requires class repetition"
+          title={t('academicsPages.promoSummary.sec.repeat', "❌ Advised to Repeat")}
+          subtitle={t('academicsPages.promoSummary.sec.repeatSub', "Below passing standard - Requires class repetition")}
           count={safeStudents.advisedToRepeat.length}
           icon={XCircle}
           color="red"
@@ -279,6 +316,7 @@ const ExpandableSection: React.FC<{
   onToggle: () => void;
   children: React.ReactNode;
 }> = ({ title, subtitle, count, icon: Icon, color, isExpanded, onToggle, children }) => {
+  const { t } = useI18n();
   const colorClasses = {
     green: {
       bg: 'bg-green-50 dark:bg-green-900/20',
@@ -316,14 +354,14 @@ const ExpandableSection: React.FC<{
           <div className={`p-3 rounded-full bg-white dark:bg-slate-800 ${colors.icon}`}>
             <Icon className="w-6 h-6" />
           </div>
-          <div className="text-left">
+          <div className="text-start">
             <h3 className={`text-lg font-bold ${colors.text}`}>{title}</h3>
             <p className={`text-sm ${colors.text} opacity-75`}>{subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className={`px-4 py-2 rounded-full bg-white dark:bg-slate-800 ${colors.text} font-bold`}>
-            {count} {count === 1 ? 'Student' : 'Students'}
+            {t('academicsPages.promoSummary.students', { count })}
           </div>
           {isExpanded ? (
             <ChevronUp className={`w-6 h-6 ${colors.icon}`} />
@@ -357,10 +395,11 @@ const StudentList: React.FC<{
   onToggleSelection: (id: number) => void;
   showSelection?: boolean;
 }> = ({ students, selectedStudents, onToggleSelection, showSelection = false }) => {
+  const { t, digits } = useI18n();
   if (students.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No students in this category
+        {t('academicsPages.promoSummary.none', "No students in this category")}
       </div>
     );
   }
@@ -379,30 +418,31 @@ const StudentList: React.FC<{
                   type="checkbox"
                   checked={selectedStudents.has(student.student_id)}
                   onChange={() => onToggleSelection(student.student_id)}
+                  aria-label={t('academicsPages.promoSummary.select', "Select")}
                   className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                 />
               )}
               <div className="flex-1">
                 <div className="font-semibold text-gray-900 dark:text-white">
                   {student.student_name}
-                  <span className="ml-2 text-sm text-gray-500">({student.admission_no})</span>
+                  <span className="ms-2 text-sm text-gray-500">({student.admission_no})</span>
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {student.class_name} • {student.divisionName}
+                  {student.class_name} • {divisionText(t, student)}
                 </div>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-end">
               <div className="text-lg font-bold text-gray-900 dark:text-white">
-                {student.average_marks.toFixed(1)}%
+                {digits(`${Number(student.average_marks ?? 0).toFixed(1)}%`)}
               </div>
               <div className="text-xs text-gray-500">
-                {student.distinctions}D • {student.credits}C • {student.failures}F
+                {t('academicsPages.promoSummary.dcf', { d: student.distinctions ?? 0, c: student.credits ?? 0, f: student.failures ?? 0 })}
               </div>
             </div>
           </div>
           <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 italic">
-            {student.recommendation}
+            {recommendationText(t, student)}
           </div>
         </div>
       ))}

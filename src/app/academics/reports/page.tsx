@@ -17,6 +17,7 @@ import { isReligiousEducationSubject } from '@/lib/theology-subject-classifier';
 import type { DRCEDocument, DRCEDataContext } from '@/lib/drce/schema';
 import type { DRCERenderContext } from '@/components/drce/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 import {
   computeDivision,
   computeAggregateFromGrades,
@@ -161,7 +162,7 @@ const TeacherInitialsContext = createContext<TeacherInitialsContextType | null>(
 const API_BASE = process.env.NEXT_PUBLIC_PHP_API_BASE || 'http://localhost/drais/api';
 
 const ReportsPage = () => {
-  const { t, lang: appLang } = useI18n();
+  const { t, lang: appLang, digits } = useI18n();
   const [filters, setFilters] = useState<Filters>({ term: '', resultType: '', classId: '', student: '', academicYearId: '' });
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [termsData, setTermsData] = useState<Term[]>([]);
@@ -246,7 +247,7 @@ const ReportsPage = () => {
       .then(data => {
         if (data?.documents && Array.isArray(data.documents)) {
           setAvailableDrceTemplates(data.documents as DRCEDocument[]);
-          
+
           // Auto-select the first default template
           const defaultTemplate = data.documents.find((t: DRCEDocument) => t.meta.is_default);
           if (defaultTemplate) {
@@ -263,11 +264,11 @@ const ReportsPage = () => {
   // When selected template changes, update active DRCE document
   useEffect(() => {
     if (!selectedTemplateId) return;
-    
+
     const selected = availableDrceTemplates.find(
       t => t.meta.template_key === selectedTemplateId || t.meta.id === selectedTemplateId
     );
-    
+
     if (selected) {
       setActiveDrceDoc(selected);
       console.log('Rendering template:', selected.meta.name, '| curriculum:', curriculum);
@@ -299,13 +300,14 @@ const ReportsPage = () => {
       });
       const result = await response.json();
       if (result.success) {
-        alert(`Successfully promoted ${studentIds.length} student(s)!`);
+        toast.success(t('academicsPages.reports.promoted', { count: studentIds.length }));
       } else {
-        alert('Failed to promote students: ' + result.message);
+        const m = result?.message;
+        toast.error(m && !(uiIsArabic() && isEnglishText(m)) ? t('academicsPages.reports.promoteFailedMsg', { msg: m }) : t('academicsPages.reports.promoteFailed', "Failed to promote students"));
       }
     } catch (error) {
       console.error('Error promoting students:', error);
-      alert('Error promoting students');
+      toast.error(t('academicsPages.reports.promoteFailed', "Failed to promote students"));
     }
   };
 
@@ -387,7 +389,7 @@ const ReportsPage = () => {
 
   // Filtered terms based on selected academic year
   const filteredTerms = (Array.isArray(termsData) && termsData.length > 0)
-    ? (filters.academicYearId 
+    ? (filters.academicYearId
         ? termsData.filter(t => t && String(t.academic_year_id) === filters.academicYearId)
         : termsData)
     : [];
@@ -413,7 +415,7 @@ const ReportsPage = () => {
         const results = reportsData?.results || reportsData?.data || (Array.isArray(reportsData) ? reportsData as Result[] : []);
         setAllStudents(students);
         setAllResults(results);
-        
+
         // Update school info from centralized DB-driven config
         if (schoolConfigData?.school) {
           const s = schoolConfigData.school;
@@ -463,18 +465,18 @@ const ReportsPage = () => {
   // Enhanced class groups with data validation and error checking
   const classGroups = useMemo((): Record<string, ClassGroup> => {
     const groups: Record<string, ClassGroup> = {};
-    
+
     // Filter out invalid results and remove duplicates
     const validResults = allResults.filter((r, index, arr) => {
       // Basic validation
       if (!r.student_id || !r.class_name || r.score === null || r.score === undefined) {
         return false;
       }
-      
+
       // Ensure score is a valid number
       const score = parseFloat(String(r.score));
       if (isNaN(score)) return false;
-      
+
       // Remove duplicates based on unique combination
       const key = `${r.student_id}_${r.subject_id}_${r.result_type_name || r.results_type}_${r.term || r.term_name || 'no_term'}`;
       const firstIndex = arr.findIndex(item => {
@@ -533,24 +535,24 @@ const ReportsPage = () => {
       }
       student.results.push(r);
     });
-    
+
     // Sort students within each class by name
     Object.values(groups).forEach(g => {
       g.students.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
     });
-    
+
     return groups;
   }, [allResults]);
 
   // Enhanced filtering logic with better validation
   const filteredClassGroups = useMemo((): Record<string, ClassGroup> => {
     let groups = JSON.parse(JSON.stringify(classGroups)) as Record<string, ClassGroup>; // Deep clone to avoid mutations
-    
+
     // Ensure groups is a valid object
     if (!groups || typeof groups !== 'object') {
       return {};
     }
-    
+
     if (filters.classId) {
       const targetClass = String(filters.classId).toLowerCase().trim();
       groups = Object.fromEntries(
@@ -569,7 +571,7 @@ const ReportsPage = () => {
         })
       );
     }
-    
+
     Object.values(groups).forEach(g => {
       if (!g || !Array.isArray(g.students)) return;
 
@@ -598,7 +600,7 @@ const ReportsPage = () => {
         if (!s || !Array.isArray(s.results)) return false;
         // Ensure student has valid results
         if (s.results.length === 0) return false;
-        
+
         // Academic year filter — CLIENT-SIDE filtering (was previously server-side)
         if (filters.academicYearId) {
           const hasAYData = s.results.some((r: Result) => r && r.academic_year_id);
@@ -612,7 +614,7 @@ const ReportsPage = () => {
             }
           }
         }
-        
+
         // Term filter - only apply if term data exists
         if (filters.term) {
           const hasTermData = s.results.some((r: Result) => r && (r.term || r.term_name));
@@ -623,11 +625,11 @@ const ReportsPage = () => {
             if (!matchesTerm) return false;
           }
         }
-        
+
         // Result type filter - IMPROVED LOGIC
         if (filters.resultType) {
           const resultTypeFilter = filters.resultType.toLowerCase();
-          
+
           if (resultTypeFilter.includes('end')) {
             // For "End of Term" filter, include students who have:
             // 1. Any result with "end" in the result type, OR
@@ -635,11 +637,11 @@ const ReportsPage = () => {
             const hasEndTermResult = s.results.some((r: Result) =>
               r && String(r.result_type_name || r.results_type || '').toLowerCase().includes('end')
             );
-            
+
             const hasMidTermResult = s.results.some((r: Result) =>
               r && String(r.result_type_name || r.results_type || '').toLowerCase().includes('mid')
             );
-            
+
             // Include if has end-term results OR has both mid and end components
             if (!hasEndTermResult && !hasMidTermResult) return false;
           } else {
@@ -650,7 +652,7 @@ const ReportsPage = () => {
             if (!matchesResultType) return false;
           }
         }
-        
+
         // Student name/ID filter
         if (filters.student) {
           const name = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
@@ -658,11 +660,11 @@ const ReportsPage = () => {
             return false;
           }
         }
-        
+
         return true;
       });
     });
-    
+
     // Remove empty classes
     groups = Object.fromEntries(Object.entries(groups).filter(([_, v]) => v && Array.isArray(v.students) && v.students.length > 0));
 
@@ -686,11 +688,11 @@ const ReportsPage = () => {
     if (filters.academicYearId && r.academic_year_id) {
       if (String(r.academic_year_id) !== filters.academicYearId) return false;
     }
-    
+
     if (filters.resultType) {
       const rt = String(r.result_type_name || r.results_type || '').toLowerCase();
       const filterType = filters.resultType.toLowerCase();
-      
+
       if (filterType.includes('end')) {
         // For End of Term filter, include both mid and end results
         return rt.includes('mid') || rt.includes('end');
@@ -731,37 +733,37 @@ const ReportsPage = () => {
           return matchesFilters(r);
         });
       });
-       
+
       // Remove students with no valid results after filtering
       classGroup.students = (Array.isArray(classGroup.students) ? classGroup.students : []).filter((s: Student) => s && s.results && Array.isArray(s.results) && s.results.length > 0);
-      
+
       // Calculate total marks for each student in this class
       classGroup.students.forEach((student: Student) => {
         if (!student) return;
         const validScores = (Array.isArray(student.results) ? student.results : [])
           .map((r: Result) => parseFloat(String(r.score || 0)))
           .filter(score => !isNaN(score) && score >= 0);
-        
+
         student.totalMarks = validScores.reduce((sum, score) => sum + score, 0);
         student.averageMarks = validScores.length > 0 ? Math.round(student.totalMarks / validScores.length) : 0;
         student.subjectCount = validScores.length;
       });
-      
+
       // Sort students by total marks within this class (highest first)
       classGroup.students.sort((a: Student, b: Student) => {
         const totalA = a && a.totalMarks ? a.totalMarks : 0;
         const totalB = b && b.totalMarks ? b.totalMarks : 0;
         if (totalB !== totalA) return totalB - totalA;
-        
+
         // If total marks are equal, sort by average
         const avgA = a && a.averageMarks ? a.averageMarks : 0;
         const avgB = b && b.averageMarks ? b.averageMarks : 0;
         if (avgB !== avgA) return avgB - avgA;
-        
+
         // If still equal, sort by name
         return (a && a.last_name ? a.last_name : '').localeCompare(b && b.last_name ? b.last_name : '');
       });
-      
+
       // Assign positions within this class only
       classGroup.students.forEach((student: Student, index: number) => {
         if (student) {
@@ -805,13 +807,13 @@ const ReportsPage = () => {
     }
 
     const grouped: Record<string, GroupedResult> = {};
-    
+
     results.forEach((result) => {
       if (!result) return; // Skip null/undefined results
-      
+
       const subjectKey = String(result.subject_id || result.subject_name);
       if (!subjectKey) return; // Skip invalid results
-      
+
       if (!grouped[subjectKey]) {
         grouped[subjectKey] = {
           subject_id: result.subject_id,
@@ -825,10 +827,10 @@ const ReportsPage = () => {
           subject_type: result.subject_type || 'core', // Add subject type
         };
       }
-      
+
       const resultType = (result.result_type_name || result.results_type || '').toLowerCase();
       const score = parseFloat(String(result.score || 0));
-      
+
       // Handle different result types
       if (resultType.includes('mid')) {
         grouped[subjectKey].midTermScore = score;
@@ -850,26 +852,26 @@ const ReportsPage = () => {
         }
       }
     });
-    
+
     // Cross-reference logic for missing scores
     const allSubjects = new Set(results.map(r => r ? String(r.subject_id || r.subject_name) : null).filter(Boolean));
-    
+
     allSubjects.forEach(subjectKey => {
       if (!subjectKey || !grouped[subjectKey]) return;
-      
+
       const subjectResults = results.filter(r => r && String(r.subject_id || r.subject_name) === subjectKey);
-      
+
       if (grouped[subjectKey].midTermScore === null) {
-        const midTermResult = subjectResults.find(r => 
+        const midTermResult = subjectResults.find(r =>
           r && (r.result_type_name || r.results_type || '').toLowerCase().includes('mid')
         );
         if (midTermResult) {
           grouped[subjectKey].midTermScore = parseFloat(String(midTermResult.score || 0));
         }
       }
-      
+
       if (grouped[subjectKey].endTermScore === null) {
-        const endTermResult = subjectResults.find(r => 
+        const endTermResult = subjectResults.find(r =>
           r && (r.result_type_name || r.results_type || '').toLowerCase().includes('end')
         );
         if (endTermResult) {
@@ -877,7 +879,7 @@ const ReportsPage = () => {
         }
       }
     });
-    
+
     return Object.values(grouped).filter(item => item && item.subject_name);
   }
 
@@ -888,7 +890,7 @@ const ReportsPage = () => {
     const normalized = (subjectName || '').toLowerCase();
     return normalized.includes('math') || normalized.includes('mathematics');
   }
-  
+
   function commentsForGrade(grade: string) {
     // Nursery grades (A-E)
     if (grade === 'A') return 'Outstanding performance! Excellent work.';
@@ -952,7 +954,7 @@ const ReportsPage = () => {
       if (!response.ok || !result?.success) {
         throw new Error(result?.message || 'Failed to save initials');
       }
-      toast.success('Initials saved successfully');
+      toast.success(t('academicsPages.reports.initialsSaved', "Initials saved successfully"));
       setTeacherInitials((prev) => {
         const next = { ...prev, [`${classId}-${subjectId}`]: newInitials };
         persistTeacherInitials(next);
@@ -960,7 +962,7 @@ const ReportsPage = () => {
       });
     } catch (error: any) {
       console.error('Failed to save initials:', error);
-      toast.error(error?.message || 'Failed to save initials');
+      toast.error(error?.message && !(uiIsArabic() && isEnglishText(error.message)) ? error.message : t('academicsPages.reports.initialsFailed', "Failed to save initials"));
     } finally {
       setSaving(false);
     }
@@ -992,13 +994,13 @@ const ReportsPage = () => {
   const openEditablePrintWindow = (): void => {
     const reportArea = reportExportRef.current;
     if (!reportArea) {
-      toast.error('Report area not found.');
+      toast.error(t('academicsPages.reports.noArea', "Report area not found."));
       return;
     }
 
     const hasRenderedReports = reportArea.querySelector('.reportPage, .dual-report-page, [data-report-page="true"]');
     if (!hasRenderedReports) {
-      toast.error('No reports are currently available to print.');
+      toast.error(t('academicsPages.reports.noPrint', "No reports are currently available to print."));
       return;
     }
 
@@ -1126,13 +1128,13 @@ const ReportsPage = () => {
     hydrateTeacherInitialsFromDom();
     const reportArea = reportExportRef.current;
     if (!reportArea) {
-      window.alert('Report area not found!');
+      toast.error(t('academicsPages.reports.noArea', "Report area not found."));
       return;
     }
 
     const hasRenderedReports = reportArea.querySelector('.reportPage, .dual-report-page, [data-report-page="true"]');
     if (!hasRenderedReports) {
-      window.alert('No reports are currently available to export.');
+      toast.error(t('academicsPages.reports.noExport', "No reports are currently available to export."));
       return;
     }
 
@@ -1160,7 +1162,7 @@ const ReportsPage = () => {
       pdf.save('Reports.pdf');
     } catch (error) {
       console.error('Error exporting to PDF:', error);
-      window.alert('Failed to export PDF. Please try again.');
+      toast.error(t('academicsPages.reports.pdfFailed', "Failed to export PDF. Please try again."));
     }
   };
 
@@ -1256,7 +1258,7 @@ const ReportsPage = () => {
               <option value="">{`${t('common.all')} — ${t('academicTime.academicYears')}`}</option>
               {academicYears.map((ay) => (
                 <option key={ay.id} value={ay.id}>
-                  {ay.name} {ay.status === 'active' ? '(Current)' : ''}
+                  {digits(String(ay.name))} {ay.status === 'active' ? t('academicsPages.reports.current', "(Current)") : ''}
                 </option>
               ))}
             </select>
@@ -1268,15 +1270,15 @@ const ReportsPage = () => {
             >
               <option value="">{`${t('common.all')} — ${t('academicTime.terms')}`}</option>
             {filteredTerms.length > 0
-              ? filteredTerms.map((t) => (
-                  <option key={t.id} value={t.name}>
-                    {t.name}
+              ? filteredTerms.map((tm) => (
+                  <option key={tm.id} value={tm.name}>
+                    {tm.name}
                   </option>
                 ))
               : <>
-                  <option value="Term 1">Term 1</option>
-                  <option value="Term 2">Term 2</option>
-                  <option value="Term 3">Term 3</option>
+                  <option value="Term 1">{t('academicsPages.reports.term.1', "Term 1")}</option>
+                  <option value="Term 2">{t('academicsPages.reports.term.2', "Term 2")}</option>
+                  <option value="Term 3">{t('academicsPages.reports.term.3', "Term 3")}</option>
                 </>
             }
           </select>
@@ -1355,9 +1357,9 @@ const ReportsPage = () => {
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
             title={`${t('actions.filter')} — ${t('academic.curriculum')}`}
           >
-            <option value="all">All Subjects</option>
-            <option value="secular">Secular Only</option>
-            <option value="theology">Theology Only</option>
+            <option value="all">{t('academicsPages.reports.allSubjects', "All Subjects")}</option>
+            <option value="secular">{t('academicsPages.reports.secularOnly', "Secular Only")}</option>
+            <option value="theology">{t('academicsPages.reports.theologyOnly', "Theology Only")}</option>
           </select>
 
           {/* Language selector — Phase 5, wired to state */}
@@ -1365,9 +1367,10 @@ const ReportsPage = () => {
             value={selectedLanguage === 'ar' ? 'Arabic' : 'English'}
             onChange={(e) => setSelectedLanguage(e.target.value === 'Arabic' ? 'ar' : 'en')}
             className="h-9 border border-gray-300 rounded-lg px-3 text-sm bg-white shadow-sm hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            title={t('settings.language')}
+            title={t('academicsPages.reports.reportLanguage', "Report language")}
+            aria-label={t('academicsPages.reports.reportLanguage', "Report language")}
           >
-            <option value="English">English</option>
+            <option value="English" lang="en">English</option>
             <option value="Arabic">العربية</option>
           </select>
           </div>
@@ -1379,7 +1382,7 @@ const ReportsPage = () => {
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-            Print
+            {t('academicsPages.reports.print', "Print")}
           </button>
 
           <button
@@ -1387,7 +1390,7 @@ const ReportsPage = () => {
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-emerald-600 shadow-sm hover:bg-emerald-700 active:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            Export PDF
+            {t('academicsPages.reports.exportPdf', "Export PDF")}
           </button>
 
           <button
@@ -1395,15 +1398,7 @@ const ReportsPage = () => {
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-teal-600 shadow-sm hover:bg-teal-700 active:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-            Export Excel
-          </button>
-
-          <button
-            onClick={() => setShowCustomization(true)}
-            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-gray-600 shadow-sm hover:bg-gray-700 active:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            Customize
+            {t('academicsPages.reports.exportExcel', "Export Excel")}
           </button>
 
           <a
@@ -1411,13 +1406,16 @@ const ReportsPage = () => {
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-amber-600 shadow-sm hover:bg-amber-700 active:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 transition-colors no-underline"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-            Template Kitchen
+            {t('academicsPages.reports.kitchen', "Template Kitchen")}
           </a>
 
-          <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
-            {loading && <span className="inline-flex items-center gap-1"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Loading...</span>}
+          <div className="ms-auto flex items-center gap-2 text-sm text-gray-500">
+            {loading && <span className="inline-flex items-center gap-1"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> {t('academicsPages.reports.loading', "Loading...")}</span>}
             {!loading && classGroupsWithPositions && Object.keys(classGroupsWithPositions).length > 0 && (
-              <span>{Object.values(classGroupsWithPositions).reduce((sum, g) => sum + (g && Array.isArray(g.students) ? g.students.length : 0), 0)} students in {Object.keys(classGroupsWithPositions).length} class(es)</span>
+              <span>{t('academicsPages.reports.studentsIn', {
+                students: t('academicsPages.reports.students', { count: Object.values(classGroupsWithPositions).reduce((sum, g) => sum + (g && Array.isArray(g.students) ? g.students.length : 0), 0) }),
+                classes: t('academicsPages.reports.classes', { count: Object.keys(classGroupsWithPositions).length }),
+              })}</span>
             )}
           </div>
           </div>
@@ -1429,7 +1427,7 @@ const ReportsPage = () => {
         >
           <iframe
             ref={printIframeRef}
-            title="Editable report print preview"
+            title={t('academicsPages.reports.previewTitle', "Editable report print preview")}
             style={{
               position: 'fixed',
               width: 0,
@@ -1446,27 +1444,27 @@ const ReportsPage = () => {
             <div className="no-print text-center py-12 text-gray-500">
               <svg className="w-12 h-12 mx-auto mb-3 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
               <p className="font-medium">{t('common.loading')}</p>
-              <p className="text-sm mt-1">Please wait while we prepare the report system.</p>
+              <p className="text-sm mt-1">{t('academicsPages.reports.preparing', "Please wait while we prepare the report system.")}</p>
             </div>
           )}
           {!loading && Object.keys(classGroupsWithPositions).length === 0 && allResults.length > 0 && activeDrceDoc && (
             <div className="no-print text-center py-12 text-gray-500">
               <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <p className="font-medium">No reports match your filters</p>
-              <p className="text-sm mt-1">Try adjusting the year, term, class, or result type filters above.</p>
+              <p className="font-medium">{t('academicsPages.reports.noMatch', "No reports match your filters")}</p>
+              <p className="text-sm mt-1">{t('academicsPages.reports.noMatchHelp', "Try adjusting the year, term, class, or result type filters above.")}</p>
             </div>
           )}
           {!loading && allResults.length === 0 && (
             <div className="no-print text-center py-12 text-gray-500">
               <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <p className="font-medium">No report data found</p>
-              <p className="text-sm mt-1">Enter results in the Results page first, then come back here to generate reports.</p>
+              <p className="font-medium">{t('academicsPages.reports.noData', "No report data found")}</p>
+              <p className="text-sm mt-1">{t('academicsPages.reports.noDataHelp', "Enter results in the Results page first, then come back here to generate reports.")}</p>
             </div>
           )}
           {activeDrceDoc && classGroupsWithPositions && Object.values(classGroupsWithPositions).map((classGroup: any) => {
             return (
               <div key={classGroup && classGroup.className ? classGroup.className : Math.random()}>
-                <div className="classHeading text-2xl font-bold text-center my-0">{classGroup && classGroup.className ? classGroup.className : 'Unknown Class'}</div>
+                <div className="classHeading text-2xl font-bold text-center my-0">{classGroup && classGroup.className ? classGroup.className : t('academicsPages.reports.unknownClass', "Unknown Class")}</div>
               {classGroup && Array.isArray(classGroup.students) && classGroup.students.map((student: any) => {
                 if (!student) return null;
                 // ── Phase 9: apply curriculum filter to results client-side
@@ -1519,10 +1517,10 @@ const ReportsPage = () => {
                 const { principal, others } = splitSubjects(scopeFilteredResults);
                 const groupedResults = groupResultsBySubject(principal);
                 const allGroupedResults = groupResultsBySubject([...principal, ...others]); // Include all subjects for display
-                
+
                 const isNursery = isNurseryClassName(student.class_name);
-                
-                const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') || 
+
+                const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') ||
                   principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
 
                 // Enhanced calculations - use core subjects only, excluding IRE from aggregate/division
@@ -1536,14 +1534,14 @@ const ReportsPage = () => {
                   const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                   return sum + totalMarks;
                 }, 0);
-                
+
                 const coreGradingMarks = coreResults.reduce((sum, r) => {
                   const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                   return sum + totalMarks;
                 }, 0);
-                
+
                 const averageMarks = coreResults.length > 0 ? Math.round(coreGradingMarks / coreResults.length) : 0;
-                
+
                 const contributingSubjects = selectContributingSubjects(
                   allGroupedResults.map((r) => ({
                     id: r.subject_id ?? 0,
@@ -1852,33 +1850,33 @@ const ReportsPage = () => {
                           }}>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Name:</span>
-                              <span 
-                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
-                                contentEditable 
+                              <span
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }}
+                                contentEditable
                                 suppressContentEditableWarning
                               > {student.first_name} {student.last_name}</span>
                             </p>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Gender:</span>
-                              <span 
-                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
-                                contentEditable 
+                              <span
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }}
+                                contentEditable
                                 suppressContentEditableWarning
                               > {student.gender || '-'}</span>
                             </p>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Class:</span>
-                              <span 
-                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
-                                contentEditable 
+                              <span
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }}
+                                contentEditable
                                 suppressContentEditableWarning
                               > {student.class_name}</span>
                             </p>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Stream:</span>
-                              <span 
-                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }} 
-                                contentEditable 
+                              <span
+                                style={{ color: activeLayout.studentValue.color, fontStyle: activeLayout.studentValue.fontStyle as any, fontWeight: activeLayout.studentValue.fontWeight, cursor: 'text' }}
+                                contentEditable
                                 suppressContentEditableWarning
                               > {student.stream_name || 'A'}</span>
                             </p>
@@ -1897,8 +1895,8 @@ const ReportsPage = () => {
                             </p>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Term:</span>
-                              <span 
-                                style={{ 
+                              <span
+                                style={{
                                   color: activeLayout.studentValue.color,
                                   fontStyle: activeLayout.studentValue.fontStyle as any,
                                   fontWeight: activeLayout.studentValue.fontWeight,
@@ -1967,11 +1965,11 @@ const ReportsPage = () => {
                           const scoreToUse = isEndOfTerm ? totalMarks : midTermMarks;
 
                           // Use class_id and subject_id for proper syncing across all reports
-                          const initialsKey = student.class_id && r.subject_id 
+                          const initialsKey = student.class_id && r.subject_id
                             ? `${student.class_id}-${r.subject_id}`
                             : `${student.class_name}-${r.subject_name}`;
-                          
-                          const currentInitials = teacherInitials[initialsKey] || 
+
+                          const currentInitials = teacherInitials[initialsKey] ||
                             r.teacher_initials ||
                             r.teacher_name?.split(' ').map((n: string) => n[0]).join('') || 'N/A';
 
@@ -2017,7 +2015,7 @@ const ReportsPage = () => {
                             return sum + totalMarks;
                           }, 0);
                           const averageScore = allGroupedResults.length > 0 ? Math.round(totalScore / allGroupedResults.length) : 0;
-                          
+
                           return (
                             <>
                               <tr style={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>
@@ -2041,15 +2039,15 @@ const ReportsPage = () => {
                         })()}
                       </tbody>
                     </table>
-                    
+
                     {/* Assessment Section - Modified for Nursery */}
                     <div style={{ marginTop: 20, fontSize: activeLayout.page.fontSize }}>
                       <h3 style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 10, cursor: 'text' }} contentEditable suppressContentEditableWarning>
                         General Assessment
                       </h3>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         border: activeLayout.assessmentBox.border,
                         borderRadius: activeLayout.assessmentBox.borderRadius,
                         padding: activeLayout.assessmentBox.padding,
@@ -2070,12 +2068,12 @@ const ReportsPage = () => {
                             <div
                               contentEditable
                               suppressContentEditableWarning
-                              style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                padding: activeLayout.assessmentBox.padding, 
-                                border: activeLayout.assessmentBox.border, 
-                                borderRadius: activeLayout.assessmentBox.borderRadius, 
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                padding: activeLayout.assessmentBox.padding,
+                                border: activeLayout.assessmentBox.border,
+                                borderRadius: activeLayout.assessmentBox.borderRadius,
                                 cursor: 'text',
                                 minHeight: '50px'
                               }}
@@ -2104,7 +2102,7 @@ const ReportsPage = () => {
                       <h3 style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 10 }}>
                         Promotion Status
                       </h3>
-                      
+
                     </div> */}
                     {/* Comments Section */}
                     <div style={{ marginTop: activeLayout.comments.marginTop, borderTop: activeLayout.comments.borderTop, paddingTop: activeLayout.comments.paddingTop }}>
@@ -2140,7 +2138,7 @@ const ReportsPage = () => {
           );
         })}
         </div>
-       
+
         <style jsx global>{`
           .no-print {
             display: block;
@@ -2338,7 +2336,7 @@ function getCommentsByDivision(division: string) {
       headteacher: 'Extra help and attention required.'
     }
   };
-  
+
   return comments[division as keyof typeof comments] || comments['Division U'];
 }
 
@@ -2374,7 +2372,7 @@ function CommentsSection({
     fontStyle: layout.comments.text.fontStyle as any,
     borderBottom: layout.comments.text.borderBottom,
   };
-  
+
   return (
     <div style={{ marginTop: '1%' }}>
       Comments/Remarks

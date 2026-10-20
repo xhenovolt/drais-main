@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:25:50.686Z",
-  "last_commit": "ce36d9e1d8698e015e77dc2a288f41e4880b5b22",
+  "generated_at": "2026-10-20T10:32:14.652Z",
+  "last_commit": "67678f1b5a09a890197f6acfb4952c9c9edea4c4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10450,7 +10450,20 @@
         }
       ],
       "commit": "ce36d9e1d8"
+    },
+    {
+      "version": "2.50.141",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Report-card snapshot viewer fully Arabic; fix DRCE inline edits and the dead Audit button",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Report-card snapshot viewer fully Arabic; fix DRCE inline edits and the dead Audit button"
+        }
+      ],
+      "commit": "67678f1b5a"
     }
   ],
-  "app_version": "2.50.141"
+  "app_version": "2.50.142"
 }

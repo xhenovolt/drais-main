@@ -10022,6 +10022,103 @@
         "spacer": "Spacer",
         "student_info": "Student Info"
       }
+    },
+    "reports": {
+      "promoted": {
+        "one": "Successfully promoted {{count}} student!",
+        "other": "Successfully promoted {{count}} students!"
+      },
+      "promoteFailed": "Failed to promote students",
+      "promoteFailedMsg": "Failed to promote students: {{msg}}",
+      "initialsSaved": "Initials saved successfully",
+      "initialsFailed": "Failed to save initials",
+      "noArea": "Report area not found.",
+      "noPrint": "No reports are currently available to print.",
+      "noExport": "No reports are currently available to export.",
+      "pdfFailed": "Failed to export PDF. Please try again.",
+      "current": "(Current)",
+      "term": {
+        "1": "Term 1",
+        "2": "Term 2",
+        "3": "Term 3"
+      },
+      "allSubjects": "All Subjects",
+      "secularOnly": "Secular Only",
+      "theologyOnly": "Theology Only",
+      "reportLanguage": "Report language",
+      "print": "Print",
+      "exportPdf": "Export PDF",
+      "exportExcel": "Export Excel",
+      "kitchen": "Template Kitchen",
+      "loading": "Loading...",
+      "studentsIn": "{{students}} in {{classes}}",
+      "students": {
+        "one": "{{count}} student",
+        "other": "{{count}} students"
+      },
+      "classes": {
+        "one": "{{count}} class",
+        "other": "{{count}} classes"
+      },
+      "previewTitle": "Editable report print preview",
+      "preparing": "Please wait while we prepare the report system.",
+      "noMatch": "No reports match your filters",
+      "noMatchHelp": "Try adjusting the year, term, class, or result type filters above.",
+      "noData": "No report data found",
+      "noDataHelp": "Enter results in the Results page first, then come back here to generate reports.",
+      "unknownClass": "Unknown Class"
+    },
+    "promoSummary": {
+      "status": "Promotion Status",
+      "notThird": "Promotions are calculated at the end of 3rd term. Current term: {{term}}",
+      "pickStudents": "Please select students to promote",
+      "pickClass": "Choose the class to promote them into",
+      "title": "Promotion Summary - {{term}}",
+      "subtitle": "End of Year Academic Performance Review",
+      "export": "Export Report",
+      "print": "Print",
+      "total": "Total Students",
+      "promoted": "Promoted",
+      "support": "Need Support",
+      "repeat": "Advised Repeat",
+      "rate": "Overall Promotion Rate",
+      "sec": {
+        "promoted": "✅ Promoted Learners",
+        "promotedSub": "Division I, II, or III - Ready for next level",
+        "improve": "⚠️ Expected to Improve",
+        "improveSub": "Division IV - Promoted with conditions",
+        "repeat": "❌ Advised to Repeat",
+        "repeatSub": "Below passing standard - Requires class repetition"
+      },
+      "selected": {
+        "one": "{{count}} student selected",
+        "other": "{{count}} students selected"
+      },
+      "destClass": "Destination class",
+      "execute": "Execute Promotion",
+      "students": {
+        "one": "{{count}} Student",
+        "other": "{{count}} Students"
+      },
+      "none": "No students in this category",
+      "select": "Select",
+      "dcf": "{{d}}D • {{c}}C • {{f}}F",
+      "div": {
+        "1": "Division I",
+        "2": "Division II",
+        "3": "Division III",
+        "4": "Division IV",
+        "fail": "Fail / U"
+      },
+      "rec": {
+        "promoted": "Excellent performance! Promoted to {{next}}.",
+        "improve": {
+          "one": "Promoted with conditions. Must improve performance in {{count}} subject.",
+          "other": "Promoted with conditions. Must improve performance in {{count}} subjects."
+        },
+        "repeat": "Performance below standard. Advised to repeat {{cls}} for better foundation.",
+        "na": "Promotion status determined at end of 3rd term."
+      }
     }
   }
 }

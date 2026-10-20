@@ -45,29 +45,29 @@ export async function GET(request: NextRequest) {
 
     // Fetch all students with their results - PROPERLY FILTERED BY ACADEMIC YEAR
     const sql = `
-      SELECT 
+      SELECT
         s.id as student_id,
         s.admission_no,
         CONCAT(p.first_name, ' ', p.last_name) as student_name,
         c.id as class_id,
         c.name as class_name,
         c.level as class_level,
-        
+
         -- Calculate total marks and average
         SUM(cr.score) as total_marks,
         COUNT(DISTINCT cr.subject_id) as subject_count,
         AVG(cr.score) as average_marks,
-        
+
         -- Count grades for division calculation
         SUM(CASE WHEN cr.score >= 80 THEN 1 ELSE 0 END) as distinctions,
         SUM(CASE WHEN cr.score >= 60 AND cr.score < 80 THEN 1 ELSE 0 END) as credits,
         SUM(CASE WHEN cr.score >= 50 AND cr.score < 60 THEN 1 ELSE 0 END) as passes,
         SUM(CASE WHEN cr.score < 50 THEN 1 ELSE 0 END) as failures
-        
+
       FROM students s
       INNER JOIN people p ON s.person_id = p.id
       INNER JOIN classes c ON s.class_id = c.id
-      LEFT JOIN class_results cr ON s.id = cr.student_id 
+      LEFT JOIN class_results cr ON s.id = cr.student_id
         AND cr.term_id = ?
         AND cr.academic_year_id = ?
         ${classId ? 'AND cr.class_id = ?' : ''}
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     // Calculate divisions and categorize students
     const categorizedStudents = (students as any[]).map((student) => {
       const { distinctions, credits, passes, failures, subject_count, average_marks } = student;
-      
+
       let division = null;
       let divisionName = '';
       let promotionStatus = '';
@@ -142,6 +142,9 @@ export async function GET(request: NextRequest) {
         divisionName,
         promotionStatus,
         recommendation,
+        // Structured parts of the recommendation, so the UI can word it in the reader's language.
+        failures,
+        nextClassName: isThirdTerm && division && division <= 3 ? getNextClass(student.class_name) : null,
       };
     });
 
@@ -193,7 +196,7 @@ function getNextClass(currentClass: string): string {
     if (level === 7) return 'S.1 (Secondary)';
     if (level < 7) return currentClass.replace(String(level), String(level + 1));
   }
-  
+
   // Handle P1-P7 explicitly
   const primaryMatch = currentClass.match(/P(\d)/i);
   if (primaryMatch) {
@@ -201,7 +204,7 @@ function getNextClass(currentClass: string): string {
     if (level === 7) return 'S.1';
     return `P${level + 1}`;
   }
-  
+
   return 'Next Level';
 }
 
@@ -209,52 +212,74 @@ function getNextClass(currentClass: string): string {
  * POST /api/academics/promotions
  * Execute bulk promotion for students
  */
+// Moves the given learners into another class of the SAME school. This endpoint used to
+// run unauthenticated and unscoped (UPDATE students ... WHERE id IN (...)) for any ids and
+// any class — and the reports page called it with a hardcoded class id. It now requires a
+// session, only touches the caller's own students, and only into the caller's own class.
 export async function POST(request: NextRequest) {
+  const session = await getSessionSchoolId(request);
+  if (!session) {
+    return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
+  }
+  const modDenied = await checkModule(session.schoolId, 'academics');
+  if (modDenied) return modDenied;
+  const schoolId = session.schoolId;
+
+  let body: any;
+  try { body = await request.json(); } catch { body = null; }
+  const studentIds: number[] = Array.isArray(body?.studentIds)
+    ? body.studentIds.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+    : [];
+  const newClassId = Number(body?.newClassId);
+  const remarks = typeof body?.remarks === 'string' ? body.remarks.slice(0, 500) : '';
+
+  if (studentIds.length === 0) {
+    return NextResponse.json({ success: false, message: 'Student IDs are required' }, { status: 400 });
+  }
+  if (!Number.isInteger(newClassId) || newClassId <= 0) {
+    return NextResponse.json({ success: false, message: 'A destination class is required' }, { status: 400 });
+  }
+
   let connection;
   try {
-    const body = await request.json();
-    const { studentIds, newClassId, academicYearId, remarks } = body;
-
-    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Student IDs are required' },
-        { status: 400 }
-      );
+    connection = await getConnection();
+    const [cls]: any = await connection.execute(
+      'SELECT id FROM classes WHERE id = ? AND school_id = ? LIMIT 1',
+      [newClassId, schoolId],
+    );
+    if (cls.length === 0) {
+      return NextResponse.json({ success: false, message: 'Destination class not found for this school' }, { status: 400 });
     }
 
-    connection = await getConnection();
-
-    // Update students to new class
+    await connection.beginTransaction();
     const placeholders = studentIds.map(() => '?').join(',');
     const [result] = await connection.execute(
-      `UPDATE students 
-       SET class_id = ?, 
-           updated_at = NOW()
-       WHERE id IN (${placeholders})`,
-      [newClassId, ...studentIds]
+      `UPDATE students SET class_id = ?, updated_at = NOW()
+        WHERE school_id = ? AND id IN (${placeholders})`,
+      [newClassId, schoolId, ...studentIds],
     );
-
-    // Log promotion history
-    for (const studentId of studentIds) {
+    const [moved]: any = await connection.execute(
+      `SELECT id FROM students WHERE school_id = ? AND class_id = ? AND id IN (${placeholders})`,
+      [schoolId, newClassId, ...studentIds],
+    );
+    for (const row of moved) {
       await connection.execute(
-        `INSERT INTO student_history 
-         (student_id, action_type, details, created_at)
-         VALUES (?, 'promotion', ?, NOW())`,
-        [studentId, remarks || 'Promoted based on 3rd term performance']
+        `INSERT INTO student_history (school_id, student_id, class_id, action, details, performed_by, created_at)
+         VALUES (?, ?, ?, 'promotion', ?, ?, NOW())`,
+        [schoolId, row.id, newClassId, remarks || 'Promoted based on 3rd term performance', session.userId ?? null],
       );
     }
+    await connection.commit();
 
     return NextResponse.json({
       success: true,
-      message: `Successfully promoted ${studentIds.length} student(s)`,
+      message: `Successfully promoted ${moved.length} student(s)`,
       affectedRows: (result as any).affectedRows,
     });
   } catch (error: any) {
+    if (connection) { try { await connection.rollback(); } catch { /* not in a transaction */ } }
     console.error('Error executing promotions:', error);
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Promotion failed' }, { status: 500 });
   } finally {
     if (connection) await connection.end();
   }
