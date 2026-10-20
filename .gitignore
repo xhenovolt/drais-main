@@ -136,3 +136,6 @@ backups/
 /tmp/inspect_masterah.js
 .l10n-work/
 .ops-work/
+
+# Developer-docs index — regenerated before every build (scripts/devdocs/generate.mjs)
+src/generated/devdocs/

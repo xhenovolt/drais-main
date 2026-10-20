@@ -61,6 +61,10 @@ const nextConfig = {
     // Same class of problem, and same fix, as the @sparticuz/chromium entries
     // above: if a package loads assets via fs rather than import, list them.
     '/api/finance/payments/*/receipt': ['./node_modules/pdfkit/js/data/**'],
+
+    // The developer-docs index is read with fs at run time (several MB, kept out of the
+    // JS bundle on purpose) — written by scripts/devdocs/generate.mjs in "prebuild".
+    '/api/control-center/docs/*': ['./src/generated/devdocs/**'],
   },
   
   // Turbopack configuration

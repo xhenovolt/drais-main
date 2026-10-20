@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T15:52:14.637Z",
-  "last_commit": "82c554908b7fc4350efd0ee4c1baadc0f0d35432",
+  "generated_at": "2026-10-20T16:18:10.645Z",
+  "last_commit": "7bd4311af35c71ba2130a65ea67e4c33fc584667",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10593,7 +10593,20 @@
         }
       ],
       "commit": "82c554908b"
+    },
+    {
+      "version": "2.50.152",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/api/sync/manual-upload — session callers act for their own school only",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "/api/sync/manual-upload — session callers act for their own school only"
+        }
+      ],
+      "commit": "7bd4311af3"
     }
   ],
-  "app_version": "2.50.152"
+  "app_version": "2.50.153"
 }

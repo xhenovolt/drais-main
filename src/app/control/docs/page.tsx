@@ -92,6 +92,11 @@ export default function KnowledgeBaseIndex() {
                 Nothing matched. Search covers titles, topics and keywords — not the body text of each page.
               </p>
               <p className="text-sm text-slate-400 mt-2">
+                Looking for a specific page, file, component, hook or endpoint? Search the{' '}
+                <Link href="/control/docs/routes" className="text-indigo-400 hover:underline">route &amp; file reference</Link>,
+                which covers every one of them.
+              </p>
+              <p className="text-sm text-slate-400 mt-2">
                 If you searched for something real that should have matched, add the term to that document&apos;s{' '}
                 <code className="text-indigo-300">keywords</code> in{' '}
                 <code className="text-indigo-300">src/app/control/docs/registry.ts</code>. The gap is the bug.

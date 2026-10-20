@@ -30,6 +30,7 @@ export interface DocMeta {
 }
 
 export const SECTION_ORDER = [
+  'Reference',
   'Learn',
   'Foundations',
   'Frontend',
@@ -41,6 +42,28 @@ export const SECTION_ORDER = [
 ] as const;
 
 export const DOCS: DocMeta[] = [
+  // ── Reference ───────────────────────────────────────────────────────────────
+  // Generated from the source on every build (scripts/devdocs/), plus
+  // hand-written guides on chosen routes (routes/guide-index.ts).
+  {
+    slug: 'routes',
+    section: 'Reference',
+    title: 'Route & file reference',
+    blurb: 'Every page, API route and source file, documented from the code: layouts, data flow, endpoints, components, hooks, state, auth, tests, dependants.',
+    topics: ['reference', 'generated'],
+    keywords: ['route', 'routes', 'page.tsx', 'layout.tsx', 'route.ts', 'file', 'which file', 'where is', 'who uses', 'dependants', 'imports', 'endpoint', 'api', 'hook', 'component', 'tests for', 'data loading', 'route tree', 'source', 'explorer'],
+    minutes: 5,
+  },
+  {
+    slug: 'anti-patterns',
+    section: 'Reference',
+    title: 'Conventions to avoid',
+    blurb: 'Eleven mistakes with real instances in this repository — dead endpoints, swallowed errors, trusted client ids, browser-side totals — and what to do instead.',
+    topics: ['conventions', 'security', 'review'],
+    keywords: ['anti-pattern', 'antipattern', 'bad practice', 'code review', 'mistake', 'swallowed error', 'catch', 'school_id from body', 'tenant', 'case sensitive import', 'linux build', 'missing endpoint', '404', 'totals', 'cloudinary', 'tabs', 'shared component'],
+    minutes: 10,
+  },
+
   // ── Learn (DRAIS Developer University) ─────────────────────────────────────
   // Ordered as a CURRICULUM, not alphabetically: prev/next and the sidebar
   // follow this sequence, so a developer with only JavaScript can start at the
@@ -421,6 +444,15 @@ export const DOCS: DocMeta[] = [
     topics: ['playbook', 'frontend'],
     keywords: ['new page', 'page.tsx', 'sidebar', 'navigation', 'route', 'translation', 'dark mode', 'permission gate', 'loading', 'empty state'],
     minutes: 10,
+  },
+  {
+    slug: 'playbook-tab',
+    section: 'Playbooks',
+    title: 'Add a custom tab',
+    blurb: 'Add a tab to an existing route, step by step on /attendance/settings: typed key, translated label, self-contained panel, API, tests.',
+    topics: ['playbook', 'frontend'],
+    keywords: ['tab', 'tabs', 'new tab', 'custom tab', 'tabpanel', 'hash', 'deep link', 'settings page', 'panel', 'aria'],
+    minutes: 8,
   },
   {
     slug: 'playbook-module',
