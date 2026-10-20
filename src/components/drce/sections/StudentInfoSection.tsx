@@ -14,6 +14,7 @@ import {
 } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
 import { resolveLocalizedText, resolveLocalizedLabel } from '@/lib/drce/arabic';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Props {
   section: DRCEStudentInfoSection;
@@ -190,7 +191,7 @@ export function StudentInfoSection({ section, ctx }: Props) {
             {/* ── Photo column ──────────────────────────────────── */}
              {showPhoto && (
                <td style={{ width: 94, textAlign: 'center', verticalAlign: 'middle', padding: '0 2px 0 0' }}>
-                 <img
+                 <MediaImg
                    src={student.photoUrl || '/default-avatar.png'}
                    alt={student.fullName || 'Student'}
                    style={{

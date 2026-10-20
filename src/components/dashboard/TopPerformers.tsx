@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, TrendingUp, User, Medal, Award } from 'lucide-react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface TopPerformerData {
   id: number;
@@ -75,7 +76,7 @@ const TopPerformers: React.FC<TopPerformersProps> = ({ data = [] }) => {
               
               <div className="flex-shrink-0">
                 {performer.photoUrl ? (
-                  <img
+                  <MediaImg
                     src={performer.photoUrl}
                     alt={performer.name}
                     className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-600"

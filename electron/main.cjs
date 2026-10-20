@@ -266,6 +266,14 @@ else {
 // Instrumentation only: the preload exposes no other IPC capability.
 require('electron').ipcMain.on('drais-startup-mark', (_event, stage, detail) => startupMark(`renderer-${stage}`, detail));
 
+// Settings → Media: native folder picker for a school's own photo folder. Returns only the chosen
+// path (or null); the server validates it before use and never reads outside it.
+require('electron').ipcMain.handle('drais-pick-folder', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
+  return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
+});
+
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 process.on('uncaughtException', (err) => logToFile('UNCAUGHT: ' + (err && err.stack ? err.stack : String(err))));
 process.on('unhandledRejection', (reason) => logToFile('UNHANDLED_REJECTION: ' + String(reason)));

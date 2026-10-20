@@ -3,6 +3,7 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/loading/Skeleton';
 import type { NorthgateReportData, SubjectRow } from './types';
+import { MediaImg } from '@/components/media/MediaImg';
 
 /* ═══════════════════════════════════════════════════════
    SVG Sub-Components
@@ -440,7 +441,7 @@ export default function NorthgateReport({
 
           <div className="report-photo-box">
             {studentDetails.photoUrl ? (
-              <img
+              <MediaImg
                 src={studentDetails.photoUrl}
                 alt={`${studentDetails.name} photo`}
                 crossOrigin="anonymous"

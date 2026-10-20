@@ -3,6 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { X, Upload, Check, AlertCircle, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import clsx from 'clsx';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface LearnerDetailsModalProps {
   open: boolean;
@@ -311,7 +312,7 @@ export const LearnerDetailsModal: React.FC<LearnerDetailsModalProps> = ({ open, 
 								<div className="flex items-start justify-between gap-4">
 									<div className="flex items-center gap-4">
 										<div className="relative">
-											<img
+											<MediaImg
 												src={previewUrl || '/images/avatar-placeholder.png'}
 												alt="Profile"
 												className="w-20 h-20 rounded-xl object-cover shadow"

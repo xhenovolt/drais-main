@@ -11,6 +11,7 @@
 
 import React from 'react';
 import type { IDCardConfig } from '@/lib/idCardConfig';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -152,7 +153,7 @@ export const IDCardPreview = React.forwardRef<HTMLDivElement, Props>(
               flexShrink: 0,
             }}>
               {logoSrc
-                ? <img src={logoSrc} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <MediaImg src={logoSrc} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <span style={{ fontSize: 7, fontWeight: 700, color: accentColor }}>
                     {meta.schoolName.slice(0, 2).toUpperCase()}
                   </span>
@@ -169,7 +170,7 @@ export const IDCardPreview = React.forwardRef<HTMLDivElement, Props>(
               flexShrink: 0,
             }}>
               {photoSrc
-                ? <img
+                ? <MediaImg
                     src={photoSrc}
                     alt={fullName}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}

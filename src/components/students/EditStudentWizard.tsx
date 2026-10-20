@@ -6,6 +6,7 @@ import useSWRImmutable from 'swr/immutable';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const API_BASE = '/api';
 
@@ -238,7 +239,7 @@ export const EditStudentWizard: React.FC<EditStudentWizardProps> = ({ open, onCl
                     
                     {photoPreview || formData.photo_url ? (
                       <div className="relative group">
-                        <img
+                        <MediaImg
                           src={photoPreview || formData.photo_url}
                           alt="Student"
                           className="w-full aspect-square object-cover rounded-2xl shadow-lg ring-4 ring-white dark:ring-slate-600"

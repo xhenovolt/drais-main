@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, UserCheck, Star, MessageSquare, CheckCircle } from 'lucide-react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Learner {
   student_id: number;
@@ -99,7 +100,7 @@ const PresentModal: React.FC<PresentModalProps> = ({
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold overflow-hidden">
               {learner.student_avatar ? (
-                <img 
+                <MediaImg 
                   src={learner.student_avatar} 
                   alt={learner.student_name} 
                   className="w-full h-full object-cover"

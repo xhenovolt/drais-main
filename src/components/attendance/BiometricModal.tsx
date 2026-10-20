@@ -5,6 +5,7 @@ import { Fragment } from 'react';
 import { X, Fingerprint, Smartphone, Shield, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface BiometricModalProps {
   open: boolean;
@@ -186,7 +187,7 @@ const BiometricModal: React.FC<BiometricModalProps> = ({
 
                 {student && (
                   <div className="text-center mb-6">
-                    <img
+                    <MediaImg
                       src={student.photo_url || '/default-avatar.png'}
                       alt={`${student.first_name} ${student.last_name}`}
                       className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-4 border-blue-500"

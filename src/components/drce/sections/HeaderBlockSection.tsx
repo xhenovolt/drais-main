@@ -19,6 +19,7 @@ import type {
   DRCESection,
 } from '@/lib/drce/schema';
 import { resolveExpression } from '@/lib/drce/computed/resolveExpression';
+import { MediaImg } from '@/components/media/MediaImg';
 
 function blockText(section: Section, ctx: DRCEDataContext): string {
   const meta = ctx.meta;
@@ -60,7 +61,7 @@ export function HeaderBlockSection({ section, ctx }: { section: Section; ctx: DR
     const url = ctx.meta.logoUrl;
     if (!url) return null;
     return (
-      <img
+      <MediaImg
         src={url}
         alt="School logo"
         style={{ width: style.width ?? 64, height: style.height ?? 64, objectFit: 'contain', ...style }}
@@ -71,7 +72,7 @@ export function HeaderBlockSection({ section, ctx }: { section: Section; ctx: DR
   if (section.kind === 'custom_image') {
     if (!section.imageUrl) return null;
     return (
-      <img
+      <MediaImg
         src={section.imageUrl}
         alt=""
         style={{ width: style.width ?? 64, height: style.height ?? 64, objectFit: 'contain', ...style }}

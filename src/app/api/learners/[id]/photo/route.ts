@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto, deleteCloudinaryPhoto } from '@/lib/cloudinary';
+import { deleteCloudinaryPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 import { logAudit } from '@/lib/audit';
 
 // GET /api/learners/[id]/photo — returns current photo_url for the learner
@@ -54,7 +55,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const oldPhotoUrl = peopleRows[0]?.photo_url ?? null;
 
     const buffer = Buffer.from(await photo.arrayBuffer());
-    const result = await uploadStudentPhoto(buffer, photo.size, 'drais/students', `person_${personId}`);
+    const stored = await storeImage({ schoolId, entityType: 'person', entityId: personId, data: buffer, fileName: photo.name, folder: 'drais/students', publicId: `person_${personId}` });
+    const result = { secure_url: stored.url };
 
     await connection.execute(
       'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ?',

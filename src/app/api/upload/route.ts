@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 
 /**
  * POST /api/upload
@@ -39,15 +39,14 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const result = await uploadStudentPhoto(buffer, file.size, folder, publicId || undefined);
+    const stored = await storeImage({ schoolId: Number(session.schoolId), entityType: 'school_logo', entityId: Number(session.schoolId), data: buffer, fileName: file.name, folder, publicId: publicId || undefined });
 
     return NextResponse.json({
       success: true,
-      url: result.secure_url,
-      public_id: result.public_id,
-      bytes: result.bytes,
-      width: result.width,
-      height: result.height,
+      url: stored.url,
+      public_id: stored.publicId ?? null,
+      bytes: buffer.length,
+      provider: stored.provider,
     });
   } catch (error: any) {
     console.error('[upload POST]', error);

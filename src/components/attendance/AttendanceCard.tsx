@@ -3,6 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Fingerprint, Smartphone, Clock } from 'lucide-react';
 import clsx from 'clsx';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface AttendanceCardProps {
   student: any;
@@ -47,7 +48,7 @@ const AttendanceCard: React.FC<AttendanceCardProps> = ({
       {/* Student Photo */}
       <div className="flex flex-col items-center mb-3">
         <div className="relative">
-          <img
+          <MediaImg
             src={student.photo_url || '/default-avatar.png'}
             alt={`${student.first_name} ${student.last_name}`}
             className="w-16 h-16 rounded-full object-cover border-4 border-white dark:border-slate-700 shadow-lg"

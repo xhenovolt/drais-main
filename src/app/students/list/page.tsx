@@ -67,6 +67,7 @@ import {
   assertArray,
 } from '@/lib/safety';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // Scoped logger for this module
 const logger = scopedLogger('StudentsList');
@@ -1283,7 +1284,7 @@ export default function StudentsListPage() {
     if (student.photo_url) {
       return (
         <div className="relative group/avatar w-7 h-7 flex-shrink-0">
-          <img src={student.photo_url} alt={initials} className="w-7 h-7 rounded-full object-cover ring-1 ring-white dark:ring-slate-700" />
+          <MediaImg src={student.photo_url} alt={initials} className="w-7 h-7 rounded-full object-cover ring-1 ring-white dark:ring-slate-700" />
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleRemovePhoto(student.id); }}

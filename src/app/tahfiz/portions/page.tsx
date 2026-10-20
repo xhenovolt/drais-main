@@ -16,6 +16,7 @@ import LearnerCard from '@/components/tahfiz/LearnerCard';
 import AssignPortionModal from '@/components/tahfiz/AssignPortionModal';
 import PresentModal from '@/components/tahfiz/PresentModal';
 import StudentDetailModal from '@/components/tahfiz/StudentDetailModal';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Learner {
   student_id: number;
@@ -359,7 +360,7 @@ function TahfizPortionsContent() {
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
                             {learner.student_avatar ? (
-                              <img src={learner.student_avatar} alt={learner.student_name} className="w-full h-full object-cover" />
+                              <MediaImg src={learner.student_avatar} alt={learner.student_name} className="w-full h-full object-cover" />
                             ) : (
                               learner.student_name.charAt(0)
                             )}

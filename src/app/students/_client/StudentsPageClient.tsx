@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 import { useExport } from '@/hooks/useExport';
 import ReassignClassModal from './ReassignClassModal';
 import { BulkPhotoUploadModal } from '@/components/students/BulkPhotoUploadModal';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Student {
   id: number;
@@ -380,7 +381,7 @@ export default function StudentsPage({ enrolledData: initialEnrolled = [], admit
                       <div className="flex items-center gap-3">
                         <div className="relative group flex-shrink-0">
                           {student.photo_url ? (
-                            <img
+                            <MediaImg
                               src={student.photo_url}
                               alt={`${student.first_name} ${student.last_name}`}
                               className="w-8 h-8 rounded-full object-cover"

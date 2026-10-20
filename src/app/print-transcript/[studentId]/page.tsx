@@ -20,6 +20,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface PageProps { params: Promise<{ studentId: string }>; }
 
@@ -182,7 +183,7 @@ export default function PrintTranscriptPage({ params }: PageProps) {
           <div className="school-header">
             {data.school?.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className="logo" src={data.school.logoUrl} alt="" />
+              <MediaImg className="logo" src={data.school.logoUrl} alt="" />
             )}
             <h1>{data.school?.legalName || data.school?.name || 'School'}</h1>
             <div className="meta">

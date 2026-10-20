@@ -7,6 +7,7 @@ import {
   User, Calendar, Crown, Shield
 } from 'lucide-react';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface GroupMember {
   id: number;
@@ -393,7 +394,7 @@ function GroupMembersModalContent({
                             <div className="flex items-center space-x-3 flex-1 min-w-0">
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
                                 {member.avatar ? (
-                                  <img src={member.avatar} alt={member.first_name} className="w-full h-full object-cover" />
+                                  <MediaImg src={member.avatar} alt={member.first_name} className="w-full h-full object-cover" />
                                 ) : (
                                   `${member.first_name.charAt(0)}${member.last_name.charAt(0)}`
                                 )}
@@ -524,7 +525,7 @@ function GroupMembersModalContent({
                                 >
                                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden flex-shrink-0">
                                     {student.avatar ? (
-                                      <img src={student.avatar} alt={student.first_name} className="w-full h-full object-cover" />
+                                      <MediaImg src={student.avatar} alt={student.first_name} className="w-full h-full object-cover" />
                                     ) : (
                                       `${student.first_name.charAt(0)}${student.last_name.charAt(0)}`
                                     )}

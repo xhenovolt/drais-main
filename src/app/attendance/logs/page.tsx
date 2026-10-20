@@ -16,6 +16,7 @@ import ClockHealthBadges from '@/components/attendance/ClockHealthBadges';
 import { AttendanceExportService } from '@/lib/attendance/export/AttendanceExportService';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // DERIVED attendance meaning (from the state engine), NOT the device's
 // raw IN/OUT field. This is what operators should trust.
@@ -1418,7 +1419,7 @@ export default function UnifiedAttendancePage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   {log.photo_url ? (
-                    <img src={log.photo_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                    <MediaImg src={log.photo_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
                   ) : (
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       log.person_name
@@ -1630,7 +1631,7 @@ export default function UnifiedAttendancePage() {
                       {log.person_name ? (
                         <div className="flex items-center gap-2">
                           {log.photo_url ? (
-                            <img
+                            <MediaImg
                               src={log.photo_url}
                               alt=""
                               className="w-8 h-8 rounded-full object-cover"

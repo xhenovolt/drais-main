@@ -5,6 +5,7 @@ import { showToast } from '@/lib/toast';
 import { apiFetch } from '@/lib/apiClient';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface SchoolFormData {
   name: string;
@@ -290,7 +291,7 @@ export default function SchoolSettingsPage() {
             <div className="flex-shrink-0">
               {form.logo && form.logo !== '/uploads/logo.png' ? (
                 <div className="relative group">
-                  <img src={form.logo} alt="School logo" className="w-28 h-28 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white" />
+                  <MediaImg src={form.logo} alt="School logo" className="w-28 h-28 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white" />
                   <button
                     type="button"
                     onClick={() => { setForm(prev => ({ ...prev, logo: '' })); setSaved(false); }}

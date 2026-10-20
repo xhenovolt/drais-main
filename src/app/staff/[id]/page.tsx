@@ -12,6 +12,7 @@ import StaffPhotoModal from '@/components/staff/StaffPhotoModal';
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { TeacherSubjectAssignment } from '@/components/academics/TeacherSubjectAssignment';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -150,7 +151,7 @@ export default function StaffDetailPage() {
             className="relative group w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow overflow-hidden hover:ring-2 hover:ring-indigo-400 transition"
           >
             {staff.photo_url ? (
-              <img src={staff.photo_url} alt={fullName} className="w-full h-full object-cover" />
+              <MediaImg src={staff.photo_url} alt={fullName} className="w-full h-full object-cover" />
             ) : (
               <span>{staff.first_name?.[0]?.toUpperCase() ?? '?'}</span>
             )}

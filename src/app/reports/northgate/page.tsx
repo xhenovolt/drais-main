@@ -9,6 +9,7 @@ import {
 import NorthgateReport from '@/components/reports/NorthgateReport';
 import NorthgateClassicTemplate from '@/components/reports/NorthgateClassicTemplate';
 import type { NorthgateReportData } from '@/components/reports/types';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // ============================================================================
 // /reports/northgate  — Northgate School Report Card Generator
@@ -268,7 +269,7 @@ export default function NorthgateReportPage() {
                         <td className="px-4 py-2">
                           <div className="flex items-center gap-2">
                             {s.photo_url ? (
-                              <img src={s.photo_url} alt="" className="w-7 h-7 rounded-full object-cover border" />
+                              <MediaImg src={s.photo_url} alt="" className="w-7 h-7 rounded-full object-cover border" />
                             ) : (
                               <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                                 {s.full_name.charAt(0)}

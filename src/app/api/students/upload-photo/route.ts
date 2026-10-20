@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 import { logAudit } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
@@ -34,24 +34,21 @@ export async function POST(req: NextRequest) {
 
     if (!targetPersonId) return NextResponse.json({ success: false, error: 'Student ID or Person ID is required' }, { status: 400 });
 
-    const [peopleRows]: any = await connection.execute('SELECT id, photo_url FROM people WHERE id = ?', [targetPersonId]);
+    // school_id guard: a person_id posted by the client must belong to the caller's school.
+    const [peopleRows]: any = await connection.execute('SELECT id, photo_url FROM people WHERE id = ? AND school_id = ?', [targetPersonId, session.schoolId]);
     if (!peopleRows.length) return NextResponse.json({ success: false, error: 'Person not found' }, { status: 404 });
 
     const oldPhotoUrl = peopleRows[0].photo_url;
 
-    // Upload to Cloudinary (auto-compress if > 900 KB)
+    // Cloudinary online (auto-compress if > 900 KB); this machine's media store when the DB is local.
     const buffer = Buffer.from(await photo.arrayBuffer());
-    const result = await uploadStudentPhoto(
-      buffer,
-      photo.size,
-      'drais/students',
-      `person_${targetPersonId}`,
-    );
+    const stored = await storeImage({ schoolId: session.schoolId, entityType: 'person', entityId: targetPersonId, data: buffer, fileName: photo.name, folder: 'drais/students', publicId: `person_${targetPersonId}` });
+    const result = { secure_url: stored.url };
 
     // Persist CDN URL
     await connection.execute(
-      'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ?',
-      [result.secure_url, targetPersonId],
+      'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
+      [result.secure_url, targetPersonId, session.schoolId],
     );
 
     await logAudit({

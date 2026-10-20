@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto, deleteCloudinaryPhoto } from '@/lib/cloudinary';
+import { deleteCloudinaryPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 import { logAudit } from '@/lib/audit';
 
 /**
@@ -46,7 +47,8 @@ export async function POST(req: NextRequest) {
     if (!personId) return NextResponse.json({ success: false, error: 'Staff has no linked person record' }, { status: 422 });
 
     const buffer = Buffer.from(await photo.arrayBuffer());
-    const result = await uploadStudentPhoto(buffer, photo.size, 'drais/staff', `person_${personId}`);
+    const stored = await storeImage({ schoolId, entityType: 'person', entityId: personId, data: buffer, fileName: photo.name, folder: 'drais/staff', publicId: `person_${personId}` });
+    const result = { secure_url: stored.url };
 
     // Capture previous URL for the audit trail before overwriting.
     const [peopleRows]: any = await connection.execute(

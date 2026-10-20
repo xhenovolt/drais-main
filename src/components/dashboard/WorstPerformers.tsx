@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, TrendingDown, User, BookOpen, MessageCircle } from 'lucide-react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface WorstPerformerData {
   id: number;
@@ -54,7 +55,7 @@ const WorstPerformers: React.FC<WorstPerformersProps> = ({ data = [] }) => {
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex-shrink-0">
                   {performer.photoUrl ? (
-                    <img
+                    <MediaImg
                       src={performer.photoUrl}
                       alt={performer.name}
                       className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-600"

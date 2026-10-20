@@ -5,6 +5,7 @@ import { X, Upload, Camera, Check, AlertCircle, Trash2, User, Image as ImageIcon
 import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Student {
   id: number;
@@ -707,7 +708,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                             {/* Avatar */}
                             {hasPhoto ? (
                               <div className="relative flex-shrink-0">
-                                <img
+                                <MediaImg
                                   src={student.photo_url!}
                                   alt={`${student.first_name} ${student.last_name}`}
                                   className={`w-11 h-11 rounded-xl object-cover shadow-md ${
@@ -798,7 +799,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                           <div className="px-3 pb-3 flex items-center gap-2">
                             <div className="flex-1 flex flex-col items-center gap-1">
                               <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">{t('students.photoUpload.current')}</span>
-                              <img
+                              <MediaImg
                                 src={student.photo_url!}
                                 alt={t('students.photoUpload.currentPhoto')}
                                 className="w-16 h-16 rounded-xl object-cover ring-2 ring-red-300 opacity-70"
@@ -810,7 +811,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                             </div>
                             <div className="flex-1 flex flex-col items-center gap-1">
                               <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{t('students.photoUpload.new')}</span>
-                              <img
+                              <MediaImg
                                 src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
                                 alt={t('students.photoUpload.newPhoto')}
                                 className="w-16 h-16 rounded-xl object-cover ring-2 ring-emerald-400 shadow-md"
@@ -822,7 +823,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                         {/* Assignment preview — new photo (no existing) */}
                         {assignedPhoto && !hasPhoto && (
                           <div className="px-3 pb-3 flex items-center gap-2">
-                            <img
+                            <MediaImg
                               src={assignedPhoto.thumbnailPreview || assignedPhoto.fullPreview}
                               alt={t('students.photoUpload.newPhoto')}
                               className="w-14 h-14 rounded-xl object-cover ring-2 ring-blue-400 shadow-md"

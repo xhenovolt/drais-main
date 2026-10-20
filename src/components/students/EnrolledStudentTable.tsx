@@ -17,6 +17,7 @@ import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
 import { fetcher } from '@/utils/fetcher';
 import Pagination from '@/components/ui/Pagination';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // ---------- Types ----------
 
@@ -83,7 +84,7 @@ function Avatar({ student }: { student: EnrolledStudent }) {
   const initials = `${student.first_name?.[0] ?? ''}${student.last_name?.[0] ?? ''}`.toUpperCase();
   if (student.photo_url) {
     return (
-      <img
+      <MediaImg
         src={student.photo_url}
         alt={initials}
         className="w-9 h-9 rounded-full object-cover ring-2 ring-white dark:ring-slate-700 shadow"

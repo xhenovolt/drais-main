@@ -3,6 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { AlertTriangle, Check, X, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface DuplicateStudent {
   id: number;
@@ -162,7 +163,7 @@ export const DuplicateDetectionModal: React.FC<DuplicateDetectionModalProps> = (
                             </div>
                           )}
                           {dup.photo_url ? (
-                            <img
+                            <MediaImg
                               src={dup.photo_url}
                               alt={`${dup.first_name} ${dup.last_name}`}
                               className="w-10 h-10 rounded-lg object-cover"

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { toLocalDateStr } from '@/lib/datetime/local-date';
 import useSWR from 'swr';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -71,7 +72,7 @@ export const AttendanceManager: React.FC = () => {
             <tr key={s.student_id}>
               <td>
                 {s.photo_url ? (
-                  <img src={s.photo_url} alt="photo" className="w-10 h-10 rounded-full" />
+                  <MediaImg src={s.photo_url} alt="photo" className="w-10 h-10 rounded-full" />
                 ) : (
                   <span className="w-10 h-10 inline-block bg-gray-200 rounded-full" />
                 )}

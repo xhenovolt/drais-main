@@ -11,6 +11,7 @@ import { apiFetch } from '@/lib/apiClient';
 import { useDropzone } from 'react-dropzone';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { roleLabel } from '@/lib/i18n/roles';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface AddStaffModalProps {
   open: boolean;
@@ -246,7 +247,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ open, onClose, onSuccess 
         >
           <input {...getInputProps()} />
           {photoPreview ? (
-            <img src={photoPreview} alt={t('staffPages.add.preview', "Preview")} className="w-full h-full object-cover" />
+            <MediaImg src={photoPreview} alt={t('staffPages.add.preview', "Preview")} className="w-full h-full object-cover" />
           ) : (
             <div className="text-center">
               <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />

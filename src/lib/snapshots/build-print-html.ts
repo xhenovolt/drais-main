@@ -78,11 +78,28 @@ export function isEmergencyTemplateId(templateId: string): boolean {
  * optional class/student filter. Returns a discriminated union so
  * callers can convert errors to their own HTTP response shape.
  */
+/**
+ * A print-only copy of the snapshot whose logo and photo references are resolved for this school
+ * (local copies offline, cloud URLs online). The stored snapshot is never modified.
+ */
+async function withPrintableMedia(snapshot: BuildPrintHtmlOptions['snapshot'], schoolId: number): Promise<BuildPrintHtmlOptions['snapshot']> {
+  const { serverMediaSrc } = await import('@/lib/media/service');
+  const src = (ref: string | null | undefined) => serverMediaSrc(schoolId, ref) || ref || null;
+  return {
+    ...snapshot,
+    meta: snapshot.meta.branding
+      ? { ...snapshot.meta, branding: { ...snapshot.meta.branding, logoUrl: src(snapshot.meta.branding.logoUrl) ?? '' } }
+      : snapshot.meta,
+    classes: snapshot.classes.map(cls => ({ ...cls, students: cls.students.map(stu => ({ ...stu, photoUrl: src(stu.photoUrl) })) })),
+  };
+}
+
 export async function buildSnapshotPrintHtml(
   opts: BuildPrintHtmlOptions,
 ): Promise<BuildPrintHtmlResult> {
+  const snapshot = await withPrintableMedia(opts.snapshot, opts.schoolId);
   const {
-    snapshot, schoolId,
+    schoolId,
     templateId: templateIdRaw,
     filterClassIdx     = null,
     filterStudentDbId  = null,
@@ -150,7 +167,7 @@ export async function buildSnapshotPrintHtml(
           }
         : { name: snapshot.meta.schoolName },
       isPrint:  true,
-      editMode, 
+      editMode,
       language: snapshot.meta.language,
       isRTL:    isArabic,
     };

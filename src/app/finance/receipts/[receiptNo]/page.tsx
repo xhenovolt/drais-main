@@ -10,6 +10,7 @@ import { use as usePromise, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer, Download, ShieldCheck, Loader } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const j = (u: string) => fetch(u).then(r => r.json());
 
@@ -46,7 +47,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ receiptNo: s
         {/* Header */}
         <div className="flex items-start justify-between border-b-2 border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            {r.school.logo_url ? <img src={r.school.logo_url} alt="" className="w-16 h-16 object-contain" /> : null}
+            {r.school.logo_url ? <MediaImg src={r.school.logo_url} alt="" className="w-16 h-16 object-contain" /> : null}
             <div>
               <h1 className="text-xl font-bold">{r.school.name}</h1>
               {r.school.legal_name && r.school.legal_name !== r.school.name ? <p className="text-xs text-slate-500">{r.school.legal_name}</p> : null}

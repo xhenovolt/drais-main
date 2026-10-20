@@ -17,6 +17,7 @@ import { swrFetcher } from '@/lib/apiClient';
 import Link from 'next/link';
 import NewBadge from '@/components/ui/NewBadge';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const StaffOverviewPage: React.FC = () => {
   const { t, lang, digits, formatPercent } = useI18n();
@@ -167,7 +168,7 @@ const StaffOverviewPage: React.FC = () => {
                       <Link href={`/staff/${s.id}`} className="flex items-center gap-3 flex-1 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg px-2 -mx-2 transition">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden">
                           {s.photo_url ? (
-                            <img src={s.photo_url} alt={fullName} className="w-full h-full object-cover" />
+                            <MediaImg src={s.photo_url} alt={fullName} className="w-full h-full object-cover" />
                           ) : (
                             <span>{(s.first_name?.[0] || '?').toUpperCase()}</span>
                           )}

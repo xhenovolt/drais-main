@@ -21,6 +21,7 @@ import { IDCardConfig, DEFAULT_ID_CARD_CONFIG } from '@/lib/idCardConfig';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import { showToast } from '@/lib/toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // ─── Demo student (used when no real student is selected for preview) ─────────
 const DEMO_STUDENT: IDCardStudent = {
@@ -411,7 +412,7 @@ export default function IDCardsPage() {
                           <div className="flex items-center gap-2">
                             {config.schoolLogoUrl && (
                               <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 dark:border-slate-600 flex-shrink-0">
-                                <img src={config.schoolLogoUrl} alt="" className="w-full h-full object-cover" />
+                                <MediaImg src={config.schoolLogoUrl} alt="" className="w-full h-full object-cover" />
                               </div>
                             )}
                             <button
@@ -557,7 +558,7 @@ export default function IDCardsPage() {
 
                   {/* Avatar */}
                   {learner.photo_url
-                    ? <img src={learner.photo_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-slate-200 dark:ring-slate-600" />
+                    ? <MediaImg src={learner.photo_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-slate-200 dark:ring-slate-600" />
                     : <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
                         <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-300">
                           {learner.first_name[0]}{learner.last_name[0]}

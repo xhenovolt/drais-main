@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 import { logAudit } from '@/lib/audit';
 
 // ── Levenshtein distance ────────────────────────────────────────────────────
@@ -100,23 +100,29 @@ export async function POST(req: NextRequest) {
       const normalised = normaliseFilename(photo.name);
       let bestScore  = 0;
       let bestMatch: { person_id: number; name: string } | null = null;
+      // How many learners clear the auto threshold. Names are not unique (two "Amina Nakato"s),
+      // so a photo is only auto-linked when exactly ONE learner matches; otherwise it goes to
+      // manual review instead of silently landing on whichever came first.
+      let aboveThreshold = 0;
 
       for (const s of students) {
         const normName = s.full_name.trim().toLowerCase();
         const score    = similarity(normalised, normName);
+        if (score >= AUTO_THRESHOLD) aboveThreshold++;
         if (score > bestScore) { bestScore = score; bestMatch = { person_id: s.person_id, name: s.full_name }; }
       }
 
       try {
         const buffer = Buffer.from(await photo.arrayBuffer());
 
-        if (bestScore >= AUTO_THRESHOLD && bestMatch) {
-          // Auto-upload & link
-          const result = await uploadStudentPhoto(buffer, photo.size, 'drais/students', `person_${bestMatch.person_id}`);
+        if (bestScore >= AUTO_THRESHOLD && bestMatch && aboveThreshold === 1) {
+          // Auto-upload & link — unambiguous match only
+          const stored = await storeImage({ schoolId: session.schoolId, entityType: 'person', entityId: bestMatch.person_id, data: buffer, fileName: photo.name, folder: 'drais/students', publicId: `person_${bestMatch.person_id}` });
+          const result = { secure_url: stored.url };
 
           await connection.execute(
-            'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ?',
-            [result.secure_url, bestMatch.person_id],
+            'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
+            [result.secure_url, bestMatch.person_id, session.schoolId],
           );
 
           await logAudit(connection, {
@@ -196,15 +202,17 @@ export async function PUT(req: NextRequest) {
 
     connection = await getConnection();
 
-    const [rows]: any = await connection.execute('SELECT id, photo_url FROM people WHERE id = ?', [person_id]);
+    const [rows]: any = await connection.execute('SELECT id, photo_url FROM people WHERE id = ? AND school_id = ?', [person_id, session.schoolId]);
     if (!rows.length) return NextResponse.json({ success: false, error: 'Person not found' }, { status: 404 });
 
     const oldPhotoUrl = rows[0].photo_url;
-    const result = await uploadStudentPhoto(buffer, fileSizeB, 'drais/students', `person_${person_id}`);
+    const stored = await storeImage({ schoolId: session.schoolId, entityType: 'person', entityId: person_id, data: buffer, fileName: file_name, folder: 'drais/students', publicId: `person_${person_id}` });
+    const result = { secure_url: stored.url };
+    void fileSizeB;
 
     await connection.execute(
-      'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ?',
-      [result.secure_url, person_id],
+      'UPDATE people SET photo_url = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
+      [result.secure_url, person_id, session.schoolId],
     );
 
     await logAudit(connection, {

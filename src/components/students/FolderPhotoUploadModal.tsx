@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -586,7 +587,7 @@ export function FolderPhotoUploadModal({
                           ) : match.matchedStudent ? (
                             <div className="flex items-center gap-2">
                               {match.matchedStudent.photo_url ? (
-                                <img
+                                <MediaImg
                                   src={match.matchedStudent.photo_url}
                                   alt=""
                                   className="w-7 h-7 rounded-full object-cover flex-shrink-0 opacity-60 ring-1 ring-gray-200 dark:ring-gray-600"
@@ -695,7 +696,7 @@ export function FolderPhotoUploadModal({
                   .filter(m => !m.skip && m.matchedStudent && m.confidence !== 'none')
                   .map(match => (
                     <div key={match.uid} className="flex items-center gap-3 px-4 py-2.5">
-                      <img
+                      <MediaImg
                         src={match.newPhotoUrl || match.previewUrl}
                         alt=""
                         className={`w-9 h-9 rounded-lg object-cover flex-shrink-0 ${

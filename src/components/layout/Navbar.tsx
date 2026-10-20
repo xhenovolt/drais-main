@@ -15,6 +15,7 @@ import BellClient from '@/components/notifications/BellClient';
 import LiveScanSmsIndicator from '@/components/notifications/LiveScanSmsIndicator';
 import CommandPalette from '@/components/search/CommandPalette';
 import CommandSearchTrigger from '@/components/search/CommandSearchTrigger';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // Relative by default — an absolute localhost:3000 fallback resolves to
 // the DEVICE's own loopback in the Android/Electron packaged builds
@@ -334,7 +335,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
                   {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                    <MediaImg src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
                   ) : (
                     getUserInitials()
                   )}
@@ -365,7 +366,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
                       <div className="flex items-center space-x-3 rtl:space-x-reverse">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-600 flex items-center justify-center text-white font-semibold">
                           {user?.avatarUrl ? (
-                            <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                            <MediaImg src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
                           ) : (
                             getUserInitials()
                           )}

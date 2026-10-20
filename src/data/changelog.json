@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:55:16.296Z",
-  "last_commit": "942f8f487334df18d711d28ac98ab6882bec7cfa",
+  "generated_at": "2026-10-20T15:32:04.400Z",
+  "last_commit": "bfd1112f1ad573731f15a37b95f9644a8ae2b19d",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10567,7 +10567,20 @@
         }
       ],
       "commit": "942f8f4873"
+    },
+    {
+      "version": "2.50.150",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/admin/cafe (mode, frameworks, scoring models, assignments, promotion rule) fully Arabic; fix empty dry-run picker",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/admin/cafe (mode, frameworks, scoring models, assignments, promotion rule) fully Arabic; fix empty dry-run picker"
+        }
+      ],
+      "commit": "bfd1112f1a"
     }
   ],
-  "app_version": "2.50.150"
+  "app_version": "2.50.151"
 }

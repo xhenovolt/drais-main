@@ -5,6 +5,7 @@ import { showToast } from '@/lib/toast';
 import useSWR from 'swr';
 import { swrFetcher } from '@/lib/apiClient';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface ProfileData {
   id: number;
@@ -143,7 +144,7 @@ export default function ProfilePage() {
           {/* Avatar */}
           <div className="relative group">
             {form.profilePhoto ? (
-              <img src={form.profilePhoto} alt="Profile" className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600" />
+              <MediaImg src={form.profilePhoto} alt="Profile" className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600" />
             ) : (
               <div className="w-24 h-24 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                 <User className="w-10 h-10 text-indigo-500" />

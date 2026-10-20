@@ -10724,5 +10724,105 @@
       "rule": "eligibility rule returned false",
       "runKey": "already issued under this run key"
     }
+  },
+  "mediaSettings": {
+    "title": "Photos & media",
+    "subtitle": "Where learner and staff photos and the school logo come from on this computer, and which images are missing.",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "loadFailed": "The image library could not be loaded.",
+    "saved": "Saved.",
+    "saveFailed": "The setting could not be saved.",
+    "sourceTitle": "Image source",
+    "hostedNote": "This is the online DRAIS. Images are stored in DRAIS cloud storage. Local photos are available in the DRAIS desktop app.",
+    "policy": {
+      "cloud": "Cloud",
+      "local-first": "Local first",
+      "local-only": "Local only"
+    },
+    "policyHelp": {
+      "cloud": "Always load images from DRAIS cloud storage. Needs internet to show photos.",
+      "local-first": "Use the copy on this computer; if there is none, try the cloud. Works offline for every photo copied here.",
+      "local-only": "Never contact the cloud. Photos without a copy on this computer show as missing."
+    },
+    "defaultNote": "Not chosen yet — DRAIS uses local photos first because this computer works from a local database.",
+    "storageAt": "Local copies are kept in:",
+    "libraryTitle": "Image library",
+    "localize": "Make available offline",
+    "export": "Download all (ZIP)",
+    "exportHelp": "The ZIP contains every available image plus manifest.csv / manifest.json linking each file to its learner, staff member or the school.",
+    "progress": "{{done}} of {{total}} copied",
+    "failures": {
+      "one": "{{count}} image could not be copied",
+      "other": "{{count}} images could not be copied"
+    },
+    "localizeDone": {
+      "one": "{{count}} image copied to this computer.",
+      "other": "{{count}} images copied to this computer."
+    },
+    "localizeFailed": "Copying stopped. Check the internet connection and try again.",
+    "reason": {
+      "timeout": "timed out",
+      "http_404": "not found online",
+      "not_an_image": "not an image",
+      "too_large": "too large",
+      "source_file_missing": "original file missing",
+      "no_connection": "no internet connection"
+    },
+    "status": {
+      "all": "All",
+      "local": "On this computer",
+      "folder": "School folder",
+      "remote_only": "Cloud only",
+      "missing": "Missing",
+      "none": "No image",
+      "duplicates": "Duplicates"
+    },
+    "searchPh": "Name, admission or staff number…",
+    "role": {
+      "student": "Learner",
+      "staff": "Staff",
+      "school": "School logo"
+    },
+    "duplicate": "same image as another record",
+    "empty": "Nothing matches.",
+    "moreRows": "{{n}} more — narrow the search to see them.",
+    "folderTitle": "Photos kept in a folder on this computer",
+    "folderHelp": "Point DRAIS at the folder where your school already keeps photos. Nothing is uploaded. Each file is matched by its name to an admission number, staff number or DRAIS id — never by a person’s name — and you confirm every match.",
+    "folderDesktopOnly": "Available in the DRAIS desktop app, where DRAIS runs on your school’s computer.",
+    "browse": "Browse…",
+    "saveFolder": "Save folder",
+    "matchBy": "File names are:",
+    "key": {
+      "admission_no": "Admission numbers (e.g. ADM-001.jpg)",
+      "staff_no": "Staff numbers",
+      "person_id": "DRAIS person ids"
+    },
+    "scan": "Find matches",
+    "scanSummary": "{{files}} image files · {{matched}} matched · {{unresolved}} need a decision",
+    "unresolvedTitle": "Needs your decision",
+    "unresolved": {
+      "no_matching_person": "no learner or staff member has this number",
+      "several_people_share_identifier": "more than one person has this number",
+      "several_files_for_person": "several files for the same person",
+      "blank_identifier": "file name is empty"
+    },
+    "assignTo": "Assign to…",
+    "applyLinks": {
+      "one": "Link {{count}} photo",
+      "other": "Link {{count}} photos"
+    },
+    "linked": "{{n}} photos linked, {{skipped}} skipped.",
+    "linkFailed": "The photos could not be linked.",
+    "folderInvalid": "That folder cannot be used.",
+    "folderReason": {
+      "not_found": "That folder does not exist on this computer.",
+      "not_absolute": "Enter the full path, e.g. C:\\School\\Photos.",
+      "not_directory": "That path is a file, not a folder.",
+      "filesystem_root": "Choose a specific folder, not a whole drive.",
+      "forbidden_location": "DRAIS cannot read photos from a system or program folder.",
+      "not_readable": "DRAIS is not allowed to read that folder.",
+      "not_configured": "Save a folder first."
+    }
   }
 }

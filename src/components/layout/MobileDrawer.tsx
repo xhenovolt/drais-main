@@ -15,6 +15,7 @@ import { useTheme } from '@/components/theme/ThemeProvider';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import BellClient from '@/components/notifications/BellClient';
 import DbModeBadge from '@/components/db/DbModeBadge';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -173,7 +174,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                 {user?.avatarUrl
-                  ? <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                  ? <MediaImg src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
                   : getUserInitials()
                 }
               </div>

@@ -31,6 +31,7 @@ import {
   DEFAULT_DIVISION_CONFIG,
   type ContributionPolicy,
 } from '@/lib/reports/canonical-report-engine';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // Type definitions
 interface Student {
@@ -1773,7 +1774,7 @@ const ReportsPage = () => {
                             e.target.value = '';
                           }}
                         />
-                        <img
+                        <MediaImg
                           src={schoolInfo.logo_url || '/uploads/logo.png'}
                           alt="School Logo"
                           style={{ maxHeight: 80, width: 'auto', objectFit: 'contain', borderRadius: 4, border: '2px dashed transparent' }}
@@ -1831,7 +1832,7 @@ const ReportsPage = () => {
                           <img src={`/api/barcode?id=${student.student_id}`} style={{ width: 90, height: 40, marginRight: -30, marginLeft: -20, transform: 'rotate(270deg)' }} alt="Barcode" />
                           <span style={{ fontSize: 15, fontWeight: 500, margin: 0, transform: 'rotate(180deg)', writingMode: 'vertical-rl' as any }}>{student.student_id}</span>
                         </div>
-                        <img
+                        <MediaImg
                           src={student.photo || '/default-avatar.png'}
                           alt={`${student.first_name} ${student.last_name}`}
                           width={100}

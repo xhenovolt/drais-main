@@ -1,5 +1,6 @@
 import React from 'react';
 import type { NorthgateReportData, SubjectRow } from './types';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // ============================================================================
 // NorthgateClassicTemplate
@@ -205,7 +206,7 @@ export default function NorthgateClassicTemplate({ data }: Props) {
               {/* Photo column */}
               <td width={110} align="center">
                 {studentDetails.photoUrl ? (
-                  <img
+                  <MediaImg
                     src={studentDetails.photoUrl}
                     alt="Student"
                     className="student-photo"

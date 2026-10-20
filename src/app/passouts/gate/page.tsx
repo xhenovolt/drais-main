@@ -15,6 +15,7 @@ import React, { useCallback, useState } from 'react';
 import { Search, Loader2, DoorOpen, CreditCard, Fingerprint, User } from 'lucide-react';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { gateText, gateError } from '@/lib/passouts/messages';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const COLOR: Record<string, string> = { allowed: 'bg-emerald-600', denied: 'bg-rose-600', review: 'bg-amber-500' };
 
@@ -120,7 +121,7 @@ export default function GatePage() {
             <div className="bg-white dark:bg-gray-800 p-4 space-y-2 text-sm">
               <div className="flex items-center gap-3">
                 {verdict.learner?.photo_url ? (
-                  <img src={verdict.learner.photo_url} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600" />
+                  <MediaImg src={verdict.learner.photo_url} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600" />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center"><User className="w-7 h-7 text-gray-400" /></div>
                 )}

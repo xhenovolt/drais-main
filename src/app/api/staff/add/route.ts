@@ -7,12 +7,13 @@ import { logAudit, AuditAction } from '@/lib/audit';
 import { logSystemError, logSystemEvent, LogLevel } from '@/lib/systemLogger';
 import { notifyStaffCreated, notifyErrorOccurred } from '@/lib/notificationTrigger';
 import bcrypt from 'bcryptjs';
+import { storeImage } from '@/lib/media/upload';
 
 export async function POST(req: NextRequest) {
   let session: Awaited<ReturnType<typeof getSessionSchoolId>> = null;
   const requestId = crypto.getRandomValues(new Uint8Array(16))
     .reduce((str, num) => str + num.toString(16).padStart(2, '0'), '');
-  
+
   try {
     session = await getSessionSchoolId(req);
     if (!session) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!staffGate.allowed) return NextResponse.json({ success: false, message: staffGate.reason }, { status: 403 });
 
     const formData = await req.formData();
-    
+
     // Extract and validate all form data
     const staffData = {
       // Personal Info (people table)
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       phone: (formData.get('phone') as string)?.trim() || null,
       email: (formData.get('email') as string)?.trim() || null,
       address: (formData.get('address') as string)?.trim() || null,
-      
+
       // Professional Info (staff table)
       staff_no: (formData.get('staff_no') as string)?.trim() || null,
       position: (formData.get('position') as string)?.trim() || null,
@@ -56,20 +57,20 @@ export async function POST(req: NextRequest) {
       experience_years: parseInt(formData.get('experience_years', 10) as string) || 0,
       hire_date: formData.get('hire_date') as string || null,
       salary: parseFloat(formData.get('salary') as string) || null,
-      
+
       // Organizational Info
       department_id: formData.get('department_id') ? parseInt(formData.get('department_id', 10) as string) : null,
       branch_id: formData.get('branch_id') ? parseInt(formData.get('branch_id', 10) as string) : 1,
       role_id: formData.get('role_id') ? parseInt(formData.get('role_id', 10) as string) : null,
       // Reports-to relationship — staff.manager_id self-FK.
       manager_id: formData.get('manager_id') ? parseInt(formData.get('manager_id') as string, 10) : null,
-      
+
       // Bank Info
       bank_name: (formData.get('bank_name') as string)?.trim() || null,
       bank_account_no: (formData.get('bank_account_no') as string)?.trim() || null,
       nssf_no: (formData.get('nssf_no') as string)?.trim() || null,
       tin_no: (formData.get('tin_no') as string)?.trim() || null,
-      
+
       // User Account
       create_account: formData.get('create_account') === 'true',
       username: (formData.get('username') as string)?.trim() || null,
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     if (validationErrors.length > 0) {
       const errorMsg = validationErrors.join('; ');
-      
+
       await logSystemEvent({
         schoolId: sessionSchoolId,
         level: LogLevel.WARNING,
@@ -108,23 +109,21 @@ export async function POST(req: NextRequest) {
       hashedPassword = await bcrypt.hash(staffData.password, 12);
     }
 
-    // Handle photo upload if provided
-    let photoUrl = null;
+    // The photo is stored after the person row exists (it needs the person id); the
+    // insert starts with no photo. Previously a made-up /uploads/... path was saved here
+    // while the uploaded bytes were discarded.
+    const photoUrl = null;
     const photoFile = formData.get('photo') as File;
-    if (photoFile && photoFile.size > 0) {
-      // TODO: Implement proper photo upload logic to cloud storage
-      photoUrl = `/uploads/staff/photo_${Date.now()}.jpg`;
-    }
 
     const result = await withTenantTransaction(sessionSchoolId, async ({ exec }) => {
       // 1. Insert into people table
       const personResult = await exec(
         `INSERT INTO people (
-          school_id, first_name, last_name, other_name, gender, 
+          school_id, first_name, last_name, other_name, gender,
           date_of_birth, phone, email, address, photo_url
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          staffData.schoolId, staffData.first_name, staffData.last_name, 
+          staffData.schoolId, staffData.first_name, staffData.last_name,
           staffData.other_name, staffData.gender, staffData.date_of_birth,
           staffData.phone, staffData.email, staffData.address, photoUrl
         ]
@@ -192,6 +191,19 @@ export async function POST(req: NextRequest) {
       return { personId, staffId, userId, finalStaffNo };
     });
 
+    let photoSaved: boolean | null = null;
+    if (photoFile && typeof photoFile === 'object' && photoFile.size > 0) {
+      try {
+        const stored = await storeImage({ schoolId: Number(sessionSchoolId), entityType: 'person', entityId: Number(result.personId), data: Buffer.from(await photoFile.arrayBuffer()), fileName: photoFile.name, folder: 'drais/staff', publicId: `person_${result.personId}` });
+        await query('UPDATE people SET photo_url = ? WHERE id = ? AND school_id = ?', [stored.url, result.personId, sessionSchoolId]);
+        photoSaved = true;
+      } catch (photoErr) {
+        // The staff member is created either way; the photo can be re-uploaded from their profile.
+        console.error('[staff/add] photo upload failed:', photoErr);
+        photoSaved = false;
+      }
+    }
+
     // 4. Handle document uploads if any
     const documents = [];
     for (const [key, value] of formData.entries()) {
@@ -257,12 +269,13 @@ export async function POST(req: NextRequest) {
       user_id: result.userId,
       staff_no: result.finalStaffNo,
       documents: documents,
+      photo_saved: photoSaved,
       message: 'Staff member added successfully'
     }, 201);
 
   } catch (error: any) {
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
+
     // Log the error
     await logSystemError({
       schoolId: session?.schoolId,

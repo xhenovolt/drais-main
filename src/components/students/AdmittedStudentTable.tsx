@@ -12,6 +12,7 @@ import { Search, UserPlus, RefreshCw, GraduationCap, Calendar, Users, CheckCircl
 import clsx from 'clsx';
 import { fetcher } from '@/utils/fetcher';
 import Pagination from '@/components/ui/Pagination';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface AdmittedStudent {
   id: number;
@@ -29,7 +30,7 @@ interface AdmittedStudent {
 function Avatar({ student }: { student: AdmittedStudent }) {
   const initials = `${student.first_name?.[0] ?? ''}${student.last_name?.[0] ?? ''}`.toUpperCase();
   if (student.photo_url) {
-    return <img src={student.photo_url} alt={initials} className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-1 ring-slate-200 dark:ring-slate-700" />;
+    return <MediaImg src={student.photo_url} alt={initials} className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-1 ring-slate-200 dark:ring-slate-700" />;
   }
   const colors = ['bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700'];
   const color = colors[(student.id ?? 0) % colors.length];

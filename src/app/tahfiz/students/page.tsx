@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StudentWizard } from '@/components/students/StudentWizard';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import Pagination from '@/components/ui/Pagination';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface TahfizStudent {
   name: string;
@@ -276,7 +277,7 @@ function TahfizStudentsContent() {
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold overflow-hidden">
                       {student.avatar ? (
-                        <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                        <MediaImg src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
                       ) : (
                         student.first_name.charAt(0)
                       )}

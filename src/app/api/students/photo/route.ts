@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto, deleteCloudinaryPhoto } from '@/lib/cloudinary';
+import { deleteCloudinaryPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 import { logAudit } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
@@ -34,7 +35,8 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await photo.arrayBuffer());
     const publicIdHint = personId ? `person_${personId}` : undefined;
-    const result = await uploadStudentPhoto(buffer, photo.size, 'drais/students', publicIdHint);
+    const stored = await storeImage({ schoolId, entityType: 'person', entityId: personId ?? 0, data: buffer, fileName: photo.name, folder: 'drais/students', publicId: publicIdHint });
+    const result = { secure_url: stored.url };
 
     // Persist to DB only when we have a known person
     if (personId) {

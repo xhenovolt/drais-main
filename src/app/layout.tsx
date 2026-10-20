@@ -29,6 +29,7 @@ const OFFLINE_SAFE_PREFIXES = [
   '/academics/classes', '/academics/streams', '/academics/subjects',
   '/academics/allocations', '/academics/timetable',
   '/academics/years', '/terms',
+  '/settings/media', // media APIs branch for local-sqlite (src/lib/media/data.ts)
 ];
 
 function RouteScopedI18nProvider({ children }: { children: React.ReactNode }) {

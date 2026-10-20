@@ -27,6 +27,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { useSchoolConfig } from '@/hooks/useSchoolConfig';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/onboarding/EmptyState';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const API_BASE = '/api';
 
@@ -487,7 +488,7 @@ export const StudentTable: React.FC = () => {
     if (photoUrl) {
       return (
         <div className="relative group">
-          <img 
+          <MediaImg 
             src={photoUrl} 
             alt={`${student.first_name} ${student.last_name}`}
             className={`${size} rounded-full object-cover shadow-md ring-2 ring-white dark:ring-slate-600 transition-all duration-200 group-hover:shadow-lg group-hover:scale-105`}
@@ -533,7 +534,7 @@ export const StudentTable: React.FC = () => {
     if (photoUrl) {
       return (
         <div className="relative group">
-          <img 
+          <MediaImg 
             src={photoUrl} 
             alt={`${student.first_name} ${student.last_name}`}
             className={`${size} rounded-xl object-cover shadow-lg ring-3 ring-white dark:ring-slate-600 transition-all duration-300 group-hover:shadow-xl group-hover:scale-105 group-hover:ring-blue-200 dark:group-hover:ring-blue-700`}

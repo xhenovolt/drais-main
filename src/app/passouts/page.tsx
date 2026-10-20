@@ -16,6 +16,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { gateText, gateError } from '@/lib/passouts/messages';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const STATUS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
@@ -274,7 +275,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
             <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 space-y-2">
               <div className="flex items-center gap-3">
                 {S.photo_url
-                  ? <img src={S.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400" />
+                  ? <MediaImg src={S.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400" />
                   : <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><User className="w-6 h-6 text-gray-400" /></div>}
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-900 dark:text-white truncate">{S.name}

@@ -3,7 +3,7 @@ import { getConnection } from '@/lib/db';
 import { getSchoolFromDB } from '@/lib/schoolDB';
 import { getNextAdmissionNumber, formatAdmissionNumber } from '@/lib/admissionNumber';
 import { getSessionSchoolId } from '@/lib/auth';
-import { uploadStudentPhoto } from '@/lib/cloudinary';
+import { storeImage } from '@/lib/media/upload';
 import { launchPdfBrowser } from '@/lib/pdf/browser';
 import { getDbMode } from '@/lib/db/db-mode';
 
@@ -154,10 +154,10 @@ export async function GET(req: NextRequest) {
       // Trim and normalize search query
       const normalizedQuery = query.trim().toLowerCase();
       const searchTerm = `%${normalizedQuery}%`;
-      
+
       sql += ` AND (
-        LOWER(p.first_name) LIKE LOWER(?) OR 
-        LOWER(p.last_name) LIKE LOWER(?) OR 
+        LOWER(p.first_name) LIKE LOWER(?) OR
+        LOWER(p.last_name) LIKE LOWER(?) OR
         LOWER(p.other_name) LIKE LOWER(?) OR
         LOWER(s.admission_no) LIKE LOWER(?) OR
         LOWER(CONCAT(p.first_name, ' ', p.last_name)) LIKE LOWER(?)
@@ -221,31 +221,25 @@ export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
     const body: any = {};
+    // Held until the session is verified below — it used to be uploaded before authentication.
+    let pendingPhoto: File | null = null;
     for (const [key, value] of form.entries()) {
       if (key === 'photo' && value instanceof File) {
-        // Upload photo to Cloudinary instead of saving locally
-        const buffer = Buffer.from(await value.arrayBuffer());
-        try {
-          const result = await uploadStudentPhoto(buffer, value.size, 'drais/students');
-          body.photo_url = result.secure_url;
-        } catch (uploadErr) {
-          console.error('[students/full] Cloudinary upload failed:', uploadErr);
-          body.photo_url = null;
-        }
+        pendingPhoto = value;
       } else if (key === 'contacts') {
         try { body.contacts = JSON.parse(value as string); } catch { body.contacts = []; }
       } else {
         body[key] = value;
       }
     }
-    
+
     // Apply safe() to all fields EXCEPT school_id
-    Object.keys(body).forEach(k => { 
+    Object.keys(body).forEach(k => {
       if (k !== 'school_id' && k !== 'schoolId') {
-        body[k] = safe(body[k]); 
+        body[k] = safe(body[k]);
       }
     });
-    
+
     // Derive school_id from authenticated session — never hardcode
     const session = await getSessionSchoolId(req);
     if (!session) {
@@ -255,7 +249,17 @@ export async function POST(req: NextRequest) {
     const schoolId = session.schoolId;
     body.schoolId = schoolId;
     body.school_id = schoolId;
-    
+
+    if (pendingPhoto && pendingPhoto.size > 0) {
+      try {
+        const stored = await storeImage({ schoolId: Number(schoolId), entityType: 'person', entityId: 0, data: Buffer.from(await pendingPhoto.arrayBuffer()), fileName: pendingPhoto.name, folder: 'drais/students' });
+        body.photo_url = stored.url;
+      } catch (uploadErr) {
+        console.error('[students/full] photo upload failed:', uploadErr);
+        body.photo_url = null;
+      }
+    }
+
     // Validate required fields
     if (!body.first_name || !body.last_name) {
       return NextResponse.json({ error: 'First name and last name are required.' }, { status: 400 });
@@ -265,14 +269,14 @@ export async function POST(req: NextRequest) {
     const connection = await getConnection();
     try {
       await connection.beginTransaction();
-      
+
       // Insert person — let the DB assign id via AUTO_INCREMENT
       const [personResult]: any = await connection.execute(
         'INSERT INTO people (school_id, first_name, last_name, other_name, gender, date_of_birth, phone, email, address, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [schoolId, safe(body.first_name), safe(body.last_name), safe(body.other_name), safe(body.gender), safe(body.date_of_birth), safe(body.phone), safe(body.email), safe(body.address), safe(body.photo_url)]
       );
       const newPersonId = personResult.insertId;
-      
+
       // Generate sequential admission number if not provided. Reading
       // MAX(...)+1 then inserting is a classic TOCTOU race — two concurrent
       // admits can compute the same next_seq before either commits. This
@@ -313,7 +317,7 @@ export async function POST(req: NextRequest) {
         }
       }
       const newStudentId = studentResult.insertId;
-      
+
       // Insert enrollment
       await connection.execute(
         'INSERT INTO enrollments (student_id, class_id, theology_class_id, stream_id, academic_year_id, term_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -335,14 +339,14 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(body.contacts)) {
         for (const c of body.contacts) {
           Object.keys(c).forEach(k => { c[k] = safe(c[k]); });
-          
+
           // Insert contact with AUTO_INCREMENT
           const [contactResult]: any = await connection.execute(
             'INSERT INTO contacts (school_id, person_id, contact_type, occupation, alive_status, date_of_death) VALUES (?, ?, ?, ?, ?, ?)',
             [schoolId, newPersonId, safe(c.contact_type), safe(c.occupation), safe(c.alive_status), safe(c.date_of_death)]
           );
           const newContactId = contactResult.insertId;
-          
+
           // Insert student_contact with AUTO_INCREMENT
           await connection.execute(
             'INSERT INTO student_contacts (student_id, contact_id, relationship, is_primary) VALUES (?, ?, ?, ?)',
@@ -351,14 +355,14 @@ export async function POST(req: NextRequest) {
         }
       }
       await connection.commit();
-      
+
       // Use the generated admission number
       const finalAdmissionNo = admission_no;
-      
+
       // Use newStudentId and newPersonId consistently
       const student_id = newStudentId;
       const person_id = newPersonId;
-      
+
       // Get school info from database (single source of truth)
       const schoolInfo = await getSchoolFromDB(schoolId);
       const schoolName = schoolInfo.name;
@@ -366,7 +370,7 @@ export async function POST(req: NextRequest) {
       const schoolPhone = schoolInfo.phone || '';
       const schoolEmail = schoolInfo.email || '';
       const schoolShortCode = schoolInfo.short_code || 'DRAIS';
-      
+
       // Generate PDF admission form
       const pdfHtml = `
         <html>
@@ -394,12 +398,12 @@ export async function POST(req: NextRequest) {
             <p>Tel: ${schoolPhone} | Email: ${schoolEmail}</p>
             <hr style="margin: 20px 0;">
           </div>
-          
+
           <div class="section">
             <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
             <p><strong>Ref:</strong> ${schoolShortCode}/ADM/${admission_no}/${new Date().getFullYear()}</p>
           </div>
-          
+
           <div class="section">
             <h3>STUDENT ADMISSION DETAILS</h3>
             <table class="info-table">
@@ -412,7 +416,7 @@ export async function POST(req: NextRequest) {
               <tr><td class="label">Admission Date</td><td>${new Date().toLocaleDateString()}</td></tr>
             </table>
           </div>
-          
+
           <div class="section">
             <h3>ACADEMIC INFORMATION</h3>
             <table class="info-table">
@@ -422,27 +426,27 @@ export async function POST(req: NextRequest) {
               <tr><td class="label">Term</td><td>${body.term_id || 'Current Term'}</td></tr>
             </table>
           </div>
-          
+
           ${(body.contacts && body.contacts.length > 0) ? `
           <div class="section">
             <h3>PARENT/GUARDIAN INFORMATION</h3>
             <ul>
               ${body.contacts.map((c:any) => `
-                <li><strong>${c.contact_type}:</strong> ${c.name || '-'} 
-                ${c.contact ? `(${c.contact})` : ''} 
-                ${c.occupation ? `- ${c.occupation}` : ''} 
+                <li><strong>${c.contact_type}:</strong> ${c.name || '-'}
+                ${c.contact ? `(${c.contact})` : ''}
+                ${c.occupation ? `- ${c.occupation}` : ''}
                 ${c.alive_status && c.alive_status !== 'unknown' ? `- ${c.alive_status}` : ''}
                 </li>
               `).join('')}
             </ul>
           </div>
           ` : ''}
-          
+
           <div class="section">
             <h3>ADMISSION STATEMENT</h3>
             <p>We are pleased to inform you that <strong>${body.first_name} ${body.last_name}</strong> has been officially admitted to ${schoolName} for the academic year ${new Date().getFullYear()}. This admission is subject to the terms and conditions outlined in our school handbook.</p>
           </div>
-          
+
           <div class="section">
             <h3>REQUIREMENTS</h3>
             <ul>
@@ -454,7 +458,7 @@ export async function POST(req: NextRequest) {
               <li>Copy of birth certificate or identification documents</li>
             </ul>
           </div>
-          
+
           <div class="signature-section">
             <div class="signature-block">
               <div class="signature-line">Headteacher</div>
@@ -465,18 +469,18 @@ export async function POST(req: NextRequest) {
               <p>Date: _____________</p>
             </div>
           </div>
-          
+
           <div style="text-align: center; margin-top: 40px; font-style: italic; font-size: 12px;">
             <p>This is an official document from ${schoolName}. Please keep this letter for your records.</p>
           </div>
         </body>
         </html>
       `;
-      
+
       const pdfDir = path.join(process.cwd(), 'public', 'admissions');
       await fs.mkdir(pdfDir, { recursive: true });
       const pdfPath = path.join(pdfDir, `admission_${student_id}.pdf`);
-      
+
       let pdfUrl = null;
       try {
         const browser = await launchPdfBrowser();
@@ -484,24 +488,24 @@ export async function POST(req: NextRequest) {
         await page.setContent(pdfHtml, { waitUntil: 'networkidle0' });
         await page.pdf({ path: pdfPath, format: 'A4', printBackground: true });
         await browser.close();
-        
+
         pdfUrl = `/admissions/admission_${student_id}.pdf`;
       } catch (pdfError) {
         console.error('PDF generation failed:', pdfError);
       }
-      
+
       // Close connection before sending response
       await connection.end();
-      
-      return NextResponse.json({ 
-        success: true, 
-        student_id, 
-        person_id, 
+
+      return NextResponse.json({
+        success: true,
+        student_id,
+        person_id,
         admission_no,
         pdf_url: pdfUrl,
         message: pdfUrl ? 'Student admitted successfully' : 'Student admitted but PDF generation failed'
       }, { status: 201 });
-      
+
     } catch (e: any) {
       if (connection) {
         try {

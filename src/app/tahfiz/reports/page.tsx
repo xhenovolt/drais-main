@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, createContext, useContext, useRef } from 'react';
 import Image from 'next/image';
+import { MediaImg } from '@/components/media/MediaImg';
 // html2canvas + jspdf + xlsx are dynamically imported inside the export
 // handlers below, to keep these heavy libs out of the eager build/client graph.
 import PromotionSummaryNotification from '@/components/academics/PromotionSummaryNotification';
@@ -235,7 +236,7 @@ const ReportsPage = () => {
           : Array.isArray(reportsData) ? reportsData as Result[] : [];
         setAllStudents(students);
         setAllResults(results);
-        
+
         // Update school info from centralized DB-driven config
         if (schoolConfigData?.school) {
           const s = schoolConfigData.school;
@@ -280,18 +281,18 @@ const ReportsPage = () => {
   // Enhanced class groups with data validation and error checking
   const classGroups = useMemo((): Record<string, ClassGroup> => {
     const groups: Record<string, ClassGroup> = {};
-    
+
     // Filter out invalid results and remove duplicates
     const validResults = allResults.filter((r, index, arr) => {
       // Basic validation
       if (!r.student_id || !r.class_name || r.score === null || r.score === undefined) {
         return false;
       }
-      
+
       // Ensure score is a valid number
       const score = parseFloat(String(r.score));
       if (isNaN(score)) return false;
-      
+
       // Remove duplicates based on unique combination
       const key = `${r.student_id}_${r.subject_id}_${r.result_type_name || r.results_type}_${r.term || r.term_name || 'no_term'}`;
       const firstIndex = arr.findIndex(item => {
@@ -306,7 +307,7 @@ const ReportsPage = () => {
       if (!groups[className]) {
         groups[className] = { className, students: [] };
       }
-      
+
       let student = groups[className].students.find(s => s.student_id === r.student_id);
       if (!student) {
         // Improved photo URL handling for Next.js Image component
@@ -327,12 +328,12 @@ const ReportsPage = () => {
       }
       student.results.push(r);
     });
-    
+
     // Sort students within each class by name
     Object.values(groups).forEach(g => {
       g.students.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
     });
-    
+
     return groups;
   }, [allResults]);
 
@@ -352,7 +353,7 @@ const ReportsPage = () => {
   // Enhanced filtering logic with better validation
   const filteredClassGroups = useMemo((): Record<string, ClassGroup> => {
     let groups = JSON.parse(JSON.stringify(classGroups)) as Record<string, ClassGroup>; // Deep clone to avoid mutations
-    
+
     if (filters.classId) {
       groups = Object.fromEntries(
         Object.entries(groups).filter(([_, v]) =>
@@ -361,12 +362,12 @@ const ReportsPage = () => {
         )
       );
     }
-    
+
     Object.values(groups).forEach(g => {
       g.students = g.students.filter(s => {
         // Ensure student has valid results
         if (!s.results || s.results.length === 0) return false;
-        
+
         // Term filter - only apply if term data exists
         if (filters.term) {
           const hasTermData = s.results.some((r: Result) => r.term || r.term_name);
@@ -377,11 +378,11 @@ const ReportsPage = () => {
             if (!matchesTerm) return false;
           }
         }
-        
+
         // Result type filter - IMPROVED LOGIC
         if (filters.resultType) {
           const resultTypeFilter = filters.resultType.toLowerCase();
-          
+
           if (resultTypeFilter.includes('end')) {
             // For "End of Term" filter, include students who have:
             // 1. Any result with "end" in the result type, OR
@@ -389,11 +390,11 @@ const ReportsPage = () => {
             const hasEndTermResult = s.results.some((r: Result) =>
               String(r.result_type_name || r.results_type || '').toLowerCase().includes('end')
             );
-            
+
             const hasMidTermResult = s.results.some((r: Result) =>
               String(r.result_type_name || r.results_type || '').toLowerCase().includes('mid')
             );
-            
+
             // Include if has end-term results OR has both mid and end components
             if (!hasEndTermResult && !hasMidTermResult) return false;
           } else {
@@ -404,7 +405,7 @@ const ReportsPage = () => {
             if (!matchesResultType) return false;
           }
         }
-        
+
         // Student name/ID filter
         if (filters.student) {
           const name = `${s.first_name} ${s.last_name}`.toLowerCase();
@@ -412,11 +413,11 @@ const ReportsPage = () => {
             return false;
           }
         }
-        
+
         return true;
       });
     });
-    
+
     // Remove empty classes
     groups = Object.fromEntries(Object.entries(groups).filter(([_, v]) => v.students.length > 0));
     return groups;
@@ -427,7 +428,7 @@ const ReportsPage = () => {
     if (filters.resultType) {
       const rt = String(r.result_type_name || r.results_type || '').toLowerCase();
       const filterType = filters.resultType.toLowerCase();
-      
+
       if (filterType.includes('end')) {
         // For End of Term filter, include both mid and end results
         return rt.includes('mid') || rt.includes('end');
@@ -457,36 +458,36 @@ const ReportsPage = () => {
           return matchesFilters(r);
         });
       });
-       
+
       // Remove students with no valid results after filtering
       classGroup.students = classGroup.students.filter((s: Student) => s.results && s.results.length > 0);
-      
+
       // Calculate total marks for each student in this class
       classGroup.students.forEach((student: Student) => {
         const validScores = (student.results || [])
           .map((r: Result) => parseFloat(String(r.score || 0)))
           .filter(score => !isNaN(score) && score >= 0);
-        
+
         student.totalMarks = validScores.reduce((sum, score) => sum + score, 0);
         student.averageMarks = validScores.length > 0 ? Math.round(student.totalMarks / validScores.length) : 0;
         student.subjectCount = validScores.length;
       });
-      
+
       // Sort students by total marks within this class (highest first)
       classGroup.students.sort((a: Student, b: Student) => {
         const totalA = a.totalMarks || 0;
         const totalB = b.totalMarks || 0;
         if (totalB !== totalA) return totalB - totalA;
-        
+
         // If total marks are equal, sort by average
         const avgA = a.averageMarks || 0;
         const avgB = b.averageMarks || 0;
         if (avgB !== avgA) return avgB - avgA;
-        
+
         // If still equal, sort by name
         return (a.last_name || '').localeCompare(b.last_name || '');
       });
-      
+
       // Assign positions within this class only
       classGroup.students.forEach((student: Student, index: number) => {
         student.position = index + 1;
@@ -519,11 +520,11 @@ const ReportsPage = () => {
   // Enhanced helper to group results by subject with better error handling
   function groupResultsBySubject(results: Result[]): GroupedResult[] {
     const grouped: Record<string, GroupedResult> = {};
-    
+
     results.forEach((result) => {
       const subjectKey = String(result.subject_id || result.subject_name);
       if (!subjectKey) return; // Skip invalid results
-      
+
       if (!grouped[subjectKey]) {
         grouped[subjectKey] = {
           subject_name: result.subject_name || `Subject ${subjectKey}`,
@@ -534,10 +535,10 @@ const ReportsPage = () => {
           subject_type: result.subject_type || 'core', // Add subject type
         };
       }
-      
+
       const resultType = (result.result_type_name || result.results_type || '').toLowerCase();
       const score = parseFloat(String(result.score || 0));
-      
+
       // Handle different result types
       if (resultType.includes('mid')) {
         grouped[subjectKey].midTermScore = score;
@@ -559,26 +560,26 @@ const ReportsPage = () => {
         }
       }
     });
-    
+
     // Cross-reference logic for missing scores
     const allSubjects = new Set(results.map(r => String(r.subject_id || r.subject_name)));
-    
+
     allSubjects.forEach(subjectKey => {
       if (!grouped[subjectKey]) return;
-      
+
       const subjectResults = results.filter(r => String(r.subject_id || r.subject_name) === subjectKey);
-      
+
       if (grouped[subjectKey].midTermScore === null) {
-        const midTermResult = subjectResults.find(r => 
+        const midTermResult = subjectResults.find(r =>
           (r.result_type_name || r.results_type || '').toLowerCase().includes('mid')
         );
         if (midTermResult) {
           grouped[subjectKey].midTermScore = parseFloat(String(midTermResult.score || 0));
         }
       }
-      
+
       if (grouped[subjectKey].endTermScore === null) {
-        const endTermResult = subjectResults.find(r => 
+        const endTermResult = subjectResults.find(r =>
           (r.result_type_name || r.results_type || '').toLowerCase().includes('end')
         );
         if (endTermResult) {
@@ -586,12 +587,12 @@ const ReportsPage = () => {
         }
       }
     });
-    
+
     return Object.values(grouped).filter(item => item.subject_name);
   }
 
   // Canonical grading helpers are imported from '@/lib/reports/canonical-report-engine'.
-  
+
   function commentsForGrade(grade: string) {
     if (grade === 'A') return 'Outstanding performance! Excellent work.';
     if (grade === 'B') return 'Very good work! Keep up the great effort.';
@@ -767,10 +768,10 @@ const ReportsPage = () => {
                 const { principal, others } = splitSubjects(student.results || []);
                 const groupedResults = groupResultsBySubject(principal);
                 const allGroupedResults = groupResultsBySubject([...principal, ...others]); // Include all subjects for display
-                
+
                 const isNursery = isNurseryClassName(student.class_name);
-                
-                const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') || 
+
+                const isEndOfTerm = filters.resultType?.toLowerCase().includes('end') ||
                   principal.some((r: any) => (r.result_type_name || r.results_type || '').toLowerCase().includes('end'));
 
                 // Enhanced calculations - only use CORE subjects for grading, excluding IRE
@@ -783,14 +784,14 @@ const ReportsPage = () => {
                   const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                   return sum + totalMarks;
                 }, 0);
-                
+
                 const coreGradingMarks = coreResults.reduce((sum, r) => {
                   const { totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                   return sum + totalMarks;
                 }, 0);
-                
+
                 const averageMarks = coreResults.length > 0 ? Math.round(coreGradingMarks / coreResults.length) : 0;
-                
+
                 // Calculate aggregates and division/overall grade
                 let aggregates = 0;
                 let division = '';
@@ -881,7 +882,7 @@ const ReportsPage = () => {
                         <p>{schoolInfo.registration_no}</p>
                       </div>
                       <div className="text-center" style={{ flex: 'none' }}>
-                        <Image src={schoolInfo.logo_url} alt="School Logo" width={90} height={90} />
+                        <MediaImg src={schoolInfo.logo_url} alt="School Logo" width={90} height={90} />
                       </div>
                       <div className="text-right font-bold text-xl rtl:text-right ltr:text-left" style={{ direction: 'rtl', textAlign: 'right', flex: 1 }}>
                         <h1 className="text-xl font-bold">{schoolInfo.arabic_name}</h1>
@@ -902,7 +903,7 @@ const ReportsPage = () => {
                           <img src={`/api/barcode?id=${student.student_id}`} style={styles.barcodeImg as any} alt="Barcode" />
                           <span style={styles.barcodeVertical}>{student.student_id}</span>
                         </div>
-                        <Image
+                        <MediaImg
                           src={`${student.photo || '/logo.png'}`}
                           alt={`${student.first_name} ${student.last_name}`}
                           width={100}
@@ -935,9 +936,9 @@ const ReportsPage = () => {
                             </p>
                             <p style={{ margin: 0, padding: 0 }}>
                               <span className="font-bold" style={{ color: '#000' }}>Term:</span>
-                              <span 
-                                style={{ 
-                                  ...styles.studentValue, 
+                              <span
+                                style={{
+                                  ...styles.studentValue,
                                   cursor: 'pointer',
                                   borderBottom: isEditingTerm ? '1px solid #000' : 'none',
                                   display: 'inline-block',
@@ -984,9 +985,9 @@ const ReportsPage = () => {
                         {allGroupedResults.map((r: GroupedResult, i: number) => {
                           const { midTermMarks, endTermMarks, totalMarks } = calculateMarks(r, isEndOfTerm, enableMarkConversion);
                           const isCore = (r.subject_type || 'core').toLowerCase() === 'core';
-                          
+
                           const initialsKey = `${student.class_name}-${r.subject_name}`;
-                          const currentInitials = teacherInitials[initialsKey] || 
+                          const currentInitials = teacherInitials[initialsKey] ||
                             r.teacher_name?.split(' ').map((n: string) => n[0]).join('') || 'N/A';
 
                           // Map grades to descriptive labels
@@ -1045,18 +1046,18 @@ const ReportsPage = () => {
                         </tr>
                       </tbody>
                     </table>
-                    
+
                     {/* Assessment Section - Modified for Nursery */}
                     {/* <div style={{ marginTop: 20, fontSize: 14 }}>
                       <h3 style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 10 }}>
                         General Assessment
                       </h3>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        padding: '10px 20px', 
-                        border: '1px solid #000', 
-                        borderRadius: 8 
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '10px 20px',
+                        border: '1px solid #000',
+                        borderRadius: 8
                       }}>
                         <div>
                           {!isNursery ? (
@@ -1088,7 +1089,7 @@ const ReportsPage = () => {
             </div>
           ))}
         </div>
-        
+
         {/* Customization Modal - Enhanced layout and controls */}
         {showCustomization && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -1437,10 +1438,10 @@ function calculateMarks(groupedResult: GroupedResult, isEndOfTerm: boolean, enab
   }
 
   // Total calculation: if converted, add 40+60=100, otherwise sum the raw 100-based scores
-  const totalMarks = enableConversion 
+  const totalMarks = enableConversion
     ? (midTermMarks || 0) + (endTermMarks || 0)  // Will be out of 100 (40+60)
     : Math.max(midTermMarks, endTermMarks);  // Take the higher raw score
-  
+
   return { midTermMarks, endTermMarks, totalMarks };
 }
 
@@ -1501,7 +1502,7 @@ function getCommentsByDivision(division: string) {
       headteacher: 'Extra help and attention required.'
     }
   };
-  
+
   return comments[division as keyof typeof comments] || comments['Division U'];
 }
 
@@ -1518,7 +1519,7 @@ function CommentsSection({
   handleNextTermChange: (newDate: string) => void;
 }) {
   const divisionComments = getCommentsByDivision(division);
-  
+
   return (
     <div style={{ marginTop: '1%' }}>
       <div style={{ marginTop: 2 }}>

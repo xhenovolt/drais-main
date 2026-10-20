@@ -18,6 +18,7 @@ import { evaluateRule } from '@/lib/drce/visibility';
 import { resolveAssessmentForSection } from '@/lib/drce/assessmentUtils';
 import { isNurseryClassName } from '@/lib/reports/canonical-report-engine';
 import { inferDocumentDirection, inferDocumentLanguage } from '@/lib/drce/arabic';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Props {
   document: DRCEDocument;
@@ -341,7 +342,7 @@ function DRCEDocumentRendererInner({
               />
             </div>
           ) : watermark.imageUrl ? (
-            <img
+            <MediaImg
               src={watermark.imageUrl}
               alt={watermark.content}
               style={{
@@ -416,7 +417,7 @@ function WatermarkLayer({ watermark }: { watermark: { enabled?: boolean; type?: 
           <QRCodeSVG value={watermark.content || 'https://drais.app'} size={watermark.fontSize ?? 120} />
         </div>
       ) : watermark.imageUrl ? (
-        <img src={watermark.imageUrl} alt={watermark.content}
+        <MediaImg src={watermark.imageUrl} alt={watermark.content}
           style={{ opacity: watermark.opacity, transform: `rotate(${rot}deg)`, maxWidth: '60%', maxHeight: '60%' }} />
       ) : null}
     </div>

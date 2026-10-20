@@ -21,6 +21,7 @@ import { saveAs } from 'file-saver';
 // xlsx dynamically imported inside exportToExcel (below).
 import ModuleIntroCard from '@/components/onboarding/ModuleIntroCard';
 import HelpButton from '@/components/onboarding/HelpButton';
+import { MediaImg } from '@/components/media/MediaImg';
 
 // Report Template Types
 interface ReportTemplate {
@@ -282,7 +283,7 @@ const ReportsPage: React.FC = () => {
       {/* Header */}
       <div className="text-center border-b pb-6">
         <div className="flex items-center justify-center mb-4">
-          <img 
+          <MediaImg 
             src={reportData?.schoolInfo.logo} 
             alt="School Logo" 
             className="mr-4"
@@ -341,7 +342,7 @@ const ReportsPage: React.FC = () => {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <img 
+            <MediaImg 
               src={reportData?.schoolInfo.logo} 
               alt="School Logo" 
               className="mr-6 bg-white rounded-lg p-2"

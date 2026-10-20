@@ -15,6 +15,7 @@ import ExtendedProfileModal from '@/components/students/ExtendedProfileModal';
 import { Pencil, Home, Heart, Plus, ExternalLink, Fingerprint, Settings2 } from 'lucide-react';
 import { CustomFieldsPanel } from '@/components/students/CustomFieldsPanel';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -111,7 +112,7 @@ export default function StudentDetailPage() {
           className="relative group w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow overflow-hidden hover:ring-2 hover:ring-indigo-400 transition"
         >
           {s.photo_url ? (
-            <img src={s.photo_url} alt={fullName} className="w-full h-full object-cover" />
+            <MediaImg src={s.photo_url} alt={fullName} className="w-full h-full object-cover" />
           ) : (
             <span>{s.first_name?.[0]?.toUpperCase() ?? '?'}</span>
           )}

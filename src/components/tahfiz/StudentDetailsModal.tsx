@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Phone, Mail, Calendar, BookOpen, Users, Award, Clock, Activity } from 'lucide-react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface StudentDetails {
   id: number;
@@ -134,7 +135,7 @@ export default function StudentDetailsModal({ isOpen, onClose, studentId }: Stud
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-xl">
                       {student.avatar ? (
-                        <img src={student.avatar} alt={student.name} className="w-full h-full rounded-full" />
+                        <MediaImg src={student.avatar} alt={student.name} className="w-full h-full rounded-full" />
                       ) : (
                         student.name.charAt(0)
                       )}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   GraduationCap, LogOut, Loader, ChevronRight, UserPlus, School, Clock, CheckCircle2,
 } from 'lucide-react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -139,7 +140,7 @@ export default function ParentDashboard() {
                 <Link key={l.id} href={`/portal/learners/${l.id}`}
                   className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-indigo-300 transition-colors">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
-                    {l.photo_url ? <img src={l.photo_url} alt={l.name} className="w-full h-full object-cover" /> : l.name?.[0]?.toUpperCase()}
+                    {l.photo_url ? <MediaImg src={l.photo_url} alt={l.name} className="w-full h-full object-cover" /> : l.name?.[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{l.name}</p>

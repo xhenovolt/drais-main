@@ -5,6 +5,7 @@ import {
   PlayCircle, Plus, UserCheck, Eye, Calendar,
   Target, Award, BookOpen
 } from 'lucide-react';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Learner {
   student_id: number;
@@ -120,7 +121,7 @@ const LearnerCard: React.FC<LearnerCardProps> = ({
       <div className="flex items-center space-x-3 mb-4">
         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden flex-shrink-0">
           {learner.student_avatar ? (
-            <img 
+            <MediaImg 
               src={learner.student_avatar} 
               alt={learner.student_name} 
               className="w-full h-full object-cover"

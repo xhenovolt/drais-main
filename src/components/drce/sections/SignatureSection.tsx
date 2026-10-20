@@ -23,6 +23,7 @@ import type {
 } from '@/lib/drce/schema';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
 import { resolveLocalizedText, resolveLocalizedLabel } from '@/lib/drce/arabic';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Props {
   section: DRCESignatureSection;
@@ -98,7 +99,7 @@ export function SignatureSection({ section, ctx }: Props) {
               }}
             >
               {imageUrl && (
-                <img
+                <MediaImg
                   src={imageUrl}
                   alt={sig.name || sig.roleLabel || 'signature'}
                   style={{

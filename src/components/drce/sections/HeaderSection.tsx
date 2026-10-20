@@ -3,6 +3,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { MediaImg } from '@/components/media/MediaImg';
 import type { DRCEHeaderSection, DRCETheme, DRCEHeaderComponentStyle } from '@/lib/drce/schema';
 import { resolveHeaderStyle } from '@/lib/drce/styleResolver';
 import type { DRCERenderContext } from '../types';
@@ -19,7 +20,7 @@ function resolveComponentStyle(
   theme: DRCETheme,
 ): React.CSSProperties {
   if (!componentStyle) return {};
-  
+
   return {
     padding: componentStyle.padding,
     margin: componentStyle.margin,
@@ -42,10 +43,10 @@ function renderComponent(
   theme: DRCETheme,
 ) {
   if (!content) return null;
-  
+
   const style = resolveComponentStyle(componentStyle, theme);
   const position = componentStyle?.position ?? 'auto';
-  
+
   return (
     <div key={id} style={{ ...style, gridArea: position !== 'auto' ? position : undefined }}>
       {content}
@@ -55,7 +56,7 @@ function renderComponent(
 
 export function HeaderSection({ section, theme, ctx }: Props) {
   if (!section.visible) return null;
-  
+
   const containerStyle = resolveHeaderStyle(section.style);
   const { school, language = 'en', isRTL = false } = ctx;
   const gap = section.style.gap ?? 12;
@@ -72,7 +73,7 @@ export function HeaderSection({ section, theme, ctx }: Props) {
   // Render logo component
   const logoImg = showLogo ? (
     school.logo_url ? (
-      <Image
+      <MediaImg
         src={school.logo_url}
         alt="School Logo"
         width={section.style.logoWidth ?? 64}
@@ -82,7 +83,6 @@ export function HeaderSection({ section, theme, ctx }: Props) {
           objectFit: 'contain',
           width: 'auto',
         }}
-        unoptimized
       />
     ) : (
       <div

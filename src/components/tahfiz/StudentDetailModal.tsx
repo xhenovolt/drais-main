@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { X, Clock, CheckCircle, AlertCircle, Calendar, Award, BookOpen, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface StudentDetailModalProps {
   isOpen: boolean;
@@ -145,7 +146,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-xl overflow-hidden">
               {mockData.student.avatar ? (
-                <img 
+                <MediaImg 
                   src={mockData.student.avatar} 
                   alt={mockData.student.name} 
                   className="w-full h-full object-cover"

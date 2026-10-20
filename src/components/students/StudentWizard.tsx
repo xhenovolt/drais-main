@@ -6,6 +6,7 @@ import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
 // jspdf + jspdf-autotable dynamically imported where used (below) — keeps them out of the eager graph.
 import { toast } from 'react-hot-toast';
+import { MediaImg } from '@/components/media/MediaImg';
 
 const API_BASE = '/api';
 
@@ -1097,7 +1098,7 @@ export const StudentWizard:React.FC<{open:boolean; onClose:()=>void; onCreated?:
                         {expandPhoto && (
                           <div className="px-4 py-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-4 bg-gradient-to-b from-gray-50/50 dark:from-gray-900/20 to-transparent">
                             <div className="flex items-center gap-4">
-                              <img
+                              <MediaImg
                                 src={photoPreview ? photoPreview : '/default-avatar.png'}
                                 alt="Preview"
                                 className="w-20 h-20 object-cover rounded-full border"

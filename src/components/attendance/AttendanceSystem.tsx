@@ -25,6 +25,7 @@ import { fetcher } from '@/utils/fetcher';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
 import BiometricModal from './BiometricModal';
+import { MediaImg } from '@/components/media/MediaImg';
 
 interface Student {
   student_id: number;
@@ -158,7 +159,7 @@ export const AttendanceSystem: React.FC = () => {
   const getStudentAvatar = (student: Student) => {
     if (student.photo_url) {
       return (
-        <img 
+        <MediaImg 
           src={student.photo_url} 
           alt={`${student.first_name} ${student.last_name}`}
           className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-md"
