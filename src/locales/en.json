@@ -3151,7 +3151,123 @@
     "descriptorGrid": "Descriptor Grid",
     "aoiBreakdown": "AoI Breakdown",
     "skillsBlock": "Generic Skills Block",
-    "projectOutcomesBlock": "Project Outcomes Block"
+    "projectOutcomesBlock": "Project Outcomes Block",
+    "admin": {
+      "phase": "Phase 1 — Foundations",
+      "intro": "Configurable Assessment Framework Engine. Build frameworks, scoring models, grade mappings, and per-class assignments — all from this page. New snapshot pipeline consumers land in Phase 2; nothing here affects existing report generation yet.",
+      "saveFailed": "Save failed",
+      "loadFailed": "Failed to load",
+      "failed": "Something went wrong. Please try again.",
+      "modeNote": "Setting the mode here is metadata only in Phase 1. It will drive the snapshot pipeline + report rendering once Phase 2 lands. Existing primary-school workflows remain unchanged.",
+      "academicMode": "Academic mode",
+      "mode": {
+        "traditional": "traditional",
+        "competency": "competency",
+        "hybrid": "hybrid"
+      },
+      "modeHint": {
+        "traditional": "Percentages, aggregates, positions.",
+        "competency": "Descriptors, rubrics, no ranking.",
+        "hybrid": "Mix per class / per subject."
+      },
+      "noDefault": "— none (no default; classes get explicit assignment) —",
+      "defaultHelp": "Applied when a class has no explicit (class, term) assignment.",
+      "frameworks": {
+        "one": "{{count}} framework",
+        "other": "{{count}} frameworks"
+      },
+      "newFramework": "New framework",
+      "noFrameworks": "No frameworks yet. Build one with components like Theory · Practical · Continuous Assessment · AoI · Project.",
+      "modeCode": "mode: {{mode}} · code: {{code}}",
+      "archived": "archived",
+      "edit": "Edit",
+      "fwMode": {
+        "numeric": "numeric",
+        "rubric": "rubric",
+        "descriptor": "descriptor",
+        "mixed": "mixed"
+      },
+      "immutable": "Immutable after creation.",
+      "description": "Description",
+      "modeLabel": "Mode",
+      "opt": {
+        "numeric": "Numeric (percent / scaled)",
+        "rubric": "Rubric (1–N scale + descriptors)",
+        "descriptor": "Descriptor (qualitative only)",
+        "mixed": "Mixed (components vary)"
+      },
+      "active": "Active",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save changes",
+      "createFramework": "Create framework",
+      "addFailed": "Add failed",
+      "confirmDelComponent": "Delete this component?",
+      "weightScoring": "weight: {{w}} · scoring: {{s}}",
+      "requiredTag": " · required",
+      "deleteComponent": "Delete component",
+      "componentPh": "Theory · AoI · Continuous Assessment",
+      "codePh": "code (optional)",
+      "weightLabel": "Weight",
+      "scoringModels": {
+        "one": "{{count}} scoring model (incl. built-in)",
+        "other": "{{count}} scoring models (incl. built-in)"
+      },
+      "newScoring": "New scoring model",
+      "kindCode": "kind: {{kind}} · code: {{code}}",
+      "builtIn": "built-in",
+      "kind": {
+        "numeric": "numeric",
+        "scale": "scale",
+        "letter": "letter",
+        "descriptor": "descriptor"
+      },
+      "newGrade": "New grade",
+      "kopt": {
+        "numeric": "Numeric (percentage / out-of-N)",
+        "scale": "Scale (1–N with labels)",
+        "letter": "Letter (A–E)",
+        "descriptor": "Descriptor (qualitative)"
+      },
+      "createScoring": "Create scoring model",
+      "gradeMappings": "Grade mappings",
+      "deleteGrade": "Delete grade",
+      "addGrade": "+ add grade mapping",
+      "gradeNote": "Use the API for full per-grade editing in Phase 1. Inline grade editor lands in Phase 2.",
+      "classN": "Class #{{id}}",
+      "termN": "Term #{{id}}",
+      "frameworkN": "Framework #{{id}}",
+      "subjectN": "subject #{{id}}",
+      "confirmDelAssign": "Remove this assignment?",
+      "removeAssign": "Remove assignment",
+      "assignments": {
+        "one": "{{count}} assignment",
+        "other": "{{count}} assignments"
+      },
+      "newAssignment": "New assignment",
+      "noAssignments": "No frameworks assigned to any class yet.",
+      "assign": "Assign",
+      "close": "Close",
+      "loading": "Loading…",
+      "ruleSaved": "Promotion rule saved.",
+      "evalFailed": "Evaluation failed",
+      "promoIntro": "Build a rule that decides which learners get promoted at term end. Same editor as per-section conditional visibility — no new rule language. Example: {{example}}. Dry-run against any snapshot before relying on it.",
+      "saveRule": "Save promotion rule",
+      "dryRunTitle": "Dry-run against a snapshot",
+      "pickSnapshot": "— pick a snapshot —",
+      "running": "Running…",
+      "run": "Run",
+      "candidates": "candidates",
+      "promotedN": "{{n}} promoted",
+      "heldN": "{{n}} held",
+      "noRule": "no rule — every learner returned as \"no_rule\"",
+      "elig": {
+        "promote": "promote",
+        "hold": "hold",
+        "no_rule": "no rule"
+      },
+      "more": "… plus {{n}} more"
+    }
   },
   "achievementLevels": {
     "outstanding": "Outstanding",

@@ -22,6 +22,7 @@ import type {
   ClassFrameworkAssignment,
 } from '@/lib/cafe/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
 
 type Tab = 'mode' | 'frameworks' | 'scoring' | 'assignments' | 'promotion';
 
@@ -34,12 +35,10 @@ export default function CAFEDashboard() {
       <header>
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
           <GraduationCap size={22} className="text-indigo-500" /> CAFE
-          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">Phase 1 — Foundations</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">{t('cafe.admin.phase', "Phase 1 — Foundations")}</span>
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Configurable Assessment Framework Engine. Build frameworks, scoring models, grade
-          mappings, and per-class assignments — all from this page. New snapshot pipeline
-          consumers land in Phase 2; nothing here affects existing report generation yet.
+          {t('cafe.admin.intro', "Configurable Assessment Framework Engine. Build frameworks, scoring models, grade mappings, and per-class assignments — all from this page. New snapshot pipeline consumers land in Phase 2; nothing here affects existing report generation yet.")}
         </p>
       </header>
 
@@ -92,7 +91,7 @@ function ModePanel() {
       fetch('/api/cafe/frameworks').then(r => r.json()),
     ]);
     if (s?.success)  setSettings(s.settings);
-    if (f?.success)  setFrameworks(f.frameworks);
+    if (f?.success)  setFrameworks(Array.isArray(f.frameworks) ? f.frameworks : []);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -104,10 +103,11 @@ function ModePanel() {
         body: JSON.stringify(patch),
       });
       const d = await r.json();
-      if (!r.ok || !d.success) throw new Error(d?.error || 'Save failed');
+      if (!r.ok || !d.success) throw new Error(d?.error || '');
       setSettings(d.settings);
     } catch (e) {
-      setErr((e as Error).message);
+      const m = (e as Error).message;
+      setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.saveFailed', "Save failed")));
     } finally {
       setSaving(false);
     }
@@ -121,15 +121,13 @@ function ModePanel() {
         <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
           <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
           <span>
-            Setting the mode here is metadata only in Phase 1. It will drive the
-            snapshot pipeline + report rendering once Phase 2 lands. Existing
-            primary-school workflows remain unchanged.
+            {t('cafe.admin.modeNote', "Setting the mode here is metadata only in Phase 1. It will drive the snapshot pipeline + report rendering once Phase 2 lands. Existing primary-school workflows remain unchanged.")}
           </span>
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Academic mode</label>
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{t('cafe.admin.academicMode', "Academic mode")}</label>
         <div className="grid grid-cols-3 gap-2">
           {(['traditional', 'competency', 'hybrid'] as AcademicMode[]).map(m => (
             <button
@@ -137,17 +135,15 @@ function ModePanel() {
               onClick={() => save({ academicMode: m })}
               disabled={saving}
               className={[
-                'p-3 text-xs font-semibold rounded border transition-colors text-left',
+                'p-3 text-xs font-semibold rounded border transition-colors text-start',
                 settings.academicMode === m
                   ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
                   : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-600 dark:text-slate-300',
               ].join(' ')}
             >
-              <div className="capitalize">{m}</div>
+              <div className="capitalize">{t(`cafe.admin.mode.${m}`, m)}</div>
               <div className="text-[10px] font-normal text-slate-500 mt-0.5">
-                {m === 'traditional' && 'Percentages, aggregates, positions.'}
-                {m === 'competency'  && 'Descriptors, rubrics, no ranking.'}
-                {m === 'hybrid'      && 'Mix per class / per subject.'}
+                {t(`cafe.admin.modeHint.${m}`, '')}
               </div>
             </button>
           ))}
@@ -162,11 +158,11 @@ function ModePanel() {
           disabled={saving}
           className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
         >
-          <option value="">— none (no default; classes get explicit assignment) —</option>
+          <option value="">{t('cafe.admin.noDefault', "— none (no default; classes get explicit assignment) —")}</option>
           {frameworks.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
         <p className="text-[10px] text-slate-400 mt-1">
-          Applied when a class has no explicit (class, term) assignment.
+          {t('cafe.admin.defaultHelp', "Applied when a class has no explicit (class, term) assignment.")}
         </p>
       </div>
 
@@ -189,9 +185,9 @@ function FrameworksPanel() {
     try {
       const r = await fetch('/api/cafe/frameworks?active_only=0');
       const d = await r.json();
-      if (!r.ok || !d.success) throw new Error(d?.error || 'Failed to load');
-      setList(d.frameworks);
-    } catch (e) { setErr((e as Error).message); }
+      if (!r.ok || !d.success) throw new Error(d?.error || '');
+      setList(Array.isArray(d.frameworks) ? d.frameworks : []);
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.loadFailed', "Failed to load"))); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -199,17 +195,17 @@ function FrameworksPanel() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{list.length} framework{list.length === 1 ? '' : 's'}</p>
+        <p className="text-sm text-slate-500">{t('cafe.admin.frameworks', { count: list.length })}</p>
         <button
           onClick={() => setEditing('new')}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500"
         >
-          <Plus size={12} /> New framework
+          <Plus size={12} /> {t('cafe.admin.newFramework', "New framework")}
         </button>
       </div>
 
       {loading ? <Spinner /> : err ? <ErrorBox msg={err} /> : list.length === 0 ? (
-        <EmptyHint label="No frameworks yet. Build one with components like Theory · Practical · Continuous Assessment · AoI · Project." />
+        <EmptyHint label={t('cafe.admin.noFrameworks', "No frameworks yet. Build one with components like Theory · Practical · Continuous Assessment · AoI · Project.")} />
       ) : (
         <div className="border border-slate-200 dark:border-slate-700 rounded divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
           {list.map(f => (
@@ -218,12 +214,12 @@ function FrameworksPanel() {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-slate-800 dark:text-white truncate">{f.name}</div>
                 <div className="text-[11px] text-slate-400">
-                  mode: {f.mode} · code: <code className="font-mono">{f.code}</code>
-                  {!f.isActive && <span className="ml-1 text-rose-500 font-semibold">archived</span>}
+                  {t('cafe.admin.modeCode', { mode: t(`cafe.admin.fwMode.${f.mode}`, f.mode), code: f.code })}
+                  {!f.isActive && <span className="ms-1 text-rose-500 font-semibold">{t('cafe.admin.archived', "archived")}</span>}
                 </div>
               </div>
               <button onClick={() => setEditing(f)} className="text-xs text-indigo-600 hover:underline">
-                <Pencil size={11} className="inline mr-1" />Edit
+                <Pencil size={11} className="inline me-1" />{t('cafe.admin.edit', "Edit")}
               </button>
             </div>
           ))}
@@ -277,10 +273,11 @@ function FrameworkDrawer({
         { method: initial ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
       );
       const d = await r.json();
-      if (!r.ok || !d.success) throw new Error(d?.error || 'Save failed');
+      if (!r.ok || !d.success) throw new Error(d?.error || '');
       onSaved();
     } catch (e) {
-      setErr((e as Error).message);
+      const m = (e as Error).message;
+      setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.saveFailed', "Save failed")));
     } finally {
       setSaving(false);
     }
@@ -299,23 +296,23 @@ function FrameworkDrawer({
         <div className="space-y-3 text-xs">
           <Row label={t('common.name')}><input value={name} onChange={e => setName(e.target.value)} className={inputCls} placeholder="NLSC Mathematics S1" /></Row>
           <Row label={t('common.code')}><input value={code} onChange={e => setCode(e.target.value)} disabled={!!initial} className={inputCls + ' font-mono'} placeholder="nlsc_math_s1" />
-            <p className="text-[10px] text-slate-400 mt-0.5">Immutable after creation.</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t('cafe.admin.immutable', "Immutable after creation.")}</p>
           </Row>
           <Row label="Description"><textarea value={description ?? ''} onChange={e => setDescription(e.target.value)} rows={2} className={inputCls} /></Row>
           <Row label="Mode">
             <select value={mode} onChange={e => setMode(e.target.value as FrameworkMode)} className={inputCls}>
-              <option value="numeric">Numeric (percent / scaled)</option>
-              <option value="rubric">Rubric (1–N scale + descriptors)</option>
-              <option value="descriptor">Descriptor (qualitative only)</option>
-              <option value="mixed">Mixed (components vary)</option>
+              <option value="numeric">{t('cafe.admin.opt.numeric', "Numeric (percent / scaled)")}</option>
+              <option value="rubric">{t('cafe.admin.opt.rubric', "Rubric (1–N scale + descriptors)")}</option>
+              <option value="descriptor">{t('cafe.admin.opt.descriptor', "Descriptor (qualitative only)")}</option>
+              <option value="mixed">{t('cafe.admin.opt.mixed', "Mixed (components vary)")}</option>
             </select>
           </Row>
-          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> Active</label>
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> {t('cafe.admin.active', "Active")}</label>
           {err && <ErrorBox msg={err} />}
           <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+            <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">{t('cafe.admin.cancel', "Cancel")}</button>
             <button onClick={save} disabled={saving || !name.trim() || !code} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">
-              {saving ? 'Saving…' : initial ? 'Save changes' : 'Create framework'}
+              {saving ? t('cafe.admin.saving', "Saving…") : initial ? t('cafe.admin.save', "Save changes") : t('cafe.admin.createFramework', "Create framework")}
             </button>
           </div>
         </div>
@@ -343,7 +340,7 @@ function ComponentEditor({ framework, onChanged }: {
   const [busy, setBusy]     = useState(false);
 
   useEffect(() => {
-    fetch('/api/cafe/scoring-models').then(r => r.json()).then(d => d.success && setModels(d.models));
+    fetch('/api/cafe/scoring-models').then(r => r.json()).then(d => d.success && setModels(Array.isArray(d.models) ? d.models : []));
   }, []);
 
   async function addComponent() {
@@ -356,15 +353,15 @@ function ComponentEditor({ framework, onChanged }: {
         body: JSON.stringify({ code: codeNorm, name, scoringModelId, weight }),
       });
       const d = await r.json();
-      if (!r.ok || !d.success) throw new Error(d?.error || 'Add failed');
+      if (!r.ok || !d.success) throw new Error(d?.error || '');
       setName(''); setCode(''); setWeight(1); setScoringModelId('');
       onChanged();
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.addFailed', "Add failed"))); }
     finally { setBusy(false); }
   }
 
   async function delComponent(id: number) {
-    if (!confirm('Delete this component?')) return;
+    if (!confirm(t('cafe.admin.confirmDelComponent', "Delete this component?"))) return;
     await fetch(`/api/cafe/frameworks/${framework.id}/components/${id}`, { method: 'DELETE' });
     onChanged();
   }
@@ -378,11 +375,11 @@ function ComponentEditor({ framework, onChanged }: {
             <div className="flex-1">
               <div className="font-semibold text-slate-800 dark:text-slate-100">{c.name}</div>
               <div className="text-[10px] text-slate-400">
-                weight: {c.weight} · scoring: {c.scoringModel?.name ?? c.scoringModelId}
-                {c.isRequired ? ' · required' : ''}
+                {t('cafe.admin.weightScoring', { w: c.weight, s: c.scoringModel?.name ?? c.scoringModelId })}
+                {c.isRequired ? t('cafe.admin.requiredTag', " · required") : ''}
               </div>
             </div>
-            <button onClick={() => delComponent(c.id)} className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded">
+            <button onClick={() => delComponent(c.id)} title={t('cafe.admin.deleteComponent', "Delete component")} aria-label={t('cafe.admin.deleteComponent', "Delete component")} className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded">
               <Trash2 size={11} />
             </button>
           </div>
@@ -391,14 +388,14 @@ function ComponentEditor({ framework, onChanged }: {
 
       <div className="p-3 border border-dashed border-indigo-300 rounded space-y-2">
         <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">{`${t('common.add')} — ${t('cafe.component')}`}</div>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Theory · AoI · Continuous Assessment" className={inputCls} />
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={t('cafe.admin.componentPh', "Theory · AoI · Continuous Assessment")} className={inputCls} />
         <div className="grid grid-cols-2 gap-2">
-          <input value={code} onChange={e => setCode(e.target.value)} placeholder="code (optional)" className={inputCls + ' font-mono'} />
-          <input type="number" step="0.1" value={weight} onChange={e => setWeight(Number(e.target.value) || 1)} className={inputCls} />
+          <input value={code} onChange={e => setCode(e.target.value)} placeholder={t('cafe.admin.codePh', "code (optional)")} className={inputCls + ' font-mono'} />
+          <input type="number" step="0.1" aria-label={t('cafe.admin.weightLabel', "Weight")} title={t('cafe.admin.weightLabel', "Weight")} value={weight} onChange={e => setWeight(Number(e.target.value) || 1)} className={inputCls} />
         </div>
         <select value={scoringModelId} onChange={e => setScoringModelId(e.target.value ? Number(e.target.value) : '')} className={inputCls}>
           <option value="">{t('cafe.scoringModel')}</option>
-          {models.map(m => <option key={m.id} value={m.id}>{m.name} ({m.kind})</option>)}
+          {models.map(m => <option key={m.id} value={m.id}>{m.name} ({t(`cafe.admin.kind.${m.kind}`, m.kind)})</option>)}
         </select>
         {err && <ErrorBox msg={err} />}
         <button onClick={addComponent} disabled={busy || !name.trim() || !scoringModelId} className="w-full py-1.5 bg-indigo-600 text-white rounded text-[11px] hover:bg-indigo-500 disabled:opacity-40">
@@ -421,7 +418,7 @@ function ScoringPanel() {
     setLoading(true);
     const r = await fetch('/api/cafe/scoring-models?active_only=0');
     const d = await r.json();
-    if (d?.success) setList(d.models);
+    if (d?.success) setList(Array.isArray(d.models) ? d.models : []);
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -429,9 +426,9 @@ function ScoringPanel() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{list.length} scoring model{list.length === 1 ? '' : 's'} (incl. built-in)</p>
+        <p className="text-sm text-slate-500">{t('cafe.admin.scoringModels', { count: list.length })}</p>
         <button onClick={() => setEditing('new')} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500">
-          <Plus size={12} /> New scoring model
+          <Plus size={12} /> {t('cafe.admin.newScoring', "New scoring model")}
         </button>
       </div>
 
@@ -443,13 +440,13 @@ function ScoringPanel() {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-slate-800 dark:text-white truncate">{m.name}</div>
                 <div className="text-[11px] text-slate-400">
-                  kind: {m.kind} · code: <code className="font-mono">{m.code}</code>
-                  {m.schoolId == null && <span className="ml-1 text-blue-600 font-semibold">built-in</span>}
+                  {t('cafe.admin.kindCode', { kind: t(`cafe.admin.kind.${m.kind}`, m.kind), code: m.code })}
+                  {m.schoolId == null && <span className="ms-1 text-blue-600 font-semibold">{t('cafe.admin.builtIn', "built-in")}</span>}
                 </div>
               </div>
               {m.schoolId != null && (
                 <button onClick={() => setEditing(m)} className="text-xs text-indigo-600 hover:underline">
-                  <Pencil size={11} className="inline mr-1" />Edit
+                  <Pencil size={11} className="inline me-1" />{t('cafe.admin.edit', "Edit")}
                 </button>
               )}
             </div>
@@ -469,7 +466,7 @@ function ScoringPanel() {
 }
 
 function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | null; onClose: () => void; onSaved: () => void }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [code, setCode]               = useState(initial?.code ?? '');
   const [name, setName]               = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -498,9 +495,9 @@ function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | 
         },
       );
       const d = await r.json();
-      if (!r.ok || !d.success) throw new Error(d?.error || 'Save failed');
+      if (!r.ok || !d.success) throw new Error(d?.error || '');
       onSaved();
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.saveFailed', "Save failed"))); }
     finally { setBusy(false); }
   }
 
@@ -508,7 +505,7 @@ function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | 
     if (!initial) return;
     await fetch(`/api/cafe/scoring-models/${initial.id}/grades`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: `G${grades.length + 1}`, label: 'New grade', promotes: true, sortOrder: (grades.length + 1) * 10 }),
+      body: JSON.stringify({ code: `G${grades.length + 1}`, label: t('cafe.admin.newGrade', "New grade"), promotes: true, sortOrder: (grades.length + 1) * 10 }),
     });
     const r = await fetch(`/api/cafe/scoring-models/${initial.id}`);
     const d = await r.json();
@@ -528,10 +525,10 @@ function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | 
         <Row label="Code"><input value={code} onChange={e => setCode(e.target.value)} disabled={!!initial} className={inputCls + ' font-mono'} /></Row>
         <Row label="Kind">
           <select value={kind} onChange={e => setKind(e.target.value as ScoringKind)} className={inputCls} disabled={!!initial}>
-            <option value="numeric">Numeric (percentage / out-of-N)</option>
-            <option value="scale">Scale (1–N with labels)</option>
-            <option value="letter">Letter (A–E)</option>
-            <option value="descriptor">Descriptor (qualitative)</option>
+            <option value="numeric">{t('cafe.admin.kopt.numeric', "Numeric (percentage / out-of-N)")}</option>
+            <option value="scale">{t('cafe.admin.kopt.scale', "Scale (1–N with labels)")}</option>
+            <option value="letter">{t('cafe.admin.kopt.letter', "Letter (A–E)")}</option>
+            <option value="descriptor">{t('cafe.admin.kopt.descriptor', "Descriptor (qualitative)")}</option>
           </select>
         </Row>
         <Row label="Description"><textarea value={description ?? ''} onChange={e => setDescription(e.target.value)} rows={2} className={inputCls} /></Row>
@@ -539,26 +536,26 @@ function ScoringDrawer({ initial, onClose, onSaved }: { initial: ScoringModel | 
         {err && <ErrorBox msg={err} />}
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+          <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">{t('cafe.admin.cancel', "Cancel")}</button>
           <button onClick={save} disabled={busy || !name.trim() || !code} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">
-            {busy ? 'Saving…' : initial ? 'Save changes' : 'Create scoring model'}
+            {busy ? t('cafe.admin.saving', "Saving…") : initial ? t('cafe.admin.save', "Save changes") : t('cafe.admin.createScoring', "Create scoring model")}
           </button>
         </div>
 
         {initial && (
           <div className="border-t border-slate-200 dark:border-slate-700 pt-3 space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Grade mappings</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t('cafe.admin.gradeMappings', "Grade mappings")}</div>
             {grades.map(g => (
               <div key={g.id} className="grid grid-cols-12 items-center gap-1 text-[11px] p-2 border border-slate-100 dark:border-slate-800 rounded">
                 <span className="col-span-1 font-bold">{g.code}</span>
                 <span className="col-span-3">{g.label}</span>
-                <span className="col-span-2 font-mono text-slate-400">{g.lowerBound ?? '—'} – {g.upperBound ?? '—'}</span>
+                <span dir="ltr" className="col-span-2 font-mono text-slate-400">{g.lowerBound != null ? digits(g.lowerBound) : '—'} – {g.upperBound != null ? digits(g.upperBound) : '—'}</span>
                 <span className="col-span-5 text-slate-500 truncate">{g.descriptor ?? ''}</span>
-                <button onClick={() => delGrade(g.id)} className="col-span-1 text-rose-500"><Trash2 size={11} /></button>
+                <button onClick={() => delGrade(g.id)} title={t('cafe.admin.deleteGrade', "Delete grade")} aria-label={t('cafe.admin.deleteGrade', "Delete grade")} className="col-span-1 text-rose-500"><Trash2 size={11} /></button>
               </div>
             ))}
-            <button onClick={addGrade} className="w-full py-1 text-[11px] text-indigo-600 hover:underline">+ add grade mapping</button>
-            <p className="text-[10px] text-slate-400">Use the API for full per-grade editing in Phase 1. Inline grade editor lands in Phase 2.</p>
+            <button onClick={addGrade} className="w-full py-1 text-[11px] text-indigo-600 hover:underline">{t('cafe.admin.addGrade', "+ add grade mapping")}</button>
+            <p className="text-[10px] text-slate-400">{t('cafe.admin.gradeNote', "Use the API for full per-grade editing in Phase 1. Inline grade editor lands in Phase 2.")}</p>
           </div>
         )}
       </div>
@@ -581,20 +578,20 @@ function AssignmentsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [a, f, c, t] = await Promise.all([
+      const [a, f, c, tr] = await Promise.all([
         fetch('/api/cafe/class-assignments').then(r => r.json()),
         fetch('/api/cafe/frameworks').then(r => r.json()),
         fetch('/api/classes').then(r => r.json()).catch(() => ({ classes: [] })),
         fetch('/api/terms').then(r => r.json()).catch(() => ({ terms: [] })),
       ]);
-      if (a?.success) setAssignments(a.assignments);
-      if (f?.success) setFrameworks(f.frameworks);
+      if (a?.success) setAssignments(Array.isArray(a.assignments) ? a.assignments : []);
+      if (f?.success) setFrameworks(Array.isArray(f.frameworks) ? f.frameworks : []);
       // /api/classes and /api/terms response shapes vary; we defensively map.
       const cList = (c?.classes ?? c?.data ?? []) as Array<{ id: number; name?: string; class_name?: string }>;
-      const tList = (t?.terms   ?? t?.data ?? []) as Array<{ id: number; name?: string; term_name?: string }>;
-      setClasses(cList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.class_name ?? `Class #${x.id}`) })));
-      setTerms(tList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.term_name ?? `Term #${x.id}`) })));
-    } catch (e) { setErr((e as Error).message); }
+      const tList = (tr?.terms   ?? tr?.data ?? []) as Array<{ id: number; name?: string; term_name?: string }>;
+      setClasses(cList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.class_name ?? t('cafe.admin.classN', { id: x.id })) })));
+      setTerms(tList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.term_name ?? t('cafe.admin.termN', { id: x.id })) })));
+    } catch (e) { setErr(t('cafe.admin.loadFailed', "Failed to load")); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -607,12 +604,12 @@ function AssignmentsPanel() {
       body: JSON.stringify(adding),
     });
     const d = await r.json();
-    if (!r.ok || !d.success) { setErr(d?.error || 'Failed'); return; }
+    if (!r.ok || !d.success) { const m = d?.error; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.failed', "Something went wrong. Please try again."))); return; }
     setAdding(null);
     load();
   }
   async function delAssignment(a: ClassFrameworkAssignment) {
-    if (!confirm('Remove this assignment?')) return;
+    if (!confirm(t('cafe.admin.confirmDelAssign', "Remove this assignment?"))) return;
     const sp = new URLSearchParams({ class_id: String(a.classId), term_id: String(a.termId) });
     if (a.subjectId != null) sp.set('subject_id', String(a.subjectId));
     await fetch(`/api/cafe/class-assignments?${sp}`, { method: 'DELETE' });
@@ -624,35 +621,35 @@ function AssignmentsPanel() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{assignments.length} assignment{assignments.length === 1 ? '' : 's'}</p>
+        <p className="text-sm text-slate-500">{t('cafe.admin.assignments', { count: assignments.length })}</p>
         <button onClick={() => setAdding({})} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500">
-          <Plus size={12} /> New assignment
+          <Plus size={12} /> {t('cafe.admin.newAssignment', "New assignment")}
         </button>
       </div>
 
       {err && <ErrorBox msg={err} />}
 
       {assignments.length === 0 ? (
-        <EmptyHint label="No frameworks assigned to any class yet." />
+        <EmptyHint label={t('cafe.admin.noAssignments', "No frameworks assigned to any class yet.")} />
       ) : (
         <div className="border border-slate-200 dark:border-slate-700 rounded divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
           {assignments.map(a => {
             // String-compared: class ids are BIGINTs delivered as strings, so
             // `===` against a numeric classId silently falls through to
             // "Class #392002". Same defect as the finance fee-item scopes.
-            const cls = classes.find(c => String(c.id) === String(a.classId))?.name ?? `Class #${a.classId}`;
-            const trm = terms.find(t => t.id === a.termId)?.name ?? `Term #${a.termId}`;
-            const fw  = frameworks.find(f => f.id === a.frameworkId)?.name ?? `Framework #${a.frameworkId}`;
+            const cls = classes.find(c => String(c.id) === String(a.classId))?.name ?? t('cafe.admin.classN', { id: a.classId });
+            const trm = terms.find(tm => String(tm.id) === String(a.termId))?.name ?? t('cafe.admin.termN', { id: a.termId });
+            const fw  = frameworks.find(f => String(f.id) === String(a.frameworkId))?.name ?? t('cafe.admin.frameworkN', { id: a.frameworkId });
             return (
               <div key={a.id} className="flex items-center gap-3 p-3 text-xs">
                 <GraduationCap size={14} className="text-indigo-500" />
                 <div className="flex-1">
                   <span className="font-semibold">{cls}</span> · {trm}
-                  {a.subjectId != null && <> · subject #{a.subjectId}</>}
-                  <span className="text-slate-400"> → </span>
+                  {a.subjectId != null && <> · {t('cafe.admin.subjectN', { id: a.subjectId })}</>}
+                  <span className="text-slate-400"> <span className="rtl:hidden">→</span><span className="ltr:hidden">←</span> </span>
                   <span className="text-indigo-600">{fw}</span>
                 </div>
-                <button onClick={() => delAssignment(a)} className="p-1 text-rose-500"><Trash2 size={11} /></button>
+                <button onClick={() => delAssignment(a)} title={t('cafe.admin.removeAssign', "Remove assignment")} aria-label={t('cafe.admin.removeAssign', "Remove assignment")} className="p-1 text-rose-500"><Trash2 size={11} /></button>
               </div>
             );
           })}
@@ -671,7 +668,7 @@ function AssignmentsPanel() {
             <Row label="Term">
               <select value={adding.termId ?? ''} onChange={e => setAdding({ ...adding, termId: e.target.value ? Number(e.target.value) : undefined })} className={inputCls}>
                 <option value="">{t('academicTime.term')}</option>
-                {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {terms.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
               </select>
             </Row>
             <Row label="Framework">
@@ -681,9 +678,9 @@ function AssignmentsPanel() {
               </select>
             </Row>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setAdding(null)} className="text-xs text-slate-500">Cancel</button>
+              <button onClick={() => setAdding(null)} className="text-xs text-slate-500">{t('cafe.admin.cancel', "Cancel")}</button>
               <button onClick={addAssignment} disabled={!adding.classId || !adding.frameworkId || !adding.termId} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded disabled:opacity-40">
-                Assign
+                {t('cafe.admin.assign', "Assign")}
               </button>
             </div>
           </div>
@@ -726,13 +723,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-auto"
            onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-3 border-b border-slate-100 dark:border-slate-800">
           <h2 className="font-bold text-sm text-slate-800 dark:text-white">{title}</h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600"><X size={14} /></button>
+          <button onClick={onClose} title={t('cafe.admin.close', "Close")} aria-label={t('cafe.admin.close', "Close")} className="p-1 text-slate-400 hover:text-slate-600"><X size={14} /></button>
         </div>
         <div className="p-4">{children}</div>
       </div>
@@ -755,7 +753,8 @@ function TabPill({ active, onClick, disabled, children }: { active: boolean; onC
 }
 
 function Spinner() {
-  return <div className="flex items-center gap-2 text-xs text-slate-400 py-4"><Loader2 size={12} className="animate-spin" /> Loading…</div>;
+  const { t } = useI18n();
+  return <div className="flex items-center gap-2 text-xs text-slate-400 py-4"><Loader2 size={12} className="animate-spin" /> {t('cafe.admin.loading', "Loading…")}</div>;
 }
 function ErrorBox({ msg }: { msg: string }) {
   return <div className="p-2 text-xs text-rose-700 bg-rose-50 dark:bg-rose-900/20 rounded">{msg}</div>;
@@ -770,6 +769,7 @@ import { VisibilityRuleEditor } from '@/components/drce/editor/VisibilityRuleEdi
 import type { VisibilityRule } from '@/lib/drce/visibility';
 
 function PromotionPanel() {
+  const { t, rich, digits } = useI18n();
   const [rule, setRule] = useState<VisibilityRule | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -793,18 +793,18 @@ function PromotionPanel() {
         const r = await fetch('/api/cafe/school-settings');
         const d = await r.json();
         if (d?.success) setRule((d.settings.promotionRuleJson as unknown as VisibilityRule | null) ?? null);
-      } catch (e) { setErr((e as Error).message); }
+      } catch (e) { setErr(t('cafe.admin.loadFailed', "Failed to load")); }
       finally { setLoading(false); }
     })();
     // Load recent snapshots for the dry-run picker.
     (async () => {
       try {
-        const r = await fetch('/api/snapshots?limit=20');
+        const r = await fetch('/api/snapshots/list?limit=20');
         const d = await r.json();
         const list = (d?.snapshots ?? d?.data ?? []) as Array<{ snapshotId?: string; id?: string; termName?: string; yearName?: string }>;
         setSnapshots(list.slice(0, 20).map(s => ({
           snapshotId: String(s.snapshotId ?? s.id),
-          label: `${s.snapshotId ?? s.id} · ${s.termName ?? ''} ${s.yearName ?? ''}`.trim(),
+          label: `${String(s.snapshotId ?? s.id).slice(0, 8)} · ${s.termName ?? ''} ${s.yearName ? digits(String(s.yearName)) : ''}`.trim(),
         })));
       } catch { /* non-fatal */ }
     })();
@@ -818,9 +818,9 @@ function PromotionPanel() {
         body: JSON.stringify({ promotion_rule_json: rule, promotionRuleJson: rule }),
       });
       const d = await r.json();
-      if (!r.ok || !d?.success) throw new Error(d?.error || 'Save failed');
-      setSavedNote('Promotion rule saved.');
-    } catch (e) { setErr((e as Error).message); }
+      if (!r.ok || !d?.success) throw new Error(d?.error || '');
+      setSavedNote(t('cafe.admin.ruleSaved', "Promotion rule saved."));
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.saveFailed', "Save failed"))); }
     finally { setSaving(false); }
   }
 
@@ -833,9 +833,9 @@ function PromotionPanel() {
         body: JSON.stringify({ snapshotId: chosenSnapshotId, ruleOverride: rule }),
       });
       const d = await r.json();
-      if (!r.ok || !d?.success) throw new Error(d?.error || 'Evaluation failed');
+      if (!r.ok || !d?.success) throw new Error(d?.error || '');
       setEvalResult(d.evaluation);
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('cafe.admin.evalFailed', "Evaluation failed"))); }
     finally { setEvaluating(false); }
   }
 
@@ -843,10 +843,7 @@ function PromotionPanel() {
   return (
     <div className="space-y-4 max-w-3xl">
       <div className="p-3 rounded border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/10 dark:border-indigo-900/40 text-xs text-indigo-800 dark:text-indigo-300">
-        Build a rule that decides which learners get promoted at term end.
-        Same editor as per-section conditional visibility — no new rule language.
-        Example: <strong>average ≥ 50 AND assessment.classPosition ≤ 40</strong>.
-        Dry-run against any snapshot before relying on it.
+        {rich('cafe.admin.promoIntro', { example: <strong dir="ltr">average ≥ 50 AND assessment.classPosition ≤ 40</strong> })}
       </div>
 
       <VisibilityRuleEditor value={rule} onChange={setRule} />
@@ -854,7 +851,7 @@ function PromotionPanel() {
       <div className="flex items-center gap-2">
         <button onClick={saveRule} disabled={saving}
           className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">
-          {saving ? 'Saving…' : 'Save promotion rule'}
+          {saving ? t('cafe.admin.saving', "Saving…") : t('cafe.admin.saveRule', "Save promotion rule")}
         </button>
         {savedNote && <span className="text-xs text-emerald-600">{savedNote}</span>}
       </div>
@@ -862,26 +859,26 @@ function PromotionPanel() {
       <hr className="border-slate-200 dark:border-slate-700" />
 
       <div>
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Dry-run against a snapshot</h3>
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">{t('cafe.admin.dryRunTitle', "Dry-run against a snapshot")}</h3>
         <div className="flex items-center gap-2 mb-3">
           <select value={chosenSnapshotId} onChange={e => setChosenSnapshotId(e.target.value)}
             className="flex-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900">
-            <option value="">— pick a snapshot —</option>
+            <option value="">{t('cafe.admin.pickSnapshot', "— pick a snapshot —")}</option>
             {snapshots.map(s => <option key={s.snapshotId} value={s.snapshotId}>{s.label}</option>)}
           </select>
           <button onClick={dryRun} disabled={!chosenSnapshotId || evaluating}
             className="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded disabled:opacity-40">
-            {evaluating ? 'Running…' : 'Run'}
+            {evaluating ? t('cafe.admin.running', "Running…") : t('cafe.admin.run', "Run")}
           </button>
         </div>
 
         {evalResult && (
           <div className="space-y-2 border border-slate-200 dark:border-slate-700 rounded p-3 bg-white dark:bg-slate-900">
             <div className="text-xs text-slate-600 dark:text-slate-300">
-              <strong className="text-slate-800 dark:text-slate-100">{evalResult.totalCandidates}</strong> candidates ·{' '}
-              <span className="text-emerald-600 font-semibold">{evalResult.promotedCount} promoted</span> ·{' '}
-              <span className="text-rose-600 font-semibold">{evalResult.heldCount} held</span>
-              {!evalResult.ruleConfigured && <> · <span className="text-amber-600">no rule — every learner returned as "no_rule"</span></>}
+              <strong className="text-slate-800 dark:text-slate-100">{digits(evalResult.totalCandidates ?? 0)}</strong> {t('cafe.admin.candidates', "candidates")} ·{' '}
+              <span className="text-emerald-600 font-semibold">{t('cafe.admin.promotedN', { n: evalResult.promotedCount ?? 0 })}</span> ·{' '}
+              <span className="text-rose-600 font-semibold">{t('cafe.admin.heldN', { n: evalResult.heldCount ?? 0 })}</span>
+              {!evalResult.ruleConfigured && <> · <span className="text-amber-600">{t('cafe.admin.noRule', "no rule — every learner returned as \"no_rule\"")}</span></>}
             </div>
             <div className="max-h-72 overflow-y-auto border-t border-slate-100 dark:border-slate-800 pt-2 space-y-0.5">
               {evalResult.perStudent.slice(0, 100).map((s, i) => (
@@ -891,14 +888,14 @@ function PromotionPanel() {
                     s.eligibility === 'promote' ? 'bg-emerald-100 text-emerald-700' :
                     s.eligibility === 'hold' ? 'bg-rose-100 text-rose-700' :
                     'bg-slate-100 text-slate-500',
-                  ].join(' ')}>{s.eligibility}</span>
+                  ].join(' ')}>{['promote', 'hold', 'no_rule'].includes(s.eligibility) ? t(`cafe.admin.elig.${s.eligibility}`, s.eligibility) : s.eligibility}</span>
                   <span className="flex-1 truncate">{s.studentName}</span>
                   <span className="text-slate-400 w-20 truncate">{s.className}</span>
-                  <span className="text-slate-500 font-mono">{s.total}</span>
+                  <span className="text-slate-500 font-mono">{s.total != null ? digits(s.total) : ''}</span>
                 </div>
               ))}
               {evalResult.perStudent.length > 100 && (
-                <div className="text-[10px] text-slate-400 pt-1">… plus {evalResult.perStudent.length - 100} more</div>
+                <div className="text-[10px] text-slate-400 pt-1">{t('cafe.admin.more', { n: evalResult.perStudent.length - 100 })}</div>
               )}
             </div>
           </div>

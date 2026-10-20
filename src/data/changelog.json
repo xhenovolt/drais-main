@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:50:20.309Z",
-  "last_commit": "bda74d18e487c6d1c86af25b5b855353a2b2cd51",
+  "generated_at": "2026-10-20T10:55:16.296Z",
+  "last_commit": "942f8f487334df18d711d28ac98ab6882bec7cfa",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10554,7 +10554,20 @@
         }
       ],
       "commit": "bda74d18e4"
+    },
+    {
+      "version": "2.50.149",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/reports/kitchen (Template Kitchen gallery, preview, rename) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/reports/kitchen (Template Kitchen gallery, preview, rename) fully Arabic"
+        }
+      ],
+      "commit": "942f8f4873"
     }
   ],
-  "app_version": "2.50.149"
+  "app_version": "2.50.150"
 }
