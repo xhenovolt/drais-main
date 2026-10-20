@@ -10119,6 +10119,63 @@
         "repeat": "Performance below standard. Advised to repeat {{cls}} for better foundation.",
         "na": "Promotion status determined at end of 3rd term."
       }
+    },
+    "resultsCafe": {
+      "classN": "Class #{{id}}",
+      "termN": "Term #{{id}}",
+      "subjectN": "Subject #{{id}}",
+      "loadFailed": "Failed to load grid",
+      "saveFailed": "Save failed",
+      "failed": "Something went wrong. Please try again.",
+      "saved": {
+        "one": "Saved {{count}} cell.",
+        "other": "Saved {{count}} cells."
+      },
+      "savedSkipped": "Saved {{written}}; {{skipped}} cell(s) skipped (check tooltips).",
+      "intro": "Enter component-level scores for any (class, subject, term) covered by an assessment framework. Schools without a framework assigned use the legacy {{link}}.",
+      "resultsPage": "Results page",
+      "pickAll": "Pick a class, subject, and term to begin.",
+      "framework": "Framework:",
+      "components": {
+        "one": "{{count}} component",
+        "other": "{{count}} components"
+      },
+      "students": {
+        "one": "{{count}} student",
+        "other": "{{count}} students"
+      },
+      "refresh": "Refresh",
+      "saving": "Saving…",
+      "save": "Save changes",
+      "student": "Student",
+      "weight": "weight: {{w}}",
+      "kind": {
+        "numeric": "numeric",
+        "scale": "scale",
+        "letter": "letter",
+        "descriptor": "descriptor"
+      },
+      "minMax": "min: {{min}} · max: {{max}}",
+      "pick": "— pick {{what}} —",
+      "loading": "Loading…",
+      "noFramework": "{{strong}} to this (class, term). Configure one at {{admin}} or use the {{legacy}} for traditional entry.",
+      "noFrameworkStrong": "No framework assigned",
+      "adminLink": "/admin/cafe → Class assignments",
+      "legacyLink": "legacy results page",
+      "tab": {
+        "components": "Components",
+        "skills": "Generic Skills",
+        "projects": "Projects"
+      },
+      "noSkills": "No skills entered for this learner this term.",
+      "remove": "Remove",
+      "skillPh": "Skill (e.g. Communication)",
+      "codePh": "code (optional)",
+      "valuePh": "value / descriptor",
+      "add": "Add",
+      "noProjects": "No projects entered for this learner this term.",
+      "titlePh": "Project title",
+      "descPh": "Descriptor (optional)"
     }
   }
 }

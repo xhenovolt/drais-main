@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:32:14.652Z",
-  "last_commit": "67678f1b5a09a890197f6acfb4952c9c9edea4c4",
+  "generated_at": "2026-10-20T10:34:19.401Z",
+  "last_commit": "39b864cf0af8f7f36c29b7e692f6233d6e201d41",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10463,7 +10463,20 @@
         }
       ],
       "commit": "67678f1b5a"
+    },
+    {
+      "version": "2.50.142",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Lock down POST /api/academics/promotions; i18n(ar): /academics/reports controls + promotion summary",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Lock down POST /api/academics/promotions; i18n(ar): /academics/reports controls + promotion summary"
+        }
+      ],
+      "commit": "39b864cf0a"
     }
   ],
-  "app_version": "2.50.142"
+  "app_version": "2.50.143"
 }

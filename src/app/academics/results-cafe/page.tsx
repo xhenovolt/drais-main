@@ -19,6 +19,9 @@ import type {
   AssessmentFramework, ScoringModel, AssessmentComponent,
 } from '@/lib/cafe/types';
 import { useI18n } from '@/components/i18n/I18nProvider';
+import { uiIsArabic, isEnglishText } from '@/lib/toast';
+
+const KINDS = ['numeric', 'scale', 'letter', 'descriptor'];
 
 interface StudentRow {
   id: number;
@@ -40,7 +43,7 @@ interface GridResponse {
 }
 
 export default function ResultsCAFEEntryPage() {
-  const { t } = useI18n();
+  const { t, rich, digits } = useI18n();
   const [classes, setClasses]   = useState<Array<{ id: number; name: string }>>([]);
   const [subjects, setSubjects] = useState<Array<{ id: number; name: string }>>([]);
   const [terms, setTerms]       = useState<Array<{ id: number; name: string }>>([]);
@@ -60,15 +63,15 @@ export default function ResultsCAFEEntryPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [c, t] = await Promise.all([
+        const [c, tr] = await Promise.all([
           fetch('/api/classes').then(r => r.json()).catch(() => ({})),
           fetch('/api/terms').then(r => r.json()).catch(() => ({})),
         ]);
         const cList = (c?.classes ?? c?.data ?? []) as Array<{ id: number; name?: string; class_name?: string }>;
-        const tList = (t?.terms   ?? t?.data ?? []) as Array<{ id: number; name?: string; term_name?: string }>;
-        setClasses(cList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.class_name ?? `Class #${x.id}`) })));
-        setTerms(tList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.term_name ?? `Term #${x.id}`) })));
-      } catch (e) { setErr((e as Error).message); }
+        const tList = (tr?.terms   ?? tr?.data ?? []) as Array<{ id: number; name?: string; term_name?: string }>;
+        setClasses(cList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.class_name ?? t('academicsPages.resultsCafe.classN', { id: x.id })) })));
+        setTerms(tList.map(x => ({ id: Number(x.id), name: String(x.name ?? x.term_name ?? t('academicsPages.resultsCafe.termN', { id: x.id })) })));
+      } catch (e) { setErr(t('academicsPages.resultsCafe.failed', "Something went wrong. Please try again.")); }
     })();
   }, []);
 
@@ -82,7 +85,7 @@ export default function ResultsCAFEEntryPage() {
         const list = (d?.subjects ?? d?.data ?? []) as Array<{ id: number; subject_id?: number; name?: string; subject_name?: string }>;
         setSubjects(list.map(x => ({
           id:   Number(x.subject_id ?? x.id),
-          name: String(x.name ?? x.subject_name ?? `Subject #${x.subject_id ?? x.id}`),
+          name: String(x.name ?? x.subject_name ?? t('academicsPages.resultsCafe.subjectN', { id: x.subject_id ?? x.id })),
         })));
       } catch { /* non-fatal */ }
     })();
@@ -94,10 +97,10 @@ export default function ResultsCAFEEntryPage() {
     try {
       const r = await fetch(`/api/cafe/results/grid?class_id=${classId}&subject_id=${subjectId}&term_id=${termId}`);
       const d = await r.json() as GridResponse;
-      if (!r.ok || !d.success) throw new Error((d as unknown as { error?: string })?.error || 'Failed to load grid');
+      if (!r.ok || !d.success) throw new Error((d as unknown as { error?: string })?.error || '');
       setGrid(d);
       setDraft({ ...d.values });
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.resultsCafe.loadFailed', "Failed to load grid"))); }
     finally { setLoading(false); }
   }, [classId, subjectId, termId]);
   useEffect(() => { void loadGrid(); }, [loadGrid]);
@@ -129,13 +132,13 @@ export default function ResultsCAFEEntryPage() {
         body: JSON.stringify({ cells }),
       });
       const d = await r.json();
-      if (!r.ok || !d.success) throw new Error(d?.error || 'Save failed');
+      if (!r.ok || !d.success) throw new Error(d?.error || '');
       const skippedCount = Array.isArray(d.skipped) ? d.skipped.length : 0;
       setMsg(skippedCount > 0
-        ? `Saved ${d.written}; ${skippedCount} cell(s) skipped (check tooltips).`
-        : `Saved ${d.written} cell(s).`);
+        ? t('academicsPages.resultsCafe.savedSkipped', { written: d.written ?? 0, skipped: skippedCount })
+        : t('academicsPages.resultsCafe.saved', { count: d.written ?? 0 }));
       await loadGrid();
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { const m = (e as Error).message; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.resultsCafe.saveFailed', "Save failed"))); }
     finally { setSaving(false); }
   }
 
@@ -148,9 +151,7 @@ export default function ResultsCAFEEntryPage() {
           <GraduationCap size={22} className="text-indigo-500" /> {`CAFE — ${t('academic.result')}`}
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Enter component-level scores for any (class, subject, term) covered by an
-          assessment framework. Schools without a framework assigned use the legacy
-          <a href="/academics/results" className="text-indigo-600 hover:underline ml-1">Results page</a>.
+          {rich('academicsPages.resultsCafe.intro', { link: <a href="/academics/results" className="text-indigo-600 hover:underline">{t('academicsPages.resultsCafe.resultsPage', "Results page")}</a> })}
         </p>
       </header>
 
@@ -173,7 +174,7 @@ export default function ResultsCAFEEntryPage() {
       {loading ? (
         <Spinner />
       ) : !classId || !subjectId || !termId ? (
-        <Empty label="Pick a class, subject, and term to begin." />
+        <Empty label={t('academicsPages.resultsCafe.pickAll', "Pick a class, subject, and term to begin.")} />
       ) : !grid?.framework ? (
         <NoFrameworkHint />
       ) : entryMode === 'skills' ? (
@@ -184,20 +185,20 @@ export default function ResultsCAFEEntryPage() {
         <>
           <div className="flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded p-2 bg-white dark:bg-slate-900">
             <div className="text-xs text-slate-500">
-              Framework: <strong className="text-slate-700 dark:text-slate-200">{grid.framework.name}</strong>
-              {' · '}{components.length} component{components.length === 1 ? '' : 's'}
-              {' · '}{grid.students.length} student{grid.students.length === 1 ? '' : 's'}
+              {t('academicsPages.resultsCafe.framework', "Framework:")} <strong className="text-slate-700 dark:text-slate-200">{grid.framework.name}</strong>
+              {' · '}{t('academicsPages.resultsCafe.components', { count: components.length })}
+              {' · '}{t('academicsPages.resultsCafe.students', { count: grid.students.length })}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={loadGrid} className="text-xs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1">
-                <RefreshCw size={11} /> Refresh
+                <RefreshCw size={11} /> {t('academicsPages.resultsCafe.refresh', "Refresh")}
               </button>
               <button
                 onClick={save} disabled={!dirty || saving}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-                {saving ? 'Saving…' : 'Save changes'}
+                {saving ? t('academicsPages.resultsCafe.saving', "Saving…") : t('academicsPages.resultsCafe.save', "Save changes")}
               </button>
             </div>
           </div>
@@ -207,13 +208,13 @@ export default function ResultsCAFEEntryPage() {
             <table className="w-full text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0">
                 <tr>
-                  <th className="text-left p-2 font-semibold text-slate-600 dark:text-slate-300">Student</th>
+                  <th className="text-start p-2 font-semibold text-slate-600 dark:text-slate-300">{t('academicsPages.resultsCafe.student', "Student")}</th>
                   {components.map(c => (
-                    <th key={c.id} className="p-2 font-semibold text-slate-600 dark:text-slate-300 text-left">
+                    <th key={c.id} className="p-2 font-semibold text-slate-600 dark:text-slate-300 text-start">
                       <div className="flex flex-col">
                         <span>{c.name}</span>
                         <span className="text-[10px] font-normal text-slate-400">
-                          weight: {c.weight} · {c.scoringModel?.kind ?? '—'}
+                          {t('academicsPages.resultsCafe.weight', { w: c.weight })} · {c.scoringModel?.kind ? (KINDS.includes(c.scoringModel.kind) ? t(`academicsPages.resultsCafe.kind.${c.scoringModel.kind}`, c.scoringModel.kind) : c.scoringModel.kind) : '—'}
                         </span>
                       </div>
                     </th>
@@ -225,7 +226,7 @@ export default function ResultsCAFEEntryPage() {
                   <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                     <td className="p-2 font-medium text-slate-800 dark:text-slate-100">
                       <div>{s.fullName}</div>
-                      <div className="text-[10px] text-slate-400">{s.admissionNo ?? `#${s.id}`}</div>
+                      <div className="text-[10px] text-slate-400">{s.admissionNo ?? digits(`#${s.id}`)}</div>
                     </td>
                     {components.map(c => (
                       <td key={c.id} className="p-1.5 align-top">
@@ -254,6 +255,7 @@ function CellInput({ component, value, onChange }: {
   value: ValueCell | null;
   onChange: (patch: Partial<ValueCell>) => void;
 }) {
+  const { t, digits } = useI18n();
   const model = component.scoringModel as ScoringModel | undefined;
   const kind = model?.kind ?? 'numeric';
   const cfg  = (model?.config ?? {}) as { min?: number; max?: number; letters?: string[]; choices?: Array<{ value: string; label: string }> };
@@ -267,7 +269,7 @@ function CellInput({ component, value, onChange }: {
         max={cfg.max}
         step={kind === 'scale' ? 1 : 0.1}
         onChange={e => onChange({ score: e.target.value === '' ? null : Number(e.target.value) })}
-        title={`min: ${cfg.min ?? '—'} · max: ${cfg.max ?? '—'}`}
+        title={t('academicsPages.resultsCafe.minMax', { min: cfg.min != null ? digits(cfg.min) : '—', max: cfg.max != null ? digits(cfg.max) : '—' })}
         className="w-20 px-1.5 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-center"
       />
     );
@@ -316,6 +318,7 @@ function Picker({ label, value, onChange, options, disabled }: {
   label: string; value: number | ''; onChange: (v: number | '') => void;
   options: Array<{ id: number; name: string }>; disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div>
       <label className="block text-[11px] uppercase tracking-wide text-slate-500 mb-0.5">{label}</label>
@@ -324,7 +327,7 @@ function Picker({ label, value, onChange, options, disabled }: {
         onChange={e => onChange(e.target.value ? Number(e.target.value) : '')}
         className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 disabled:bg-slate-100 dark:disabled:bg-slate-800"
       >
-        <option value="">— pick {label.toLowerCase()} —</option>
+        <option value="">{t('academicsPages.resultsCafe.pick', { what: label.toLowerCase() })}</option>
         {options.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
       </select>
     </div>
@@ -336,18 +339,21 @@ function Banner({ kind, children }: { kind: 'error' | 'success'; children: React
     ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 border-rose-200 dark:border-rose-900/40'
     : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 border-emerald-200 dark:border-emerald-900/40';
   return <div className={`p-2.5 rounded border text-xs ${cls}`}>
-    {kind === 'error' ? <AlertTriangle size={12} className="inline mr-1" /> : <Check size={12} className="inline mr-1" />}
+    {kind === 'error' ? <AlertTriangle size={12} className="inline me-1" /> : <Check size={12} className="inline me-1" />}
     {children}
   </div>;
 }
-function Spinner() { return <div className="flex items-center gap-2 text-xs text-slate-400 py-6"><Loader2 size={12} className="animate-spin" /> Loading…</div>; }
+function Spinner() { const { t } = useI18n(); return <div className="flex items-center gap-2 text-xs text-slate-400 py-6"><Loader2 size={12} className="animate-spin" /> {t('academicsPages.resultsCafe.loading', "Loading…")}</div>; }
 function Empty({ label }: { label: string }) { return <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded text-slate-400 text-sm">{label}</div>; }
 function NoFrameworkHint() {
+  const { t, rich } = useI18n();
   return (
     <div className="p-6 rounded border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300">
-      <strong>No framework assigned</strong> to this (class, term). Configure one at{' '}
-      <a href="/admin/cafe" className="text-indigo-600 hover:underline">/admin/cafe → Class assignments</a>{' '}
-      or use the <a href="/academics/results" className="text-indigo-600 hover:underline">legacy results page</a> for traditional entry.
+      {rich('academicsPages.resultsCafe.noFramework', {
+        strong: <strong>{t('academicsPages.resultsCafe.noFrameworkStrong', "No framework assigned")}</strong>,
+        admin: <a href="/admin/cafe" className="text-indigo-600 hover:underline">{t('academicsPages.resultsCafe.adminLink', "/admin/cafe → Class assignments")}</a>,
+        legacy: <a href="/academics/results" className="text-indigo-600 hover:underline">{t('academicsPages.resultsCafe.legacyLink', "legacy results page")}</a>,
+      })}
     </div>
   );
 }
@@ -358,21 +364,22 @@ function EntryModeTabs({ mode, onChange }: {
   mode: 'components' | 'skills' | 'projects';
   onChange: (m: 'components' | 'skills' | 'projects') => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-700">
       {[
-        { id: 'components' as const, label: 'Components' },
-        { id: 'skills'     as const, label: 'Generic Skills' },
-        { id: 'projects'   as const, label: 'Projects' },
-      ].map(t => (
-        <button key={t.id} onClick={() => onChange(t.id)}
+        { id: 'components' as const, label: t('academicsPages.resultsCafe.tab.components', "Components") },
+        { id: 'skills'     as const, label: t('academicsPages.resultsCafe.tab.skills', "Generic Skills") },
+        { id: 'projects'   as const, label: t('academicsPages.resultsCafe.tab.projects', "Projects") },
+      ].map(tab => (
+        <button key={tab.id} onClick={() => onChange(tab.id)}
           className={[
             'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
-            mode === t.id
+            mode === tab.id
               ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200',
           ].join(' ')}>
-          {t.label}
+          {tab.label}
         </button>
       ))}
     </div>
@@ -383,7 +390,7 @@ interface SkillEntry { code: string; label: string; score: number | null; valueT
 interface ProjEntry  { id: number; title: string; descriptor: string | null; outcome: string | null; evidenceUrl: string | null; gradeCode: string | null }
 
 function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; termId: number }) {
-  const { t } = useI18n();
+  const { t, digits } = useI18n();
   const [pickedStudent, setPickedStudent] = useState<number | null>(studentList[0]?.id ?? null);
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -397,8 +404,8 @@ function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; 
     setLoading(true); setErr(null);
     fetch(`/api/cafe/skills?student_id=${pickedStudent}&term_id=${termId}`)
       .then(r => r.json())
-      .then(d => { if (d?.success) setSkills(d.skills as SkillEntry[]); })
-      .catch(e => setErr((e as Error).message))
+      .then(d => { if (d?.success) setSkills(Array.isArray(d.skills) ? d.skills as SkillEntry[] : []); })
+      .catch(() => setErr(t('academicsPages.resultsCafe.failed', "Something went wrong. Please try again.")))
       .finally(() => setLoading(false));
   }, [pickedStudent, termId]);
 
@@ -413,11 +420,11 @@ function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; 
       }),
     });
     const d = await r.json();
-    if (!r.ok || !d.success) { setErr(d?.error || 'Failed'); return; }
+    if (!r.ok || !d.success) { const m = d?.error; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.resultsCafe.failed', "Something went wrong. Please try again."))); return; }
     setDraftCode(''); setDraftLabel(''); setDraftValue('');
     fetch(`/api/cafe/skills?student_id=${pickedStudent}&term_id=${termId}`)
       .then(r => r.json())
-      .then(d => { if (d?.success) setSkills(d.skills); });
+      .then(d => { if (d?.success) setSkills(Array.isArray(d.skills) ? d.skills : []); });
   }
   async function removeSkill(code: string) {
     if (!pickedStudent) return;
@@ -435,25 +442,25 @@ function SkillsEntryPanel({ studentList, termId }: { studentList: StudentRow[]; 
         <>
           <div className="space-y-1">
             {skills.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No skills entered for this learner this term.</p>
+              <p className="text-xs text-slate-400 italic">{t('academicsPages.resultsCafe.noSkills', "No skills entered for this learner this term.")}</p>
             ) : skills.map(s => (
               <div key={s.code} className="flex items-center gap-2 p-1.5 border border-slate-100 dark:border-slate-800 rounded text-xs">
                 <span className="font-semibold flex-1">{s.label}</span>
-                <span className="text-slate-500">{s.valueText ?? s.gradeCode ?? (s.score ?? '')}</span>
-                <button onClick={() => removeSkill(s.code)} className="text-rose-500">×</button>
+                <span className="text-slate-500">{s.valueText ?? s.gradeCode ?? (s.score != null ? digits(s.score) : '')}</span>
+                <button onClick={() => removeSkill(s.code)} title={t('academicsPages.resultsCafe.remove', "Remove")} aria-label={t('academicsPages.resultsCafe.remove', "Remove")} className="text-rose-500">×</button>
               </div>
             ))}
           </div>
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <input value={draftLabel} onChange={e => setDraftLabel(e.target.value)} placeholder="Skill (e.g. Communication)"
+            <input value={draftLabel} onChange={e => setDraftLabel(e.target.value)} placeholder={t('academicsPages.resultsCafe.skillPh', "Skill (e.g. Communication)")}
               className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
-            <input value={draftCode} onChange={e => setDraftCode(e.target.value)} placeholder="code (optional)"
+            <input value={draftCode} onChange={e => setDraftCode(e.target.value)} placeholder={t('academicsPages.resultsCafe.codePh', "code (optional)")}
               className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 font-mono" />
             <div className="flex gap-2">
-              <input value={draftValue} onChange={e => setDraftValue(e.target.value)} placeholder="value / descriptor"
+              <input value={draftValue} onChange={e => setDraftValue(e.target.value)} placeholder={t('academicsPages.resultsCafe.valuePh', "value / descriptor")}
                 className="flex-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
               <button onClick={addSkill} disabled={!draftLabel.trim() || !pickedStudent}
-                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">Add</button>
+                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">{t('academicsPages.resultsCafe.add', "Add")}</button>
             </div>
           </div>
           {err && <p className="text-xs text-rose-600">{err}</p>}
@@ -477,8 +484,8 @@ function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]
     setLoading(true); setErr(null);
     fetch(`/api/cafe/projects?student_id=${pickedStudent}&term_id=${termId}`)
       .then(r => r.json())
-      .then(d => { if (d?.success) setProjects(d.projects as ProjEntry[]); })
-      .catch(e => setErr((e as Error).message))
+      .then(d => { if (d?.success) setProjects(Array.isArray(d.projects) ? d.projects as ProjEntry[] : []); })
+      .catch(() => setErr(t('academicsPages.resultsCafe.failed', "Something went wrong. Please try again.")))
       .finally(() => setLoading(false));
   }, [pickedStudent, termId]);
 
@@ -489,11 +496,11 @@ function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]
       body: JSON.stringify({ studentId: pickedStudent, termId, title: draftTitle, descriptor: draftDesc || null }),
     });
     const d = await r.json();
-    if (!r.ok || !d.success) { setErr(d?.error || 'Failed'); return; }
+    if (!r.ok || !d.success) { const m = d?.error; setErr((m && !(uiIsArabic() && isEnglishText(m)) ? m : t('academicsPages.resultsCafe.failed', "Something went wrong. Please try again."))); return; }
     setDraftTitle(''); setDraftDesc('');
     fetch(`/api/cafe/projects?student_id=${pickedStudent}&term_id=${termId}`)
       .then(r => r.json())
-      .then(d => { if (d?.success) setProjects(d.projects); });
+      .then(d => { if (d?.success) setProjects(Array.isArray(d.projects) ? d.projects : []); });
   }
   async function deleteProject(id: number) {
     await fetch(`/api/cafe/projects?id=${id}`, { method: 'DELETE' });
@@ -509,7 +516,7 @@ function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]
       {loading ? <Spinner /> : (
         <>
           {projects.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">No projects entered for this learner this term.</p>
+            <p className="text-xs text-slate-400 italic">{t('academicsPages.resultsCafe.noProjects', "No projects entered for this learner this term.")}</p>
           ) : projects.map(p => (
             <div key={p.id} className="p-2 border border-slate-100 dark:border-slate-800 rounded">
               <div className="flex items-start gap-2 text-xs">
@@ -517,18 +524,18 @@ function ProjectsEntryPanel({ studentList, termId }: { studentList: StudentRow[]
                   <div className="font-semibold">{p.title}</div>
                   {p.descriptor && <div className="text-slate-500 mt-0.5">{p.descriptor}</div>}
                 </div>
-                <button onClick={() => deleteProject(p.id)} className="text-rose-500">×</button>
+                <button onClick={() => deleteProject(p.id)} title={t('academicsPages.resultsCafe.remove', "Remove")} aria-label={t('academicsPages.resultsCafe.remove', "Remove")} className="text-rose-500">×</button>
               </div>
             </div>
           ))}
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} placeholder="Project title"
+            <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} placeholder={t('academicsPages.resultsCafe.titlePh', "Project title")}
               className="px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
             <div className="flex gap-2">
-              <input value={draftDesc} onChange={e => setDraftDesc(e.target.value)} placeholder="Descriptor (optional)"
+              <input value={draftDesc} onChange={e => setDraftDesc(e.target.value)} placeholder={t('academicsPages.resultsCafe.descPh', "Descriptor (optional)")}
                 className="flex-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900" />
               <button onClick={addProject} disabled={!draftTitle.trim() || !pickedStudent}
-                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">Add</button>
+                className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-40">{t('academicsPages.resultsCafe.add', "Add")}</button>
             </div>
           </div>
           {err && <p className="text-xs text-rose-600">{err}</p>}
