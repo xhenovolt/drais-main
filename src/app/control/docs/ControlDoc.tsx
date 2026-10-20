@@ -173,7 +173,7 @@ export default function ControlDoc({ slug, children }: { slug: string; children:
 
       <div className="flex gap-10 mt-8">
         <nav className="hidden lg:block w-60 shrink-0">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
+          <div className="sticky top-[calc(var(--ctl-header-h,3.5rem)+1.5rem)] max-h-[calc(100dvh-var(--ctl-header-h,3.5rem)-3rem)] overflow-y-auto overscroll-contain pr-1">
             <Link href="/control/docs" className="flex items-center gap-2 mb-4 text-slate-200 hover:text-indigo-300">
               <BookOpen className="w-4 h-4 text-indigo-400" />
               <span className="font-bold text-sm">Knowledge base</span>

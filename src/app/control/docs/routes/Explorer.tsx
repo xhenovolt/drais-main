@@ -280,7 +280,7 @@ export function ExplorerShell({ active, children, defaultKind = 'page' }: { acti
       <SearchBox />
       <div className="flex gap-6 mt-5">
         <aside className="hidden lg:block w-72 shrink-0">
-          <div className="sticky top-20 h-[calc(100vh-6rem)]">
+          <div className="sticky top-[calc(var(--ctl-header-h,3.5rem)+1.5rem)] h-[calc(100dvh-var(--ctl-header-h,3.5rem)-3rem)]">
             <RouteTree active={active} kind={kind} setKind={setKind} />
           </div>
         </aside>

@@ -153,6 +153,17 @@ body {
   overflow-x: hidden;
   max-width: 100%;
 }
+/* `clip` clips exactly like `hidden` but, unlike it, does not turn <body> into a
+   scroll container. With `hidden`, body became the containing scroller for every
+   position: sticky element yet never scrolled itself (the document does), so sticky
+   headers and sidebars in document-scrolling shells (the Control Center) scrolled
+   away with the page. Browsers without `clip` keep the `hidden` fallback above. */
+@supports (overflow-x: clip) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+}
 
 *,
 *::before,

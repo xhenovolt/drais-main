@@ -204,7 +204,12 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
   const mobilePrimary = (MOBILE_PRIMARY_HREFS.map((href) => flatNav.find((i) => i.href === href)).filter(Boolean) as typeof flatNav).concat(flatNav).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3);
 
   return (
-    <div data-theme={resolved} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area">
+    <div data-theme={resolved} className="ctl min-h-screen bg-slate-950 text-slate-100 control-print-area [--ctl-header-h:3.5rem]">
+      {/* Scrolling model: the DOCUMENT scrolls (so printing and window scroll keep
+          working); the header and the desktop sidebar are position: sticky against it.
+          --ctl-header-h is the one height both are derived from. Sticky only works
+          because globals.css clips overflow with `clip`, not `hidden` — see there. */}
+      <style>{`:root:has(.ctl) { scroll-padding-top: calc(var(--ctl-header-h, 3.5rem) + 1rem); }`}</style>
       {/* Theme layer — remaps the dark slate palette for light / high-contrast
           without rewriting every page. Dark = the classes as-is. */}
       <style>{`
@@ -255,7 +260,7 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
       {/* Top chrome — branding, theme, sign out. Navigation lives in the
           sidebar (desktop) / bottom nav (mobile) below, not here. */}
       <header className="no-print border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-40">
-        <div className="w-full px-3 sm:px-4 h-14 flex items-center justify-between gap-2">
+        <div className="w-full px-3 sm:px-4 h-[var(--ctl-header-h)] flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
             <Shield className="w-5 h-5 text-indigo-400 shrink-0" />
             <span className="font-bold tracking-wide text-sm sm:text-base whitespace-nowrap">
@@ -278,11 +283,10 @@ export default function ControlLayout({ children }: { children: React.ReactNode 
 
       <div className="flex">
         {/* Desktop sidebar — grouped, sticky under the header, its own scroll.
-            Exactly one screen tall (self-start stops the flex row stretching it to the
-            page's height): a sidebar as tall as a long page has nowhere to stick and
-            scrolls away with the content. */}
-        <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 min-h-screen overflow-y-auto">
-        {/* <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-14 h-[calc(100dvh-3.5rem)] overflow-y-auto"> */}
+            Exactly the visible height below the header (self-start stops the flex row
+            stretching it to the page's height): a sidebar as tall as a long page has
+            nowhere to stick, and one taller than the viewport hides its last links. */}
+        <aside className="no-print hidden lg:block self-start w-60 shrink-0 border-r border-slate-800 bg-slate-900/40 sticky top-[var(--ctl-header-h)] h-[calc(100dvh-var(--ctl-header-h))] overflow-y-auto overscroll-contain">
           <NavLinks pathname={pathname} groups={groups} />
         </aside>
 

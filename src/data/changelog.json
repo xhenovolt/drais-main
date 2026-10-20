@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T16:18:10.645Z",
-  "last_commit": "7bd4311af35c71ba2130a65ea67e4c33fc584667",
+  "generated_at": "2026-10-20T16:32:17.117Z",
+  "last_commit": "2588da52a7343f280d9fff282a52a882d6fa06a3",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10606,7 +10606,20 @@
         }
       ],
       "commit": "7bd4311af3"
+    },
+    {
+      "version": "2.50.153",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Route & file reference generated from the source (directive issue 2)",
+      "changes": [
+        {
+          "category": "NEW",
+          "description": "Route & file reference generated from the source (directive issue 2)"
+        }
+      ],
+      "commit": "2588da52a7"
     }
   ],
-  "app_version": "2.50.153"
+  "app_version": "2.50.154"
 }

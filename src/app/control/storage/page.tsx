@@ -244,7 +244,7 @@ export default function StoragePage() {
 
           {/* Bulk actions */}
           {sel.length > 0 && (
-            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-700 bg-slate-900/95 px-3 py-2 text-sm">
+            <div className="sticky top-[var(--ctl-header-h,3.5rem)] z-10 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-700 bg-slate-900/95 px-3 py-2 text-sm">
               <span className="text-slate-200 font-semibold">{sel.length} selected</span>
               <button onClick={() => setSelected(new Map())} className="text-xs text-slate-400 underline">clear</button>
               <span className="flex-1" />
