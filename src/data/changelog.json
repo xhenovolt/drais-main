@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T10:34:19.401Z",
-  "last_commit": "39b864cf0af8f7f36c29b7e692f6233d6e201d41",
+  "generated_at": "2026-10-20T10:36:25.810Z",
+  "last_commit": "618cb6d7b48924d23e75c7d220e030406f1e7d4c",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10476,7 +10476,20 @@
         }
       ],
       "commit": "39b864cf0a"
+    },
+    {
+      "version": "2.50.143",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "/academics/results-cafe (components, skills, projects) fully Arabic",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/academics/results-cafe (components, skills, projects) fully Arabic"
+        }
+      ],
+      "commit": "618cb6d7b4"
     }
   ],
-  "app_version": "2.50.143"
+  "app_version": "2.50.144"
 }

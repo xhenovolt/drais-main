@@ -10176,6 +10176,51 @@
       "noProjects": "No projects entered for this learner this term.",
       "titlePh": "Project title",
       "descPh": "Descriptor (optional)"
+    },
+    "deadlines": {
+      "dateRequired": "Deadline date required",
+      "saveFailed": "Save failed",
+      "updated": "Deadline updated",
+      "created": "Deadline created",
+      "confirmSend": "Send SMS reminders to teachers for deadlines due in the next 1–2 days?",
+      "sendFailed": "Send failed",
+      "sent": "Sent {{sent}} · skipped {{skipped}} duplicates",
+      "confirmDelete": "Delete this deadline?",
+      "deleted": "Deleted",
+      "deleteFailed": "Delete failed",
+      "title": "Examination Deadlines",
+      "sendTitle": "Send SMS reminders to teachers for deadlines due in the next 1-2 days",
+      "sendReminders": "Send Reminders",
+      "newDeadline": "New Deadline",
+      "none": "No deadlines yet. Click \"New Deadline\" to add one.",
+      "col": {
+        "deadline": "Deadline",
+        "type": "Result Type",
+        "term": "Term",
+        "class": "Class",
+        "desc": "Description",
+        "status": "Status"
+      },
+      "overdue": "Overdue",
+      "upcoming": "Upcoming",
+      "st": {
+        "active": "active",
+        "inactive": "inactive",
+        "closed": "closed"
+      },
+      "edit": "Edit",
+      "delete": "Delete",
+      "editTitle": "Edit Deadline",
+      "close": "Close",
+      "dateLabel": "Deadline Date *",
+      "typeLabel": "Result Type",
+      "any": "— Any —",
+      "termLabel": "Term",
+      "classLabel": "Class",
+      "descLabel": "Description",
+      "cancel": "Cancel",
+      "update": "Update",
+      "create": "Create"
     }
   }
 }
