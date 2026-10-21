@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:35:22.269Z",
-  "last_commit": "f00c5eb3a60e6d5130b77652b67a4f9edc0d028c",
+  "generated_at": "2026-10-21T09:38:04.482Z",
+  "last_commit": "27548a0c8e7ada3d178afba77b6b78d150df8cdb",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10762,7 +10762,20 @@
         }
       ],
       "commit": "f00c5eb3a6"
+    },
+    {
+      "version": "2.50.165",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/recovery implementation document",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/recovery implementation document"
+        }
+      ],
+      "commit": "27548a0c8e"
     }
   ],
-  "app_version": "2.50.165"
+  "app_version": "2.50.166"
 }
