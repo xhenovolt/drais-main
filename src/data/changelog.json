@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:38:04.482Z",
-  "last_commit": "27548a0c8e7ada3d178afba77b6b78d150df8cdb",
+  "generated_at": "2026-10-21T09:42:22.427Z",
+  "last_commit": "b09591e3748679047c9daf9dfaaadb53aa0acce8",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10775,7 +10775,20 @@
         }
       ],
       "commit": "27548a0c8e"
+    },
+    {
+      "version": "2.50.166",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/founder-independence and /attendance/trends documents",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/founder-independence and /attendance/trends documents"
+        }
+      ],
+      "commit": "b09591e374"
     }
   ],
-  "app_version": "2.50.166"
+  "app_version": "2.50.167"
 }

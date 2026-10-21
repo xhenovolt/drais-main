@@ -15,6 +15,8 @@ import attendanceHealth from './attendance-health';
 import attendanceRecovery from './attendance-recovery';
 import attendanceFounder from './attendance-founder-independence';
 import attendanceTrends from './attendance-trends';
+import attendanceProfiles from './attendance-profiles';
+import attendanceTrace from './attendance-trace';
 
 export const ROUTE_DOCS: RouteDoc[] = [
   dashboard,
@@ -28,4 +30,6 @@ export const ROUTE_DOCS: RouteDoc[] = [
   attendanceRecovery,
   attendanceFounder,
   attendanceTrends,
+  attendanceProfiles,
+  attendanceTrace,
 ];
