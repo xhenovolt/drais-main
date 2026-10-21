@@ -27,6 +27,8 @@ export interface DocMeta {
   keywords: string[];
   /** Roughly how long to read. Used to set expectations, not to gamify. */
   minutes: number;
+  /** Sidebar module keys this document covers — its page lists their routes with documentation status. */
+  modules?: string[];
 }
 
 export const SECTION_ORDER = [
@@ -53,6 +55,15 @@ export const DOCS: DocMeta[] = [
     topics: ['reference', 'generated'],
     keywords: ['route', 'routes', 'page.tsx', 'layout.tsx', 'route.ts', 'file', 'which file', 'where is', 'who uses', 'dependants', 'imports', 'endpoint', 'api', 'hook', 'component', 'tests for', 'data loading', 'route tree', 'source', 'explorer'],
     minutes: 5,
+  },
+  {
+    slug: 'registry',
+    section: 'Reference',
+    title: 'Documentation coverage registry',
+    blurb: 'Every page route by sidebar module, with the status of its implementation document — computed from the code, never ticked by hand.',
+    topics: ['reference', 'coverage'],
+    keywords: ['coverage', 'registry', 'documented', 'not started', 'needs review', 'verified', 'which routes are documented', 'progress'],
+    minutes: 2,
   },
   {
     slug: 'anti-patterns',
@@ -306,6 +317,7 @@ export const DOCS: DocMeta[] = [
   },
   {
     slug: 'module-attendance',
+    modules: ['attendance', 'devices-biometrics', 'gate-movement'],
     section: 'Modules',
     title: 'Attendance',
     blurb: 'From a finger on a sensor to a figure on a report card — the largest module in DRAIS.',
@@ -315,6 +327,7 @@ export const DOCS: DocMeta[] = [
   },
   {
     slug: 'module-reports',
+    modules: ['reports', 'documents'],
     section: 'Modules',
     title: 'Reporting & DRCE',
     blurb: 'Snapshots, the composition engine, and why a reprint must reproduce the original byte for byte.',
@@ -324,6 +337,7 @@ export const DOCS: DocMeta[] = [
   },
   {
     slug: 'module-finance',
+    modules: ['finance'],
     section: 'Modules',
     title: 'Finance',
     blurb: 'Why every balance is derived, and what that buys when a school is audited.',
@@ -333,6 +347,7 @@ export const DOCS: DocMeta[] = [
   },
   {
     slug: 'module-students',
+    modules: ['students'],
     section: 'Modules',
     title: 'Learners',
     blurb: 'The identity spine everything else hangs off, and the lifecycle operations that must not lose history.',
@@ -342,6 +357,7 @@ export const DOCS: DocMeta[] = [
   },
   {
     slug: 'module-tahfiz',
+    modules: ['tahfiz'],
     section: 'Modules',
     title: 'Tahfiz',
     blurb: "Qur'an memorisation tracking — and the religious-accuracy stance that governs its reference data.",

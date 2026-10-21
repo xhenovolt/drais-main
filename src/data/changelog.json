@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-20T20:51:36.168Z",
-  "last_commit": "f5e671353aa9a487f93cc4e9715ea6ef5e018526",
+  "generated_at": "2026-10-21T08:49:35.197Z",
+  "last_commit": "1579fdbd3ae7b9ea928e2c8e16f32eb77f2b24c9",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10645,7 +10645,20 @@
         }
       ],
       "commit": "f5e671353a"
+    },
+    {
+      "version": "2.50.156",
+      "date": "2026-10-20",
+      "release_type": "patch",
+      "title": "Ship scripts/devdocs to Vercel; docs index can never fail a deploy",
+      "changes": [
+        {
+          "category": "FIXED",
+          "description": "Ship scripts/devdocs to Vercel; docs index can never fail a deploy"
+        }
+      ],
+      "commit": "1579fdbd3a"
     }
   ],
-  "app_version": "2.50.156"
+  "app_version": "2.50.157"
 }

@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { createHash } from 'node:crypto';
 
 const SRC_DIRS = ['src/app', 'src/components', 'src/hooks', 'src/lib', 'src/contexts', 'src/services', 'src/utils', 'src/types', 'src/middleware', 'src/actions', 'src/store'];
 const EXT = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
@@ -265,6 +266,79 @@ function knownTables(root, files) {
   return names;
 }
 
+// ─── Inside a component or hook: the units a reader has to understand ─────────
+
+/** The body block of a top-level function declaration / `const X = () => {…}` / forwardRef(…) / memo(…). */
+function functionBody(st) {
+  let fn = null;
+  if (ts.isFunctionDeclaration(st)) fn = st;
+  else if (ts.isVariableStatement(st)) {
+    let init = st.declarationList.declarations[0]?.initializer;
+    while (init && ts.isCallExpression(init) && init.arguments[0]) init = init.arguments[0]; // forwardRef(fn), memo(fn)
+    if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) fn = init;
+  } else if (ts.isExportAssignment(st) && (ts.isArrowFunction(st.expression) || ts.isFunctionExpression(st.expression))) fn = st.expression;
+  return fn && fn.body && ts.isBlock(fn.body) ? fn.body : null;
+}
+
+const HOOK_KIND = { useState: 'state', useReducer: 'state', useRef: 'ref', useMemo: 'memo', useCallback: 'callback', useEffect: 'effect', useLayoutEffect: 'effect' };
+
+/**
+ * Every statement at the top of a component/hook body, named so documentation can
+ * key notes to it: handlers, state, refs, memos, callbacks, effects (with their
+ * dependency arrays), other hook results, derived values, early returns, the render.
+ * Effects/guards/renders have no name of their own, so they are numbered in order
+ * (effect#1, effect#2 …) — stable under edits elsewhere in the file, unlike line numbers.
+ */
+function functionMembers(sf, st, isComponent) {
+  const body = functionBody(st);
+  if (!body) return undefined;
+  const out = [];
+  const counters = {};
+  const nth = (k) => (counters[k] = (counters[k] || 0) + 1);
+  const span = (n) => ({ start: lineOf(sf, n.getStart()), end: lineOf(sf, n.getEnd()) });
+  const callName = (e) => (e && ts.isCallExpression(e) ? e.expression.getText().replace(/^React\./, '') : null);
+  const depsOf = (call) => {
+    const d = call.arguments[call.arguments.length - 1];
+    return call.arguments.length >= 2 && d && ts.isArrayLiteralExpression(d) ? d.getText() : call.arguments.length >= 2 ? d.getText().slice(0, 80) : 'none (runs after every render)';
+  };
+  // API handlers wrap their whole body in try/catch/finally: read through the try so its
+  // statements are documented one by one, and name the catch/finally blocks.
+  const flat = [];
+  for (const s of body.statements) {
+    if (ts.isTryStatement(s)) {
+      flat.push(...s.tryBlock.statements);
+      if (s.catchClause) out.push({ name: `catch#${nth('catch')}`, kind: 'catch', ...span(s.catchClause) });
+      if (s.finallyBlock) out.push({ name: `finally#${nth('finally')}`, kind: 'finally', ...span(s.finallyBlock) });
+    } else flat.push(s);
+  }
+  for (const s of flat) {
+    if (ts.isVariableStatement(s)) {
+      for (const d of s.declarationList.declarations) {
+        const init = d.initializer;
+        const name = d.name.getText().replace(/\s+/g, ' ');
+        const hook = callName(init);
+        let kind = 'const';
+        let deps;
+        if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) kind = 'function';
+        else if (hook && HOOK_KIND[hook]) { kind = HOOK_KIND[hook]; if (kind === 'memo' || kind === 'callback') deps = depsOf(init); }
+        else if (hook && /^use[A-Z]/.test(hook)) kind = 'hook';
+        out.push({ name, kind, hook: hook && /^use/.test(hook) ? hook : undefined, deps, ...span(s) });
+      }
+    } else if (ts.isFunctionDeclaration(s) && s.name) {
+      out.push({ name: s.name.text, kind: 'function', ...span(s) });
+    } else if (ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && HOOK_KIND[callName(s.expression)] === 'effect') {
+      out.push({ name: `effect#${nth('effect')}`, kind: 'effect', hook: callName(s.expression), deps: depsOf(s.expression), ...span(s) });
+    } else if (ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && /^use[A-Z]/.test(callName(s.expression) || '')) {
+      out.push({ name: `${callName(s.expression)}#${nth(callName(s.expression))}`, kind: 'hook', hook: callName(s.expression), ...span(s) });
+    } else if (ts.isIfStatement(s)) {
+      out.push({ name: `guard#${nth('guard')}`, kind: 'guard', condition: s.expression.getText().slice(0, 120), ...span(s) });
+    } else if (ts.isReturnStatement(s)) {
+      out.push({ name: isComponent ? `render#${nth('render')}` : `return#${nth('return')}`, kind: isComponent ? 'render' : 'return', ...span(s) });
+    }
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
 export function analyseFile(root, file, exists) {
   const abs = path.join(root, file);
   const text = fs.readFileSync(abs, 'utf8');
@@ -274,6 +348,7 @@ export function analyseFile(root, file, exists) {
 
   const info = {
     file, lines,
+    sha: createHash('sha1').update(text).digest('hex').slice(0, 12),
     directive: null,
     header: fileHeaderComment(sf),
     imports: [],
@@ -362,11 +437,13 @@ export function analyseFile(root, file, exists) {
     }
     const isComponent = /^[A-Z]/.test(name) && (dkind === 'function' || (isDefault && dkind !== 'type')) && /\.(tsx|jsx)$/.test(file);
     const isHook = /^use[A-Z]/.test(name) && dkind === 'function';
+    const declKind = isHook ? 'hook' : isComponent ? 'component' : dkind;
     info.declarations.push({
-      name, kind: isHook ? 'hook' : isComponent ? 'component' : dkind,
+      name, kind: declKind,
       exported, isDefault,
       start: lineOf(sf, st.getStart()), end: lineOf(sf, st.getEnd()),
       doc: leadingDoc(sf, node),
+      members: declKind === 'component' || declKind === 'hook' || dkind === 'function' ? functionMembers(sf, st, declKind === 'component') : undefined,
     });
   }
   // Named exports listed separately: export { a, b }
@@ -483,9 +560,48 @@ function readNavigation(root) {
   try {
     const nav = fs.readFileSync(path.join(root, 'src/lib/navigationConfig.tsx'), 'utf8');
     const out = {};
-    for (const m of nav.matchAll(/label:\s*'([^']+)'[^\n]*?href:\s*'([^']+)'/g)) out[m[2]] ??= m[1];
+    for (const m of nav.matchAll(/label:\s*(?:t\('[^']*',\s*)?'([^']+)'\)?[^\n]*?href:\s*'([^']+)'/g)) out[m[2]] ??= m[1];
     return out;
   } catch { return {}; }
+}
+
+/**
+ * Modules = the sidebar's top-level groups (getNavigationItems in src/lib/navigationConfig.tsx),
+ * in sidebar order, with the hrefs of their items. A top-level group sits at 6-space indent:
+ *   { key: 'students', label: t('nav.students._', 'Students'), children: [ … href … ] }
+ */
+export function readModules(root) {
+  let nav;
+  try { nav = fs.readFileSync(path.join(root, 'src/lib/navigationConfig.tsx'), 'utf8'); } catch { return []; }
+  const start = nav.indexOf('export function getNavigationItems');
+  const lines = nav.slice(start).split(/\r?\n/);
+  const modules = [];
+  let cur = null;
+  for (const line of lines) {
+    const k = line.match(/^ {6}key:\s*'([^']+)'/);
+    if (k) { cur = { key: k[1], label: k[1], hrefs: [] }; modules.push(cur); continue; }
+    if (!cur) continue;
+    const l = line.match(/^ {6}label:\s*(?:t\('[^']*',\s*)?'([^']+)'/);
+    if (l) cur.label = l[1];
+    for (const h of line.matchAll(/href:\s*'([^']+)'/g)) if (!cur.hrefs.includes(h[1])) cur.hrefs.push(h[1]);
+  }
+  return modules.filter((m) => m.hrefs.length);
+}
+
+/** The sidebar module a route belongs to: longest sidebar href that is the route or a parent of it. */
+export function moduleOf(modules, url) {
+  let best = null;
+  for (const m of modules) for (const h of m.hrefs) {
+    if ((url === h || url.startsWith(h + '/')) && (!best || h.length > best.h.length)) best = { m, h };
+  }
+  if (best) return best.m.key;
+  // Not under any sidebar link (e.g. /students/import): the module that owns most sidebar
+  // links with the same first segment — but only when one module clearly owns it
+  // (/admin/* is spread over several modules and stays unassigned).
+  const seg = '/' + (url.split('/')[1] || '');
+  const counts = modules.map((m) => ({ m, n: m.hrefs.filter((h) => h === seg || h.startsWith(seg + '/')).length })).filter((x) => x.n).sort((a, b) => b.n - a.n);
+  if (counts.length && (counts.length === 1 || counts[0].n > counts.slice(1).reduce((s, x) => s + x.n, 0))) return counts[0].m.key;
+  return null;
 }
 
 export function buildIndex(root) {
@@ -527,6 +643,7 @@ export function buildIndex(root) {
   // Routes
   const publicRoutes = readPublicRoutes(root);
   const nav = readNavigation(root);
+  const modules = readModules(root);
   const routes = {};   // url → { url, page, route, layouts[], loading[], error[], ... }
   const apiPatterns = [];
   for (const f of Object.keys(files)) {
@@ -562,6 +679,7 @@ export function buildIndex(root) {
     node.kind = node.files.page ? 'page' : 'api';
     node.public = publicRoutes.some((p) => node.url === p || node.url.startsWith(p + '/'));
     if (nav[node.url]) node.navLabel = nav[node.url];
+    node.module = moduleOf(modules, node.url);
   }
 
   const matchApi = (url) => {
@@ -637,7 +755,7 @@ export function buildIndex(root) {
     info.relatedTests = [...rel].sort();
   }
 
-  return { files, routes, tests, testRefs };
+  return { files, routes, tests, testRefs, modules };
 }
 
 /** Which page sections have content, are verifiably empty, or need a human. */

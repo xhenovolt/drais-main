@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { GUIDES } from './guides';
 import { GUIDE_INDEX } from './guide-index';
+import { RouteDocument, FileWalkthrough, DocStatus } from './RouteDocView';
 
 const REPO = 'https://github.com/xhenovolt/drais-main';
 const API = '/api/control-center/docs';
@@ -228,11 +229,70 @@ function TreeItem({ node, active, depth, filter, openAll }: { node: TreeNode; ac
   );
 }
 
-function RouteTree({ active, kind, setKind }: { active: string; kind: 'page' | 'api'; setKind: (k: 'page' | 'api') => void }) {
+type TreeKind = 'modules' | 'page' | 'api';
+
+const DOT: Record<string, string> = {
+  'NOT STARTED': 'bg-slate-600', 'IN PROGRESS': 'bg-amber-400', DOCUMENTED: 'bg-sky-400', 'NEEDS REVIEW': 'bg-rose-400', VERIFIED: 'bg-emerald-400',
+};
+const ROUTE_SECTIONS: Array<[string, string]> = [
+  ['doc-a', 'Identity'], ['doc-b', 'Files'], ['doc-c', 'Layouts'], ['doc-d', 'Components'], ['doc-walk', 'Walkthrough'], ['doc-i', 'UI'],
+  ['doc-j', 'Interactions'], ['doc-k', 'Data'], ['doc-l', 'States'], ['doc-m', 'Security'], ['doc-n', 'Styling'], ['doc-o', 'Testing'], ['doc-p', 'Extending'],
+];
+
+/** Sidebar modules → their routes (status dot) → for the open route, its documentation sections. */
+function ModuleTree({ active, filter }: { active: string; filter: string }) {
+  const [reg, setReg] = useState<any>(null);
+  const [err, setErr] = useState<any>(null);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  useEffect(() => { getJson(`${API}/registry`).then(setReg).catch(setErr); }, []);
+  if (err) return <NotGenerated err={err} />;
+  if (!reg) return <p className="text-xs text-slate-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading modules…</p>;
+  const f = filter.toLowerCase();
+  return (
+    <ul className="space-y-1">
+      {reg.modules.map((m: any) => {
+        const routes = m.routes.filter((r: any) => !f || r.url.toLowerCase().includes(f) || (r.label || '').toLowerCase().includes(f) || m.label.toLowerCase().includes(f));
+        if (!routes.length) return null;
+        const isOpen = open[m.key] ?? (routes.some((r: any) => r.url === active) || !!f);
+        const done = m.routes.filter((r: any) => r.status === 'DOCUMENTED' || r.status === 'VERIFIED').length;
+        return (
+          <li key={m.key}>
+            <button onClick={() => setOpen({ ...open, [m.key]: !isOpen })} className="flex w-full items-center gap-1 rounded-md px-1 py-1 text-left text-xs hover:bg-slate-800/70">
+              {isOpen ? <ChevronDown className="w-3 h-3 text-slate-500" /> : <ChevronRight className="w-3 h-3 text-slate-500" />}
+              <span className={`flex-1 truncate ${m.inSidebar ? 'font-semibold text-slate-200' : 'text-slate-400'}`}>{m.label}</span>
+              <span className="text-[10px] text-slate-500 tabular-nums" title="documented / routes">{done}/{m.routes.length}</span>
+            </button>
+            {isOpen && (
+              <ul className="ml-3 border-l border-slate-800 pl-1">
+                {routes.map((r: any) => (
+                  <li key={r.url}>
+                    <Link href={routeHref(r.url)} title={`${r.url} — ${r.status}`}
+                      className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs ${r.url === active ? 'bg-indigo-500/15 text-indigo-200 font-semibold' : 'text-slate-300 hover:bg-slate-800/70'}`}>
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[r.status]}`} />
+                      <span className="truncate">{r.label ? `${r.label}` : r.url}</span>
+                    </Link>
+                    {r.url === active && r.status !== 'NOT STARTED' && (
+                      <ul className="ml-4 mb-1">
+                        {ROUTE_SECTIONS.map(([id, label]) => <li key={id}><a href={`#${id}`} className="block px-1.5 text-[11px] text-slate-500 hover:text-indigo-300">{label}</a></li>)}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function RouteTree({ active, kind, setKind }: { active: string; kind: TreeKind; setKind: (k: TreeKind) => void }) {
   const [data, setData] = useState<any>(null);
   const [err, setErr] = useState<any>(null);
   const [filter, setFilter] = useState('');
   useEffect(() => {
+    if (kind === 'modules') return;
     setData(null);
     getJson(`${API}/tree?kind=${kind}`).then(setData).catch(setErr);
   }, [kind]);
@@ -240,18 +300,19 @@ function RouteTree({ active, kind, setKind }: { active: string; kind: 'page' | '
   return (
     <div className="flex flex-col min-h-0 h-full">
       <div className="flex gap-1 mb-2">
-        {(['page', 'api'] as const).map((k) => (
+        {(['modules', 'page', 'api'] as const).map((k) => (
           <button key={k} onClick={() => setKind(k)} className={`flex-1 inline-flex items-center justify-center gap-1 text-xs py-1.5 rounded-md border ${kind === k ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200' : 'border-slate-800 text-slate-400'}`}>
-            {k === 'page' ? <Monitor className="w-3 h-3" /> : <Server className="w-3 h-3" />}{k === 'page' ? `Pages${data && kind === 'page' ? ` (${data.routes.length})` : ''}` : `API${data && kind === 'api' ? ` (${data.routes.length})` : ''}`}
+            {k === 'modules' ? <FolderTree className="w-3 h-3" /> : k === 'page' ? <Monitor className="w-3 h-3" /> : <Server className="w-3 h-3" />}{k === 'modules' ? 'Modules' : k === 'page' ? 'URLs' : 'API'}
           </button>
         ))}
       </div>
       <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter the tree…" aria-label="Filter the route tree"
         className="mb-2 w-full rounded-md bg-slate-900 border border-slate-800 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-600 outline-none focus:border-indigo-600" />
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-        {err && <NotGenerated err={err} />}
-        {!data && !err && <p className="text-xs text-slate-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading tree…</p>}
-        {tree && <ul><TreeItem node={tree} active={active} depth={0} filter={filter.toLowerCase()} openAll /></ul>}
+        {kind === 'modules' && <ModuleTree active={active} filter={filter} />}
+        {kind !== 'modules' && err && <NotGenerated err={err} />}
+        {kind !== 'modules' && !data && !err && <p className="text-xs text-slate-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading tree…</p>}
+        {kind !== 'modules' && tree && <ul><TreeItem node={tree} active={active} depth={0} filter={filter.toLowerCase()} openAll /></ul>}
       </div>
     </div>
   );
@@ -267,8 +328,8 @@ function NotGenerated({ err }: { err: any }) {
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
-export function ExplorerShell({ active, children, defaultKind = 'page' }: { active: string; children: React.ReactNode; defaultKind?: 'page' | 'api' }) {
-  const [kind, setKind] = useState<'page' | 'api'>(defaultKind);
+export function ExplorerShell({ active, children, defaultKind = 'modules' }: { active: string; children: React.ReactNode; defaultKind?: TreeKind }) {
+  const [kind, setKind] = useState<TreeKind>(defaultKind);
   useEffect(() => setKind(defaultKind), [defaultKind]);
   return (
     <div className="max-w-[90rem] mx-auto px-4 py-6">
@@ -506,7 +567,7 @@ export function RouteView({ url }: { url: string }) {
 
   const crumbs = url.split('/').filter(Boolean).map((seg, i, all) => ({ seg, url: '/' + all.slice(0, i + 1).join('/') }));
   return (
-    <ExplorerShell active={url} defaultKind={url.startsWith('/api/') ? 'api' : 'page'}>
+    <ExplorerShell active={url} defaultKind={url.startsWith('/api/') ? 'api' : 'modules'}>
       <nav aria-label="Breadcrumb" className="text-xs text-slate-500 mb-2 flex flex-wrap items-center gap-1">
         <Link href={routeHref('/')} className="hover:text-indigo-300">/</Link>
         {crumbs.map((c) => <React.Fragment key={c.url}><ChevronRight className="w-3 h-3" /><Link href={routeHref(c.url)} className="hover:text-indigo-300">{c.seg}</Link></React.Fragment>)}
@@ -520,6 +581,16 @@ export function RouteView({ url }: { url: string }) {
             {d.node.public && <span className="text-amber-300">public (no session required)</span>}
             {isApi && <span className="font-mono">{(d.file.httpMethods || []).join(' · ')}</span>}
           </>} />
+          {d.routeDoc ? (
+            <RouteDocument routeDoc={d.routeDoc} walkthrough={d.walkthrough || []} />
+          ) : (
+            <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm text-slate-400">
+              <DocStatus status="NOT STARTED" />
+              This route has no hand-written implementation document yet — only the generated analysis below.
+              <Link href="/control/docs/registry" className="text-indigo-300 hover:underline">Coverage registry</Link>
+            </div>
+          )}
+          <h2 className="mt-12 border-t border-slate-800 pt-6 text-xs font-bold uppercase tracking-wider text-slate-500">Generated analysis (rebuilt from the code on every build)</h2>
           <OnThisPage isApi={isApi} />
           <Guide target={url} />
           <Purpose f={d.file} />
@@ -708,7 +779,7 @@ export function FileView({ path }: { path: string }) {
   const routeUrl = d?.file.route && (d.file.route.special === 'page' || d.file.route.special === 'route') ? d.file.route.url : null;
   const parts = path.split('/');
   return (
-    <ExplorerShell active={routeUrl || ''} defaultKind={path.startsWith('src/app/api/') ? 'api' : 'page'}>
+    <ExplorerShell active={routeUrl || ''} defaultKind={path.startsWith('src/app/api/') ? 'api' : 'modules'}>
       <nav aria-label="Breadcrumb" className="text-xs text-slate-500 mb-2 flex flex-wrap items-center gap-1 font-mono">
         {parts.map((p, i) => <React.Fragment key={i}>{i > 0 && <span>/</span>}<span className={i === parts.length - 1 ? 'text-slate-300' : ''}>{p}</span></React.Fragment>)}
       </nav>
@@ -720,6 +791,14 @@ export function FileView({ path }: { path: string }) {
           <Header f={d.file} commit={d.commit} title={parts[parts.length - 1]} sub={routeUrl && (
             <button onClick={() => router.push(routeHref(routeUrl))} className="text-indigo-300 hover:underline">route view: {routeUrl}</button>
           )} />
+          {d.notesFrom?.length > 0 && d.source && (
+            <section className="mt-6 rounded-xl border border-indigo-900/60 bg-indigo-950/10 p-4">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+                Explained in {d.notesFrom.map((r: string) => <Link key={r} href={routeHref(r)} className="ml-1 normal-case text-indigo-200 hover:underline">{r}</Link>)}
+              </p>
+              <FileWalkthrough path={path} info={d.file} source={d.source} notes={d.notes} />
+            </section>
+          )}
           <Guide target={path} />
           <Purpose f={d.file} />
           <Section id="dependants" title={`Used by (${d.dependantCount})`} status={d.dependantCount ? 'derived' : 'none-found'}>

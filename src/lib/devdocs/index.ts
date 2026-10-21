@@ -10,6 +10,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DOCS } from '@/app/control/docs/registry';
 import { GUIDE_INDEX } from '@/app/control/docs/routes/guide-index';
+import { ROUTE_DOCS } from '@/app/control/docs/routes/docs';
+import { routeDocStatus, fileCoverage, type RouteDoc, type RouteDocStatus } from './route-doc';
+import { createHash } from 'node:crypto';
 
 export type Completeness = Record<string, 'derived' | 'none-found' | 'needs-review' | 'inherited' | 'related-only'>;
 
@@ -224,3 +227,67 @@ export function routeTree(index: DevIndex, kind: 'page' | 'api') {
     }))
     .sort((a, b) => a.url.localeCompare(b.url));
 }
+
+// ─── Hand-written route documentation + coverage registry ────────────────────
+
+
+export function routeDocFor(index: DevIndex, url: string) {
+  const doc = ROUTE_DOCS.find((d) => d.route === url);
+  return doc ? { doc, ...routeDocStatus(doc, index.files) } : null;
+}
+
+/** Notes for one file, merged from every route doc that explains it (shared components are explained once). */
+export function notesForFile(file: string): { notes: Record<string, string>; from: string[] } {
+  const notes: Record<string, string> = {};
+  const from: string[] = [];
+  for (const d of ROUTE_DOCS) {
+    const n = d.notes[file];
+    if (n) { Object.assign(notes, n); from.push(d.route); }
+  }
+  return { notes, from };
+}
+
+/** Source text of one file, from the snapshot written by the generator. */
+export function sourceText(file: string): string | null {
+  const p = path.join(process.cwd(), 'src/generated/devdocs/source', createHash('sha1').update(file).digest('hex').slice(0, 16) + '.txt');
+  try { return fs.readFileSync(p, 'utf8'); } catch { return null; }
+}
+
+export interface RegistryRoute { url: string; label: string | null; status: RouteDocStatus; reasons: string[]; files: number; units: number; explained: number }
+
+/**
+ * The coverage registry: every page route, grouped by sidebar module (sidebar order, then
+ * "not in the sidebar" groups by first URL segment), with its documentation status and how
+ * many code units (imports, declarations, members) of its own page file are explained.
+ */
+export function registry(index: DevIndex & { modules?: Array<{ key: string; label: string; hrefs: string[] }> }) {
+  const pages = Object.values(index.routes).filter((r) => r.kind === 'page');
+  const groups = new Map<string, { key: string; label: string; inSidebar: boolean; routes: RegistryRoute[] }>();
+  for (const m of index.modules || []) groups.set(m.key, { key: m.key, label: m.label, inSidebar: true, routes: [] });
+  for (const r of pages) {
+    const key = (r as any).module || `unlisted:${r.url.split('/')[1] || '(root)'}`;
+    if (!groups.has(key)) groups.set(key, { key, label: key === 'unlisted:control' ? 'Control Center (its own sidebar)' : `/${key.slice('unlisted:'.length)} — not in the sidebar`, inSidebar: false, routes: [] });
+    const found = routeDocFor(index, r.url);
+    const pageFile = index.files[r.files.page!];
+    const cov = fileCoverage(pageFile, notesForFile(r.files.page!).notes);
+    groups.get(key)!.routes.push({
+      url: r.url, label: r.navLabel || null,
+      status: found?.status ?? 'NOT STARTED', reasons: found?.reasons ?? [],
+      files: found?.doc.files.length ?? 0, units: cov.required, explained: cov.explained,
+    });
+  }
+  const list = [...groups.values()].filter((g) => g.routes.length);
+  for (const g of list) g.routes.sort((a, b) => a.url.localeCompare(b.url));
+  const totals: Record<string, number> = { 'NOT STARTED': 0, 'IN PROGRESS': 0, DOCUMENTED: 0, 'NEEDS REVIEW': 0, VERIFIED: 0 };
+  for (const g of list) for (const r of g.routes) totals[r.status]++;
+  // File-level: how many source files have every unit explained by some doc.
+  let filesFull = 0; let unitsAll = 0; let unitsExplained = 0;
+  for (const f of Object.values(index.files)) {
+    const c = fileCoverage(f, notesForFile(f.file).notes);
+    unitsAll += c.required; unitsExplained += c.explained;
+    if (c.required && !c.missing.length) filesFull++;
+  }
+  return { modules: list, totals, pages: pages.length, files: { total: Object.keys(index.files).length, fullyExplained: filesFull, units: unitsAll, unitsExplained } };
+}
+
+export type { RouteDoc };

@@ -139,6 +139,41 @@ export function FiveQuestions({
   );
 }
 
+/**
+ * "Routes in this module" — the module overview's link down to every route's own
+ * implementation document, with its status from the coverage registry (live, not typed).
+ */
+function ModuleRoutes({ modules }: { modules: string[] }) {
+  const [reg, setReg] = React.useState<any>(null);
+  React.useEffect(() => {
+    fetch('/api/control-center/docs/registry', { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).then(setReg).catch(() => setReg(null));
+  }, []);
+  const groups = (reg?.modules || []).filter((m: any) => modules.includes(m.key));
+  if (!groups.length) return null;
+  const href = (url: string) => `/control/docs/routes${url.split('/').map(encodeURIComponent).join('/')}`;
+  return (
+    <div className="not-prose mt-6 rounded-xl border border-indigo-900/60 bg-indigo-950/20 p-4">
+      <p className="text-sm font-bold text-slate-100">Routes in this module — one implementation document each</p>
+      <p className="mt-0.5 text-xs text-slate-400">This page explains the module. Each route below is explained line by line on its own page. <Link href="/control/docs/registry" className="text-indigo-300 hover:underline">Coverage registry</Link></p>
+      {groups.map((g: any) => (
+        <div key={g.key} className="mt-3">
+          {groups.length > 1 && <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">{g.label}</p>}
+          <ul className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            {g.routes.map((r: any) => (
+              <li key={r.url} className="flex items-center gap-2 text-xs">
+                <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${r.status === 'VERIFIED' ? 'bg-emerald-400' : r.status === 'DOCUMENTED' ? 'bg-sky-400' : r.status === 'NEEDS REVIEW' ? 'bg-rose-400' : r.status === 'IN PROGRESS' ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                <Link href={href(r.url)} className="truncate font-mono text-indigo-300 hover:underline">{r.url}</Link>
+                {r.label && <span className="truncate text-slate-500">{r.label}</span>}
+                <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wider text-slate-500">{r.status}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
 export default function ControlDoc({ slug, children }: { slug: string; children: React.ReactNode }) {
@@ -170,6 +205,7 @@ export default function ControlDoc({ slug, children }: { slug: string; children:
           </div>
         </>
       )}
+      {meta?.modules && <ModuleRoutes modules={meta.modules} />}
 
       <div className="flex gap-10 mt-8">
         <nav className="hidden lg:block w-60 shrink-0">

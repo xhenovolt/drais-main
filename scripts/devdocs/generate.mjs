@@ -45,6 +45,15 @@ const out = { generatedAt: new Date().toISOString(), commit, stats, ...index };
 const dest = path.join(root, 'src/generated/devdocs/index.json');
 fs.mkdirSync(path.dirname(dest), { recursive: true });
 fs.writeFileSync(dest, JSON.stringify(out));
+// Source snapshots, one file each, so a route page can show the real code beside its
+// explanation without loading every file. Named by a hash of the path.
+const srcDir = path.join(root, 'src/generated/devdocs/source');
+fs.rmSync(srcDir, { recursive: true, force: true });
+fs.mkdirSync(srcDir, { recursive: true });
+const { createHash } = await import('node:crypto');
+for (const f of Object.keys(index.files)) {
+  fs.writeFileSync(path.join(srcDir, createHash('sha1').update(f).digest('hex').slice(0, 16) + '.txt'), fs.readFileSync(path.join(root, f)));
+}
 const kb = Math.round(fs.statSync(dest).size / 1024);
 console.log(`[devdocs] ${stats.pages} pages, ${stats.apiRoutes} API routes, ${stats.files} files → ${path.relative(root, dest)} (${kb} kB, ${Date.now() - t0} ms)`);
 if (process.argv.includes('--stats')) console.log(JSON.stringify(stats, null, 2));
