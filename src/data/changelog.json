@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:03:20.816Z",
-  "last_commit": "ced9074236c5c785d14d014f4c092d41e4741552",
+  "generated_at": "2026-10-21T09:17:16.062Z",
+  "last_commit": "9d927109e47a3f4bddec2ec3198ba6ae34402b0a",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10684,7 +10684,20 @@
         }
       ],
       "commit": "ced9074236"
+    },
+    {
+      "version": "2.50.159",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance implementation document; shared files explained once count everywhere",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance implementation document; shared files explained once count everywhere"
+        }
+      ],
+      "commit": "9d927109e4"
     }
   ],
-  "app_version": "2.50.159"
+  "app_version": "2.50.160"
 }
