@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:26:03.606Z",
-  "last_commit": "4cd6952a003c5f06bb4292d5cb95ce458839de46",
+  "generated_at": "2026-10-21T09:29:57.128Z",
+  "last_commit": "270f58f82d7b53a5cfcad4952854fa650d77e0b6",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10723,7 +10723,20 @@
         }
       ],
       "commit": "4cd6952a00"
+    },
+    {
+      "version": "2.50.162",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/shifts implementation document",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/shifts implementation document"
+        }
+      ],
+      "commit": "270f58f82d"
     }
   ],
-  "app_version": "2.50.162"
+  "app_version": "2.50.163"
 }
