@@ -233,7 +233,7 @@ export function routeTree(index: DevIndex, kind: 'page' | 'api') {
 
 export function routeDocFor(index: DevIndex, url: string) {
   const doc = ROUTE_DOCS.find((d) => d.route === url);
-  return doc ? { doc, ...routeDocStatus(doc, index.files) } : null;
+  return doc ? { doc, ...routeDocStatus(doc, index.files, ROUTE_DOCS) } : null;
 }
 
 /** Notes for one file, merged from every route doc that explains it (shared components are explained once). */

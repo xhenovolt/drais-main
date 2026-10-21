@@ -6,8 +6,10 @@
 import type { RouteDoc } from '@/lib/devdocs/route-doc';
 import dashboard from './dashboard';
 import dashboardAnalytics from './dashboard-analytics';
+import attendance from './attendance';
 
 export const ROUTE_DOCS: RouteDoc[] = [
   dashboard,
   dashboardAnalytics,
+  attendance,
 ];

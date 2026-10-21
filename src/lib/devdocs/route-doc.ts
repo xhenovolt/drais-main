@@ -96,7 +96,12 @@ export function fileCoverage(file: any, notes: Record<string, string> | undefine
   return { required: required.length, explained: required.length - missing.length, missing, unknown };
 }
 
-export function routeDocStatus(doc: RouteDoc | undefined, files: Record<string, any>): { status: RouteDocStatus; reasons: string[] } {
+/** A file's notes merged from every document — a shared component is explained once and counts everywhere. */
+export function mergedNotes(docs: RouteDoc[], file: string): Record<string, string> {
+  return Object.assign({}, ...docs.map((d) => d.notes[file] || {}));
+}
+
+export function routeDocStatus(doc: RouteDoc | undefined, files: Record<string, any>, allDocs: RouteDoc[] = doc ? [doc] : []): { status: RouteDocStatus; reasons: string[] } {
   if (!doc) return { status: 'NOT STARTED', reasons: [] };
   const reasons: string[] = [];
   for (const s of REQUIRED_SECTIONS) {
@@ -106,12 +111,13 @@ export function routeDocStatus(doc: RouteDoc | undefined, files: Record<string, 
   for (const f of doc.files) {
     const info = files[f.path];
     if (!info) { reasons.push(`file no longer exists: ${f.path}`); continue; }
-    const cov = fileCoverage(info, doc.notes[f.path]);
+    const cov = fileCoverage(info, mergedNotes(allDocs, f.path));
     if (cov.missing.length) reasons.push(`${f.path}: ${cov.missing.length} of ${cov.required} units unexplained`);
     if (cov.unknown.length) reasons.push(`${f.path}: notes for code that no longer exists — ${cov.unknown.slice(0, 5).join(', ')}`);
   }
   if (reasons.length) return { status: 'IN PROGRESS', reasons };
-  const changed = doc.files.filter((f) => doc.reviewed[f.path] !== files[f.path]?.sha).map((f) => f.path);
+  // Only files this doc reviewed itself (shared files explained elsewhere are pinned by that doc).
+  const changed = doc.files.filter((f) => doc.reviewed[f.path] && doc.reviewed[f.path] !== files[f.path]?.sha).map((f) => f.path);
   if (changed.length) return { status: 'NEEDS REVIEW', reasons: changed.map((p) => `changed since review: ${p}`) };
   return doc.verified ? { status: 'VERIFIED', reasons: [] } : { status: 'DOCUMENTED', reasons: ['practical QA not yet recorded'] };
 }

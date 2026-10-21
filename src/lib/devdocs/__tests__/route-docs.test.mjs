@@ -13,7 +13,7 @@ describe('route documents', () => {
   before(() => {
     ix = buildIndex(process.cwd());
     const counts = {};
-    for (const d of ROUTE_DOCS) { const s = routeDocStatus(d, ix.files).status; counts[s] = (counts[s] || 0) + 1; }
+    for (const d of ROUTE_DOCS) { const s = routeDocStatus(d, ix.files, ROUTE_DOCS).status; counts[s] = (counts[s] || 0) + 1; }
     console.log('[route-docs]', ROUTE_DOCS.length, 'documents', JSON.stringify(counts));
   });
 
@@ -29,7 +29,7 @@ describe('route documents', () => {
   it('names only files that exist, each with a reviewed hash', () => {
     for (const d of ROUTE_DOCS) for (const f of d.files) {
       assert.ok(ix.files[f.path], `${d.route}: file no longer exists: ${f.path}`);
-      assert.match(d.reviewed[f.path] || '', /^[0-9a-f]{12}$/, `${d.route}: no reviewed hash for ${f.path}`);
+      if (!f.shared || d.notes[f.path]) assert.match(d.reviewed[f.path] || '', /^[0-9a-f]{12}$/, `${d.route}: no reviewed hash for ${f.path}`);
     }
   });
 
