@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:17:16.062Z",
-  "last_commit": "9d927109e47a3f4bddec2ec3198ba6ae34402b0a",
+  "generated_at": "2026-10-21T09:21:10.550Z",
+  "last_commit": "80560627629d2f7157ce6b61b566b7873bbd8b27",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10697,7 +10697,20 @@
         }
       ],
       "commit": "9d927109e4"
+    },
+    {
+      "version": "2.50.160",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/logs implementation document",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/logs implementation document"
+        }
+      ],
+      "commit": "8056062762"
     }
   ],
-  "app_version": "2.50.160"
+  "app_version": "2.50.161"
 }
