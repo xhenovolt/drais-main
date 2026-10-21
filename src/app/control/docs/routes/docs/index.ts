@@ -9,6 +9,7 @@ import dashboardAnalytics from './dashboard-analytics';
 import attendance from './attendance';
 import attendanceLogs from './attendance-logs';
 import attendanceLessons from './attendance-lessons';
+import attendanceShifts from './attendance-shifts';
 
 export const ROUTE_DOCS: RouteDoc[] = [
   dashboard,
@@ -16,4 +17,5 @@ export const ROUTE_DOCS: RouteDoc[] = [
   attendance,
   attendanceLogs,
   attendanceLessons,
+  attendanceShifts,
 ];

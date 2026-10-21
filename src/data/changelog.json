@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:21:10.550Z",
-  "last_commit": "80560627629d2f7157ce6b61b566b7873bbd8b27",
+  "generated_at": "2026-10-21T09:26:03.606Z",
+  "last_commit": "4cd6952a003c5f06bb4292d5cb95ce458839de46",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10710,7 +10710,20 @@
         }
       ],
       "commit": "8056062762"
+    },
+    {
+      "version": "2.50.161",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/lessons implementation document",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/lessons implementation document"
+        }
+      ],
+      "commit": "4cd6952a00"
     }
   ],
-  "app_version": "2.50.161"
+  "app_version": "2.50.162"
 }
