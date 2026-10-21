@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:42:22.427Z",
-  "last_commit": "b09591e3748679047c9daf9dfaaadb53aa0acce8",
+  "generated_at": "2026-10-21T09:46:18.497Z",
+  "last_commit": "e7fa67878cc3bfdc6db87da79d965b13b66fbe86",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10788,7 +10788,20 @@
         }
       ],
       "commit": "b09591e374"
+    },
+    {
+      "version": "2.50.167",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/profiles and /attendance/trace documents",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/profiles and /attendance/trace documents"
+        }
+      ],
+      "commit": "e7fa67878c"
     }
   ],
-  "app_version": "2.50.167"
+  "app_version": "2.50.168"
 }

@@ -17,6 +17,7 @@ import attendanceFounder from './attendance-founder-independence';
 import attendanceTrends from './attendance-trends';
 import attendanceProfiles from './attendance-profiles';
 import attendanceTrace from './attendance-trace';
+import attendanceBiometricUnassigned from './attendance-biometric-unassigned';
 
 export const ROUTE_DOCS: RouteDoc[] = [
   dashboard,
@@ -32,4 +33,5 @@ export const ROUTE_DOCS: RouteDoc[] = [
   attendanceTrends,
   attendanceProfiles,
   attendanceTrace,
+  attendanceBiometricUnassigned,
 ];
