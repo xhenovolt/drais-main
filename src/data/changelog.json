@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:29:57.128Z",
-  "last_commit": "270f58f82d7b53a5cfcad4952854fa650d77e0b6",
+  "generated_at": "2026-10-21T09:32:12.035Z",
+  "last_commit": "28cde81a4c5a954b1e27c8a2d0d81feaa62e7559",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10736,7 +10736,20 @@
         }
       ],
       "commit": "270f58f82d"
+    },
+    {
+      "version": "2.50.163",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/holidays implementation document",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/holidays implementation document"
+        }
+      ],
+      "commit": "28cde81a4c"
     }
   ],
-  "app_version": "2.50.163"
+  "app_version": "2.50.164"
 }
