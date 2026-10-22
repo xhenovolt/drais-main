@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-21T09:46:18.497Z",
-  "last_commit": "e7fa67878cc3bfdc6db87da79d965b13b66fbe86",
+  "generated_at": "2026-10-22T09:48:31.464Z",
+  "last_commit": "416e80b559213e6700d5eb8f94eb27fdc271cd59",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10801,7 +10801,20 @@
         }
       ],
       "commit": "e7fa67878c"
+    },
+    {
+      "version": "2.50.168",
+      "date": "2026-10-21",
+      "release_type": "patch",
+      "title": "/attendance/biometric/unassigned implementation document",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "/attendance/biometric/unassigned implementation document"
+        }
+      ],
+      "commit": "416e80b559"
     }
   ],
-  "app_version": "2.50.168"
+  "app_version": "2.50.169"
 }

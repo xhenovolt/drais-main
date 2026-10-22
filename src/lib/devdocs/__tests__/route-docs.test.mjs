@@ -6,14 +6,17 @@ import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildIndex } from '../../../../scripts/devdocs/analyze.mjs';
 import { ROUTE_DOCS } from '../../../app/control/docs/routes/docs/index.ts';
-import { fileCoverage, routeDocStatus, REQUIRED_SECTIONS } from '../route-doc.ts';
+import fs from 'node:fs';
+import { fileCoverage, routeDocStatus, lineCoverage, mergedNotes, REQUIRED_SECTIONS } from '../route-doc.ts';
+
+const readSource = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } };
 
 describe('route documents', () => {
   let ix;
   before(() => {
     ix = buildIndex(process.cwd());
     const counts = {};
-    for (const d of ROUTE_DOCS) { const s = routeDocStatus(d, ix.files, ROUTE_DOCS).status; counts[s] = (counts[s] || 0) + 1; }
+    for (const d of ROUTE_DOCS) { const s = routeDocStatus(d, ix.files, ROUTE_DOCS, readSource).status; counts[s] = (counts[s] || 0) + 1; }
     console.log('[route-docs]', ROUTE_DOCS.length, 'documents', JSON.stringify(counts));
   });
 
@@ -26,10 +29,12 @@ describe('route documents', () => {
     }
   });
 
-  it('names only files that exist, each with a reviewed hash', () => {
+  it('names only files that exist; every file it explains pins a reviewed hash', () => {
+    // A listed file with no notes yet is simply not reviewed yet — the status says IN PROGRESS.
+    // Pinning a hash without reading the file would claim a review that never happened.
     for (const d of ROUTE_DOCS) for (const f of d.files) {
       assert.ok(ix.files[f.path], `${d.route}: file no longer exists: ${f.path}`);
-      if (!f.shared || d.notes[f.path]) assert.match(d.reviewed[f.path] || '', /^[0-9a-f]{12}$/, `${d.route}: no reviewed hash for ${f.path}`);
+      if (d.notes[f.path]) assert.match(d.reviewed[f.path] || '', /^[0-9a-f]{12}$/, `${d.route}: no reviewed hash for ${f.path}`);
     }
   });
 
@@ -38,6 +43,17 @@ describe('route documents', () => {
       assert.ok(d.files.some((f) => f.path === file), `${d.route}: notes for ${file}, which is not in its file map`);
       const { unknown } = fileCoverage(ix.files[file], notes);
       assert.deepEqual(unknown, [], `${d.route}: stale notes in ${file}`);
+    }
+  });
+
+  it('line notes are well-formed: inside the file, not overlapping, not crossing a unit', () => {
+    for (const d of ROUTE_DOCS) for (const f of d.files) {
+      const src = readSource(f.path);
+      if (!src || !Object.keys(d.notes[f.path] || {}).some((k) => k.startsWith('lines:'))) continue;
+      const lc = lineCoverage(ix.files[f.path], src, mergedNotes(ROUTE_DOCS, f.path));
+      assert.deepEqual(lc.invalid, [], `${d.route}: line notes outside ${f.path}`);
+      assert.deepEqual(lc.overlaps, [], `${d.route}: overlapping line notes in ${f.path}`);
+      assert.deepEqual(lc.crossing, [], `${d.route}: line notes crossing a unit boundary in ${f.path}`);
     }
   });
 

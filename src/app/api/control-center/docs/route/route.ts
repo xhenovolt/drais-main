@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const routeDoc = routeDocFor(c.index, url);
   const walkthrough = routeDoc
     ? routeDoc.doc.files.map((f) => ({
-        path: f.path, role: f.role, shared: f.shared,
+        path: f.path, role: f.role, shared: f.shared, lineLevel: !!f.lineLevel,
         info: c.index.files[f.path] || null,
         source: sourceText(f.path),
         notes: notesForFile(f.path).notes,

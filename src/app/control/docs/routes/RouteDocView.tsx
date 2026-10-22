@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import Link from 'next/link';
+import { lineRanges, unitSpans, codeLineNumbers, lineCoverage, compressLines, SHORT_UNIT_LINES, type LineRange } from '@/lib/devdocs/route-doc';
 
 const TAG: Record<string, string> = {
   defect: 'bg-rose-950/60 text-rose-300 border-rose-800/60',
@@ -100,7 +101,58 @@ function Code({ lines, from, to }: { lines: string[]; from: number; to: number }
   );
 }
 
-function Unit({ id, title, kind, note, lines, from, to, extra }: { id: string; title: string; kind: string; note?: string; lines: string[] | null; from: number; to: number; extra?: string }) {
+/** A unit whose code is explained line by line: consecutive slices, each beside its own note. */
+function LineSlices({ lines, from, to, ranges, notes, codeLines, strict, uncovered }: {
+  lines: string[]; from: number; to: number; ranges: LineRange[]; notes: Record<string, string>; codeLines: Set<number>; strict: boolean;
+  /** Line-level files: the code lines the coverage check reports as unexplained (only these are flagged). */
+  uncovered?: Set<number>;
+}) {
+  const slices: Array<{ from: number; to: number; key?: string }> = [];
+  let at = from;
+  for (const r of ranges) {
+    if (r.from > at) slices.push({ from: at, to: r.from - 1 });
+    slices.push({ from: r.from, to: Math.min(r.to, to), key: r.key });
+    at = Math.min(r.to, to) + 1;
+  }
+  if (at <= to) slices.push({ from: at, to });
+  return (
+    <div className="mt-2 space-y-1">
+      {slices.map((s) => {
+        const nums = Array.from({ length: s.to - s.from + 1 }, (_, i) => s.from + i);
+        const hasCode = nums.some((n) => codeLines.has(n));
+        // Blank / comment-only gap: nothing to explain and nothing worth a box.
+        if (!s.key && !hasCode) return null;
+        // A gap the unit note already explains (the unit's own opening / closing line): code only, no warning.
+        if (!s.key && uncovered && !nums.some((n) => uncovered.has(n))) return <Code key={s.from} lines={lines} from={s.from} to={s.to} />;
+        return (
+          <div key={s.from} id={s.key ? `L${s.from}` : undefined} className="scroll-mt-24 grid gap-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+            <Code lines={lines} from={s.from} to={s.to} />
+            <div className="min-w-0 text-sm">
+              {s.key ? <><p className="mb-0.5 font-mono text-[10px] text-slate-500">lines {s.from}{s.to !== s.from ? `–${s.to}` : ''}</p><Md text={notes[s.key]} /></>
+                : <p className={`rounded border p-2 text-xs ${strict ? 'border-rose-800/60 bg-rose-950/40 text-rose-300' : 'border-slate-800 text-slate-500'}`}>No line note for lines {s.from}–{s.to}.</p>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Unit({ id, title, kind, note, lines, from, to, extra, lineNotes }: {
+  id: string; title: string; kind: string; note?: string; lines: string[] | null; from: number; to: number; extra?: string;
+  lineNotes?: { ranges: LineRange[]; notes: Record<string, string>; codeLines: Set<number>; strict: boolean; uncovered?: Set<number> };
+}) {
+  if (lines && lineNotes && (lineNotes.ranges.length || lineNotes.strict)) {
+    return (
+      <div id={id} className="scroll-mt-24 border-t border-slate-800/70 py-4">
+        <p className="mb-1 font-mono text-xs text-slate-400">
+          <span className="text-slate-100">{title}</span> <span className="text-slate-500">· {kind} · lines {from}–{to}{extra ? ` · ${extra}` : ''}</span>
+        </p>
+        {note?.trim() ? <div className="max-w-3xl"><Md text={note} /></div> : <p className="rounded border border-rose-800/60 bg-rose-950/40 p-2 text-xs text-rose-300">Not yet explained. This unit counts against the route&apos;s coverage.</p>}
+        <LineSlices lines={lines} from={from} to={to} {...lineNotes} />
+      </div>
+    );
+  }
   return (
     <div id={id} className="scroll-mt-24 grid gap-3 border-t border-slate-800/70 py-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <div className="min-w-0">
@@ -116,12 +168,36 @@ function Unit({ id, title, kind, note, lines, from, to, extra }: { id: string; t
   );
 }
 
-export function FileWalkthrough({ path, info, source, notes, role }: { path: string; info: any; source: string | null; notes: Record<string, string>; role?: string }) {
+export function FileWalkthrough({ path, info, source, notes, role, lineLevel }: { path: string; info: any; source: string | null; notes: Record<string, string>; role?: string; lineLevel?: boolean }) {
   const lines = source ? source.split(/\r?\n/) : null;
   if (!info) return <p className="text-sm text-rose-300">This file no longer exists in the build — the documentation needs review.</p>;
   const imports = (info.imports || []).filter((i: any) => !i.typeOnly);
   const firstImport = Math.min(...imports.map((i: any) => i.line), Infinity);
   const lastImport = Math.max(...imports.map((i: any) => i.line), 0);
+  // Line notes: each goes to the innermost unit containing its first line; the rest render at the end.
+  const ranges = lineRanges(notes);
+  const spans = unitSpans(info);
+  const bySpan = new Map<string, LineRange[]>();
+  const loose: LineRange[] = [];
+  for (const r of ranges) {
+    const inner = spans.filter((s) => s.from <= r.from && r.from <= s.to).sort((a, b) => (a.to - a.from) - (b.to - b.from))[0];
+    if (inner) bySpan.set(inner.id, [...(bySpan.get(inner.id) || []), r]); else loose.push(r);
+  }
+  const codeLines = new Set(source ? codeLineNumbers(source) : []);
+  const spanById = new Map(spans.map((s) => [s.id, s]));
+  const allImportsNoted = imports.every((i: any) => notes[`import:${i.spec}`]?.trim());
+  const ln = (spanId: string) => {
+    const own = bySpan.get(spanId) || [];
+    if (!own.length) {
+      if (!lineLevel) return undefined;
+      // Already explained as a whole (see lineCoverage): short unit with a note, or fully noted imports.
+      const s = spanById.get(spanId);
+      if (spanId === 'imports' ? allImportsNoted : !!s && s.to - s.from + 1 <= SHORT_UNIT_LINES && !!notes[spanId]?.trim()) return undefined;
+    }
+    return { ranges: own, notes, codeLines, strict: !!lineLevel, uncovered: uncoveredSet };
+  };
+  const lc = lineLevel && source ? lineCoverage(info, source, notes) : null;
+  const uncoveredSet = lc ? new Set(lc.uncovered) : undefined;
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
@@ -129,11 +205,17 @@ export function FileWalkthrough({ path, info, source, notes, role }: { path: str
         <span className="text-xs text-slate-500">{info.lines} lines · {info.directive || (path.includes('/api/') ? 'server (API)' : 'module')}</span>
       </div>
       {role && <p className="mb-3 text-sm text-slate-400">{role}</p>}
+      {lc && (
+        <p className={`mb-3 text-xs ${lc.uncovered.length ? 'text-amber-300' : 'text-emerald-300'}`}>
+          Line-level: {lc.covered} of {lc.code} code lines explained
+          {lc.uncovered.length > 0 && <> · missing {compressLines(lc.uncovered).slice(0, 8).map((r) => <a key={r} href={`#L${r.split('–')[0]}`} className="ml-1 underline">{r}</a>)}{lc.uncovered.length > 8 ? ' …' : ''}</>}
+        </p>
+      )}
 
       {imports.length > 0 && (
         <div className="border-t border-slate-800/70 py-4">
           <p className="mb-2 font-mono text-xs text-slate-400"><span className="text-slate-100">Imports</span> · lines {firstImport}–{lastImport}</p>
-          {lines && <Code lines={lines} from={firstImport} to={lastImport} />}
+          {lines && (ln('imports') ? <LineSlices lines={lines} from={firstImport} to={lastImport} {...ln('imports')!} /> : <Code lines={lines} from={firstImport} to={lastImport} />)}
           <dl className="mt-3 space-y-2">
             {imports.map((i: any) => (
               <div key={i.spec} id={`${path}:import:${i.spec}`} className="grid gap-1 text-sm sm:grid-cols-[14rem_minmax(0,1fr)]">
@@ -148,15 +230,27 @@ export function FileWalkthrough({ path, info, source, notes, role }: { path: str
       {(info.declarations || []).map((d: any) => (
         <div key={d.name} className="mt-2">
           <Unit id={`${path}:${d.name}`} title={d.name} kind={d.kind + (d.exported ? ' (exported)' : '')} note={notes[d.name]} lines={lines}
-            from={d.start} to={d.members?.length ? Math.max(d.start, d.members[0].start - 1) : d.end} />
+            from={d.start} to={d.members?.length ? Math.max(d.start, d.members[0].start - 1) : d.end} lineNotes={ln(d.name)} />
           {(d.members || []).map((m: any) => (
             <div key={m.name} className="ml-0 border-l-2 border-indigo-900/50 pl-3 sm:ml-4">
               <Unit id={`${path}:${d.name}.${m.name}`} title={`${d.name} › ${m.name}`} kind={m.kind + (m.hook ? ` (${m.hook})` : '')}
-                note={notes[`${d.name}.${m.name}`]} lines={lines} from={m.start} to={m.end} extra={m.deps ? `deps ${m.deps}` : undefined} />
+                note={notes[`${d.name}.${m.name}`]} lines={lines} from={m.start} to={m.end} extra={m.deps ? `deps ${m.deps}` : undefined} lineNotes={ln(`${d.name}.${m.name}`)} />
             </div>
           ))}
         </div>
       ))}
+
+      {lines && loose.length > 0 && (
+        <div className="border-t border-slate-800/70 py-4">
+          <p className="mb-2 font-mono text-xs text-slate-400"><span className="text-slate-100">Lines between units</span></p>
+          {loose.map((r) => (
+            <div key={r.key} id={`L${r.from}`} className="scroll-mt-24 mb-2 grid gap-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+              <Code lines={lines} from={r.from} to={r.to} />
+              <div className="min-w-0 text-sm"><Md text={notes[r.key]} /></div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -214,7 +308,7 @@ export function RouteDocument({ routeDoc, walkthrough }: { routeDoc: { doc: any;
         <p className="mb-4 text-sm text-slate-400">Every import, top-level declaration and statement inside each component or hook, in source order, with the code on the left and what it does on the right.</p>
         {walkthrough.map((w) => (
           <div key={w.path} id={w.path} className="mb-10 scroll-mt-24 rounded-xl border border-slate-800 bg-slate-900/30 p-4">
-            <FileWalkthrough path={w.path} info={w.info} source={w.source} notes={w.notes} role={w.role} />
+            <FileWalkthrough path={w.path} info={w.info} source={w.source} notes={w.notes} role={w.role} lineLevel={w.lineLevel} />
           </div>
         ))}
       </Section>
